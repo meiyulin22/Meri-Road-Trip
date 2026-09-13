@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Geist } from "next/font/google";
 import "./globals.css";
 
@@ -8,9 +8,19 @@ const geistSans = Geist({
 });
 
 export const metadata: Metadata = {
+  applicationName: "Meri",
   title: "Meri — Outdoor intelligence for every trip",
-  description:
-    "A personal outdoor intelligence companion for planning with clarity and traveling with confidence.",
+  description: "Your Personal Outdoor Intelligence Companion",
+  manifest: "/manifest.webmanifest",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "default",
+    title: "Meri",
+  },
+};
+
+export const viewport: Viewport = {
+  themeColor: "#17352c",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
