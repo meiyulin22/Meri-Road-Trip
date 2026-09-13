@@ -6,10 +6,13 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "test": "tsx --test src/server/trip/trip-service.test.ts src/server/ai/trip-draft-extractor.test.ts",
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "next": "16.3.5",
+    "openai": "7.15.0",
     "pino": "^10.3.1",
     "react": "19.2.8",
     "react-dom": "19.2.8"
@@ -21,6 +24,7 @@
     "eslint": "^9",
     "eslint-config-next": "16.3.5",
     "pino-pretty": "^13.1.3",
+    "tsx": "^4.23.13",
     "typescript": "^5"
   }
 }

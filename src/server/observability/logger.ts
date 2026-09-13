@@ -7,6 +7,16 @@ export const logEvents = {
   httpRequestCompleted: "http.request.completed",
   httpRequestFailed: "http.request.failed",
   healthCheckCompleted: "health.check.completed",
+  tripCreated: "trip.created",
+  tripLoaded: "trip.loaded",
+  tripNotFound: "trip.not_found",
+  tripCreateFailed: "trip.create.failed",
+  tripLoadFailed: "trip.load.failed",
+  llmRequestStarted: "llm.request.started",
+  llmRequestCompleted: "llm.request.completed",
+  llmRequestFailed: "llm.request.failed",
+  llmRawOutput: "llm.raw_output",
+  llmOutputInvalid: "llm.output.invalid",
 } as const;
 
 const isDevelopment = process.env.NODE_ENV === "development";
