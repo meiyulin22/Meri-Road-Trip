@@ -1,4 +1,5 @@
 import OpenAI from "openai";
+import type { ChatCompletionCreateParamsNonStreaming } from "openai/resources/chat/completions";
 
 import { logger, logEvents } from "@/server/observability/logger";
 import { serializeError } from "@/server/observability/serialize-error";
@@ -21,6 +22,7 @@ export interface TripDraftModelResponse {
   readonly usage?: {
     readonly inputTokens: number;
     readonly outputTokens: number;
+    readonly reasoningTokens?: number;
     readonly totalTokens: number;
   };
 }
@@ -57,6 +59,10 @@ type KimiClientOptions = {
   debugRawOutput: boolean;
 };
 
+type KimiChatCompletionRequest = ChatCompletionCreateParamsNonStreaming & {
+  thinking: { type: "disabled" };
+};
+
 class KimiClient implements TripDraftModelClient {
   private readonly client: OpenAI;
 
@@ -86,7 +92,7 @@ class KimiClient implements TripDraftModelClient {
     );
 
     try {
-      const completion = await this.client.chat.completions.create({
+      const completionRequest: KimiChatCompletionRequest = {
         model: this.options.model,
         messages: [
           { role: "system", content: request.systemPrompt },
@@ -100,13 +106,19 @@ class KimiClient implements TripDraftModelClient {
             schema: request.jsonSchema,
           },
         },
-      });
+        thinking: { type: "disabled" },
+      };
+      const completion =
+        await this.client.chat.completions.create(completionRequest);
 
       const choice = completion.choices[0];
+      const reasoningTokens =
+        completion.usage?.completion_tokens_details?.reasoning_tokens;
       const usage = completion.usage
         ? {
             inputTokens: completion.usage.prompt_tokens,
             outputTokens: completion.usage.completion_tokens,
+            ...(reasoningTokens !== undefined ? { reasoningTokens } : {}),
             totalTokens: completion.usage.total_tokens,
           }
         : undefined;
