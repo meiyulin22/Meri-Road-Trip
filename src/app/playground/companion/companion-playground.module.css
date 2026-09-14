@@ -1,0 +1,248 @@
+.pageShell {
+  width: min(100% - 2rem, 58rem);
+  min-height: 100dvh;
+  margin: 0 auto;
+  padding: clamp(4rem, 10vw, 7rem) 0;
+  display: grid;
+  align-content: start;
+  gap: 1.5rem;
+}
+
+.intro,
+.controlCard,
+.notes {
+  border: 1px solid var(--line);
+  border-radius: 1.5rem;
+  background: var(--surface);
+  backdrop-filter: blur(12px);
+}
+
+.intro {
+  padding: clamp(2rem, 6vw, 4rem);
+}
+
+.eyebrow,
+.cardLabel {
+  color: var(--accent-dark);
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.intro h1 {
+  max-width: none;
+  margin-top: 1rem;
+  font-size: clamp(2.5rem, 8vw, 5rem);
+  line-height: 0.96;
+  letter-spacing: -0.06em;
+}
+
+.intro > p:last-child {
+  max-width: 43rem;
+  margin-top: 1.5rem;
+  color: var(--muted);
+  font-size: 1.05rem;
+  line-height: 1.7;
+}
+
+.controlCard,
+.notes {
+  padding: clamp(1.5rem, 5vw, 2.75rem);
+}
+
+.controlCard {
+  display: grid;
+  gap: 1.25rem;
+}
+
+.controlCard h2,
+.notes h2 {
+  margin-top: 0.5rem;
+  font-size: clamp(1.5rem, 4vw, 2.25rem);
+  letter-spacing: -0.04em;
+}
+
+.inputLabel {
+  display: grid;
+  gap: 0.55rem;
+  color: var(--muted);
+  font-size: 0.85rem;
+  font-weight: 650;
+}
+
+.textInput {
+  width: 100%;
+  min-height: 3.25rem;
+  padding: 0.8rem 0.95rem;
+  border: 1px solid var(--line);
+  border-radius: 0.8rem;
+  outline: none;
+  color: var(--foreground);
+  background: rgba(255, 255, 255, 0.72);
+  font: inherit;
+}
+
+.textInput:focus-visible {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 0.2rem rgba(201, 95, 61, 0.16);
+}
+
+.testButton {
+  width: fit-content;
+  min-height: 3rem;
+  padding: 0.75rem 1rem;
+  border: 0;
+  border-radius: 0.75rem;
+  color: #fffaf4;
+  background: var(--accent);
+  cursor: pointer;
+  font: inherit;
+  font-weight: 700;
+}
+
+.testButton:hover {
+  background: var(--accent-dark);
+}
+
+.testButton:focus-visible {
+  outline: 0.2rem solid rgba(201, 95, 61, 0.28);
+  outline-offset: 0.2rem;
+}
+
+.controlStatus {
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.walkExperiment {
+  padding-top: 1.25rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  border-top: 1px solid var(--line);
+}
+
+.motionStatus {
+  margin-top: 0.35rem;
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.walkButtons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.walkButton {
+  min-height: 2.75rem;
+  padding: 0.65rem 0.9rem;
+  border: 1px solid var(--line);
+  border-radius: 0.75rem;
+  color: var(--foreground);
+  background: rgba(255, 255, 255, 0.72);
+  cursor: pointer;
+  font: inherit;
+  font-weight: 700;
+}
+
+.walkButton:hover:not(:disabled) {
+  border-color: var(--accent);
+}
+
+.walkButton:focus-visible {
+  outline: 0.2rem solid rgba(201, 95, 61, 0.2);
+  outline-offset: 0.2rem;
+}
+
+.walkButton:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.notes ul {
+  margin-top: 1.25rem;
+  padding-left: 1.2rem;
+  color: var(--muted);
+  line-height: 1.8;
+}
+
+.companionLayer {
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+  pointer-events: none;
+}
+
+.companion {
+  position: absolute;
+  right: 1.5rem;
+  bottom: 1.5rem;
+  width: 4rem;
+  height: 4rem;
+  border-radius: 0.5rem;
+  background-image: url("/companion-playground-sprite.png");
+  background-position: 0 0;
+  background-repeat: no-repeat;
+  background-size: 16rem 4rem;
+  cursor: grab;
+  image-rendering: pixelated;
+  pointer-events: auto;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  animation: companionIdle 900ms steps(4) infinite;
+  filter: drop-shadow(0 0.3rem 0 rgba(23, 53, 44, 0.2));
+}
+
+.companion[data-dragging="true"] {
+  cursor: grabbing;
+}
+
+.companion[data-motion-state="walking"] {
+  animation-duration: 450ms;
+}
+
+@keyframes companionIdle {
+  from {
+    background-position: 0 0;
+  }
+
+  to {
+    background-position: -16rem 0;
+  }
+}
+
+@media (max-width: 560px) {
+  .pageShell {
+    width: min(100% - 1.25rem, 58rem);
+    padding: 2.5rem 0 7rem;
+  }
+
+  .testButton {
+    width: 100%;
+  }
+
+  .walkExperiment {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .walkButtons {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .companion {
+    right: 1rem;
+    bottom: 1rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .companion {
+    animation: none;
+  }
+}
