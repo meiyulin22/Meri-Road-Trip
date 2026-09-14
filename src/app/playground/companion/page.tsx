@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  useCallback,
   useEffect,
   useRef,
   useState,
@@ -22,13 +23,71 @@ type ActiveDrag = {
 };
 
 type WalkDirection = -1 | 1;
+type WalkSource = "manual" | "autonomous";
 type MotionState = "idle" | "walking";
 
-const WALK_DISTANCE_PX = 100;
+type MovementPlan = {
+  direction: WalkDirection;
+  distance: number;
+};
+
+const MANUAL_WALK_DISTANCE_PX = 100;
+const AUTONOMOUS_WALK_MIN_DISTANCE_PX = 60;
+const AUTONOMOUS_WALK_MAX_DISTANCE_PX = 100;
+const AUTONOMOUS_IDLE_MIN_MS = 4_000;
+const AUTONOMOUS_IDLE_MAX_MS = 8_000;
 const WALK_DURATION_MS = 1_400;
+const REDUCED_MOTION_QUERY = "(prefers-reduced-motion: reduce)";
 
 function clamp(value: number, minimum: number, maximum: number): number {
   return Math.min(Math.max(value, minimum), Math.max(minimum, maximum));
+}
+
+function randomInteger(minimum: number, maximum: number): number {
+  return Math.floor(Math.random() * (maximum - minimum + 1)) + minimum;
+}
+
+function getClampedPosition(bounds: DOMRect): Position {
+  return {
+    x: clamp(bounds.left, 0, window.innerWidth - bounds.width),
+    y: clamp(bounds.top, 0, window.innerHeight - bounds.height),
+  };
+}
+
+function chooseAutonomousMovement(bounds: DOMRect): MovementPlan | null {
+  const availableMovements = ([
+    {
+      direction: -1,
+      distance: Math.min(
+        AUTONOMOUS_WALK_MAX_DISTANCE_PX,
+        Math.floor(bounds.left),
+      ),
+    },
+    {
+      direction: 1,
+      distance: Math.min(
+        AUTONOMOUS_WALK_MAX_DISTANCE_PX,
+        Math.floor(window.innerWidth - bounds.right),
+      ),
+    },
+  ] satisfies MovementPlan[]).filter(
+    (movement) => movement.distance >= AUTONOMOUS_WALK_MIN_DISTANCE_PX,
+  );
+
+  if (availableMovements.length === 0) {
+    return null;
+  }
+
+  const movement =
+    availableMovements[randomInteger(0, availableMovements.length - 1)];
+
+  return {
+    direction: movement.direction,
+    distance: randomInteger(
+      AUTONOMOUS_WALK_MIN_DISTANCE_PX,
+      movement.distance,
+    ),
+  };
 }
 
 export default function CompanionPlaygroundPage() {
@@ -38,6 +97,15 @@ export default function CompanionPlaygroundPage() {
   const [position, setPosition] = useState<Position | null>(null);
   const [motionState, setMotionState] = useState<MotionState>("idle");
   const [isDragging, setIsDragging] = useState(false);
+  const [idleCycle, setIdleCycle] = useState(0);
+  const [isPageVisible, setIsPageVisible] = useState(
+    () => typeof document === "undefined" || document.visibilityState === "visible",
+  );
+  const [prefersReducedMotion, setPrefersReducedMotion] = useState(
+    () =>
+      typeof window !== "undefined" &&
+      window.matchMedia(REDUCED_MOTION_QUERY).matches,
+  );
   const [buttonPresses, setButtonPresses] = useState(0);
   const [inputValue, setInputValue] = useState("");
 
@@ -50,27 +118,41 @@ export default function CompanionPlaygroundPage() {
       }
     : undefined;
 
+  const commitPosition = useCallback(
+    (element: HTMLDivElement, nextPosition: Position) => {
+      element.style.left = `${nextPosition.x}px`;
+      element.style.top = `${nextPosition.y}px`;
+      element.style.right = "auto";
+      element.style.bottom = "auto";
+      setPosition(nextPosition);
+    },
+    [],
+  );
+
   useEffect(() => {
+    const motionPreference = window.matchMedia(REDUCED_MOTION_QUERY);
+
+    function handleVisibilityChange() {
+      setIsPageVisible(document.visibilityState === "visible");
+    }
+
+    function handleMotionPreferenceChange(event: MediaQueryListEvent) {
+      setPrefersReducedMotion(event.matches);
+    }
+
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    motionPreference.addEventListener("change", handleMotionPreferenceChange);
+
     return () => {
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+      motionPreference.removeEventListener(
+        "change",
+        handleMotionPreferenceChange,
+      );
       activeMovement.current?.cancel();
       activeMovement.current = null;
     };
   }, []);
-
-  function commitPosition(element: HTMLDivElement, nextPosition: Position) {
-    element.style.left = `${nextPosition.x}px`;
-    element.style.top = `${nextPosition.y}px`;
-    element.style.right = "auto";
-    element.style.bottom = "auto";
-    setPosition(nextPosition);
-  }
-
-  function getClampedPosition(bounds: DOMRect): Position {
-    return {
-      x: clamp(bounds.left, 0, window.innerWidth - bounds.width),
-      y: clamp(bounds.top, 0, window.innerHeight - bounds.height),
-    };
-  }
 
   function interruptMovement(element: HTMLDivElement): DOMRect {
     const bounds = element.getBoundingClientRect();
@@ -88,64 +170,129 @@ export default function CompanionPlaygroundPage() {
     return element.getBoundingClientRect();
   }
 
-  function startWalking(direction: WalkDirection) {
-    const element = companionElement.current;
+  const startWalking = useCallback(
+    (direction: WalkDirection, distance: number, source: WalkSource) => {
+      const element = companionElement.current;
 
-    if (!element || activeMovement.current) {
-      return;
-    }
+      if (!element || activeMovement.current || activeDrag.current) {
+        return;
+      }
 
-    const bounds = element.getBoundingClientRect();
-    const startPosition = getClampedPosition(bounds);
-    const targetPosition = {
-      x: clamp(
-        startPosition.x + direction * WALK_DISTANCE_PX,
-        0,
-        window.innerWidth - bounds.width,
-      ),
-      y: startPosition.y,
-    };
-    const travelDistance = targetPosition.x - startPosition.x;
+      const bounds = element.getBoundingClientRect();
+      const startPosition = getClampedPosition(bounds);
+      const targetPosition = {
+        x: clamp(
+          startPosition.x + direction * distance,
+          0,
+          window.innerWidth - bounds.width,
+        ),
+        y: startPosition.y,
+      };
+      const travelDistance = targetPosition.x - startPosition.x;
 
-    if (travelDistance === 0) {
-      return;
-    }
+      if (travelDistance === 0) {
+        return;
+      }
 
-    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
-      commitPosition(element, targetPosition);
-      return;
-    }
-
-    setMotionState("walking");
-
-    const movement = element.animate(
-      [
-        { transform: "translateX(0)" },
-        { transform: `translateX(${travelDistance}px)` },
-      ],
-      {
-        duration: WALK_DURATION_MS,
-        easing: "ease-in-out",
-        fill: "forwards",
-      },
-    );
-
-    activeMovement.current = movement;
-
-    movement.finished
-      .then(() => {
-        if (activeMovement.current !== movement) {
-          return;
+      if (window.matchMedia(REDUCED_MOTION_QUERY).matches) {
+        if (source === "manual") {
+          commitPosition(element, targetPosition);
         }
 
-        activeMovement.current = null;
-        movement.cancel();
-        commitPosition(element, targetPosition);
-        setMotionState("idle");
-      })
-      .catch(() => {
-        // Cancellation is expected when dragging interrupts automated movement.
-      });
+        return;
+      }
+
+      setMotionState("walking");
+
+      const movement = element.animate(
+        [
+          { transform: "translateX(0)" },
+          { transform: `translateX(${travelDistance}px)` },
+        ],
+        {
+          duration: WALK_DURATION_MS,
+          easing: "ease-in-out",
+          fill: "forwards",
+        },
+      );
+
+      activeMovement.current = movement;
+
+      movement.finished
+        .then(() => {
+          if (activeMovement.current !== movement) {
+            return;
+          }
+
+          activeMovement.current = null;
+          movement.cancel();
+          commitPosition(element, targetPosition);
+          setMotionState("idle");
+        })
+        .catch(() => {
+          if (activeMovement.current !== movement) {
+            return;
+          }
+
+          activeMovement.current = null;
+          setMotionState("idle");
+        });
+    },
+    [commitPosition],
+  );
+
+  useEffect(() => {
+    if (
+      motionState !== "idle" ||
+      isDragging ||
+      !isPageVisible ||
+      prefersReducedMotion
+    ) {
+      return;
+    }
+
+    const delay = randomInteger(
+      AUTONOMOUS_IDLE_MIN_MS,
+      AUTONOMOUS_IDLE_MAX_MS,
+    );
+    const timer = window.setTimeout(() => {
+      const element = companionElement.current;
+
+      if (
+        !element ||
+        activeMovement.current ||
+        activeDrag.current ||
+        document.visibilityState !== "visible" ||
+        window.matchMedia(REDUCED_MOTION_QUERY).matches
+      ) {
+        return;
+      }
+
+      const movement = chooseAutonomousMovement(
+        element.getBoundingClientRect(),
+      );
+
+      if (!movement) {
+        setIdleCycle((cycle) => cycle + 1);
+        return;
+      }
+
+      startWalking(movement.direction, movement.distance, "autonomous");
+    }, delay);
+
+    return () => window.clearTimeout(timer);
+  }, [
+    idleCycle,
+    isDragging,
+    isPageVisible,
+    motionState,
+    prefersReducedMotion,
+    startWalking,
+  ]);
+
+  function startManualWalk(direction: WalkDirection) {
+    setIdleCycle((cycle) => cycle + 1);
+    startWalking(direction, MANUAL_WALK_DISTANCE_PX, "manual");
   }
 
   function handlePointerDown(event: PointerEvent<HTMLDivElement>) {
@@ -200,6 +347,7 @@ export default function CompanionPlaygroundPage() {
 
     activeDrag.current = null;
     setIsDragging(false);
+    setIdleCycle((cycle) => cycle + 1);
 
     if (event.currentTarget.hasPointerCapture(event.pointerId)) {
       event.currentTarget.releasePointerCapture(event.pointerId);
@@ -209,11 +357,11 @@ export default function CompanionPlaygroundPage() {
   return (
     <main className={styles.pageShell}>
       <section className={styles.intro} aria-labelledby="playground-title">
-        <p className={styles.eyebrow}>Disposable experiment · Step 2</p>
+        <p className={styles.eyebrow}>Disposable experiment · Step 3</p>
         <h1 id="playground-title">Companion Playground</h1>
         <p>
-          Drag the temporary pixel companion, or trigger a short browser-native
-          WAAPI walk. The controls remain ordinary React UI beneath its layer.
+          The temporary pixel companion now waits calmly, occasionally walks
+          by itself, and still accepts manual walking or pointer dragging.
         </p>
       </section>
 
@@ -257,7 +405,7 @@ export default function CompanionPlaygroundPage() {
             <button
               className={styles.walkButton}
               disabled={motionState === "walking"}
-              onClick={() => startWalking(-1)}
+              onClick={() => startManualWalk(-1)}
               type="button"
             >
               Walk Left
@@ -265,7 +413,7 @@ export default function CompanionPlaygroundPage() {
             <button
               className={styles.walkButton}
               disabled={motionState === "walking"}
-              onClick={() => startWalking(1)}
+              onClick={() => startManualWalk(1)}
               type="button"
             >
               Walk Right
@@ -282,6 +430,7 @@ export default function CompanionPlaygroundPage() {
           <li>The enlarged artwork keeps hard, pixelated edges.</li>
           <li>Pointer capture keeps dragging active until release or cancel.</li>
           <li>WAAPI moves the same DOM element without replacing drag state.</li>
+          <li>A single quiet timer occasionally requests a short horizontal walk.</li>
         </ul>
       </section>
 
