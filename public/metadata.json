@@ -1,0 +1,36 @@
+{
+  "group_id": "c0385b48-1203-41fa-aa47-585de23d8f28",
+  "states": [
+    {
+      "character": {
+        "id": "9c6be77c-5f2f-4622-83ba-024417a9552c",
+        "name": "Idle",
+        "prompt": "Young male outdoor travel companion in his mid-20s, youthful and friendly appearance, clean-shaven, minimal facial details. Wearing a clean off-white lightweight technical sun hat, vivid alpine blue modern shell jacket, light gray relaxed hiking pants, dark hiking boots, a compact dark hiking backpack and one trekking pole. Modern lightweight outdoor style, energetic, curious and approachable. Slim youthful proportions with slightly longer legs and a clean readable silhouette. Contemporary outdoor traveler, not an old explorer, not a cowboy, not a ranger, not fantasy, not military, not sci-fi.",
+        "size": {
+          "width": 64,
+          "height": 64
+        },
+        "template_id": "mannequin",
+        "directions": 8,
+        "view": "side",
+        "created_at": "2026-09-15T03:11:41.052419+00:00"
+      },
+      "folder": "Idle",
+      "frames": {
+        "rotations": {
+          "south": "Idle/rotations/south.png",
+          "south-east": "Idle/rotations/south-east.png",
+          "east": "Idle/rotations/east.png",
+          "north-east": "Idle/rotations/north-east.png",
+          "north": "Idle/rotations/north.png",
+          "north-west": "Idle/rotations/north-west.png",
+          "west": "Idle/rotations/west.png",
+          "south-west": "Idle/rotations/south-west.png"
+        },
+        "animations": {}
+      }
+    }
+  ],
+  "export_version": "3.1",
+  "export_date": "2026-09-15T03:21:24.034034"
+}
