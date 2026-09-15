@@ -180,39 +180,42 @@
   position: absolute;
   right: 1.5rem;
   bottom: 1.5rem;
-  width: 4rem;
-  height: 4rem;
-  border-radius: 0.5rem;
-  background-image: url("/companion-playground-sprite.png");
-  background-position: 0 0;
-  background-repeat: no-repeat;
-  background-size: 16rem 4rem;
+  width: 64px;
+  height: 64px;
   cursor: grab;
-  image-rendering: pixelated;
   pointer-events: auto;
   touch-action: none;
   user-select: none;
   -webkit-user-select: none;
-  animation: companionIdle 900ms steps(4) infinite;
-  filter: drop-shadow(0 0.3rem 0 rgba(23, 53, 44, 0.2));
+  -webkit-touch-callout: none;
 }
 
 .companion[data-dragging="true"] {
   cursor: grabbing;
 }
 
-.companion[data-motion-state="walking"] {
-  animation-duration: 450ms;
+.companionImage {
+  position: absolute;
+  display: block;
+  max-width: none;
+  pointer-events: none;
+  image-rendering: pixelated;
+  user-select: none;
+  -webkit-user-drag: none;
 }
 
-@keyframes companionIdle {
-  from {
-    background-position: 0 0;
-  }
+.companionImage[data-motion-state="idle"],
+.companionImage[data-motion-state="turning"] {
+  inset: 0;
+  width: 64px;
+  height: 64px;
+}
 
-  to {
-    background-position: -16rem 0;
-  }
+.companionImage[data-motion-state="walking"] {
+  top: -10px;
+  left: -10px;
+  width: 84px;
+  height: 84px;
 }
 
 @media (max-width: 560px) {
@@ -238,11 +241,5 @@
   .companion {
     right: 1rem;
     bottom: 1rem;
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .companion {
-    animation: none;
   }
 }

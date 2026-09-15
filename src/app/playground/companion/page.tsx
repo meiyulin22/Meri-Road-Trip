@@ -23,12 +23,20 @@ type ActiveDrag = {
 };
 
 type WalkDirection = -1 | 1;
+type HorizontalFacingDirection = "east" | "west";
+type FacingDirection = "south" | HorizontalFacingDirection;
+type TurnPose = FacingDirection | "south-east" | "south-west";
 type WalkSource = "manual" | "autonomous";
-type MotionState = "idle" | "walking";
+type MotionState = "idle" | "turning" | "walking";
 
 type MovementPlan = {
   direction: WalkDirection;
   distance: number;
+};
+
+type ActiveTurn = {
+  source: WalkSource;
+  timeoutId: number | null;
 };
 
 const MANUAL_WALK_DISTANCE_PX = 100;
@@ -37,7 +45,15 @@ const AUTONOMOUS_WALK_MAX_DISTANCE_PX = 100;
 const AUTONOMOUS_IDLE_MIN_MS = 4_000;
 const AUTONOMOUS_IDLE_MAX_MS = 8_000;
 const WALK_DURATION_MS = 1_400;
+const TURN_POSE_DURATION_MS = 100;
 const REDUCED_MOTION_QUERY = "(prefers-reduced-motion: reduce)";
+const HORIZONTAL_TURN_PATH = [
+  "east",
+  "south-east",
+  "south",
+  "south-west",
+  "west",
+] as const satisfies readonly TurnPose[];
 
 function clamp(value: number, minimum: number, maximum: number): number {
   return Math.min(Math.max(value, minimum), Math.max(minimum, maximum));
@@ -52,6 +68,26 @@ function getClampedPosition(bounds: DOMRect): Position {
     x: clamp(bounds.left, 0, window.innerWidth - bounds.width),
     y: clamp(bounds.top, 0, window.innerHeight - bounds.height),
   };
+}
+
+function getTurnSequence(
+  currentFacing: FacingDirection,
+  targetFacing: HorizontalFacingDirection,
+): TurnPose[] {
+  if (currentFacing === targetFacing) {
+    return [];
+  }
+
+  const currentIndex = HORIZONTAL_TURN_PATH.indexOf(currentFacing);
+  const targetIndex = HORIZONTAL_TURN_PATH.indexOf(targetFacing);
+  const step = currentIndex < targetIndex ? 1 : -1;
+  const sequence: TurnPose[] = [];
+
+  for (let index = currentIndex + step; index !== targetIndex + step; index += step) {
+    sequence.push(HORIZONTAL_TURN_PATH[index]);
+  }
+
+  return sequence;
 }
 
 function chooseAutonomousMovement(bounds: DOMRect): MovementPlan | null {
@@ -94,7 +130,11 @@ export default function CompanionPlaygroundPage() {
   const companionElement = useRef<HTMLDivElement | null>(null);
   const activeDrag = useRef<ActiveDrag | null>(null);
   const activeMovement = useRef<Animation | null>(null);
+  const activeTurn = useRef<ActiveTurn | null>(null);
   const [position, setPosition] = useState<Position | null>(null);
+  const [facingDirection, setFacingDirection] =
+    useState<FacingDirection>("south");
+  const [turnPose, setTurnPose] = useState<TurnPose | null>(null);
   const [motionState, setMotionState] = useState<MotionState>("idle");
   const [isDragging, setIsDragging] = useState(false);
   const [idleCycle, setIdleCycle] = useState(0);
@@ -117,6 +157,11 @@ export default function CompanionPlaygroundPage() {
         bottom: "auto",
       }
     : undefined;
+  const displayedIdlePose = turnPose ?? facingDirection;
+  const companionAsset =
+    motionState === "walking" && facingDirection !== "south"
+      ? `/companion/walking/${facingDirection}.gif`
+      : `/companion/idle/${displayedIdlePose}.png`;
 
   const commitPosition = useCallback(
     (element: HTMLDivElement, nextPosition: Position) => {
@@ -129,14 +174,40 @@ export default function CompanionPlaygroundPage() {
     [],
   );
 
+  const cancelActiveTurn = useCallback(() => {
+    const turn = activeTurn.current;
+
+    if (!turn) {
+      return;
+    }
+
+    if (turn.timeoutId !== null) {
+      window.clearTimeout(turn.timeoutId);
+    }
+
+    activeTurn.current = null;
+    setTurnPose(null);
+    setMotionState("idle");
+  }, []);
+
   useEffect(() => {
     const motionPreference = window.matchMedia(REDUCED_MOTION_QUERY);
 
     function handleVisibilityChange() {
-      setIsPageVisible(document.visibilityState === "visible");
+      const pageIsVisible = document.visibilityState === "visible";
+
+      if (!pageIsVisible && activeTurn.current?.source === "autonomous") {
+        cancelActiveTurn();
+      }
+
+      setIsPageVisible(pageIsVisible);
     }
 
     function handleMotionPreferenceChange(event: MediaQueryListEvent) {
+      if (event.matches) {
+        cancelActiveTurn();
+      }
+
       setPrefersReducedMotion(event.matches);
     }
 
@@ -151,11 +222,22 @@ export default function CompanionPlaygroundPage() {
       );
       activeMovement.current?.cancel();
       activeMovement.current = null;
+
+      const turn = activeTurn.current;
+
+      if (turn?.timeoutId !== null && turn?.timeoutId !== undefined) {
+        window.clearTimeout(turn.timeoutId);
+      }
+
+      activeTurn.current = null;
     };
-  }, []);
+  }, [cancelActiveTurn]);
 
   function interruptMovement(element: HTMLDivElement): DOMRect {
     const bounds = element.getBoundingClientRect();
+
+    cancelActiveTurn();
+
     const movement = activeMovement.current;
 
     if (!movement) {
@@ -174,11 +256,17 @@ export default function CompanionPlaygroundPage() {
     (direction: WalkDirection, distance: number, source: WalkSource) => {
       const element = companionElement.current;
 
-      if (!element || activeMovement.current || activeDrag.current) {
+      if (
+        !element ||
+        activeMovement.current ||
+        activeTurn.current ||
+        activeDrag.current
+      ) {
         return;
       }
 
-      const bounds = element.getBoundingClientRect();
+      const walkingElement = element;
+      const bounds = walkingElement.getBoundingClientRect();
       const startPosition = getClampedPosition(bounds);
       const targetPosition = {
         x: clamp(
@@ -194,51 +282,107 @@ export default function CompanionPlaygroundPage() {
         return;
       }
 
+      const targetFacing: HorizontalFacingDirection =
+        direction === 1 ? "east" : "west";
+
       if (window.matchMedia(REDUCED_MOTION_QUERY).matches) {
+        setFacingDirection(targetFacing);
+        setTurnPose(null);
+
         if (source === "manual") {
-          commitPosition(element, targetPosition);
+          commitPosition(walkingElement, targetPosition);
         }
 
         return;
       }
 
-      setMotionState("walking");
-
-      const movement = element.animate(
-        [
-          { transform: "translateX(0)" },
-          { transform: `translateX(${travelDistance}px)` },
-        ],
-        {
-          duration: WALK_DURATION_MS,
-          easing: "ease-in-out",
-          fill: "forwards",
-        },
-      );
-
-      activeMovement.current = movement;
-
-      movement.finished
-        .then(() => {
-          if (activeMovement.current !== movement) {
-            return;
-          }
-
-          activeMovement.current = null;
-          movement.cancel();
-          commitPosition(element, targetPosition);
+      function beginTranslation() {
+        if (
+          activeDrag.current ||
+          (source === "autonomous" &&
+            document.visibilityState !== "visible")
+        ) {
+          setTurnPose(null);
           setMotionState("idle");
-        })
-        .catch(() => {
-          if (activeMovement.current !== movement) {
-            return;
-          }
+          return;
+        }
 
-          activeMovement.current = null;
-          setMotionState("idle");
-        });
+        setFacingDirection(targetFacing);
+        setTurnPose(null);
+        setMotionState("walking");
+
+        const movement = walkingElement.animate(
+          [
+            { transform: "translateX(0)" },
+            { transform: `translateX(${travelDistance}px)` },
+          ],
+          {
+            duration: WALK_DURATION_MS,
+            easing: "ease-in-out",
+            fill: "forwards",
+          },
+        );
+
+        activeMovement.current = movement;
+
+        movement.finished
+          .then(() => {
+            if (activeMovement.current !== movement) {
+              return;
+            }
+
+            activeMovement.current = null;
+            movement.cancel();
+            commitPosition(walkingElement, targetPosition);
+            setMotionState("idle");
+          })
+          .catch(() => {
+            if (activeMovement.current !== movement) {
+              return;
+            }
+
+            activeMovement.current = null;
+            setMotionState("idle");
+          });
+      }
+
+      const turnSequence = getTurnSequence(facingDirection, targetFacing);
+
+      if (turnSequence.length === 0) {
+        beginTranslation();
+        return;
+      }
+
+      const turn: ActiveTurn = { source, timeoutId: null };
+      let poseIndex = 0;
+
+      activeTurn.current = turn;
+      setMotionState("turning");
+
+      function showNextPose() {
+        if (activeTurn.current !== turn) {
+          return;
+        }
+
+        const nextPose = turnSequence[poseIndex];
+
+        if (nextPose === undefined) {
+          activeTurn.current = null;
+          beginTranslation();
+          return;
+        }
+
+        setTurnPose(nextPose);
+        poseIndex += 1;
+        turn.timeoutId = window.setTimeout(
+          showNextPose,
+          TURN_POSE_DURATION_MS,
+        );
+      }
+
+      showNextPose();
     },
-    [commitPosition],
+    [commitPosition, facingDirection],
   );
 
   useEffect(() => {
@@ -261,6 +405,7 @@ export default function CompanionPlaygroundPage() {
       if (
         !element ||
         activeMovement.current ||
+        activeTurn.current ||
         activeDrag.current ||
         document.visibilityState !== "visible" ||
         window.matchMedia(REDUCED_MOTION_QUERY).matches
@@ -357,11 +502,11 @@ export default function CompanionPlaygroundPage() {
   return (
     <main className={styles.pageShell}>
       <section className={styles.intro} aria-labelledby="playground-title">
-        <p className={styles.eyebrow}>Disposable experiment · Step 3</p>
+        <p className={styles.eyebrow}>Disposable experiment · Step 4.1</p>
         <h1 id="playground-title">Companion Playground</h1>
         <p>
-          The temporary pixel companion now waits calmly, occasionally walks
-          by itself, and still accepts manual walking or pointer dragging.
+          PixelLab directional poses now provide a brief turn before Meri
+          walks east or west, without changing the existing movement behavior.
         </p>
       </section>
 
@@ -404,7 +549,7 @@ export default function CompanionPlaygroundPage() {
           <div className={styles.walkButtons}>
             <button
               className={styles.walkButton}
-              disabled={motionState === "walking"}
+              disabled={motionState !== "idle"}
               onClick={() => startManualWalk(-1)}
               type="button"
             >
@@ -412,7 +557,7 @@ export default function CompanionPlaygroundPage() {
             </button>
             <button
               className={styles.walkButton}
-              disabled={motionState === "walking"}
+              disabled={motionState !== "idle"}
               onClick={() => startManualWalk(1)}
               type="button"
             >
@@ -426,11 +571,13 @@ export default function CompanionPlaygroundPage() {
         <p className={styles.cardLabel}>What this proves</p>
         <h2 id="notes-title">DOM, CSS, Pointer Events, and WAAPI.</h2>
         <ul>
-          <li>The four-frame idle loop comes from a CSS sprite sheet.</li>
-          <li>The enlarged artwork keeps hard, pixelated edges.</li>
+          <li>Directional PixelLab PNGs provide the idle appearance.</li>
+          <li>The original artwork keeps hard, pixelated edges.</li>
           <li>Pointer capture keeps dragging active until release or cancel.</li>
           <li>WAAPI moves the same DOM element without replacing drag state.</li>
           <li>A single quiet timer occasionally requests a short horizontal walk.</li>
+          <li>PixelLab idle PNGs and walking GIFs reflect the current direction.</li>
+          <li>Short south-facing poses make direction changes visually continuous.</li>
         </ul>
       </section>
 
@@ -448,7 +595,17 @@ export default function CompanionPlaygroundPage() {
           ref={companionElement}
           role="img"
           style={companionStyle}
-        />
+        >
+          {/* The playground must render the original animated GIF without image processing. */}
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            alt=""
+            className={styles.companionImage}
+            data-motion-state={motionState}
+            draggable={false}
+            src={companionAsset}
+          />
+        </div>
       </div>
     </main>
   );
