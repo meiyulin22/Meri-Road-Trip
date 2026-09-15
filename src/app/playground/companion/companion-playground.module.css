@@ -170,10 +170,13 @@
 }
 
 .companionLayer {
-  --companion-size: 96px;
-  --companion-walking-size: 126px;
-  /* Half of the 30px difference keeps the padded GIF centered. */
-  --companion-walking-offset: -15px;
+  /* Logical drag/movement hitbox. Intentionally smaller than the sprite. */
+  --companion-hitbox-size: 96px;
+  /* Every companion asset shares one 84px source canvas, so a single 126px
+     box renders every pose at exactly 126 / 84 = 1.5x. */
+  --companion-visual-size: 126px;
+  /* Half of the 30px difference centers the sprite over the hitbox. */
+  --companion-visual-offset: -15px;
 
   position: fixed;
   inset: 0;
@@ -185,8 +188,8 @@
   position: absolute;
   right: 1.5rem;
   bottom: 1.5rem;
-  width: var(--companion-size);
-  height: var(--companion-size);
+  width: var(--companion-hitbox-size);
+  height: var(--companion-hitbox-size);
   cursor: grab;
   pointer-events: auto;
   touch-action: none;
@@ -199,28 +202,23 @@
   cursor: grabbing;
 }
 
+/* One fixed visual geometry for every pose. Idle, turning and walking assets
+   all use an 84px source canvas, so the rendered scale is always 126 / 84 =
+   1.5x. Because geometry never changes with motionState, a delayed bitmap swap
+   on iOS Safari can no longer pair one state's box with another state's canvas,
+   which is what made the companion appear to shrink and grow mid-walk. */
 .companionImage {
   position: absolute;
+  top: var(--companion-visual-offset);
+  left: var(--companion-visual-offset);
+  width: var(--companion-visual-size);
+  height: var(--companion-visual-size);
   display: block;
   max-width: none;
   pointer-events: none;
   image-rendering: pixelated;
   user-select: none;
   -webkit-user-drag: none;
-}
-
-.companionImage[data-motion-state="idle"],
-.companionImage[data-motion-state="turning"] {
-  inset: 0;
-  width: var(--companion-size);
-  height: var(--companion-size);
-}
-
-.companionImage[data-motion-state="walking"] {
-  top: var(--companion-walking-offset);
-  left: var(--companion-walking-offset);
-  width: var(--companion-walking-size);
-  height: var(--companion-walking-size);
 }
 
 @media (max-width: 560px) {

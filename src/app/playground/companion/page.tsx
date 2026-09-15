@@ -607,11 +607,12 @@ export default function CompanionPlaygroundPage() {
   return (
     <main className={styles.pageShell}>
       <section className={styles.intro} aria-labelledby="playground-title">
-        <p className={styles.eyebrow}>Disposable experiment · Step 4.2.2</p>
+        <p className={styles.eyebrow}>Disposable experiment · Step 4.2.3</p>
         <h1 id="playground-title">Companion Playground</h1>
         <p>
-          A stable image element now preserves the painted character when
-          walking hands back to the corresponding directional idle pose.
+          Every pose now shares one 84px source canvas inside one fixed 126px
+          box, so the companion keeps a single rendered scale while idling,
+          turning, and walking.
         </p>
       </section>
 
@@ -683,6 +684,7 @@ export default function CompanionPlaygroundPage() {
           <li>A single quiet timer occasionally requests a short horizontal walk.</li>
           <li>PixelLab idle PNGs and walking GIFs reflect the current direction.</li>
           <li>Short south-facing poses make direction changes visually continuous.</li>
+          <li>One shared source canvas keeps the rendered scale fixed at 1.5x.</li>
         </ul>
       </section>
 
@@ -702,11 +704,12 @@ export default function CompanionPlaygroundPage() {
           style={companionStyle}
         >
           {/* Keep one image node so Safari can hand off GIF pixels without a blank remount. */}
+          {/* No motion-state hook here: every pose shares one 84px source canvas and
+              one fixed CSS box, so only src changes between idle, turning and walking. */}
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             alt=""
             className={styles.companionImage}
-            data-motion-state={motionState}
             draggable={false}
             ref={companionImageElement}
             src={companionAsset}
