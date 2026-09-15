@@ -39,6 +39,12 @@ type ActiveTurn = {
   timeoutId: number | null;
 };
 
+type PendingWalkingHandoff = {
+  expectedAsset: string;
+  frameId: number | null;
+  source: WalkSource;
+};
+
 const MANUAL_WALK_DISTANCE_PX = 100;
 const AUTONOMOUS_WALK_MIN_DISTANCE_PX = 60;
 const AUTONOMOUS_WALK_MAX_DISTANCE_PX = 100;
@@ -128,13 +134,17 @@ function chooseAutonomousMovement(bounds: DOMRect): MovementPlan | null {
 
 export default function CompanionPlaygroundPage() {
   const companionElement = useRef<HTMLDivElement | null>(null);
+  const companionImageElement = useRef<HTMLImageElement | null>(null);
   const activeDrag = useRef<ActiveDrag | null>(null);
   const activeMovement = useRef<Animation | null>(null);
   const activeTurn = useRef<ActiveTurn | null>(null);
+  const pendingWalkingHandoff = useRef<PendingWalkingHandoff | null>(null);
   const [position, setPosition] = useState<Position | null>(null);
   const [facingDirection, setFacingDirection] =
     useState<FacingDirection>("south");
   const [turnPose, setTurnPose] = useState<TurnPose | null>(null);
+  const [activeWalkingDirection, setActiveWalkingDirection] =
+    useState<HorizontalFacingDirection | null>(null);
   const [motionState, setMotionState] = useState<MotionState>("idle");
   const [isDragging, setIsDragging] = useState(false);
   const [idleCycle, setIdleCycle] = useState(0);
@@ -158,10 +168,9 @@ export default function CompanionPlaygroundPage() {
       }
     : undefined;
   const displayedIdlePose = turnPose ?? facingDirection;
-  const companionAsset =
-    motionState === "walking" && facingDirection !== "south"
-      ? `/companion/walking/${facingDirection}.gif`
-      : `/companion/idle/${displayedIdlePose}.png`;
+  const companionAsset = activeWalkingDirection
+    ? `/companion/walking/${activeWalkingDirection}.gif`
+    : `/companion/idle/${displayedIdlePose}.png`;
 
   const commitPosition = useCallback(
     (element: HTMLDivElement, nextPosition: Position) => {
@@ -173,6 +182,22 @@ export default function CompanionPlaygroundPage() {
     },
     [],
   );
+
+  const cancelPendingWalkingHandoff = useCallback(() => {
+    const handoff = pendingWalkingHandoff.current;
+
+    if (!handoff) {
+      return;
+    }
+
+    if (handoff.frameId !== null) {
+      window.cancelAnimationFrame(handoff.frameId);
+    }
+
+    pendingWalkingHandoff.current = null;
+    setActiveWalkingDirection(null);
+    setMotionState("idle");
+  }, []);
 
   const cancelActiveTurn = useCallback(() => {
     const turn = activeTurn.current;
@@ -200,12 +225,20 @@ export default function CompanionPlaygroundPage() {
         cancelActiveTurn();
       }
 
+      if (
+        !pageIsVisible &&
+        pendingWalkingHandoff.current?.source === "autonomous"
+      ) {
+        cancelPendingWalkingHandoff();
+      }
+
       setIsPageVisible(pageIsVisible);
     }
 
     function handleMotionPreferenceChange(event: MediaQueryListEvent) {
       if (event.matches) {
         cancelActiveTurn();
+        cancelPendingWalkingHandoff();
       }
 
       setPrefersReducedMotion(event.matches);
@@ -230,13 +263,22 @@ export default function CompanionPlaygroundPage() {
       }
 
       activeTurn.current = null;
+
+      const handoff = pendingWalkingHandoff.current;
+
+      if (handoff?.frameId !== null && handoff?.frameId !== undefined) {
+        window.cancelAnimationFrame(handoff.frameId);
+      }
+
+      pendingWalkingHandoff.current = null;
     };
-  }, [cancelActiveTurn]);
+  }, [cancelActiveTurn, cancelPendingWalkingHandoff]);
 
   function interruptMovement(element: HTMLDivElement): DOMRect {
     const bounds = element.getBoundingClientRect();
 
     cancelActiveTurn();
+    cancelPendingWalkingHandoff();
 
     const movement = activeMovement.current;
 
@@ -247,6 +289,7 @@ export default function CompanionPlaygroundPage() {
     activeMovement.current = null;
     movement.cancel();
     commitPosition(element, getClampedPosition(bounds));
+    setActiveWalkingDirection(null);
     setMotionState("idle");
 
     return element.getBoundingClientRect();
@@ -260,6 +303,7 @@ export default function CompanionPlaygroundPage() {
         !element ||
         activeMovement.current ||
         activeTurn.current ||
+        pendingWalkingHandoff.current ||
         activeDrag.current
       ) {
         return;
@@ -307,43 +351,103 @@ export default function CompanionPlaygroundPage() {
           return;
         }
 
+        const expectedAsset = `/companion/walking/${targetFacing}.gif`;
+        const handoff: PendingWalkingHandoff = {
+          expectedAsset,
+          frameId: null,
+          source,
+        };
+
+        pendingWalkingHandoff.current = handoff;
         setFacingDirection(targetFacing);
         setTurnPose(null);
+        setActiveWalkingDirection(targetFacing);
         setMotionState("walking");
 
-        const movement = walkingElement.animate(
-          [
-            { transform: "translateX(0)" },
-            { transform: `translateX(${travelDistance}px)` },
-          ],
-          {
-            duration: WALK_DURATION_MS,
-            easing: "ease-in-out",
-            fill: "forwards",
-          },
-        );
+        function startTranslationAfterWalkingVisualRenders() {
+          if (pendingWalkingHandoff.current !== handoff) {
+            return;
+          }
 
-        activeMovement.current = movement;
+          if (
+            activeDrag.current ||
+            (source === "autonomous" &&
+              document.visibilityState !== "visible")
+          ) {
+            cancelPendingWalkingHandoff();
+            return;
+          }
 
-        movement.finished
-          .then(() => {
-            if (activeMovement.current !== movement) {
+          const image = companionImageElement.current;
+          const renderedAsset = image
+            ? new URL(image.currentSrc || image.src).pathname
+            : null;
+
+          if (
+            !image ||
+            renderedAsset !== expectedAsset ||
+            !image.complete
+          ) {
+            handoff.frameId = window.requestAnimationFrame(
+              startTranslationAfterWalkingVisualRenders,
+            );
+            return;
+          }
+
+          if (image.naturalWidth === 0) {
+            cancelPendingWalkingHandoff();
+            return;
+          }
+
+          // Give WebKit a painted GIF frame before the parent enters WAAPI compositing.
+          handoff.frameId = window.requestAnimationFrame(() => {
+            if (pendingWalkingHandoff.current !== handoff) {
               return;
             }
 
-            activeMovement.current = null;
-            movement.cancel();
-            commitPosition(walkingElement, targetPosition);
-            setMotionState("idle");
-          })
-          .catch(() => {
-            if (activeMovement.current !== movement) {
-              return;
-            }
+            pendingWalkingHandoff.current = null;
 
-            activeMovement.current = null;
-            setMotionState("idle");
+            const movement = walkingElement.animate(
+              [
+                { transform: "translateX(0)" },
+                { transform: `translateX(${travelDistance}px)` },
+              ],
+              {
+                duration: WALK_DURATION_MS,
+                easing: "ease-in-out",
+                fill: "forwards",
+              },
+            );
+
+            activeMovement.current = movement;
+
+            movement.finished
+              .then(() => {
+                if (activeMovement.current !== movement) {
+                  return;
+                }
+
+                activeMovement.current = null;
+                movement.cancel();
+                commitPosition(walkingElement, targetPosition);
+                setActiveWalkingDirection(null);
+                setMotionState("idle");
+              })
+              .catch(() => {
+                if (activeMovement.current !== movement) {
+                  return;
+                }
+
+                activeMovement.current = null;
+                setActiveWalkingDirection(null);
+                setMotionState("idle");
+              });
           });
+        }
+
+        handoff.frameId = window.requestAnimationFrame(
+          startTranslationAfterWalkingVisualRenders,
+        );
       }
 
       const turnSequence = getTurnSequence(facingDirection, targetFacing);
@@ -382,7 +486,7 @@ export default function CompanionPlaygroundPage() {
 
       showNextPose();
     },
-    [commitPosition, facingDirection],
+    [cancelPendingWalkingHandoff, commitPosition, facingDirection],
   );
 
   useEffect(() => {
@@ -406,6 +510,7 @@ export default function CompanionPlaygroundPage() {
         !element ||
         activeMovement.current ||
         activeTurn.current ||
+        pendingWalkingHandoff.current ||
         activeDrag.current ||
         document.visibilityState !== "visible" ||
         window.matchMedia(REDUCED_MOTION_QUERY).matches
@@ -502,11 +607,11 @@ export default function CompanionPlaygroundPage() {
   return (
     <main className={styles.pageShell}>
       <section className={styles.intro} aria-labelledby="playground-title">
-        <p className={styles.eyebrow}>Disposable experiment · Step 4.2</p>
+        <p className={styles.eyebrow}>Disposable experiment · Step 4.2.1</p>
         <h1 id="playground-title">Companion Playground</h1>
         <p>
-          Meri now uses a larger 96-pixel interaction box while preserving
-          the existing directional poses, movement, and pointer behavior.
+          Horizontal WAAPI movement now waits until the correct PixelLab
+          walking GIF is loaded and painted for browser compositing.
         </p>
       </section>
 
@@ -603,6 +708,8 @@ export default function CompanionPlaygroundPage() {
             className={styles.companionImage}
             data-motion-state={motionState}
             draggable={false}
+            key={companionAsset}
+            ref={companionImageElement}
             src={companionAsset}
           />
         </div>
