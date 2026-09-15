@@ -90,7 +90,17 @@ function getTurnSequence(
   const sequence: TurnPose[] = [];
 
   for (let index = currentIndex + step; index !== targetIndex + step; index += step) {
-    sequence.push(HORIZONTAL_TURN_PATH[index]);
+    const pose = HORIZONTAL_TURN_PATH[index];
+
+    // "south" stays in the path to order rotations and to start the first walk,
+    // but it is never a turn target, so a reversal only ever passes through it.
+    // Its full-front silhouette has the widest hat brim of any pose, which reads
+    // as a brief size pop, so pass through it in index space without showing it.
+    if (pose === "south") {
+      continue;
+    }
+
+    sequence.push(pose);
   }
 
   return sequence;
