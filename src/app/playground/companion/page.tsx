@@ -502,11 +502,11 @@ export default function CompanionPlaygroundPage() {
   return (
     <main className={styles.pageShell}>
       <section className={styles.intro} aria-labelledby="playground-title">
-        <p className={styles.eyebrow}>Disposable experiment · Step 4.1</p>
+        <p className={styles.eyebrow}>Disposable experiment · Step 4.2</p>
         <h1 id="playground-title">Companion Playground</h1>
         <p>
-          PixelLab directional poses now provide a brief turn before Meri
-          walks east or west, without changing the existing movement behavior.
+          Meri now uses a larger 96-pixel interaction box while preserving
+          the existing directional poses, movement, and pointer behavior.
         </p>
       </section>
 
