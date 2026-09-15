@@ -607,11 +607,11 @@ export default function CompanionPlaygroundPage() {
   return (
     <main className={styles.pageShell}>
       <section className={styles.intro} aria-labelledby="playground-title">
-        <p className={styles.eyebrow}>Disposable experiment · Step 4.2.1</p>
+        <p className={styles.eyebrow}>Disposable experiment · Step 4.2.2</p>
         <h1 id="playground-title">Companion Playground</h1>
         <p>
-          Horizontal WAAPI movement now waits until the correct PixelLab
-          walking GIF is loaded and painted for browser compositing.
+          A stable image element now preserves the painted character when
+          walking hands back to the corresponding directional idle pose.
         </p>
       </section>
 
@@ -701,14 +701,13 @@ export default function CompanionPlaygroundPage() {
           role="img"
           style={companionStyle}
         >
-          {/* The playground must render the original animated GIF without image processing. */}
+          {/* Keep one image node so Safari can hand off GIF pixels without a blank remount. */}
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             alt=""
             className={styles.companionImage}
             data-motion-state={motionState}
             draggable={false}
-            key={companionAsset}
             ref={companionImageElement}
             src={companionAsset}
           />
