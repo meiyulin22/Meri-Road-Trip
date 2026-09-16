@@ -14,13 +14,14 @@ export const metadata: Metadata = {
   manifest: "/manifest.webmanifest",
   appleWebApp: {
     capable: true,
-    statusBarStyle: "default",
+    statusBarStyle: "black-translucent",
     title: "Meri",
   },
 };
 
 export const viewport: Viewport = {
-  themeColor: "#17352c",
+  themeColor: "#091326",
+  viewportFit: "cover",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

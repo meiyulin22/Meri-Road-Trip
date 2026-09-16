@@ -7,8 +7,8 @@ export default function manifest(): MetadataRoute.Manifest {
     description: "Your Personal Outdoor Intelligence Companion",
     start_url: "/",
     display: "standalone",
-    background_color: "#f4f1e8",
-    theme_color: "#17352c",
+    background_color: "#091326",
+    theme_color: "#091326",
     icons: [
       {
         src: "/icon",
