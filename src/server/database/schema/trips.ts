@@ -16,9 +16,10 @@ export const trips = pgTable(
   {
     id: uuid("id").primaryKey(),
     name: text("name").notNull(),
-    destination: text("destination").notNull(),
-    startDate: date("start_date", { mode: "string" }).notNull(),
-    endDate: date("end_date", { mode: "string" }).notNull(),
+    origin: text("origin"),
+    destination: text("destination"),
+    startDate: date("start_date", { mode: "string" }),
+    endDate: date("end_date", { mode: "string" }),
     status: tripStatusEnum("status").notNull(),
     createdAt: timestamp("created_at", {
       mode: "string",

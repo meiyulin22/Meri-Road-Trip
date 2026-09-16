@@ -35,6 +35,7 @@ export class TripService {
     const trip: Trip = {
       id: this.generateId(),
       name: creationInput.name,
+      origin: creationInput.origin,
       destination: creationInput.destination,
       startDate: creationInput.startDate,
       endDate: creationInput.endDate,

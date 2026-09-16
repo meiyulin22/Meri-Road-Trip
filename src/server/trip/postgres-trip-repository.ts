@@ -55,6 +55,7 @@ function toTripInsert(trip: Trip): TripInsert {
   return {
     id: trip.id,
     name: trip.name,
+    origin: trip.origin,
     destination: trip.destination,
     startDate: trip.startDate,
     endDate: trip.endDate,
@@ -68,6 +69,7 @@ function toTrip(row: TripRow): Trip {
   return {
     id: row.id,
     name: row.name,
+    origin: row.origin,
     destination: row.destination,
     startDate: row.startDate,
     endDate: row.endDate,

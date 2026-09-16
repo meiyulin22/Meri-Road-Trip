@@ -15,6 +15,7 @@ type TripInsert = typeof trips.$inferInsert;
 const trip: Trip = {
   id: "3d17d2c7-fd9b-4748-b751-3a76a9a920be",
   name: "四姑娘山周末",
+  origin: "成都",
   destination: "四姑娘山",
   startDate: "2026-09-19",
   endDate: "2026-09-21",
@@ -110,6 +111,7 @@ test("saves an explicitly mapped Trip row", async () => {
   await repository.save(trip);
 
   assert.equal(inspection.insertedTable, trips);
+  assert.equal(inspection.insertedTrip?.origin, "成都");
   assert.deepEqual(inspection.insertedTrip, trip);
 });
 
@@ -128,6 +130,25 @@ test("finds and maps a Trip row to the domain representation", async () => {
   assert.equal(inspection.whereWasCalled, true);
   assert.equal(inspection.selectedLimit, 1);
   assert.deepEqual(result, trip);
+});
+
+test("maps an incomplete Trip row without filling missing information", async () => {
+  const row: TripRow = {
+    ...trip,
+    origin: null,
+    destination: null,
+    startDate: null,
+    endDate: null,
+  };
+  const { database } = createDatabaseDouble({ rows: [row] });
+  const repository = new PostgresTripRepository(database);
+
+  const result = await repository.findById(trip.id);
+
+  assert.equal(result?.origin, null);
+  assert.equal(result?.destination, null);
+  assert.equal(result?.startDate, null);
+  assert.equal(result?.endDate, null);
 });
 
 test("returns null when no Trip row exists", async () => {
