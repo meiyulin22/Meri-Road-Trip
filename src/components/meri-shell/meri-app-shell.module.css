@@ -19,29 +19,15 @@
 
 .brand {
   width: fit-content;
-  display: inline-flex;
-  align-items: center;
-  gap: 0.65rem;
+  display: inline-block;
   color: var(--shell-text);
 }
 
-.brandMark {
-  width: 2.6rem;
-  height: 2.2rem;
-  display: grid;
-  place-items: center;
-}
-
-.brandMark svg {
-  width: 100%;
-  height: 100%;
-  filter: drop-shadow(0 4px 10px rgba(0, 0, 0, 0.22));
-}
-
-.brandName {
-  font-size: 1.25rem;
-  font-weight: 730;
-  letter-spacing: -0.035em;
+.brandAsset {
+  width: 4.6rem;
+  height: auto;
+  display: block;
+  filter: brightness(0) invert(1) drop-shadow(0 4px 10px rgba(0, 0, 0, 0.22));
 }
 
 .mobileHeader {
@@ -61,13 +47,8 @@
   background: linear-gradient(180deg, rgba(5, 14, 31, 0.78), transparent);
 }
 
-.brandCompact .brandMark {
-  width: 2.1rem;
-  height: 1.8rem;
-}
-
-.brandCompact .brandName {
-  font-size: 1.05rem;
+.brandCompact .brandAsset {
+  width: 4.5rem;
 }
 
 .mobileNewTrip {
@@ -146,11 +127,15 @@
   text-transform: uppercase;
 }
 
-.productIntroduction h1 {
-  font-size: clamp(2.9rem, 14vw, 4.8rem);
-  font-weight: 760;
-  line-height: 0.95;
-  letter-spacing: -0.065em;
+.productName {
+  display: flex;
+  justify-content: center;
+}
+
+.productWordmark {
+  width: clamp(9rem, 42vw, 13.5rem);
+  height: auto;
+  filter: brightness(0) invert(1) drop-shadow(0 3px 18px rgba(7, 14, 34, 0.4));
 }
 
 .productIntroduction > p:last-child {
@@ -390,8 +375,8 @@
     display: none;
   }
 
-  .productIntroduction h1 {
-    font-size: 2.7rem;
+  .productWordmark {
+    width: 8.5rem;
   }
 
   .composer {
@@ -446,17 +431,10 @@
 
   .sidebarBrand .brand {
     margin-bottom: 0.65rem;
-    flex-direction: column;
-    gap: 0.2rem;
   }
 
-  .sidebarBrand .brandMark {
-    width: 3.25rem;
-    height: 2.6rem;
-  }
-
-  .sidebarBrand .brandName {
-    font-size: 1.3rem;
+  .sidebarBrand .brandAsset {
+    width: 4.6rem;
   }
 
   .newTripButton {
@@ -610,8 +588,8 @@
     font-size: 0.7rem;
   }
 
-  .productIntroduction h1 {
-    font-size: clamp(4.2rem, 6.2vw, 6rem);
+  .productWordmark {
+    width: clamp(11rem, 15vw, 15rem);
   }
 
   .productIntroduction > p:last-child {

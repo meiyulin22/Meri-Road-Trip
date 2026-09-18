@@ -11,14 +11,14 @@ export default function manifest(): MetadataRoute.Manifest {
     theme_color: "#091326",
     icons: [
       {
-        src: "/icon",
-        sizes: "512x512",
+        src: "/brand/meri-app-icon-1024.png",
+        sizes: "1024x1024",
         type: "image/png",
         purpose: "any",
       },
       {
-        src: "/icon",
-        sizes: "512x512",
+        src: "/brand/meri-app-icon-1024.png",
+        sizes: "1024x1024",
         type: "image/png",
         purpose: "maskable",
       },

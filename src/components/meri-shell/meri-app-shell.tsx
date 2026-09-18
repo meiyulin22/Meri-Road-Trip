@@ -11,6 +11,7 @@ import {
   UserRound,
   type LucideIcon,
 } from "lucide-react";
+import Image from "next/image";
 
 import styles from "./meri-app-shell.module.css";
 
@@ -53,16 +54,23 @@ export function MeriAppShell() {
 }
 
 function MeriBrand({ compact = false }: { compact?: boolean }) {
+  const asset = compact
+    ? { src: "/brand/meri-wordmark.svg", width: 1101, height: 329 }
+    : { src: "/brand/meri-lockup.svg", width: 640, height: 500 };
+
   return (
     <a
       aria-label="Meri home"
       className={`${styles.brand} ${compact ? styles.brandCompact : ""}`}
       href="#top"
     >
-      <span className={styles.brandMark} aria-hidden="true">
-        <MountainSnow strokeWidth={1.8} />
-      </span>
-      <span className={styles.brandName}>Meri</span>
+      <Image
+        alt=""
+        className={styles.brandAsset}
+        height={asset.height}
+        src={asset.src}
+        width={asset.width}
+      />
     </a>
   );
 }
@@ -176,7 +184,15 @@ function ProductIntroduction() {
   return (
     <header className={styles.productIntroduction}>
       <p className={styles.productKicker}>The world is waiting</p>
-      <h1>Meri</h1>
+      <h1 className={styles.productName}>
+        <Image
+          alt="Meri"
+          className={styles.productWordmark}
+          height={329}
+          src="/brand/meri-wordmark.svg"
+          width={1101}
+        />
+      </h1>
       <p>Your Outdoor Travel Companion</p>
     </header>
   );

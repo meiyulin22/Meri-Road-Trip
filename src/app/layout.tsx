@@ -12,6 +12,16 @@ export const metadata: Metadata = {
   title: "Meri — Outdoor intelligence for every trip",
   description: "Your Personal Outdoor Intelligence Companion",
   manifest: "/manifest.webmanifest",
+  icons: {
+    icon: [{ url: "/brand/meri-favicon.svg", type: "image/svg+xml" }],
+    apple: [
+      {
+        url: "/brand/meri-app-icon-1024.png",
+        sizes: "1024x1024",
+        type: "image/png",
+      },
+    ],
+  },
   appleWebApp: {
     capable: true,
     statusBarStyle: "black-translucent",
