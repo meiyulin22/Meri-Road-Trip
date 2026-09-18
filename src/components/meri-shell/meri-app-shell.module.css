@@ -153,23 +153,19 @@
   width: min(100%, 41rem);
   margin: 0 auto;
   padding: 1rem;
-  border: 1px solid rgba(255, 255, 255, 0.14);
+  border: 1px solid rgba(255, 255, 255, 0.18);
   border-radius: 1.35rem;
   background:
-    linear-gradient(145deg, rgba(29, 43, 72, 0.83), rgba(8, 17, 36, 0.84));
+    linear-gradient(145deg, rgba(40, 57, 90, 0.62), rgba(8, 17, 36, 0.66));
   box-shadow:
-    0 24px 70px rgba(0, 0, 0, 0.38),
-    0 8px 24px rgba(0, 0, 0, 0.22),
-    inset 0 1px rgba(255, 255, 255, 0.07);
-  backdrop-filter: blur(20px) saturate(125%);
+    0 20px 58px rgba(0, 0, 0, 0.3),
+    0 6px 20px rgba(0, 0, 0, 0.16),
+    inset 0 1px rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(18px) saturate(120%);
 }
 
 .composerHeading {
   margin-bottom: 0.8rem;
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 0.75rem;
 }
 
 .composerEyebrow {
@@ -185,16 +181,6 @@
   font-size: clamp(1rem, 4vw, 1.2rem);
   font-weight: 670;
   letter-spacing: -0.025em;
-}
-
-.visualOnlyLabel {
-  padding: 0.3rem 0.5rem;
-  border: 1px solid var(--shell-line);
-  border-radius: 999px;
-  color: var(--shell-muted);
-  font-size: 0.62rem;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
 }
 
 .composerInput {
@@ -284,13 +270,6 @@
   font-size: 0.67rem;
 }
 
-.previewNote {
-  margin-top: 0.7rem;
-  color: rgba(197, 208, 230, 0.58);
-  font-size: 0.63rem;
-  text-align: center;
-}
-
 .mobileBottomNavigation {
   position: fixed;
   z-index: 5;
@@ -370,8 +349,7 @@
 
   .productKicker,
   .composerHeading,
-  .tripMoods,
-  .previewNote {
+  .tripMoods {
     display: none;
   }
 
@@ -611,10 +589,6 @@
   .promptExamples span,
   .tripMoods span {
     font-size: 0.75rem;
-  }
-
-  .previewNote {
-    font-size: 0.65rem;
   }
 }
 

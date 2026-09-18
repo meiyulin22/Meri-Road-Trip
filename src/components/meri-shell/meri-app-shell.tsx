@@ -36,11 +36,11 @@ const mobileNavigation = desktopNavigation.filter(({ label }) =>
 
 const promptExamples = [
   "今年冬天想找个地方滑雪",
-  "从大连去云南玩，大概一周",
-  "想去日本看樱花，有什么推荐？",
+  "想出去走走，还没想好去哪",
+  "十月底想旅行几天，不想自驾",
 ];
 
-const tripMoods = ["灵活一点", "给我惊喜", "滑雪旅行", "周末徒步"];
+const tripMoods = ["目的地未定", "日期灵活", "给我惊喜", "周末徒步"];
 
 export function MeriAppShell() {
   return (
@@ -203,24 +203,18 @@ function NewTripComposer() {
     <section className={styles.composer} id="new-trip" aria-labelledby="composer-title">
       <div className={styles.composerHeading}>
         <div>
-          <p className={styles.composerEyebrow}>Start with an idea</p>
-          <h2 id="composer-title">Where would you like to go?</h2>
+          <p className={styles.composerEyebrow}>START ANYWHERE</p>
+          <h2 id="composer-title">Where should we start?</h2>
         </div>
-        <span className={styles.visualOnlyLabel}>Preview</span>
       </div>
 
       <label className={styles.composerInput}>
-        <span className={styles.srOnly}>Tell Meri your travel idea</span>
+        <span className={styles.srOnly}>Tell Meri anything about your trip</span>
         <textarea
-          aria-describedby="composer-preview-note"
-          placeholder="Tell Meri your travel idea..."
+          placeholder="Tell Meri anything about your trip..."
           rows={1}
         />
-        <button
-          aria-label="Trip idea submission will be available in the next phase"
-          disabled
-          type="button"
-        >
+        <button aria-label="Send trip idea" disabled type="button">
           <Send aria-hidden="true" size={21} />
         </button>
       </label>
@@ -236,10 +230,6 @@ function NewTripComposer() {
           <span key={mood}>{mood}</span>
         ))}
       </div>
-
-      <p className={styles.previewNote} id="composer-preview-note">
-        Trip planning becomes interactive in the next phase.
-      </p>
     </section>
   );
 }
