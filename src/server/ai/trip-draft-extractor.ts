@@ -1,5 +1,4 @@
 import {
-  transportPreferences,
   validateTripDraft,
   type TripDraft,
 } from "@/domain/trip-draft/trip-draft";
@@ -7,6 +6,7 @@ import {
   createKimiClientFromEnvironment,
   type TripDraftModelClient,
 } from "@/server/ai/kimi-client";
+import { buildTripDraftSystemPrompt } from "@/server/ai/prompts/trip-draft-prompt";
 import { logger, logEvents } from "@/server/observability/logger";
 import { serializeError } from "@/server/observability/serialize-error";
 
@@ -34,11 +34,13 @@ export class InvalidModelOutputError extends Error {
 const fieldSchema = {
   type: "object",
   additionalProperties: false,
-  required: ["state", "value", "note"],
+  required: ["state", "value"],
   properties: {
-    state: { type: "string", enum: ["known", "missing", "ambiguous"] },
+    state: {
+      type: "string",
+      enum: ["known", "approximate", "missing", "ambiguous"],
+    },
     value: { type: ["string", "null"] },
-    note: { type: ["string", "null"] },
   },
 };
 
@@ -47,23 +49,21 @@ export const tripDraftJsonSchema: Record<string, unknown> = {
   additionalProperties: false,
   required: [
     "name",
+    "origin",
     "destination",
     "startDate",
     "endDate",
+    "duration",
     "transportPreference",
   ],
   properties: {
     name: fieldSchema,
+    origin: fieldSchema,
     destination: fieldSchema,
     startDate: fieldSchema,
     endDate: fieldSchema,
-    transportPreference: {
-      ...fieldSchema,
-      properties: {
-        ...fieldSchema.properties,
-        value: { type: ["string", "null"], enum: [...transportPreferences, null] },
-      },
-    },
+    duration: fieldSchema,
+    transportPreference: fieldSchema,
   },
 };
 
@@ -100,24 +100,6 @@ function validateInput(input: ExtractTripDraftInput): void {
   }
 }
 
-function buildSystemPrompt(referenceDate: string, timezone: string): string {
-  return `You extract a TripDraft from a user's travel request.
-
-Reference date: ${referenceDate}
-Timezone: ${timezone}
-
-Return only data that conforms to the supplied JSON schema.
-Resolve relative dates using the reference date and timezone. Do not invent facts.
-Every field must explicitly use one state:
-- known: put the normalized value in value and set note to null.
-- missing: set both value and note to null.
-- ambiguous: set value to null and briefly explain the ambiguity in note.
-
-Dates must be YYYY-MM-DD. Transport preference must be one of: ${transportPreferences.join(", ")}.
-Use self_drive only when the user wants to drive, no_self_drive when the user explicitly does not want to drive, public_transport for public transit, and flexible when any mode is acceptable.
-A concise trip name may be inferred from clearly known trip details.`;
-}
-
 export async function extractTripDraft(
   input: ExtractTripDraftInput,
   client?: TripDraftModelClient,
@@ -127,7 +109,10 @@ export async function extractTripDraft(
   const modelClient = client ?? createKimiClientFromEnvironment();
   const response = await modelClient.generateTripDraft({
     requestId: input.requestId,
-    systemPrompt: buildSystemPrompt(input.referenceDate, input.timezone),
+    systemPrompt: buildTripDraftSystemPrompt({
+      referenceDate: input.referenceDate,
+      timezone: input.timezone,
+    }),
     userMessage: input.message,
     jsonSchema: tripDraftJsonSchema,
   });

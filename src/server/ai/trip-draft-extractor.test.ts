@@ -17,15 +17,13 @@ import {
 } from "@/server/ai/trip-draft-extractor";
 
 const validModelDraft = {
-  name: { state: "known", value: "杭州周末游", note: null },
-  destination: { state: "known", value: "杭州", note: null },
-  startDate: { state: "known", value: "2026-09-19", note: null },
-  endDate: { state: "known", value: "2026-09-20", note: null },
-  transportPreference: {
-    state: "known",
-    value: "public_transport",
-    note: null,
-  },
+  name: { state: "known", value: "杭州周末游" },
+  origin: { state: "missing", value: null },
+  destination: { state: "known", value: "杭州" },
+  startDate: { state: "known", value: "2026-09-19" },
+  endDate: { state: "known", value: "2026-09-20" },
+  duration: { state: "known", value: "两天" },
+  transportPreference: { state: "known", value: "public_transport" },
 };
 
 const validInput = {
@@ -76,9 +74,11 @@ test("extracts a valid TripDraft without creating a Trip", async () => {
 
   assert.deepEqual(draft, {
     name: { state: "known", value: "杭州周末游" },
+    origin: { state: "missing" },
     destination: { state: "known", value: "杭州" },
     startDate: { state: "known", value: "2026-09-19" },
     endDate: { state: "known", value: "2026-09-20" },
+    duration: { state: "known", value: "两天" },
     transportPreference: { state: "known", value: "public_transport" },
   });
 
@@ -114,7 +114,7 @@ test("rejects an internally inconsistent model draft", () => {
         destination: {
           state: "known",
           value: "杭州",
-          note: "note must be null for known fields",
+          explanation: "additional model commentary is not part of the contract",
         },
       }),
     InvalidTripDraftError,
@@ -126,7 +126,7 @@ test("preserves explicitly missing fields", async () => {
     validInput,
     createJsonClient({
       ...validModelDraft,
-      endDate: { state: "missing", value: null, note: null },
+      endDate: { state: "missing", value: null },
     }),
   );
 
@@ -140,15 +140,14 @@ test("preserves explicitly ambiguous fields", async () => {
       ...validModelDraft,
       destination: {
         state: "ambiguous",
-        value: null,
-        note: "用户可能指杭州城区，也可能指千岛湖。",
+        value: "杭州城区或千岛湖",
       },
     }),
   );
 
   assert.deepEqual(draft.destination, {
     state: "ambiguous",
-    description: "用户可能指杭州城区，也可能指千岛湖。",
+    value: "杭州城区或千岛湖",
   });
 });
 

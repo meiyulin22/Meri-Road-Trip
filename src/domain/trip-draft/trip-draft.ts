@@ -9,14 +9,17 @@ export type TransportPreference = (typeof transportPreferences)[number];
 
 export type TripDraftField<T extends string = string> =
   | { readonly state: "known"; readonly value: T }
+  | { readonly state: "approximate"; readonly value: string }
   | { readonly state: "missing" }
-  | { readonly state: "ambiguous"; readonly description: string };
+  | { readonly state: "ambiguous"; readonly value: string };
 
 export interface TripDraft {
   readonly name: TripDraftField;
+  readonly origin: TripDraftField;
   readonly destination: TripDraftField;
   readonly startDate: TripDraftField;
   readonly endDate: TripDraftField;
+  readonly duration: TripDraftField;
   readonly transportPreference: TripDraftField<TransportPreference>;
 }
 
@@ -28,16 +31,17 @@ export class InvalidTripDraftError extends Error {
 }
 
 type ModelField = {
-  state: "known" | "missing" | "ambiguous";
+  state: "known" | "approximate" | "missing" | "ambiguous";
   value: string | null;
-  note: string | null;
 };
 
 const tripDraftKeys = [
   "name",
+  "origin",
   "destination",
   "startDate",
   "endDate",
+  "duration",
   "transportPreference",
 ] as const;
 
@@ -65,11 +69,16 @@ function parseModelField(value: unknown, label: string): ModelField {
     throw new InvalidTripDraftError(`${label} must be an object.`);
   }
 
-  assertExactKeys(value, ["state", "value", "note"], label);
+  assertExactKeys(value, ["state", "value"], label);
 
-  const { state, value: fieldValue, note } = value;
+  const { state, value: fieldValue } = value;
 
-  if (state !== "known" && state !== "missing" && state !== "ambiguous") {
+  if (
+    state !== "known" &&
+    state !== "approximate" &&
+    state !== "missing" &&
+    state !== "ambiguous"
+  ) {
     throw new InvalidTripDraftError(`${label}.state is invalid.`);
   }
 
@@ -77,11 +86,7 @@ function parseModelField(value: unknown, label: string): ModelField {
     throw new InvalidTripDraftError(`${label}.value must be a string or null.`);
   }
 
-  if (note !== null && typeof note !== "string") {
-    throw new InvalidTripDraftError(`${label}.note must be a string or null.`);
-  }
-
-  return { state, value: fieldValue, note };
+  return { state, value: fieldValue };
 }
 
 function isIsoDate(value: string): boolean {
@@ -101,9 +106,9 @@ function toTripDraftField<T extends string = string>(
   const field = parseModelField(value, label);
 
   if (field.state === "known") {
-    if (field.value === null || field.value.trim() === "" || field.note !== null) {
+    if (field.value === null || field.value.trim() === "") {
       throw new InvalidTripDraftError(
-        `${label} must contain a non-empty value and a null note when known.`,
+        `${label} must contain a non-empty value when known.`,
       );
     }
 
@@ -115,22 +120,22 @@ function toTripDraftField<T extends string = string>(
   }
 
   if (field.state === "missing") {
-    if (field.value !== null || field.note !== null) {
+    if (field.value !== null) {
       throw new InvalidTripDraftError(
-        `${label} must contain null value and note when missing.`,
+        `${label} must contain a null value when missing.`,
       );
     }
 
     return { state: "missing" };
   }
 
-  if (field.value !== null || field.note === null || field.note.trim() === "") {
+  if (field.value === null || field.value.trim() === "") {
     throw new InvalidTripDraftError(
-      `${label} must contain a null value and non-empty note when ambiguous.`,
+      `${label} must contain a non-empty user-facing value when ${field.state}.`,
     );
   }
 
-  return { state: "ambiguous", description: field.note };
+  return { state: field.state, value: field.value };
 }
 
 function isTransportPreference(value: string): value is TransportPreference {
@@ -146,9 +151,11 @@ export function validateTripDraft(value: unknown): TripDraft {
 
   const draft: TripDraft = {
     name: toTripDraftField(value.name, "name"),
+    origin: toTripDraftField(value.origin, "origin"),
     destination: toTripDraftField(value.destination, "destination"),
     startDate: toTripDraftField(value.startDate, "startDate", isIsoDate),
     endDate: toTripDraftField(value.endDate, "endDate", isIsoDate),
+    duration: toTripDraftField(value.duration, "duration"),
     transportPreference: toTripDraftField(
       value.transportPreference,
       "transportPreference",

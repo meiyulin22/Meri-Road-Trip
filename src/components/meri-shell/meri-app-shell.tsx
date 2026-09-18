@@ -6,7 +6,6 @@ import {
   Map,
   MountainSnow,
   Plus,
-  Send,
   Sparkles,
   UserRound,
   type LucideIcon,
@@ -14,6 +13,7 @@ import {
 import Image from "next/image";
 
 import styles from "./meri-app-shell.module.css";
+import { NewTripComposer } from "./new-trip-composer";
 
 type NavigationItem = {
   label: string;
@@ -33,14 +33,6 @@ const desktopNavigation: NavigationItem[] = [
 const mobileNavigation = desktopNavigation.filter(({ label }) =>
   ["Home", "Trips", "Explore", "Profile"].includes(label),
 );
-
-const promptExamples = [
-  "今年冬天想找个地方滑雪",
-  "想出去走走，还没想好去哪",
-  "十月底想旅行几天，不想自驾",
-];
-
-const tripMoods = ["目的地未定", "日期灵活", "给我惊喜", "周末徒步"];
 
 export function MeriAppShell() {
   return (
@@ -195,42 +187,6 @@ function ProductIntroduction() {
       </h1>
       <p>Your Outdoor Travel Companion</p>
     </header>
-  );
-}
-
-function NewTripComposer() {
-  return (
-    <section className={styles.composer} id="new-trip" aria-labelledby="composer-title">
-      <div className={styles.composerHeading}>
-        <div>
-          <p className={styles.composerEyebrow}>START ANYWHERE</p>
-          <h2 id="composer-title">Where should we start?</h2>
-        </div>
-      </div>
-
-      <label className={styles.composerInput}>
-        <span className={styles.srOnly}>Tell Meri anything about your trip</span>
-        <textarea
-          placeholder="Tell Meri anything about your trip..."
-          rows={1}
-        />
-        <button aria-label="Send trip idea" disabled type="button">
-          <Send aria-hidden="true" size={21} />
-        </button>
-      </label>
-
-      <div className={styles.promptExamples} aria-label="Example trip ideas">
-        {promptExamples.map((prompt) => (
-          <span key={prompt}>{prompt}</span>
-        ))}
-      </div>
-
-      <div className={styles.tripMoods} aria-label="Trip inspiration examples">
-        {tripMoods.map((mood) => (
-          <span key={mood}>{mood}</span>
-        ))}
-      </div>
-    </section>
   );
 }
 
