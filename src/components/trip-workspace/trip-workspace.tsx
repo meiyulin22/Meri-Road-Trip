@@ -2,9 +2,11 @@
 
 import {
   ArrowLeft,
-  ArrowUp,
   Backpack,
   Binoculars,
+  ChevronDown,
+  ChevronRight,
+  ChevronUp,
   CircleDollarSign,
   CloudSun,
   Compass,
@@ -20,10 +22,9 @@ import {
 } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
-import { useSyncExternalStore } from "react";
+import { useState, useSyncExternalStore } from "react";
 
 import type {
-  TransportPreference,
   TripDraft,
   TripDraftField,
 } from "@/domain/trip-draft/trip-draft";
@@ -41,17 +42,10 @@ const certaintyLabels = {
   ambiguous: "需要确认",
 } as const;
 
-const transportPreferenceLabels: Record<TransportPreference, string> = {
-  self_drive: "自驾",
-  no_self_drive: "不自驾",
-  public_transport: "公共交通",
-  flexible: "交通方式灵活",
-};
-
-const signposts = [
-  { icon: Binoculars, label: "比较两个目的地" },
-  { icon: CircleDollarSign, label: "看看旅行预算" },
-  { icon: Route, label: "找找交通方案" },
+const contextualActions = [
+  { icon: Binoculars, label: "比较雪况" },
+  { icon: Route, label: "交通方案" },
+  { icon: CircleDollarSign, label: "看看预算" },
 ];
 
 const sidebarNavigation: Array<{
@@ -113,11 +107,11 @@ export function TripWorkspace() {
         <Image
           alt=""
           className={styles.backgroundImage}
-          data-background-coordinate-system
-          height={1024}
+          height={941}
           priority
           src="/backgrounds/trip-workspace-desktop.png"
-          width={1536}
+          unoptimized
+          width={1672}
         />
       </div>
       <WorkspaceSidebar />
@@ -153,16 +147,13 @@ export function TripWorkspace() {
           </div>
         </header>
 
-        <div className={styles.workspaceLayout}>
-          <JourneyState draft={workspace.draft} />
-
-          <div className={styles.workspaceMain}>
-            <MeriWorld draft={workspace.draft} />
-            <Conversation
-              draft={workspace.draft}
-              initialMessage={workspace.initialMessage}
-            />
-          </div>
+        <div className={styles.workspaceStage} data-region="workspace-stage">
+          <ExpeditionBrief draft={workspace.draft} />
+          <MeriWorld draft={workspace.draft} />
+          <ConversationDock
+            draft={workspace.draft}
+            initialMessage={workspace.initialMessage}
+          />
         </div>
       </div>
     </main>
@@ -237,41 +228,43 @@ function MissingTemporaryWorkspace() {
   );
 }
 
-function JourneyState({ draft }: { readonly draft: TripDraft }) {
+function ExpeditionBrief({ draft }: { readonly draft: TripDraft }) {
   const fields: Array<{
     label: string;
     field: TripDraftField;
     formatKnownValue?: (value: string) => string;
   }> = [
     { label: "目的地", field: draft.destination },
-    { label: "出发时间", field: draft.startDate },
-    { label: "结束时间", field: draft.endDate },
+    { label: "时间", field: draft.startDate },
     { label: "行程时长", field: draft.duration },
-    { label: "出发地", field: draft.origin },
-    {
-      label: "交通偏好",
-      field: draft.transportPreference,
-      formatKnownValue: (value) =>
-        transportPreferenceLabels[value as TransportPreference],
-    },
   ];
+  const attentionCount = getAttentionCount(draft);
 
   return (
     <aside
-      aria-labelledby="journey-state-title"
-      className={`${styles.glassPanel} ${styles.journeyState}`}
-      data-region="journey-state"
+      aria-labelledby="expedition-brief-title"
+      className={`${styles.glassPanel} ${styles.expeditionBrief}`}
+      data-region="expedition-brief"
     >
-      <div className={styles.regionHeading}>
-        <p>JOURNEY STATE</p>
-        <h2 id="journey-state-title">{getWorkspaceTitle(draft)}</h2>
-      </div>
+      <header className={styles.briefHeader}>
+        <div className={styles.regionHeading}>
+          <p>EXPEDITION BRIEF</p>
+          <h2 id="expedition-brief-title">{getWorkspaceTitle(draft)}</h2>
+        </div>
+        <button aria-label="查看全部旅程信息（下一步开放）" disabled type="button">
+          <MoreHorizontal aria-hidden="true" size={16} />
+        </button>
+      </header>
 
-      <p className={styles.journeySummary}>{getJourneySummary(draft)}</p>
+      <p className={styles.attentionSummary}>
+        {attentionCount > 0
+          ? `${attentionCount} 项信息需要留意`
+          : "关键信息已记录"}
+      </p>
 
-      <dl className={styles.stateFields}>
+      <dl className={styles.briefFields}>
         {fields.map(({ label, field, formatKnownValue }) => (
-          <JourneyStateField
+          <ExpeditionBriefField
             field={field}
             formatKnownValue={formatKnownValue}
             key={label}
@@ -283,17 +276,17 @@ function JourneyState({ draft }: { readonly draft: TripDraft }) {
   );
 }
 
-interface JourneyStateFieldProps {
+interface ExpeditionBriefFieldProps {
   readonly label: string;
   readonly field: TripDraftField;
   readonly formatKnownValue?: (value: string) => string;
 }
 
-function JourneyStateField({
+function ExpeditionBriefField({
   label,
   field,
   formatKnownValue = (value) => value,
-}: JourneyStateFieldProps) {
+}: ExpeditionBriefFieldProps) {
   const value =
     field.state === "missing"
       ? "—"
@@ -307,7 +300,10 @@ function JourneyStateField({
         <span>{label}</span>
         <span>{certaintyLabels[field.state]}</span>
       </dt>
-      <dd>{value}</dd>
+      <dd>
+        <span>{value}</span>
+        <ChevronRight aria-hidden="true" size={14} />
+      </dd>
     </div>
   );
 }
@@ -320,36 +316,14 @@ function MeriWorld({ draft }: { readonly draft: TripDraft }) {
       data-region="meri-world"
     >
       <div className={styles.worldHeading}>
-        <p>MERI WORLD</p>
+        <p>MERI BASE CAMP</p>
         <h2 className={styles.srOnly} id="meri-world-title">旅程正在展开</h2>
       </div>
 
       <div
-        aria-label="Future contextual signpost safe zone"
-        className={styles.signpostSafeZone}
-        data-region="signpost-safe-zone"
-      >
-        <div className={styles.signposts}>
-          {signposts.map(({ icon: Icon, label }) => (
-            <button
-              aria-disabled="true"
-              className={styles.signpost}
-              data-intent={label}
-              key={label}
-              type="button"
-            >
-              <Icon aria-hidden="true" size={18} />
-              <span>{label}</span>
-              <ArrowUp aria-hidden="true" size={15} />
-            </button>
-          ))}
-        </div>
-      </div>
-
-      <div
-        aria-label="Companion safe zone"
-        className={styles.companionSafeZone}
-        data-region="companion-safe-zone"
+        aria-label="Meri companion and conversation shortcuts"
+        className={styles.companionScene}
+        data-region="companion-scene"
       >
         <Image
           alt="Meri companion"
@@ -359,31 +333,81 @@ function MeriWorld({ draft }: { readonly draft: TripDraft }) {
           src="/companion/idle/south.png"
           width={84}
         />
-        <p>{getCompanionMessage(draft)}</p>
+        <div className={styles.companionPrompt}>
+          <p>{getCompanionMessage(draft)}</p>
+          <div aria-label="Conversation shortcuts" className={styles.contextualActions}>
+            {contextualActions.map(({ icon: Icon, label }) => (
+              <button disabled key={label} type="button">
+                <Icon aria-hidden="true" size={14} />
+                <span>{label}</span>
+              </button>
+            ))}
+          </div>
+        </div>
       </div>
     </section>
   );
 }
 
-function Conversation({
+function ConversationDock({
   draft,
   initialMessage,
 }: {
   readonly draft: TripDraft;
   readonly initialMessage: string;
 }) {
+  const [isExpanded, setIsExpanded] = useState(false);
+
   return (
     <section
       aria-labelledby="conversation-title"
-      className={`${styles.glassPanel} ${styles.conversation}`}
-      data-region="conversation"
+      className={`${styles.glassPanel} ${styles.conversationDock}`}
+      data-expanded={isExpanded ? "true" : "false"}
+      data-region="conversation-dock"
     >
-      <div className={styles.regionHeading}>
-        <p>CONVERSATION</p>
-        <h2 id="conversation-title">继续和 Meri 聊聊</h2>
-      </div>
+      <header className={styles.dockHeader}>
+        <div className={styles.regionHeading}>
+          <p>CONVERSATION</p>
+          <h2 id="conversation-title">继续和 Meri 聊聊</h2>
+        </div>
+        <button
+          aria-expanded={isExpanded}
+          aria-label={isExpanded ? "收起对话" : "展开对话"}
+          className={styles.dockToggle}
+          onClick={() => setIsExpanded((current) => !current)}
+          type="button"
+        >
+          {isExpanded ? (
+            <ChevronDown aria-hidden="true" size={17} />
+          ) : (
+            <ChevronUp aria-hidden="true" size={17} />
+          )}
+        </button>
+      </header>
 
-      <div className={styles.messageHistory}>
+      {isExpanded ? (
+        <div className={styles.messageHistory}>
+          <article className={styles.meriMessage}>
+            <Image
+              alt=""
+              height={84}
+              src="/companion/idle/south.png"
+              width={84}
+            />
+            <div>
+              <span>Meri</span>
+              <p>{getConversationOpening(draft)}</p>
+            </div>
+          </article>
+          <article className={styles.userMessage}>
+            <span>你从这里开始</span>
+            <p>{initialMessage}</p>
+          </article>
+          <p className={styles.conversationHint}>
+            旅程不需要一次想完整，我们可以边聊边整理。
+          </p>
+        </div>
+      ) : (
         <article className={styles.meriMessage}>
           <Image
             alt=""
@@ -396,14 +420,7 @@ function Conversation({
             <p>{getConversationOpening(draft)}</p>
           </div>
         </article>
-        <article className={styles.userMessage}>
-          <span>你从这里开始</span>
-          <p>{initialMessage}</p>
-        </article>
-        <p className={styles.conversationHint}>
-          接下来的版本中，你可以继续补充想法，不需要先完成一份表单。
-        </p>
-      </div>
+      )}
 
       <div
         aria-describedby="conversation-prototype-note"
@@ -443,12 +460,17 @@ function getWorkspaceTitle(draft: TripDraft): string {
   return "新的旅程想法";
 }
 
-function getJourneySummary(draft: TripDraft): string {
-  const details = [draft.startDate, draft.destination, draft.duration]
-    .filter((field) => field.state !== "missing")
-    .map((field) => field.value);
-
-  return details.length > 0 ? details.join(" · ") : "旅程从一个想法开始";
+function getAttentionCount(draft: TripDraft): number {
+  return [
+    draft.destination,
+    draft.startDate,
+    draft.duration,
+    draft.origin,
+    draft.endDate,
+    draft.transportPreference,
+  ].filter(
+    (field) => field.state === "missing" || field.state === "ambiguous",
+  ).length;
 }
 
 function getCompanionMessage(draft: TripDraft): string {
