@@ -27,12 +27,17 @@ import { useState, useSyncExternalStore } from "react";
 import type {
   TripDraft,
   TripDraftField,
+  TransportPreference,
 } from "@/domain/trip-draft/trip-draft";
+import { transportPreferences } from "@/domain/trip-draft/trip-draft";
 
 import styles from "./trip-workspace.module.css";
 import {
+  applyTemporaryTripDraftEdit,
   clearTemporaryTripWorkspace,
   getTemporaryTripWorkspace,
+  subscribeTemporaryTripWorkspace,
+  type TripDraftFieldName,
 } from "./temporary-trip-workspace-store";
 
 const certaintyLabels = {
@@ -41,6 +46,32 @@ const certaintyLabels = {
   missing: "暂未确定",
   ambiguous: "需要确认",
 } as const;
+
+const transportPreferenceLabels: Record<TransportPreference, string> = {
+  self_drive: "自驾",
+  no_self_drive: "不自驾",
+  public_transport: "公共交通",
+  flexible: "交通方式灵活",
+};
+
+const compactBriefFields: TripDraftFieldName[] = [
+  "destination",
+  "startDate",
+  "duration",
+];
+
+const allBriefFields: Array<{
+  readonly key: TripDraftFieldName;
+  readonly label: string;
+}> = [
+  { key: "name", label: "旅程名称" },
+  { key: "origin", label: "出发地" },
+  { key: "destination", label: "目的地" },
+  { key: "startDate", label: "开始时间" },
+  { key: "endDate", label: "结束时间" },
+  { key: "duration", label: "行程时长" },
+  { key: "transportPreference", label: "交通偏好" },
+];
 
 const contextualActions = [
   { icon: Binoculars, label: "比较雪况" },
@@ -78,7 +109,7 @@ export function TripWorkspace() {
     () => false,
   );
   const workspace = useSyncExternalStore(
-    subscribeToStaticClientState,
+    subscribeTemporaryTripWorkspace,
     getTemporaryTripWorkspace,
     () => null,
   );
@@ -229,21 +260,46 @@ function MissingTemporaryWorkspace() {
 }
 
 function ExpeditionBrief({ draft }: { readonly draft: TripDraft }) {
-  const fields: Array<{
-    label: string;
-    field: TripDraftField;
-    formatKnownValue?: (value: string) => string;
-  }> = [
-    { label: "目的地", field: draft.destination },
-    { label: "时间", field: draft.startDate },
-    { label: "行程时长", field: draft.duration },
-  ];
-  const attentionCount = getAttentionCount(draft);
+  const [isExpanded, setIsExpanded] = useState(false);
+  const [editing, setEditing] = useState<{
+    readonly field: TripDraftFieldName;
+    readonly value: string;
+  } | null>(null);
+  const visibleFields = isExpanded
+    ? allBriefFields
+    : allBriefFields.filter(({ key }) => compactBriefFields.includes(key));
+
+  function startEditing(field: TripDraftFieldName): void {
+    const currentField = draft[field];
+    setEditing({
+      field,
+      value: currentField.state === "missing" ? "" : currentField.value,
+    });
+  }
+
+  function confirmEditing(): void {
+    if (editing === null) {
+      return;
+    }
+
+    applyTemporaryTripDraftEdit({
+      type: "confirm",
+      field: editing.field,
+      value: editing.value,
+    });
+    setEditing(null);
+  }
+
+  function cancelEditing(): void {
+    applyTemporaryTripDraftEdit({ type: "cancel" });
+    setEditing(null);
+  }
 
   return (
     <aside
       aria-labelledby="expedition-brief-title"
       className={`${styles.glassPanel} ${styles.expeditionBrief}`}
+      data-expanded={isExpanded ? "true" : "false"}
       data-region="expedition-brief"
     >
       <header className={styles.briefHeader}>
@@ -251,24 +307,39 @@ function ExpeditionBrief({ draft }: { readonly draft: TripDraft }) {
           <p>EXPEDITION BRIEF</p>
           <h2 id="expedition-brief-title">{getWorkspaceTitle(draft)}</h2>
         </div>
-        <button aria-label="查看全部旅程信息（下一步开放）" disabled type="button">
-          <MoreHorizontal aria-hidden="true" size={16} />
+        <button
+          aria-expanded={isExpanded}
+          aria-label={isExpanded ? "收起旅程信息" : "查看全部旅程信息"}
+          onClick={() => {
+            setEditing(null);
+            setIsExpanded((current) => !current);
+          }}
+          type="button"
+        >
+          <span>{isExpanded ? "收起" : "查看全部信息"}</span>
+          {isExpanded ? (
+            <ChevronUp aria-hidden="true" size={14} />
+          ) : (
+            <ChevronDown aria-hidden="true" size={14} />
+          )}
         </button>
       </header>
 
-      <p className={styles.attentionSummary}>
-        {attentionCount > 0
-          ? `${attentionCount} 项信息需要留意`
-          : "关键信息已记录"}
-      </p>
+      <p className={styles.attentionSummary}>旅程还在构思中</p>
 
       <dl className={styles.briefFields}>
-        {fields.map(({ label, field, formatKnownValue }) => (
+        {visibleFields.map(({ key, label }) => (
           <ExpeditionBriefField
-            field={field}
-            formatKnownValue={formatKnownValue}
-            key={label}
+            editValue={editing?.field === key ? editing.value : ""}
+            field={draft[key]}
+            fieldName={key}
+            isEditing={editing?.field === key}
+            key={key}
             label={label}
+            onCancel={cancelEditing}
+            onChange={(value) => setEditing({ field: key, value })}
+            onConfirm={confirmEditing}
+            onEdit={() => startEditing(key)}
           />
         ))}
       </dl>
@@ -279,20 +350,46 @@ function ExpeditionBrief({ draft }: { readonly draft: TripDraft }) {
 interface ExpeditionBriefFieldProps {
   readonly label: string;
   readonly field: TripDraftField;
-  readonly formatKnownValue?: (value: string) => string;
+  readonly fieldName: TripDraftFieldName;
+  readonly isEditing: boolean;
+  readonly editValue: string;
+  readonly onEdit: () => void;
+  readonly onChange: (value: string) => void;
+  readonly onConfirm: () => void;
+  readonly onCancel: () => void;
 }
 
 function ExpeditionBriefField({
   label,
   field,
-  formatKnownValue = (value) => value,
+  fieldName,
+  isEditing,
+  editValue,
+  onEdit,
+  onChange,
+  onConfirm,
+  onCancel,
 }: ExpeditionBriefFieldProps) {
   const value =
     field.state === "missing"
       ? "—"
-      : field.state === "known"
-        ? formatKnownValue(field.value)
+      : fieldName === "transportPreference" &&
+          field.state === "known" &&
+          transportPreferences.includes(field.value as TransportPreference)
+        ? transportPreferenceLabels[field.value as TransportPreference]
         : field.value;
+
+  function handleKeyDown(event: React.KeyboardEvent<HTMLElement>): void {
+    if (event.key === "Escape") {
+      event.preventDefault();
+      onCancel();
+    }
+
+    if (event.key === "Enter") {
+      event.preventDefault();
+      onConfirm();
+    }
+  }
 
   return (
     <div className={styles.stateField} data-certainty={field.state}>
@@ -301,8 +398,40 @@ function ExpeditionBriefField({
         <span>{certaintyLabels[field.state]}</span>
       </dt>
       <dd>
-        <span>{value}</span>
-        <ChevronRight aria-hidden="true" size={14} />
+        {isEditing ? (
+          fieldName === "transportPreference" ? (
+            <select
+              aria-label={`编辑${label}`}
+              autoFocus
+              onBlur={onConfirm}
+              onChange={(event) => onChange(event.target.value)}
+              onKeyDown={handleKeyDown}
+              value={editValue}
+            >
+              <option value="">暂未确定</option>
+              {transportPreferences.map((preference) => (
+                <option key={preference} value={preference}>
+                  {transportPreferenceLabels[preference]}
+                </option>
+              ))}
+            </select>
+          ) : (
+            <input
+              aria-label={`编辑${label}`}
+              autoFocus
+              onBlur={onConfirm}
+              onChange={(event) => onChange(event.target.value)}
+              onKeyDown={handleKeyDown}
+              type="text"
+              value={editValue}
+            />
+          )
+        ) : (
+          <button aria-label={`编辑${label}`} onClick={onEdit} type="button">
+            <span>{value}</span>
+            <ChevronRight aria-hidden="true" size={14} />
+          </button>
+        )}
       </dd>
     </div>
   );
@@ -458,19 +587,6 @@ function getWorkspaceTitle(draft: TripDraft): string {
   }
 
   return "新的旅程想法";
-}
-
-function getAttentionCount(draft: TripDraft): number {
-  return [
-    draft.destination,
-    draft.startDate,
-    draft.duration,
-    draft.origin,
-    draft.endDate,
-    draft.transportPreference,
-  ].filter(
-    (field) => field.state === "missing" || field.state === "ambiguous",
-  ).length;
 }
 
 function getCompanionMessage(draft: TripDraft): string {
