@@ -145,11 +145,11 @@ function JourneyWorld() {
       <picture className={styles.artworkFrame}>
         <source
           media="(min-width: 1100px)"
-          srcSet="/companion/backgrounds/meri-world-desktop.png"
+          srcSet="/backgrounds/meri-world-desktop.png"
         />
         <source
           media="(max-width: 1099px)"
-          srcSet="/companion/backgrounds/meri-world-mobile.png"
+          srcSet="/backgrounds/meri-world-mobile.png"
         />
         <img
           alt=""
@@ -157,7 +157,7 @@ function JourneyWorld() {
           decoding="async"
           fetchPriority="high"
           height={1672}
-          src="/companion/backgrounds/meri-world-mobile.png"
+          src="/backgrounds/meri-world-mobile.png"
           width={940}
         />
       </picture>

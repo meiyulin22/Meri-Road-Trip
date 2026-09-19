@@ -111,12 +111,6 @@
   grid-template-rows: auto minmax(3.5rem, 1fr) auto;
 }
 
-.worldContent:has(.reviewCard) {
-  max-height: 100dvh;
-  overflow-y: auto;
-  overscroll-behavior: contain;
-}
-
 .productIntroduction {
   width: min(100%, 32rem);
   margin: clamp(1.2rem, 8vh, 5rem) auto 0;
@@ -328,126 +322,6 @@
   font-size: 0.67rem;
 }
 
-.reviewCard {
-  margin-top: 0.9rem;
-  padding: 0.9rem;
-  border: 1px solid rgba(255, 255, 255, 0.13);
-  border-radius: 1rem;
-  background: rgba(7, 17, 37, 0.42);
-  box-shadow: inset 0 1px rgba(255, 255, 255, 0.06);
-}
-
-.reviewHeading {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 0.8rem;
-}
-
-.reviewEyebrow {
-  color: #9db5ff;
-  font-size: 0.58rem;
-  font-weight: 750;
-  letter-spacing: 0.13em;
-}
-
-.reviewHeading h3 {
-  margin-top: 0.18rem;
-  font-size: 1rem;
-  font-weight: 680;
-  letter-spacing: -0.02em;
-}
-
-.reviewHeading > span {
-  flex: 0 0 auto;
-  padding: 0.28rem 0.48rem;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  border-radius: 999px;
-  color: rgba(212, 221, 239, 0.72);
-  font-size: 0.58rem;
-}
-
-.reviewIntroduction {
-  margin-top: 0.55rem;
-  color: rgba(218, 227, 244, 0.76);
-  font-size: 0.7rem;
-  line-height: 1.5;
-}
-
-.reviewFields {
-  margin-top: 0.75rem;
-  display: grid;
-  gap: 0.48rem;
-}
-
-.reviewField {
-  min-width: 0;
-  padding: 0.58rem 0.65rem;
-  border: 1px solid rgba(255, 255, 255, 0.09);
-  border-radius: 0.7rem;
-  background: rgba(255, 255, 255, 0.045);
-}
-
-.reviewField dt {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.6rem;
-  color: rgba(200, 212, 234, 0.68);
-  font-size: 0.62rem;
-}
-
-.reviewField dt span:last-child {
-  color: #a9bfff;
-  font-size: 0.56rem;
-}
-
-.reviewField[data-state="missing"] dt span:last-child,
-.reviewField[data-state="approximate"] dt span:last-child,
-.reviewField[data-state="ambiguous"] dt span:last-child {
-  color: #d8c69b;
-}
-
-.reviewField dd {
-  margin-top: 0.24rem;
-  overflow-wrap: anywhere;
-  color: #f5f7ff;
-  font-size: 0.75rem;
-  line-height: 1.45;
-}
-
-.reviewField[data-state="missing"] dd {
-  color: rgba(210, 220, 239, 0.58);
-}
-
-.reviewActions {
-  margin-top: 0.8rem;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.48rem;
-}
-
-.reviewActions button {
-  min-height: 2.25rem;
-  padding: 0.48rem 0.68rem;
-  border: 1px solid rgba(255, 255, 255, 0.13);
-  border-radius: 0.65rem;
-  color: #edf2ff;
-  background: rgba(255, 255, 255, 0.07);
-  font-size: 0.68rem;
-  cursor: pointer;
-}
-
-.reviewActions button:first-child {
-  border-color: rgba(132, 160, 246, 0.32);
-  background: rgba(74, 111, 212, 0.22);
-}
-
-.reviewActions button:disabled {
-  color: rgba(210, 220, 239, 0.45);
-  cursor: not-allowed;
-}
-
 @keyframes composer-spin {
   to {
     transform: rotate(360deg);
@@ -560,9 +434,6 @@
     width: min(100%, 44rem);
   }
 
-  .reviewFields {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
 }
 
 @media (min-width: 1100px) {
@@ -746,10 +617,6 @@
     grid-template-rows: auto minmax(5rem, 1fr) auto;
   }
 
-  .worldContent:has(.reviewCard) {
-    max-height: 100%;
-  }
-
   .productIntroduction {
     margin-top: clamp(6rem, 19vh, 12rem);
   }
@@ -783,9 +650,6 @@
     font-size: 0.75rem;
   }
 
-  .reviewFields {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
 }
 
 @media (min-width: 1500px) {
@@ -820,7 +684,6 @@
 @supports not (backdrop-filter: blur(1px)) {
   .mobileNewTrip,
   .composer,
-  .reviewCard,
   .mobileBottomNavigation {
     background: rgba(8, 17, 36, 0.95);
   }

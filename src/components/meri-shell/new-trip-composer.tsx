@@ -1,20 +1,15 @@
 "use client";
 
 import { LoaderCircle, Send } from "lucide-react";
+import { useRouter } from "next/navigation";
 import {
-  useEffect,
   useReducer,
   useRef,
   type FormEvent,
   type KeyboardEvent,
-  type RefObject,
 } from "react";
 
-import {
-  type TransportPreference,
-  type TripDraft,
-  type TripDraftField,
-} from "@/domain/trip-draft/trip-draft";
+import { setTemporaryTripWorkspace } from "@/components/trip-workspace/temporary-trip-workspace-store";
 
 import styles from "./meri-app-shell.module.css";
 import {
@@ -37,31 +32,18 @@ const quickActions = [
   { label: "周末徒步", prompt: "想找个周末去徒步" },
 ];
 
-const transportPreferenceLabels: Record<TransportPreference, string> = {
-  self_drive: "自驾",
-  no_self_drive: "不自驾",
-  public_transport: "公共交通",
-  flexible: "交通方式灵活",
-};
-
 const errorMessage = "Meri 暂时无法理解这段旅行想法。你的输入还在，请稍后重试。";
 
 export function NewTripComposer() {
+  const router = useRouter();
   const [state, dispatch] = useReducer(
     newTripComposerReducer,
     undefined,
     createInitialComposerState,
   );
   const textareaRef = useRef<HTMLTextAreaElement>(null);
-  const reviewRef = useRef<HTMLElement>(null);
   const isSubmitting = state.phase === "submitting";
   const canSubmit = canSubmitTripDraft(state);
-
-  useEffect(() => {
-    if (state.phase === "review") {
-      reviewRef.current?.scrollIntoView({ block: "nearest" });
-    }
-  }, [state.phase]);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -74,7 +56,12 @@ export function NewTripComposer() {
 
     try {
       const draft = await requestTripDraft(state.message);
+      setTemporaryTripWorkspace(draft, state.message.trim());
       dispatch({ type: "submission.succeeded", draft });
+      const layoutDebugEnabled =
+        process.env.NODE_ENV === "development" &&
+        new URLSearchParams(window.location.search).has("layoutDebug");
+      router.push(layoutDebugEnabled ? "/trips/new?layoutDebug=1" : "/trips/new");
     } catch {
       dispatch({ type: "submission.failed", error: errorMessage });
     }
@@ -145,152 +132,32 @@ export function NewTripComposer() {
           </p>
         ) : null}
 
-        {state.draft === null ? (
-          <>
-            <div className={styles.promptExamples} aria-label="Example trip ideas">
-              {promptExamples.map((prompt) => (
-                <button
-                  disabled={isSubmitting}
-                  key={prompt}
-                  onClick={() => applyPrompt(prompt)}
-                  type="button"
-                >
-                  {prompt}
-                </button>
-              ))}
-            </div>
+        <div className={styles.promptExamples} aria-label="Example trip ideas">
+          {promptExamples.map((prompt) => (
+            <button
+              disabled={isSubmitting}
+              key={prompt}
+              onClick={() => applyPrompt(prompt)}
+              type="button"
+            >
+              {prompt}
+            </button>
+          ))}
+        </div>
 
-            <div className={styles.tripMoods} aria-label="Trip inspiration examples">
-              {quickActions.map((action) => (
-                <button
-                  disabled={isSubmitting}
-                  key={action.label}
-                  onClick={() => applyPrompt(action.prompt)}
-                  type="button"
-                >
-                  {action.label}
-                </button>
-              ))}
-            </div>
-          </>
-        ) : (
-          <TripDraftReviewCard
-            draft={state.draft}
-            onEdit={() => textareaRef.current?.focus()}
-            sectionRef={reviewRef}
-          />
-        )}
+        <div className={styles.tripMoods} aria-label="Trip inspiration examples">
+          {quickActions.map((action) => (
+            <button
+              disabled={isSubmitting}
+              key={action.label}
+              onClick={() => applyPrompt(action.prompt)}
+              type="button"
+            >
+              {action.label}
+            </button>
+          ))}
+        </div>
       </form>
     </section>
-  );
-}
-
-interface TripDraftReviewCardProps {
-  readonly draft: TripDraft;
-  readonly onEdit: () => void;
-  readonly sectionRef: RefObject<HTMLElement | null>;
-}
-
-function TripDraftReviewCard({
-  draft,
-  onEdit,
-  sectionRef,
-}: TripDraftReviewCardProps) {
-  const fields: Array<{
-    label: string;
-    field: TripDraftField;
-    formatKnownValue?: (value: string) => string;
-  }> = [
-    { label: "行程名称", field: draft.name },
-    { label: "出发地", field: draft.origin },
-    { label: "目的地", field: draft.destination },
-    { label: "出发日期", field: draft.startDate },
-    { label: "结束日期", field: draft.endDate },
-    { label: "行程时长", field: draft.duration },
-    {
-      label: "交通偏好",
-      field: draft.transportPreference,
-      formatKnownValue: (value) =>
-        transportPreferenceLabels[value as TransportPreference],
-    },
-  ];
-
-  return (
-    <section
-      aria-labelledby="trip-draft-review-title"
-      aria-live="polite"
-      className={styles.reviewCard}
-      ref={sectionRef}
-    >
-      <div className={styles.reviewHeading}>
-        <div>
-          <p className={styles.reviewEyebrow}>HUMAN REVIEW</p>
-          <h3 id="trip-draft-review-title">Meri 对这次旅行的理解</h3>
-        </div>
-        <span>尚未保存</span>
-      </div>
-
-      <p className={styles.reviewIntroduction}>
-        这是 Meri 根据你刚才的描述整理出的理解。信息可以不完整，也可以继续修改。
-      </p>
-
-      <dl className={styles.reviewFields}>
-        {fields.map(({ label, field, formatKnownValue }) => (
-          <TripDraftReviewField
-            field={field}
-            formatKnownValue={formatKnownValue}
-            key={label}
-            label={label}
-          />
-        ))}
-      </dl>
-
-      <div className={styles.reviewActions}>
-        <button onClick={onEdit} type="button">
-          修改信息
-        </button>
-        <button disabled type="button">
-          继续规划
-        </button>
-        <button disabled type="button">
-          先保存这个想法
-        </button>
-      </div>
-    </section>
-  );
-}
-
-interface TripDraftReviewFieldProps {
-  readonly label: string;
-  readonly field: TripDraftField;
-  readonly formatKnownValue?: (value: string) => string;
-}
-
-function TripDraftReviewField({
-  label,
-  field,
-  formatKnownValue = (value) => value,
-}: TripDraftReviewFieldProps) {
-  const stateLabels = {
-    known: "已理解",
-    approximate: "大致范围",
-    missing: "暂未确定",
-    ambiguous: "需要确认",
-  } as const;
-  const value =
-    field.state === "known"
-      ? formatKnownValue(field.value)
-      : field.state === "approximate" || field.state === "ambiguous"
-        ? field.value
-        : "—";
-
-  return (
-    <div className={styles.reviewField} data-state={field.state}>
-      <dt>
-        <span>{label}</span>
-        <span>{stateLabels[field.state]}</span>
-      </dt>
-      <dd>{value}</dd>
-    </div>
   );
 }
