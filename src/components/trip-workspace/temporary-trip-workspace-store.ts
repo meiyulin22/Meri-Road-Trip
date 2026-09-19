@@ -3,21 +3,27 @@ import {
   type TripDraft,
   type TransportPreference,
 } from "@/domain/trip-draft/trip-draft";
+import {
+  applyTripStatePatch,
+  initializeTripState,
+  type TripState,
+  type TripStateField,
+  type TripStateFieldName,
+  type TripStatePatch,
+} from "@/domain/trip-state/trip-state";
 
 export interface TemporaryTripWorkspaceState {
-  readonly draft: TripDraft;
+  readonly tripState: TripState;
   readonly initialMessage: string;
 }
 
 let currentWorkspace: TemporaryTripWorkspaceState | null = null;
 const listeners = new Set<() => void>();
 
-export type TripDraftFieldName = keyof TripDraft;
-
-export type TemporaryTripDraftEdit =
+export type TemporaryTripStateEdit =
   | {
       readonly type: "confirm";
-      readonly field: TripDraftFieldName;
+      readonly field: TripStateFieldName;
       readonly value: string;
     }
   | { readonly type: "cancel" };
@@ -34,7 +40,10 @@ export function setTemporaryTripWorkspace(
   draft: TripDraft,
   initialMessage: string,
 ): void {
-  currentWorkspace = { draft, initialMessage };
+  currentWorkspace = {
+    tripState: initializeTripState(draft),
+    initialMessage,
+  };
   emitChange();
 }
 
@@ -55,32 +64,52 @@ export function subscribeTemporaryTripWorkspace(
   return () => listeners.delete(listener);
 }
 
-export function applyTemporaryTripDraftEdit(
-  edit: TemporaryTripDraftEdit,
+function createUserEditPatch(
+  state: TripState,
+  field: TripStateFieldName,
+  value: string,
+): TripStatePatch {
+  if (value.trim() === "") {
+    return { [field]: { state: "missing" } };
+  }
+
+  if (field === "transportPreference") {
+    if (!isTransportPreference(value)) {
+      throw new Error("Invalid transport preference for temporary TripState.");
+    }
+
+    return {
+      transportPreference: { state: "known", value, source: "user" },
+    };
+  }
+
+  const currentField = state[field];
+  const nextField: TripStateField = {
+    state: currentField.state === "missing" ? "known" : currentField.state,
+    value,
+    source: "user",
+  };
+
+  return { [field]: nextField };
+}
+
+export function applyTemporaryTripStateEdit(
+  edit: TemporaryTripStateEdit,
 ): void {
   if (edit.type === "cancel" || currentWorkspace === null) {
     return;
   }
 
-  const nextField =
-    edit.value.trim() === ""
-      ? ({ state: "missing" } as const)
-      : ({ state: "known", value: edit.value } as const);
-
-  if (
-    edit.field === "transportPreference" &&
-    nextField.state === "known" &&
-    !isTransportPreference(nextField.value)
-  ) {
-    throw new Error("Invalid transport preference for temporary TripDraft.");
-  }
-
   currentWorkspace = {
     ...currentWorkspace,
-    draft: {
-      ...currentWorkspace.draft,
-      [edit.field]: nextField,
-    },
+    tripState: applyTripStatePatch(
+      currentWorkspace.tripState,
+      createUserEditPatch(
+        currentWorkspace.tripState,
+        edit.field,
+        edit.value,
+      ),
+    ),
   };
   emitChange();
 }

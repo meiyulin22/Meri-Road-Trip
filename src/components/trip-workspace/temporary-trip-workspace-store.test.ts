@@ -4,7 +4,7 @@ import test from "node:test";
 import type { TripDraft } from "@/domain/trip-draft/trip-draft";
 
 import {
-  applyTemporaryTripDraftEdit,
+  applyTemporaryTripStateEdit,
   clearTemporaryTripWorkspace,
   getTemporaryTripWorkspace,
   setTemporaryTripWorkspace,
@@ -25,11 +25,31 @@ function resetWorkspace(): void {
   setTemporaryTripWorkspace(draft, "今年冬天想找个地方滑雪");
 }
 
-test("keeps a TripDraft in temporary client state until it is cleared", () => {
+test("creates authoritative TripState when the temporary Workspace starts", () => {
   resetWorkspace();
 
   assert.deepEqual(getTemporaryTripWorkspace(), {
-    draft,
+    tripState: {
+      name: { state: "known", value: "冬季滑雪之旅", source: "system" },
+      origin: { state: "missing" },
+      destination: {
+        state: "ambiguous",
+        value: "二世谷或者富良野",
+        source: "user",
+      },
+      startDate: {
+        state: "approximate",
+        value: "今年冬天",
+        source: "user",
+      },
+      endDate: { state: "missing" },
+      duration: {
+        state: "approximate",
+        value: "大概一周",
+        source: "user",
+      },
+      transportPreference: { state: "missing" },
+    },
     initialMessage: "今年冬天想找个地方滑雪",
   });
 
@@ -37,115 +57,126 @@ test("keeps a TripDraft in temporary client state until it is cleared", () => {
   assert.equal(getTemporaryTripWorkspace(), null);
 });
 
-test("replaces a known field with the exact confirmed text", () => {
+test("direct edit marks a known field as user-sourced", () => {
   resetWorkspace();
-  applyTemporaryTripDraftEdit({
+  applyTemporaryTripStateEdit({
     type: "confirm",
     field: "name",
     value: "北海道雪季慢旅行",
   });
 
-  assert.deepEqual(getTemporaryTripWorkspace()?.draft.name, {
+  assert.deepEqual(getTemporaryTripWorkspace()?.tripState.name, {
     state: "known",
     value: "北海道雪季慢旅行",
+    source: "user",
   });
 });
 
-test("turns an approximate field into known without normalizing natural language", () => {
+test("direct edit preserves approximate certainty and exact natural language", () => {
   resetWorkspace();
-  applyTemporaryTripDraftEdit({
+  applyTemporaryTripStateEdit({
     type: "confirm",
     field: "startDate",
-    value: "10月25日",
+    value: "十月底",
   });
 
-  assert.deepEqual(getTemporaryTripWorkspace()?.draft.startDate, {
-    state: "known",
-    value: "10月25日",
+  assert.deepEqual(getTemporaryTripWorkspace()?.tripState.startDate, {
+    state: "approximate",
+    value: "十月底",
+    source: "user",
   });
 });
 
-test("turns an ambiguous field into known when the user chooses a value", () => {
+test("direct edit preserves ambiguous certainty", () => {
   resetWorkspace();
-  applyTemporaryTripDraftEdit({
+  applyTemporaryTripStateEdit({
     type: "confirm",
     field: "destination",
-    value: "二世谷",
+    value: "长野或者北海道",
   });
 
-  assert.deepEqual(getTemporaryTripWorkspace()?.draft.destination, {
-    state: "known",
-    value: "二世谷",
+  assert.deepEqual(getTemporaryTripWorkspace()?.tripState.destination, {
+    state: "ambiguous",
+    value: "长野或者北海道",
+    source: "user",
   });
 });
 
-test("turns a missing field into known when the user enters text", () => {
+test("entering a previously missing field establishes a user-known value", () => {
   resetWorkspace();
-  applyTemporaryTripDraftEdit({
+  applyTemporaryTripStateEdit({
     type: "confirm",
     field: "origin",
     value: "大连",
   });
 
-  assert.deepEqual(getTemporaryTripWorkspace()?.draft.origin, {
+  assert.deepEqual(getTemporaryTripWorkspace()?.tripState.origin, {
     state: "known",
     value: "大连",
+    source: "user",
   });
 });
 
-test("clearing a field confirms it as missing", () => {
+test("clearing a field produces missing without source metadata", () => {
   resetWorkspace();
-  applyTemporaryTripDraftEdit({
+  applyTemporaryTripStateEdit({
     type: "confirm",
     field: "duration",
     value: "   ",
   });
 
-  assert.deepEqual(getTemporaryTripWorkspace()?.draft.duration, {
-    state: "missing",
-  });
+  const duration = getTemporaryTripWorkspace()?.tripState.duration;
+  assert.deepEqual(duration, { state: "missing" });
+  assert.equal(duration && "source" in duration, false);
 });
 
-test("cancelling does not mutate the draft", () => {
+test("cancelling does not mutate TripState", () => {
   resetWorkspace();
-  const beforeCancel = getTemporaryTripWorkspace()?.draft;
+  const beforeCancel = getTemporaryTripWorkspace()?.tripState;
 
-  applyTemporaryTripDraftEdit({ type: "cancel" });
+  applyTemporaryTripStateEdit({ type: "cancel" });
 
-  assert.deepEqual(getTemporaryTripWorkspace()?.draft, beforeCancel);
+  assert.strictEqual(getTemporaryTripWorkspace()?.tripState, beforeCancel);
 });
 
 test("editing one field leaves unrelated fields unchanged", () => {
   resetWorkspace();
-  const beforeEdit = getTemporaryTripWorkspace()?.draft;
+  const beforeEdit = getTemporaryTripWorkspace()?.tripState;
 
-  applyTemporaryTripDraftEdit({
+  applyTemporaryTripStateEdit({
     type: "confirm",
     field: "origin",
     value: "上海",
   });
 
-  const afterEdit = getTemporaryTripWorkspace()?.draft;
-  assert.deepEqual(afterEdit?.destination, beforeEdit?.destination);
-  assert.deepEqual(afterEdit?.startDate, beforeEdit?.startDate);
-  assert.deepEqual(afterEdit?.transportPreference, beforeEdit?.transportPreference);
+  const afterEdit = getTemporaryTripWorkspace()?.tripState;
+  assert.strictEqual(afterEdit?.destination, beforeEdit?.destination);
+  assert.strictEqual(afterEdit?.startDate, beforeEdit?.startDate);
+  assert.strictEqual(
+    afterEdit?.transportPreference,
+    beforeEdit?.transportPreference,
+  );
 });
 
 test("accepts only an existing transport preference enum value", () => {
   resetWorkspace();
-  applyTemporaryTripDraftEdit({
+  applyTemporaryTripStateEdit({
     type: "confirm",
     field: "transportPreference",
     value: "public_transport",
   });
 
-  assert.deepEqual(getTemporaryTripWorkspace()?.draft.transportPreference, {
-    state: "known",
-    value: "public_transport",
-  });
+  assert.deepEqual(
+    getTemporaryTripWorkspace()?.tripState.transportPreference,
+    {
+      state: "known",
+      value: "public_transport",
+      source: "user",
+    },
+  );
   assert.throws(
     () =>
-      applyTemporaryTripDraftEdit({
+      applyTemporaryTripStateEdit({
         type: "confirm",
         field: "transportPreference",
         value: "teleport",

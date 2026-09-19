@@ -7,7 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "test": "tsx --test src/server/trip/trip-service.test.ts src/server/trip/postgres-trip-repository.test.ts src/domain/trip-draft/trip-draft.test.ts src/server/ai/prompts/trip-draft-prompt.test.ts src/server/ai/trip-draft-extractor.test.ts src/components/meri-shell/new-trip-composer-model.test.ts src/components/trip-workspace/temporary-trip-workspace-store.test.ts",
+    "test": "tsx --test src/server/trip/trip-service.test.ts src/server/trip/postgres-trip-repository.test.ts src/domain/trip-draft/trip-draft.test.ts src/domain/trip-state/trip-state.test.ts src/server/ai/prompts/trip-draft-prompt.test.ts src/server/ai/trip-draft-extractor.test.ts src/components/meri-shell/new-trip-composer-model.test.ts src/components/trip-workspace/temporary-trip-workspace-store.test.ts",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {

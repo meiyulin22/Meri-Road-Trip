@@ -312,9 +312,18 @@
 }
 
 .attentionSummary {
-  margin-top: 9px;
   color: rgba(214, 224, 243, 0.64);
   font-size: 11px;
+}
+
+.briefGuidance { margin-top: 9px; }
+
+.editingHint {
+  max-width: 300px;
+  margin-top: 4px;
+  color: rgba(184, 199, 224, 0.5);
+  font-size: 9px;
+  line-height: 1.45;
 }
 
 .briefFields {
@@ -339,7 +348,8 @@
   transition: border-color 160ms ease, background-color 160ms ease;
 }
 
-.stateField:hover {
+.stateField:hover,
+.stateField:focus-within {
   border-color: rgba(144, 170, 247, 0.22);
   background: rgba(255, 255, 255, 0.06);
 }
@@ -389,7 +399,20 @@
 }
 
 .stateField dd button span { overflow-wrap: anywhere; }
-.stateField dd svg { flex: 0 0 auto; color: rgba(190, 203, 229, 0.36); }
+.stateField dd svg {
+  flex: 0 0 auto;
+  color: rgba(190, 203, 229, 0.4);
+  opacity: 0.18;
+  transform: translateX(2px);
+  transition: opacity 150ms ease, transform 150ms ease;
+}
+
+.stateField:hover dd svg,
+.stateField:focus-within dd svg {
+  opacity: 0.9;
+  transform: translateX(0);
+}
+
 .stateField[data-certainty="missing"] dd { color: rgba(204, 215, 237, 0.46); }
 
 .stateField input,
@@ -690,6 +713,7 @@
 
 @media (prefers-reduced-motion: reduce) {
   .stateField,
+  .stateField dd svg,
   .expeditionBrief,
   .conversationDock { transition: none; }
 }

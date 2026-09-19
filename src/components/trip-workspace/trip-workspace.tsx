@@ -5,7 +5,6 @@ import {
   Backpack,
   Binoculars,
   ChevronDown,
-  ChevronRight,
   ChevronUp,
   CircleDollarSign,
   CloudSun,
@@ -14,6 +13,7 @@ import {
   Map,
   MoreHorizontal,
   MountainSnow,
+  Pencil,
   Plus,
   Route,
   Save,
@@ -24,20 +24,22 @@ import Image from "next/image";
 import Link from "next/link";
 import { useState, useSyncExternalStore } from "react";
 
-import type {
-  TripDraft,
-  TripDraftField,
-  TransportPreference,
+import {
+  transportPreferences,
+  type TransportPreference,
 } from "@/domain/trip-draft/trip-draft";
-import { transportPreferences } from "@/domain/trip-draft/trip-draft";
+import type {
+  TripState,
+  TripStateField,
+  TripStateFieldName,
+} from "@/domain/trip-state/trip-state";
 
 import styles from "./trip-workspace.module.css";
 import {
-  applyTemporaryTripDraftEdit,
+  applyTemporaryTripStateEdit,
   clearTemporaryTripWorkspace,
   getTemporaryTripWorkspace,
   subscribeTemporaryTripWorkspace,
-  type TripDraftFieldName,
 } from "./temporary-trip-workspace-store";
 
 const certaintyLabels = {
@@ -54,14 +56,14 @@ const transportPreferenceLabels: Record<TransportPreference, string> = {
   flexible: "交通方式灵活",
 };
 
-const compactBriefFields: TripDraftFieldName[] = [
+const compactBriefFields: TripStateFieldName[] = [
   "destination",
   "startDate",
   "duration",
 ];
 
 const allBriefFields: Array<{
-  readonly key: TripDraftFieldName;
+  readonly key: TripStateFieldName;
   readonly label: string;
 }> = [
   { key: "name", label: "旅程名称" },
@@ -127,7 +129,7 @@ export function TripWorkspace() {
     return <MissingTemporaryWorkspace />;
   }
 
-  const title = getWorkspaceTitle(workspace.draft);
+  const title = getWorkspaceTitle(workspace.tripState);
 
   return (
     <main
@@ -179,10 +181,10 @@ export function TripWorkspace() {
         </header>
 
         <div className={styles.workspaceStage} data-region="workspace-stage">
-          <ExpeditionBrief draft={workspace.draft} />
-          <MeriWorld draft={workspace.draft} />
+          <ExpeditionBrief tripState={workspace.tripState} />
+          <MeriWorld />
           <ConversationDock
-            draft={workspace.draft}
+            tripState={workspace.tripState}
             initialMessage={workspace.initialMessage}
           />
         </div>
@@ -259,18 +261,22 @@ function MissingTemporaryWorkspace() {
   );
 }
 
-function ExpeditionBrief({ draft }: { readonly draft: TripDraft }) {
-  const [isExpanded, setIsExpanded] = useState(false);
+function ExpeditionBrief({
+  tripState,
+}: {
+  readonly tripState: TripState;
+}) {
+  const [isExpanded, setIsExpanded] = useState(true);
   const [editing, setEditing] = useState<{
-    readonly field: TripDraftFieldName;
+    readonly field: TripStateFieldName;
     readonly value: string;
   } | null>(null);
   const visibleFields = isExpanded
     ? allBriefFields
     : allBriefFields.filter(({ key }) => compactBriefFields.includes(key));
 
-  function startEditing(field: TripDraftFieldName): void {
-    const currentField = draft[field];
+  function startEditing(field: TripStateFieldName): void {
+    const currentField = tripState[field];
     setEditing({
       field,
       value: currentField.state === "missing" ? "" : currentField.value,
@@ -282,7 +288,7 @@ function ExpeditionBrief({ draft }: { readonly draft: TripDraft }) {
       return;
     }
 
-    applyTemporaryTripDraftEdit({
+    applyTemporaryTripStateEdit({
       type: "confirm",
       field: editing.field,
       value: editing.value,
@@ -291,7 +297,7 @@ function ExpeditionBrief({ draft }: { readonly draft: TripDraft }) {
   }
 
   function cancelEditing(): void {
-    applyTemporaryTripDraftEdit({ type: "cancel" });
+    applyTemporaryTripStateEdit({ type: "cancel" });
     setEditing(null);
   }
 
@@ -305,7 +311,7 @@ function ExpeditionBrief({ draft }: { readonly draft: TripDraft }) {
       <header className={styles.briefHeader}>
         <div className={styles.regionHeading}>
           <p>EXPEDITION BRIEF</p>
-          <h2 id="expedition-brief-title">{getWorkspaceTitle(draft)}</h2>
+          <h2 id="expedition-brief-title">{getWorkspaceTitle(tripState)}</h2>
         </div>
         <button
           aria-expanded={isExpanded}
@@ -325,13 +331,18 @@ function ExpeditionBrief({ draft }: { readonly draft: TripDraft }) {
         </button>
       </header>
 
-      <p className={styles.attentionSummary}>旅程还在构思中</p>
+      <div className={styles.briefGuidance}>
+        <p className={styles.attentionSummary}>旅程还在构思中</p>
+        <p className={styles.editingHint}>
+          这是 Meri 目前理解的旅程，点击任意信息即可修改
+        </p>
+      </div>
 
       <dl className={styles.briefFields}>
         {visibleFields.map(({ key, label }) => (
           <ExpeditionBriefField
             editValue={editing?.field === key ? editing.value : ""}
-            field={draft[key]}
+            field={tripState[key]}
             fieldName={key}
             isEditing={editing?.field === key}
             key={key}
@@ -349,8 +360,8 @@ function ExpeditionBrief({ draft }: { readonly draft: TripDraft }) {
 
 interface ExpeditionBriefFieldProps {
   readonly label: string;
-  readonly field: TripDraftField;
-  readonly fieldName: TripDraftFieldName;
+  readonly field: TripStateField;
+  readonly fieldName: TripStateFieldName;
   readonly isEditing: boolean;
   readonly editValue: string;
   readonly onEdit: () => void;
@@ -429,7 +440,7 @@ function ExpeditionBriefField({
         ) : (
           <button aria-label={`编辑${label}`} onClick={onEdit} type="button">
             <span>{value}</span>
-            <ChevronRight aria-hidden="true" size={14} />
+            <Pencil aria-hidden="true" size={13} />
           </button>
         )}
       </dd>
@@ -437,7 +448,7 @@ function ExpeditionBriefField({
   );
 }
 
-function MeriWorld({ draft }: { readonly draft: TripDraft }) {
+function MeriWorld() {
   return (
     <section
       aria-labelledby="meri-world-title"
@@ -463,7 +474,7 @@ function MeriWorld({ draft }: { readonly draft: TripDraft }) {
           width={84}
         />
         <div className={styles.companionPrompt}>
-          <p>{getCompanionMessage(draft)}</p>
+          <p>我把目前理解的旅程整理在左上角了，哪里不对，直接点一下就能改。</p>
           <div aria-label="Conversation shortcuts" className={styles.contextualActions}>
             {contextualActions.map(({ icon: Icon, label }) => (
               <button disabled key={label} type="button">
@@ -479,10 +490,10 @@ function MeriWorld({ draft }: { readonly draft: TripDraft }) {
 }
 
 function ConversationDock({
-  draft,
+  tripState,
   initialMessage,
 }: {
-  readonly draft: TripDraft;
+  readonly tripState: TripState;
   readonly initialMessage: string;
 }) {
   const [isExpanded, setIsExpanded] = useState(false);
@@ -525,7 +536,7 @@ function ConversationDock({
             />
             <div>
               <span>Meri</span>
-              <p>{getConversationOpening(draft)}</p>
+              <p>{getConversationOpening(tripState)}</p>
             </div>
           </article>
           <article className={styles.userMessage}>
@@ -546,7 +557,7 @@ function ConversationDock({
           />
           <div>
             <span>Meri</span>
-            <p>{getConversationOpening(draft)}</p>
+            <p>{getConversationOpening(tripState)}</p>
           </div>
         </article>
       )}
@@ -577,33 +588,21 @@ function ConversationDock({
   );
 }
 
-function getWorkspaceTitle(draft: TripDraft): string {
-  if (draft.name.state !== "missing") {
-    return draft.name.value;
+function getWorkspaceTitle(tripState: TripState): string {
+  if (tripState.name.state !== "missing") {
+    return tripState.name.value;
   }
 
-  if (draft.destination.state !== "missing") {
-    return `${draft.destination.value}之旅`;
+  if (tripState.destination.state !== "missing") {
+    return `${tripState.destination.value}之旅`;
   }
 
   return "新的旅程想法";
 }
 
-function getCompanionMessage(draft: TripDraft): string {
-  if (draft.destination.state === "ambiguous") {
-    return "两个方向都很有吸引力，我可以先帮你比较一下。";
-  }
-
-  if (draft.destination.state === "missing") {
-    return "还没决定去哪也没关系，我们可以一起找方向。";
-  }
-
-  return `去${draft.destination.value}是个很棒的开始，我们继续把旅程补完整吧。`;
-}
-
-function getConversationOpening(draft: TripDraft): string {
-  if (draft.startDate.state !== "missing") {
-    return `我已经记下了你的想法，也保留了“${draft.startDate.value}”这个时间范围。你可以继续告诉我任何还在考虑的事情。`;
+function getConversationOpening(tripState: TripState): string {
+  if (tripState.startDate.state !== "missing") {
+    return `我已经记下了你的想法，也保留了“${tripState.startDate.value}”这个时间范围。你可以继续告诉我任何还在考虑的事情。`;
   }
 
   return "我已经记下了你的旅行想法。信息不需要一次完整，我们可以边聊边把旅程变清晰。";
