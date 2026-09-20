@@ -6,6 +6,8 @@ import type { TripDraft } from "@/domain/trip-draft/trip-draft";
 import {
   applyTripStatePatch,
   initializeTripState,
+  InvalidTripStateError,
+  validateTripStatePatch,
   type TripStatePatch,
 } from "./trip-state";
 
@@ -70,4 +72,31 @@ test("applies a patch without changing or reconstructing unrelated fields", () =
   if (state.startDate.state !== "missing") {
     assert.equal(state.startDate.value, "十月底");
   }
+});
+
+test("validates a focused external TripStatePatch", () => {
+  assert.deepEqual(
+    validateTripStatePatch({
+      destination: {
+        state: "ambiguous",
+        value: "二世谷或者富良野",
+        source: "user",
+      },
+    }),
+    {
+      destination: {
+        state: "ambiguous",
+        value: "二世谷或者富良野",
+        source: "user",
+      },
+    },
+  );
+});
+
+test("rejects empty and unknown TripStatePatch fields", () => {
+  assert.throws(() => validateTripStatePatch({}), InvalidTripStateError);
+  assert.throws(
+    () => validateTripStatePatch({ weather: { state: "missing" } }),
+    InvalidTripStateError,
+  );
 });

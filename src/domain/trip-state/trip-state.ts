@@ -136,6 +136,45 @@ export function validateTripState(value: unknown): TripState {
   };
 }
 
+export function validateTripStatePatch(value: unknown): TripStatePatch {
+  const fieldNames: TripStateFieldName[] = [
+    "name",
+    "origin",
+    "destination",
+    "startDate",
+    "endDate",
+    "duration",
+    "transportPreference",
+  ];
+
+  if (!isRecord(value)) {
+    throw new InvalidTripStateError("TripStatePatch must be an object.");
+  }
+
+  const keys = Object.keys(value);
+  if (
+    keys.length === 0 ||
+    keys.some((key) => !fieldNames.includes(key as TripStateFieldName))
+  ) {
+    throw new InvalidTripStateError("TripStatePatch has invalid fields.");
+  }
+
+  const patch: { -readonly [K in keyof TripState]?: TripState[K] } = {};
+  for (const key of keys as TripStateFieldName[]) {
+    const field = validateStateField(
+      value[key],
+      key,
+      key === "transportPreference"
+        ? (fieldValue) =>
+            transportPreferences.some((preference) => preference === fieldValue)
+        : undefined,
+    );
+    Object.assign(patch, { [key]: field });
+  }
+
+  return patch;
+}
+
 function initializeField<T extends string>(
   field: TripDraftField<T>,
   source: TripFieldSource,

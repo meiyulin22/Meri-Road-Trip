@@ -3,10 +3,9 @@ import { randomUUID } from "node:crypto";
 import { NextResponse } from "next/server";
 
 import {
-  applyTripStatePatch,
   InvalidTripStateError,
-  validateTripState,
 } from "@/domain/trip-state/trip-state";
+import { TripNotFoundError } from "@/domain/trip/trip-errors";
 import {
   createTripStatePatchFromInterpretation,
   InvalidWorkspaceConversationInterpretationError,
@@ -21,6 +20,8 @@ import {
   InvalidWorkspaceConversationModelOutputError,
   InvalidWorkspaceConversationRequestError,
 } from "@/server/ai/workspace-conversation-interpreter";
+import { TripStateNotFoundError } from "@/server/journey/journey-errors";
+import { journeyService } from "@/server/journey/journey-service-instance";
 import { logger, logEvents } from "@/server/observability/logger";
 import { serializeError } from "@/server/observability/serialize-error";
 
@@ -54,6 +55,13 @@ function mapError(error: unknown): ErrorResponse {
     error instanceof InvalidTripStateError
   ) {
     return { status: 400, message: "The workspace message is invalid." };
+  }
+
+  if (
+    error instanceof TripNotFoundError ||
+    error instanceof TripStateNotFoundError
+  ) {
+    return { status: 404, message: "Journey was not found." };
   }
 
   if (error instanceof MissingLlmConfigurationError) {
@@ -104,14 +112,17 @@ export async function POST(request: Request) {
       body === null ||
       !("message" in body) ||
       typeof body.message !== "string" ||
-      !("tripState" in body)
+      !("tripId" in body) ||
+      typeof body.tripId !== "string" ||
+      body.tripId.trim() === ""
     ) {
       throw new InvalidWorkspaceConversationRequestError(
-        "Request body must contain message and tripState.",
+        "Request body must contain message and tripId.",
       );
     }
 
-    const tripState = validateTripState(body.tripState);
+    const tripId = body.tripId;
+    const { tripState } = await journeyService.loadJourney(tripId);
     logger.info(
       { event: logEvents.workspaceConversationRequested, ...context },
       "Workspace conversation requested",
@@ -124,13 +135,15 @@ export async function POST(request: Request) {
       ...getRequestContext(),
     });
     const patch = createTripStatePatchFromInterpretation(interpretation);
+    let persistedTripState = tripState;
 
     if (patch !== null) {
-      applyTripStatePatch(tripState, patch);
+      persistedTripState = await journeyService.updateTripState(tripId, patch);
       logger.info(
         {
           event: logEvents.tripStateUpdateApplied,
           ...context,
+          tripId,
           changedFields: Object.keys(patch),
         },
         "TripState update applied",
@@ -147,7 +160,10 @@ export async function POST(request: Request) {
       "HTTP request completed",
     );
 
-    return NextResponse.json({ interpretation });
+    return NextResponse.json({
+      interpretation,
+      tripState: persistedTripState,
+    });
   } catch (error) {
     const response = mapError(error);
     logger.error(

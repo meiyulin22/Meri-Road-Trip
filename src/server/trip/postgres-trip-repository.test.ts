@@ -40,6 +40,8 @@ function createDatabaseDouble({
   let selectedTable: unknown;
   let whereWasCalled = false;
   let selectedLimit: number | undefined;
+  let deletedTable: unknown;
+  let deleteWhereWasCalled = false;
 
   const database = {
     insert(table: unknown) {
@@ -80,6 +82,14 @@ function createDatabaseDouble({
         },
       };
     },
+    delete(table: unknown) {
+      deletedTable = table;
+      return {
+        async where() {
+          deleteWhereWasCalled = true;
+        },
+      };
+    },
   } as unknown as TripDatabase;
 
   return {
@@ -99,6 +109,12 @@ function createDatabaseDouble({
       },
       get whereWasCalled() {
         return whereWasCalled;
+      },
+      get deletedTable() {
+        return deletedTable;
+      },
+      get deleteWhereWasCalled() {
+        return deleteWhereWasCalled;
       },
     },
   };
@@ -158,6 +174,16 @@ test("returns null when no Trip row exists", async () => {
   const result = await repository.findById("missing-trip");
 
   assert.equal(result, null);
+});
+
+test("deletes a Trip for failed Journey creation compensation", async () => {
+  const { database, inspection } = createDatabaseDouble();
+  const repository = new PostgresTripRepository(database);
+
+  await repository.deleteById(trip.id);
+
+  assert.equal(inspection.deletedTable, trips);
+  assert.equal(inspection.deleteWhereWasCalled, true);
 });
 
 test("preserves the cause when saving fails", async () => {

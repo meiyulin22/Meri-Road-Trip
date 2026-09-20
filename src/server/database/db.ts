@@ -1,7 +1,7 @@
 import { neon } from "@neondatabase/serverless";
 import { drizzle } from "drizzle-orm/neon-http";
 
-import * as schema from "./schema/trips";
+import * as schema from "./schema";
 
 function getDatabaseUrl(): string {
   const databaseUrl = process.env.DATABASE_URL?.trim();

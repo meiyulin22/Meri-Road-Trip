@@ -9,11 +9,10 @@ import {
   type KeyboardEvent,
 } from "react";
 
-import { setTemporaryTripWorkspace } from "@/components/trip-workspace/temporary-trip-workspace-store";
-
 import styles from "./meri-app-shell.module.css";
 import {
   canSubmitTripDraft,
+  createJourneyAndNavigate,
   createInitialComposerState,
   newTripComposerReducer,
   requestTripDraft,
@@ -56,12 +55,8 @@ export function NewTripComposer() {
 
     try {
       const draft = await requestTripDraft(state.message);
-      await setTemporaryTripWorkspace(draft, state.message.trim());
+      await createJourneyAndNavigate(draft, (path) => router.push(path));
       dispatch({ type: "submission.succeeded", draft });
-      const layoutDebugEnabled =
-        process.env.NODE_ENV === "development" &&
-        new URLSearchParams(window.location.search).has("layoutDebug");
-      router.push(layoutDebugEnabled ? "/trips/new?layoutDebug=1" : "/trips/new");
     } catch {
       dispatch({ type: "submission.failed", error: errorMessage });
     }

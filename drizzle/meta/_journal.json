@@ -15,6 +15,13 @@
       "when": 1789554239086,
       "tag": "0001_support_incomplete_trip_ideas",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1789913519386,
+      "tag": "0002_fearless_mach_iv",
+      "breakpoints": true
     }
   ]
 }

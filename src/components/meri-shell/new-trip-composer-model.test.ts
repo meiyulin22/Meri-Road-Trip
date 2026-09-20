@@ -6,6 +6,8 @@ import type { TripDraft } from "@/domain/trip-draft/trip-draft";
 import {
   canSubmitTripDraft,
   createInitialComposerState,
+  createJourneyAndNavigate,
+  JourneyCreationRequestError,
   newTripComposerReducer,
   requestTripDraft,
   TripDraftRequestError,
@@ -58,4 +60,32 @@ test("preserves input and allows retry after an API failure", () => {
   assert.equal(failedState.message, initialState.message);
   assert.equal(failedState.phase, "error");
   assert.equal(canSubmitTripDraft(failedState), true);
+});
+
+test("creates a Journey and navigates to its real Trip ID", async () => {
+  const navigations: string[] = [];
+
+  const tripId = await createJourneyAndNavigate(
+    draft,
+    (path) => navigations.push(path),
+    async () => Response.json({ trip: { id: "trip_123" } }, { status: 201 }),
+  );
+
+  assert.equal(tripId, "trip_123");
+  assert.deepEqual(navigations, ["/trips/trip_123"]);
+});
+
+test("does not navigate when Journey persistence fails", async () => {
+  const navigations: string[] = [];
+
+  await assert.rejects(
+    createJourneyAndNavigate(
+      draft,
+      (path) => navigations.push(path),
+      async () => Response.json({ error: "failed" }, { status: 500 }),
+    ),
+    JourneyCreationRequestError,
+  );
+
+  assert.deepEqual(navigations, []);
 });

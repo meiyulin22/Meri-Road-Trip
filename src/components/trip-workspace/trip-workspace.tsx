@@ -37,12 +37,9 @@ import type {
 
 import styles from "./trip-workspace.module.css";
 import {
-  applyTemporaryWorkspaceConversationInterpretation,
-  applyTemporaryTripStateEdit,
-  clearTemporaryTripWorkspace,
-  getTemporaryTripWorkspace,
-  subscribeTemporaryTripWorkspace,
-} from "./temporary-trip-workspace-store";
+  createDirectTripStatePatch,
+  requestTripStateUpdate,
+} from "./trip-state-persistence-model";
 import { requestWorkspaceConversation } from "./workspace-conversation-model";
 
 const certaintyLabels = {
@@ -110,32 +107,21 @@ function getLayoutDebugState(): boolean {
   );
 }
 
-export function TripWorkspace() {
-  const hasLoaded = useSyncExternalStore(
-    subscribeToStaticClientState,
-    () => true,
-    () => false,
-  );
-  const workspace = useSyncExternalStore(
-    subscribeTemporaryTripWorkspace,
-    getTemporaryTripWorkspace,
-    () => null,
-  );
+export function TripWorkspace({
+  initialTripState,
+  tripId,
+}: {
+  readonly initialTripState: TripState;
+  readonly tripId: string;
+}) {
+  const [tripState, setTripState] = useState(initialTripState);
   const layoutDebugEnabled = useSyncExternalStore(
     subscribeToStaticClientState,
     getLayoutDebugState,
     () => false,
   );
 
-  if (!hasLoaded) {
-    return <main className={styles.loading}>正在打开旅程空间…</main>;
-  }
-
-  if (workspace === null) {
-    return <MissingTemporaryWorkspace />;
-  }
-
-  const title = getWorkspaceTitle(workspace.tripState);
+  const title = getWorkspaceTitle(tripState);
 
   return (
     <main
@@ -160,7 +146,6 @@ export function TripWorkspace() {
           <Link
             className={styles.homeLink}
             href="/"
-            onClick={clearTemporaryTripWorkspace}
           >
             <ArrowLeft aria-hidden="true" size={17} />
             <span>回到首页</span>
@@ -174,11 +159,11 @@ export function TripWorkspace() {
           <div className={styles.journeyControl} aria-label="Journey control">
             <div className={styles.saveState}>
               <span>IDEA</span>
-              <span>未保存</span>
+              <span>已保存</span>
             </div>
             <button disabled type="button">
               <Save aria-hidden="true" size={16} />
-              保存旅程
+              已保存
             </button>
             <button aria-label="更多旅程操作（暂不可用）" disabled type="button">
               <MoreHorizontal aria-hidden="true" size={17} />
@@ -187,11 +172,16 @@ export function TripWorkspace() {
         </header>
 
         <div className={styles.workspaceStage} data-region="workspace-stage">
-          <ExpeditionBrief tripState={workspace.tripState} />
+          <ExpeditionBrief
+            onTripStateChange={setTripState}
+            tripId={tripId}
+            tripState={tripState}
+          />
           <MeriWorld />
           <ConversationDock
-            tripState={workspace.tripState}
-            initialMessage={workspace.initialMessage}
+            onTripStateChange={setTripState}
+            tripId={tripId}
+            tripState={tripState}
           />
         </div>
       </div>
@@ -206,7 +196,6 @@ function WorkspaceSidebar() {
         aria-label="Meri home"
         className={styles.sidebarBrand}
         href="/"
-        onClick={clearTemporaryTripWorkspace}
       >
         <Image
           alt=""
@@ -221,7 +210,6 @@ function WorkspaceSidebar() {
       <Link
         className={styles.newJourneyLink}
         href="/"
-        onClick={clearTemporaryTripWorkspace}
       >
         <Plus aria-hidden="true" size={17} />
         新旅程
@@ -230,7 +218,7 @@ function WorkspaceSidebar() {
       <nav className={styles.sidebarNavigation} aria-label="Primary navigation">
         {sidebarNavigation.map(({ href, icon: Icon, label }) =>
           href ? (
-            <Link href={href} key={label} onClick={clearTemporaryTripWorkspace}>
+            <Link href={href} key={label}>
               <Icon aria-hidden="true" size={18} />
               <span>{label}</span>
             </Link>
@@ -252,27 +240,18 @@ function WorkspaceSidebar() {
   );
 }
 
-function MissingTemporaryWorkspace() {
-  return (
-    <main className={styles.missingWorkspace}>
-      <Image
-        alt="Meri"
-        height={329}
-        src="/brand/meri-wordmark.svg"
-        width={1101}
-      />
-      <p>这个临时旅程空间已经结束。回到首页，从一个新想法开始吧。</p>
-      <Link href="/">回到首页</Link>
-    </main>
-  );
-}
-
 function ExpeditionBrief({
+  onTripStateChange,
+  tripId,
   tripState,
 }: {
+  readonly onTripStateChange: (state: TripState) => void;
+  readonly tripId: string;
   readonly tripState: TripState;
 }) {
   const [isExpanded, setIsExpanded] = useState(true);
+  const [persistenceError, setPersistenceError] = useState<string | null>(null);
+  const isPersistingEdit = useRef(false);
   const [editing, setEditing] = useState<{
     readonly field: TripStateFieldName;
     readonly value: string;
@@ -290,21 +269,31 @@ function ExpeditionBrief({
   }
 
   async function confirmEditing(): Promise<void> {
-    if (editing === null) {
+    if (editing === null || isPersistingEdit.current) {
       return;
     }
 
-    await applyTemporaryTripStateEdit({
-      type: "confirm",
-      field: editing.field,
-      value: editing.value,
-    });
-    setEditing(null);
+    isPersistingEdit.current = true;
+    try {
+      const patch = createDirectTripStatePatch(
+        tripState,
+        editing.field,
+        editing.value,
+      );
+      const persistedState = await requestTripStateUpdate(tripId, patch);
+      onTripStateChange(persistedState);
+      setPersistenceError(null);
+      setEditing(null);
+    } catch {
+      setPersistenceError("这次修改暂时没能保存，请重试。");
+    } finally {
+      isPersistingEdit.current = false;
+    }
   }
 
   function cancelEditing(): void {
-    void applyTemporaryTripStateEdit({ type: "cancel" });
     setEditing(null);
+    setPersistenceError(null);
   }
 
   return (
@@ -343,6 +332,12 @@ function ExpeditionBrief({
           这是 Meri 目前理解的旅程，点击任意信息即可修改
         </p>
       </div>
+
+      {persistenceError ? (
+        <p className={styles.briefPersistenceError} role="alert">
+          {persistenceError}
+        </p>
+      ) : null}
 
       <dl className={styles.briefFields}>
         {visibleFields.map(({ key, label }) => (
@@ -496,11 +491,13 @@ function MeriWorld() {
 }
 
 function ConversationDock({
+  onTripStateChange,
+  tripId,
   tripState,
-  initialMessage,
 }: {
+  readonly onTripStateChange: (state: TripState) => void;
+  readonly tripId: string;
   readonly tripState: TripState;
-  readonly initialMessage: string;
 }) {
   const [isExpanded, setIsExpanded] = useState(false);
   const [message, setMessage] = useState("");
@@ -538,12 +535,12 @@ function ConversationDock({
     }
 
     try {
-      const interpretation = await requestWorkspaceConversation(
+      const result = await requestWorkspaceConversation(
         submittedMessage,
-        tripState,
+        tripId,
       );
-      await applyTemporaryWorkspaceConversationInterpretation(interpretation);
-      addMessage("meri", interpretation.reply);
+      onTripStateChange(result.tripState);
+      addMessage("meri", result.interpretation.reply);
       setMessage("");
       setFailedMessage(null);
     } catch {
@@ -616,10 +613,6 @@ function ConversationDock({
               <span>Meri</span>
               <p>{getConversationOpening(tripState)}</p>
             </div>
-          </article>
-          <article className={styles.userMessage}>
-            <span>你从这里开始</span>
-            <p>{initialMessage}</p>
           </article>
           <p className={styles.conversationHint}>
             旅程不需要一次想完整，我们可以边聊边整理。

@@ -7,14 +7,19 @@ type TripDatabase = typeof import("@/server/database/db").db;
 type TripRow = typeof trips.$inferSelect;
 type TripInsert = typeof trips.$inferInsert;
 
-type PostgresTripOperation = "save" | "findById";
+type PostgresTripOperation = "save" | "findById" | "deleteById";
 
 export class PostgresTripRepositoryError extends Error {
   readonly operation: PostgresTripOperation;
   readonly tripId: string;
 
   constructor(operation: PostgresTripOperation, tripId: string, cause: unknown) {
-    const action = operation === "save" ? "save" : "find";
+    const action =
+      operation === "save"
+        ? "save"
+        : operation === "deleteById"
+          ? "delete"
+          : "find";
 
     super(`Failed to ${action} Trip ${tripId} in PostgreSQL.`, { cause });
     this.name = "PostgresTripRepositoryError";
@@ -51,6 +56,14 @@ export class PostgresTripRepository {
       return row ? toTrip(row) : null;
     } catch (error) {
       throw new PostgresTripRepositoryError("findById", tripId, error);
+    }
+  }
+
+  async deleteById(tripId: string): Promise<void> {
+    try {
+      await this.database.delete(trips).where(eq(trips.id, tripId));
+    } catch (error) {
+      throw new PostgresTripRepositoryError("deleteById", tripId, error);
     }
   }
 }

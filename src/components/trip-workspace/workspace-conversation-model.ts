@@ -1,4 +1,4 @@
-import type { TripState } from "@/domain/trip-state/trip-state";
+import { validateTripState, type TripState } from "@/domain/trip-state/trip-state";
 import {
   validateWorkspaceConversationInterpretation,
   type WorkspaceConversationInterpretation,
@@ -18,9 +18,12 @@ export class WorkspaceConversationRequestError extends Error {
 
 export async function requestWorkspaceConversation(
   message: string,
-  tripState: TripState,
+  tripId: string,
   fetcher: Fetcher = fetch,
-): Promise<WorkspaceConversationInterpretation> {
+): Promise<{
+  readonly interpretation: WorkspaceConversationInterpretation;
+  readonly tripState: TripState;
+}> {
   if (message.trim() === "") {
     throw new WorkspaceConversationRequestError(
       "A workspace message is required.",
@@ -32,7 +35,7 @@ export async function requestWorkspaceConversation(
     response = await fetcher("/api/trip-workspace/messages", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ message, tripState }),
+      body: JSON.stringify({ message, tripId }),
     });
   } catch (error) {
     throw new WorkspaceConversationRequestError(
@@ -55,7 +58,8 @@ export async function requestWorkspaceConversation(
     !response.ok ||
     typeof body !== "object" ||
     body === null ||
-    !("interpretation" in body)
+    !("interpretation" in body) ||
+    !("tripState" in body)
   ) {
     throw new WorkspaceConversationRequestError(
       "The workspace conversation request was unsuccessful.",
@@ -63,7 +67,12 @@ export async function requestWorkspaceConversation(
   }
 
   try {
-    return validateWorkspaceConversationInterpretation(body.interpretation);
+    return {
+      interpretation: validateWorkspaceConversationInterpretation(
+        body.interpretation,
+      ),
+      tripState: validateTripState(body.tripState),
+    };
   } catch (error) {
     throw new WorkspaceConversationRequestError(
       "The workspace conversation response was invalid.",

@@ -318,6 +318,12 @@
 
 .briefGuidance { margin-top: 9px; }
 
+.briefPersistenceError {
+  margin: 8px 0 0;
+  color: #ffd0c7;
+  font-size: 10px;
+}
+
 .editingHint {
   max-width: 300px;
   margin-top: 4px;

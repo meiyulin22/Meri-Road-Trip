@@ -173,3 +173,73 @@ export function validateTripDraft(value: unknown): TripDraft {
 
   return draft;
 }
+
+export function validateTripDraftDomain(value: unknown): TripDraft {
+  if (!isRecord(value)) {
+    throw new InvalidTripDraftError("TripDraft must be an object.");
+  }
+
+  assertExactKeys(value, tripDraftKeys, "TripDraft");
+
+  const draft: TripDraft = {
+    name: validateDomainField(value.name, "name"),
+    origin: validateDomainField(value.origin, "origin"),
+    destination: validateDomainField(value.destination, "destination"),
+    startDate: validateDomainField(value.startDate, "startDate", isIsoDate),
+    endDate: validateDomainField(value.endDate, "endDate", isIsoDate),
+    duration: validateDomainField(value.duration, "duration"),
+    transportPreference: validateDomainField(
+      value.transportPreference,
+      "transportPreference",
+      isTransportPreference,
+    ),
+  };
+
+  if (
+    draft.startDate.state === "known" &&
+    draft.endDate.state === "known" &&
+    draft.endDate.value < draft.startDate.value
+  ) {
+    throw new InvalidTripDraftError("endDate cannot be before startDate.");
+  }
+
+  return draft;
+}
+
+function validateDomainField<T extends string = string>(
+  value: unknown,
+  label: string,
+  validateKnownValue?: (knownValue: string) => boolean,
+): TripDraftField<T> {
+  if (!isRecord(value) || typeof value.state !== "string") {
+    throw new InvalidTripDraftError(`${label} must be a TripDraft field.`);
+  }
+
+  if (value.state === "missing") {
+    assertExactKeys(value, ["state"], label);
+    return { state: "missing" };
+  }
+
+  if (
+    value.state !== "known" &&
+    value.state !== "approximate" &&
+    value.state !== "ambiguous"
+  ) {
+    throw new InvalidTripDraftError(`${label}.state is invalid.`);
+  }
+
+  assertExactKeys(value, ["state", "value"], label);
+  if (typeof value.value !== "string" || value.value.trim() === "") {
+    throw new InvalidTripDraftError(`${label}.value must be non-empty.`);
+  }
+
+  if (
+    value.state === "known" &&
+    validateKnownValue &&
+    !validateKnownValue(value.value)
+  ) {
+    throw new InvalidTripDraftError(`${label}.value is invalid.`);
+  }
+
+  return value as TripDraftField<T>;
+}

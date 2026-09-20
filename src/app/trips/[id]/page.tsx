@@ -1,0 +1,67 @@
+import type { Metadata } from "next";
+import Image from "next/image";
+import Link from "next/link";
+import { notFound } from "next/navigation";
+
+import { TripWorkspace } from "@/components/trip-workspace/trip-workspace";
+import { TripNotFoundError } from "@/domain/trip/trip-errors";
+import { TripStateNotFoundError } from "@/server/journey/journey-errors";
+import { journeyService } from "@/server/journey/journey-service-instance";
+
+import styles from "@/components/trip-workspace/trip-workspace.module.css";
+
+export const metadata: Metadata = {
+  title: "Journey | Meri",
+};
+
+export const dynamic = "force-dynamic";
+
+export default async function TripWorkspacePage({
+  params,
+}: {
+  readonly params: Promise<{ id: string }>;
+}) {
+  const { id: tripId } = await params;
+  let journey: Awaited<ReturnType<typeof journeyService.loadJourney>> | null =
+    null;
+
+  try {
+    journey = await journeyService.loadJourney(tripId);
+  } catch (error) {
+    if (error instanceof TripNotFoundError) {
+      notFound();
+    }
+
+    if (error instanceof TripStateNotFoundError) {
+      journey = null;
+    } else {
+      throw error;
+    }
+  }
+
+  if (journey === null) {
+    return <MissingTripState />;
+  }
+
+  return (
+    <TripWorkspace
+      initialTripState={journey.tripState}
+      tripId={journey.trip.id}
+    />
+  );
+}
+
+function MissingTripState() {
+  return (
+    <main className={styles.missingWorkspace}>
+      <Image
+        alt="Meri"
+        height={329}
+        src="/brand/meri-wordmark.svg"
+        width={1101}
+      />
+      <p>这个旅程缺少必要的状态数据，Meri 没有擅自创建替代内容。</p>
+      <Link href="/">回到首页</Link>
+    </main>
+  );
+}

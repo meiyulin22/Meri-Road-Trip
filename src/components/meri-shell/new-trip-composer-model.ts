@@ -26,6 +26,13 @@ export class TripDraftRequestError extends Error {
   }
 }
 
+export class JourneyCreationRequestError extends Error {
+  constructor(message: string, cause?: unknown) {
+    super(message, cause === undefined ? undefined : { cause });
+    this.name = "JourneyCreationRequestError";
+  }
+}
+
 export function createInitialComposerState(): NewTripComposerState {
   return {
     message: "",
@@ -170,4 +177,51 @@ export async function requestTripDraft(
   }
 
   return body.draft;
+}
+
+export async function createJourneyAndNavigate(
+  draft: TripDraft,
+  navigate: (path: string) => void,
+  fetcher: typeof fetch = fetch,
+): Promise<string> {
+  let response: Response;
+
+  try {
+    response = await fetcher("/api/journeys", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ draft }),
+    });
+  } catch (error) {
+    throw new JourneyCreationRequestError(
+      "The Journey creation request failed.",
+      error,
+    );
+  }
+
+  let body: unknown;
+  try {
+    body = await response.json();
+  } catch (error) {
+    throw new JourneyCreationRequestError(
+      "The Journey creation response was not JSON.",
+      error,
+    );
+  }
+
+  if (
+    !response.ok ||
+    !isRecord(body) ||
+    !isRecord(body.trip) ||
+    typeof body.trip.id !== "string" ||
+    body.trip.id.trim() === ""
+  ) {
+    throw new JourneyCreationRequestError(
+      "The Journey creation request was unsuccessful.",
+    );
+  }
+
+  const tripId = body.trip.id;
+  navigate(`/trips/${encodeURIComponent(tripId)}`);
+  return tripId;
 }
