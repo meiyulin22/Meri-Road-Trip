@@ -17,6 +17,10 @@ export const logEvents = {
   llmRequestFailed: "llm.request.failed",
   llmRawOutput: "llm.raw_output",
   llmOutputInvalid: "llm.output.invalid",
+  workspaceConversationRequested: "workspace.conversation.requested",
+  workspaceConversationInterpreted: "workspace.conversation.interpreted",
+  workspaceConversationFailed: "workspace.conversation.failed",
+  tripStateUpdateApplied: "trip_state.update.applied",
 } as const;
 
 const isDevelopment = process.env.NODE_ENV === "development";

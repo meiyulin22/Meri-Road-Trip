@@ -612,6 +612,35 @@
   text-align: center;
 }
 
+.conversationStatus {
+  color: rgba(205, 217, 242, 0.68);
+  font-size: 10px;
+  text-align: center;
+}
+
+.conversationError {
+  padding: 7px 9px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  border: 1px solid rgba(231, 160, 160, 0.16);
+  border-radius: 9px;
+  color: #e7c2c2;
+  background: rgba(116, 47, 54, 0.12);
+  font-size: 9px;
+}
+
+.conversationError button {
+  flex: 0 0 auto;
+  padding: 3px 7px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 999px;
+  color: #edf2ff;
+  background: rgba(255, 255, 255, 0.07);
+  cursor: pointer;
+}
+
 .conversationComposer {
   min-height: 43px;
   padding: 3px 4px;
@@ -648,11 +677,15 @@
   cursor: not-allowed;
 }
 
-.conversationComposer > span {
-  flex: 0 0 auto;
-  color: rgba(190, 201, 222, 0.45);
-  font-size: 8px;
+.conversationComposer button[type="submit"]:not(:disabled) {
+  color: #f5f7ff;
+  background: rgba(83, 121, 224, 0.5);
+  cursor: pointer;
 }
+
+.loadingIcon { animation: conversationSpin 900ms linear infinite; }
+
+@keyframes conversationSpin { to { transform: rotate(360deg); } }
 
 .loading,
 .missingWorkspace {
@@ -716,6 +749,7 @@
   .stateField dd svg,
   .expeditionBrief,
   .conversationDock { transition: none; }
+  .loadingIcon { animation: none; }
 }
 
 @supports not (backdrop-filter: blur(1px)) {

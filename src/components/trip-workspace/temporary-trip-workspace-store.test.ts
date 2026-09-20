@@ -4,6 +4,7 @@ import test from "node:test";
 import type { TripDraft } from "@/domain/trip-draft/trip-draft";
 
 import {
+  applyTemporaryWorkspaceConversationInterpretation,
   applyTemporaryTripStateEdit,
   clearTemporaryTripWorkspace,
   getTemporaryTripWorkspace,
@@ -183,4 +184,52 @@ test("accepts only an existing transport preference enum value", () => {
       }),
     /Invalid transport preference/,
   );
+});
+
+test("applies a validated conversation update through the same TripState", () => {
+  resetWorkspace();
+  const beforeUpdate = getTemporaryTripWorkspace()?.tripState;
+
+  const applied = applyTemporaryWorkspaceConversationInterpretation({
+    intent: "trip_state_update",
+    changes: [
+      { field: "destination", state: "known", value: "富良野" },
+    ],
+    reply: "好的，目的地改成富良野。",
+  });
+
+  const afterUpdate = getTemporaryTripWorkspace()?.tripState;
+  assert.equal(applied, true);
+  assert.deepEqual(afterUpdate?.destination, {
+    state: "known",
+    value: "富良野",
+    source: "user",
+  });
+  assert.strictEqual(afterUpdate?.origin, beforeUpdate?.origin);
+  assert.strictEqual(afterUpdate?.startDate, beforeUpdate?.startDate);
+});
+
+test("question and unclear conversation intents leave TripState unchanged", () => {
+  resetWorkspace();
+  const beforeQuestion = getTemporaryTripWorkspace()?.tripState;
+
+  assert.equal(
+    applyTemporaryWorkspaceConversationInterpretation({
+      intent: "question",
+      changes: [],
+      reply: "这个问题需要接入 Research 后再查。",
+    }),
+    false,
+  );
+  assert.strictEqual(getTemporaryTripWorkspace()?.tripState, beforeQuestion);
+
+  assert.equal(
+    applyTemporaryWorkspaceConversationInterpretation({
+      intent: "unclear_update_intent",
+      changes: [],
+      reply: "你是想改成富良野，还是先比较一下？",
+    }),
+    false,
+  );
+  assert.strictEqual(getTemporaryTripWorkspace()?.tripState, beforeQuestion);
 });

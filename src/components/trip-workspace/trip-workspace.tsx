@@ -10,6 +10,7 @@ import {
   CloudSun,
   Compass,
   Home,
+  LoaderCircle,
   Map,
   MoreHorizontal,
   MountainSnow,
@@ -22,7 +23,7 @@ import {
 } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
-import { useState, useSyncExternalStore } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 
 import {
   transportPreferences,
@@ -36,11 +37,13 @@ import type {
 
 import styles from "./trip-workspace.module.css";
 import {
+  applyTemporaryWorkspaceConversationInterpretation,
   applyTemporaryTripStateEdit,
   clearTemporaryTripWorkspace,
   getTemporaryTripWorkspace,
   subscribeTemporaryTripWorkspace,
 } from "./temporary-trip-workspace-store";
+import { requestWorkspaceConversation } from "./workspace-conversation-model";
 
 const certaintyLabels = {
   known: "已理解",
@@ -80,6 +83,9 @@ const contextualActions = [
   { icon: Route, label: "交通方案" },
   { icon: CircleDollarSign, label: "看看预算" },
 ];
+
+const workspaceConversationError =
+  "Meri 暂时没能理解这条消息。内容还在，你可以再试一次。";
 
 const sidebarNavigation: Array<{
   label: string;
@@ -497,6 +503,78 @@ function ConversationDock({
   readonly initialMessage: string;
 }) {
   const [isExpanded, setIsExpanded] = useState(false);
+  const [message, setMessage] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [failedMessage, setFailedMessage] = useState<string | null>(null);
+  const [messages, setMessages] = useState<
+    Array<{ readonly id: number; readonly role: "user" | "meri"; readonly text: string }>
+  >([]);
+  const nextMessageId = useRef(0);
+  const messageHistoryRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const history = messageHistoryRef.current;
+    if (history !== null) {
+      history.scrollTop = history.scrollHeight;
+    }
+  }, [error, isSubmitting, messages]);
+
+  function addMessage(role: "user" | "meri", text: string): void {
+    nextMessageId.current += 1;
+    const conversationMessage = { id: nextMessageId.current, role, text } as const;
+    setMessages((current) => [...current, conversationMessage]);
+  }
+
+  async function submitMessage(
+    submittedMessage: string,
+    addUserMessage: boolean,
+  ): Promise<void> {
+    setIsExpanded(true);
+    setIsSubmitting(true);
+    setError(null);
+    if (addUserMessage) {
+      addMessage("user", submittedMessage);
+    }
+
+    try {
+      const interpretation = await requestWorkspaceConversation(
+        submittedMessage,
+        tripState,
+      );
+      applyTemporaryWorkspaceConversationInterpretation(interpretation);
+      addMessage("meri", interpretation.reply);
+      setMessage("");
+      setFailedMessage(null);
+    } catch {
+      setError(workspaceConversationError);
+      setFailedMessage(submittedMessage);
+      setMessage(submittedMessage);
+    } finally {
+      setIsSubmitting(false);
+    }
+  }
+
+  function handleSubmit(event: React.FormEvent<HTMLFormElement>): void {
+    event.preventDefault();
+    const submittedMessage = message.trim();
+    if (submittedMessage === "" || isSubmitting) {
+      return;
+    }
+
+    void submitMessage(
+      submittedMessage,
+      failedMessage !== submittedMessage,
+    );
+  }
+
+  function handleMessageKeyDown(
+    event: React.KeyboardEvent<HTMLInputElement>,
+  ): void {
+    if (event.key === "Enter" && event.nativeEvent.isComposing) {
+      event.preventDefault();
+    }
+  }
 
   return (
     <section
@@ -526,7 +604,7 @@ function ConversationDock({
       </header>
 
       {isExpanded ? (
-        <div className={styles.messageHistory}>
+        <div className={styles.messageHistory} ref={messageHistoryRef}>
           <article className={styles.meriMessage}>
             <Image
               alt=""
@@ -546,6 +624,48 @@ function ConversationDock({
           <p className={styles.conversationHint}>
             旅程不需要一次想完整，我们可以边聊边整理。
           </p>
+          {messages.map((conversationMessage) =>
+            conversationMessage.role === "meri" ? (
+              <article className={styles.meriMessage} key={conversationMessage.id}>
+                <Image
+                  alt=""
+                  height={84}
+                  src="/companion/idle/south.png"
+                  width={84}
+                />
+                <div>
+                  <span>Meri</span>
+                  <p>{conversationMessage.text}</p>
+                </div>
+              </article>
+            ) : (
+              <article className={styles.userMessage} key={conversationMessage.id}>
+                <span>你</span>
+                <p>{conversationMessage.text}</p>
+              </article>
+            ),
+          )}
+          {isSubmitting ? (
+            <p className={styles.conversationStatus} role="status">
+              Meri 正在理解这条消息…
+            </p>
+          ) : null}
+          {error ? (
+            <div className={styles.conversationError} role="alert">
+              <span>{error}</span>
+              <button
+                disabled={isSubmitting || failedMessage === null}
+                onClick={() => {
+                  if (failedMessage !== null) {
+                    void submitMessage(failedMessage, false);
+                  }
+                }}
+                type="button"
+              >
+                重试
+              </button>
+            </div>
+          ) : null}
         </div>
       ) : (
         <article className={styles.meriMessage}>
@@ -562,28 +682,39 @@ function ConversationDock({
         </article>
       )}
 
-      <div
-        aria-describedby="conversation-prototype-note"
+      <form
+        aria-busy={isSubmitting}
         className={styles.conversationComposer}
         data-region="conversation-composer"
+        onSubmit={handleSubmit}
       >
-        <button aria-label="添加内容（下一步开放）" disabled type="button">
+        <button aria-label="添加内容（暂不可用）" disabled type="button">
           <Plus aria-hidden="true" size={18} />
         </button>
         <label className={styles.srOnly} htmlFor="workspace-message">
           告诉 Meri 你还在想什么
         </label>
         <input
+          disabled={isSubmitting}
           id="workspace-message"
+          onChange={(event) => setMessage(event.target.value)}
+          onKeyDown={handleMessageKeyDown}
           placeholder="告诉 Meri 你还在想什么..."
-          readOnly
           type="text"
+          value={message}
         />
-        <span id="conversation-prototype-note">下一步开放</span>
-        <button aria-label="发送（下一步开放）" disabled type="button">
-          <Send aria-hidden="true" size={18} />
+        <button
+          aria-label="发送消息"
+          disabled={isSubmitting || message.trim() === ""}
+          type="submit"
+        >
+          {isSubmitting ? (
+            <LoaderCircle aria-hidden="true" className={styles.loadingIcon} size={18} />
+          ) : (
+            <Send aria-hidden="true" size={18} />
+          )}
         </button>
-      </div>
+      </form>
     </section>
   );
 }

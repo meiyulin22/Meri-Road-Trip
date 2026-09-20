@@ -8,14 +8,16 @@ const DEFAULT_MODEL = "kimi-k2.6";
 const DEFAULT_BASE_URL = "https://api.moonshot.cn/v1";
 const REQUEST_TIMEOUT_MS = 60_000;
 
-export interface TripDraftModelRequest {
+export interface StructuredOutputModelRequest {
   readonly requestId: string;
+  readonly operation: string;
+  readonly schemaName: string;
   readonly systemPrompt: string;
   readonly userMessage: string;
   readonly jsonSchema: Record<string, unknown>;
 }
 
-export interface TripDraftModelResponse {
+export interface StructuredOutputModelResponse {
   readonly content: string | null;
   readonly model: string;
   readonly finishReason: string | null;
@@ -27,8 +29,10 @@ export interface TripDraftModelResponse {
   };
 }
 
-export interface TripDraftModelClient {
-  generateTripDraft(request: TripDraftModelRequest): Promise<TripDraftModelResponse>;
+export interface StructuredOutputModelClient {
+  generateStructuredOutput(
+    request: StructuredOutputModelRequest,
+  ): Promise<StructuredOutputModelResponse>;
 }
 
 export class MissingLlmConfigurationError extends Error {
@@ -63,7 +67,7 @@ type KimiChatCompletionRequest = ChatCompletionCreateParamsNonStreaming & {
   thinking: { type: "disabled" };
 };
 
-class KimiClient implements TripDraftModelClient {
+class KimiClient implements StructuredOutputModelClient {
   private readonly client: OpenAI;
 
   constructor(private readonly options: KimiClientOptions) {
@@ -75,13 +79,13 @@ class KimiClient implements TripDraftModelClient {
     });
   }
 
-  async generateTripDraft(
-    request: TripDraftModelRequest,
-  ): Promise<TripDraftModelResponse> {
+  async generateStructuredOutput(
+    request: StructuredOutputModelRequest,
+  ): Promise<StructuredOutputModelResponse> {
     const startedAt = performance.now();
     const context = {
       requestId: request.requestId,
-      operation: "trip_draft_extraction",
+      operation: request.operation,
       provider: "moonshot",
       model: this.options.model,
     } as const;
@@ -101,7 +105,7 @@ class KimiClient implements TripDraftModelClient {
         response_format: {
           type: "json_schema",
           json_schema: {
-            name: "trip_draft",
+            name: request.schemaName,
             strict: true,
             schema: request.jsonSchema,
           },
@@ -173,7 +177,7 @@ class KimiClient implements TripDraftModelClient {
   }
 }
 
-export function createKimiClientFromEnvironment(): TripDraftModelClient {
+export function createKimiClientFromEnvironment(): StructuredOutputModelClient {
   const apiKey = process.env.MOONSHOT_API_KEY?.trim();
 
   if (!apiKey) {

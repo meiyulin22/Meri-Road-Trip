@@ -4,7 +4,7 @@ import {
 } from "@/domain/trip-draft/trip-draft";
 import {
   createKimiClientFromEnvironment,
-  type TripDraftModelClient,
+  type StructuredOutputModelClient,
 } from "@/server/ai/kimi-client";
 import { buildTripDraftSystemPrompt } from "@/server/ai/prompts/trip-draft-prompt";
 import { logger, logEvents } from "@/server/observability/logger";
@@ -102,13 +102,15 @@ function validateInput(input: ExtractTripDraftInput): void {
 
 export async function extractTripDraft(
   input: ExtractTripDraftInput,
-  client?: TripDraftModelClient,
+  client?: StructuredOutputModelClient,
 ): Promise<TripDraft> {
   validateInput(input);
 
   const modelClient = client ?? createKimiClientFromEnvironment();
-  const response = await modelClient.generateTripDraft({
+  const response = await modelClient.generateStructuredOutput({
     requestId: input.requestId,
+    operation: "trip_draft_extraction",
+    schemaName: "trip_draft",
     systemPrompt: buildTripDraftSystemPrompt({
       referenceDate: input.referenceDate,
       timezone: input.timezone,

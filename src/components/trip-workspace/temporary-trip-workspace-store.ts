@@ -11,6 +11,10 @@ import {
   type TripStateFieldName,
   type TripStatePatch,
 } from "@/domain/trip-state/trip-state";
+import {
+  createTripStatePatchFromInterpretation,
+  type WorkspaceConversationInterpretation,
+} from "@/domain/trip-state/workspace-conversation";
 
 export interface TemporaryTripWorkspaceState {
   readonly tripState: TripState;
@@ -112,4 +116,24 @@ export function applyTemporaryTripStateEdit(
     ),
   };
   emitChange();
+}
+
+export function applyTemporaryWorkspaceConversationInterpretation(
+  interpretation: WorkspaceConversationInterpretation,
+): boolean {
+  if (currentWorkspace === null) {
+    return false;
+  }
+
+  const patch = createTripStatePatchFromInterpretation(interpretation);
+  if (patch === null) {
+    return false;
+  }
+
+  currentWorkspace = {
+    ...currentWorkspace,
+    tripState: applyTripStatePatch(currentWorkspace.tripState, patch),
+  };
+  emitChange();
+  return true;
 }

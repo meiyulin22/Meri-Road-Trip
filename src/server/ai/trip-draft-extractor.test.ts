@@ -7,8 +7,8 @@ import {
 } from "@/domain/trip-draft/trip-draft";
 import {
   LlmProviderRequestError,
-  type TripDraftModelClient,
-  type TripDraftModelResponse,
+  type StructuredOutputModelClient,
+  type StructuredOutputModelResponse,
 } from "@/server/ai/kimi-client";
 import {
   extractTripDraft,
@@ -34,20 +34,20 @@ const validInput = {
 };
 
 function createClient(
-  response: TripDraftModelResponse,
+  response: StructuredOutputModelResponse,
   onRequest?: (
-    request: Parameters<TripDraftModelClient["generateTripDraft"]>[0],
+    request: Parameters<StructuredOutputModelClient["generateStructuredOutput"]>[0],
   ) => void,
-): TripDraftModelClient {
+): StructuredOutputModelClient {
   return {
-    async generateTripDraft(request) {
+    async generateStructuredOutput(request) {
       onRequest?.(request);
       return response;
     },
   };
 }
 
-function createJsonClient(value: unknown): TripDraftModelClient {
+function createJsonClient(value: unknown): StructuredOutputModelClient {
   return createClient({
     content: JSON.stringify(value),
     model: "kimi-k2.6",
@@ -153,8 +153,8 @@ test("preserves explicitly ambiguous fields", async () => {
 
 test("propagates a normalized provider failure", async () => {
   const providerError = new LlmProviderRequestError(new Error("network failed"));
-  const client: TripDraftModelClient = {
-    async generateTripDraft() {
+  const client: StructuredOutputModelClient = {
+    async generateStructuredOutput() {
       throw providerError;
     },
   };
