@@ -25,7 +25,7 @@ const draft: TripDraft = {
 
 test("accepts a validated workspace conversation response", async () => {
   clearTemporaryTripWorkspace();
-  setTemporaryTripWorkspace(draft, "想去二世谷滑雪");
+  await setTemporaryTripWorkspace(draft, "想去二世谷滑雪");
   const tripState = getTemporaryTripWorkspace()?.tripState;
   assert.ok(tripState);
 
@@ -52,7 +52,7 @@ test("accepts a validated workspace conversation response", async () => {
 
 test("failed AI request leaves the temporary TripState unchanged", async () => {
   clearTemporaryTripWorkspace();
-  setTemporaryTripWorkspace(draft, "想去二世谷滑雪");
+  await setTemporaryTripWorkspace(draft, "想去二世谷滑雪");
   const beforeFailure = getTemporaryTripWorkspace()?.tripState;
   assert.ok(beforeFailure);
 

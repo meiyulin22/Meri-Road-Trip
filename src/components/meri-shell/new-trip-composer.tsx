@@ -56,7 +56,7 @@ export function NewTripComposer() {
 
     try {
       const draft = await requestTripDraft(state.message);
-      setTemporaryTripWorkspace(draft, state.message.trim());
+      await setTemporaryTripWorkspace(draft, state.message.trim());
       dispatch({ type: "submission.succeeded", draft });
       const layoutDebugEnabled =
         process.env.NODE_ENV === "development" &&

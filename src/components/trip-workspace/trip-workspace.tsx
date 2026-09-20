@@ -289,12 +289,12 @@ function ExpeditionBrief({
     });
   }
 
-  function confirmEditing(): void {
+  async function confirmEditing(): Promise<void> {
     if (editing === null) {
       return;
     }
 
-    applyTemporaryTripStateEdit({
+    await applyTemporaryTripStateEdit({
       type: "confirm",
       field: editing.field,
       value: editing.value,
@@ -303,7 +303,7 @@ function ExpeditionBrief({
   }
 
   function cancelEditing(): void {
-    applyTemporaryTripStateEdit({ type: "cancel" });
+    void applyTemporaryTripStateEdit({ type: "cancel" });
     setEditing(null);
   }
 
@@ -542,7 +542,7 @@ function ConversationDock({
         submittedMessage,
         tripState,
       );
-      applyTemporaryWorkspaceConversationInterpretation(interpretation);
+      await applyTemporaryWorkspaceConversationInterpretation(interpretation);
       addMessage("meri", interpretation.reply);
       setMessage("");
       setFailedMessage(null);

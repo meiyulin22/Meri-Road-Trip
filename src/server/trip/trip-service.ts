@@ -5,16 +5,16 @@ import {
   type Trip,
   validateTripCreationInput,
 } from "@/domain/trip/trip";
-import type { TripRepository } from "./trip-repository";
+import type { TripRepository } from "@/repositories/trip-repository";
 
 type TripServiceDependencies = {
-  repository: TripRepository;
+  repository: Pick<TripRepository, "create" | "findById">;
   generateId?: () => string;
   now?: () => Date;
 };
 
 export class TripService {
-  private readonly repository: TripRepository;
+  private readonly repository: Pick<TripRepository, "create" | "findById">;
   private readonly generateId: () => string;
   private readonly now: () => Date;
 
@@ -44,7 +44,7 @@ export class TripService {
       updatedAt: timestamp,
     };
 
-    await this.repository.save(trip);
+    await this.repository.create(trip);
 
     return trip;
   }

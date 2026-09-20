@@ -9,11 +9,11 @@ src/server/trip/trip-service-instance.ts
 src/server/trip/trip-service.ts
 TripService.createTrip()
         ↓
-src/server/trip/trip-repository.ts
-TripRepository.save()
+src/repositories/trip-repository.ts
+TripRepository.create()
         ↓
 src/server/trip/postgres-trip-repository.ts
-PostgresTripRepository.save()
+PostgresTripRepository.create()
         ↓
 src/server/database/schema/trips.ts
 Confirm trips  //table and attribute
@@ -37,7 +37,7 @@ src/server/trip/trip-service-instance.ts
 src/server/trip/trip-service.ts
 TripService.getTripById()
         ↓
-src/server/trip/trip-repository.ts
+src/repositories/trip-repository.ts
 TripRepository.findById()
         ↓
 src/server/trip/postgres-trip-repository.ts

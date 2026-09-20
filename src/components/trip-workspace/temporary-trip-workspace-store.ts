@@ -15,13 +15,19 @@ import {
   createTripStatePatchFromInterpretation,
   type WorkspaceConversationInterpretation,
 } from "@/domain/trip-state/workspace-conversation";
+import { InMemoryTripStateRepository } from "@/infrastructure/persistence/in-memory/in-memory-trip-state-repository";
+import type { TripStateRepository } from "@/repositories/trip-state-repository";
 
 export interface TemporaryTripWorkspaceState {
   readonly tripState: TripState;
   readonly initialMessage: string;
 }
 
-let currentWorkspace: TemporaryTripWorkspaceState | null = null;
+const temporaryTripId = "temporary-workspace";
+const tripStateRepository: TripStateRepository =
+  new InMemoryTripStateRepository(temporaryTripId);
+
+let currentWorkspaceSnapshot: TemporaryTripWorkspaceState | null = null;
 const listeners = new Set<() => void>();
 
 export type TemporaryTripStateEdit =
@@ -40,23 +46,23 @@ function isTransportPreference(value: string): value is TransportPreference {
   return transportPreferences.some((preference) => preference === value);
 }
 
-export function setTemporaryTripWorkspace(
+export async function setTemporaryTripWorkspace(
   draft: TripDraft,
   initialMessage: string,
-): void {
-  currentWorkspace = {
-    tripState: initializeTripState(draft),
-    initialMessage,
-  };
+): Promise<void> {
+  const tripState = await tripStateRepository.create(
+    initializeTripState(draft),
+  );
+  currentWorkspaceSnapshot = { tripState, initialMessage };
   emitChange();
 }
 
 export function getTemporaryTripWorkspace(): TemporaryTripWorkspaceState | null {
-  return currentWorkspace;
+  return currentWorkspaceSnapshot;
 }
 
 export function clearTemporaryTripWorkspace(): void {
-  currentWorkspace = null;
+  currentWorkspaceSnapshot = null;
   emitChange();
 }
 
@@ -97,31 +103,33 @@ function createUserEditPatch(
   return { [field]: nextField };
 }
 
-export function applyTemporaryTripStateEdit(
+export async function applyTemporaryTripStateEdit(
   edit: TemporaryTripStateEdit,
-): void {
-  if (edit.type === "cancel" || currentWorkspace === null) {
+): Promise<void> {
+  if (edit.type === "cancel" || currentWorkspaceSnapshot === null) {
     return;
   }
 
-  currentWorkspace = {
-    ...currentWorkspace,
-    tripState: applyTripStatePatch(
-      currentWorkspace.tripState,
-      createUserEditPatch(
-        currentWorkspace.tripState,
-        edit.field,
-        edit.value,
-      ),
+  const nextState = applyTripStatePatch(
+    currentWorkspaceSnapshot.tripState,
+    createUserEditPatch(
+      currentWorkspaceSnapshot.tripState,
+      edit.field,
+      edit.value,
     ),
+  );
+  await tripStateRepository.update(nextState);
+  currentWorkspaceSnapshot = {
+    ...currentWorkspaceSnapshot,
+    tripState: nextState,
   };
   emitChange();
 }
 
-export function applyTemporaryWorkspaceConversationInterpretation(
+export async function applyTemporaryWorkspaceConversationInterpretation(
   interpretation: WorkspaceConversationInterpretation,
-): boolean {
-  if (currentWorkspace === null) {
+): Promise<boolean> {
+  if (currentWorkspaceSnapshot === null) {
     return false;
   }
 
@@ -130,9 +138,14 @@ export function applyTemporaryWorkspaceConversationInterpretation(
     return false;
   }
 
-  currentWorkspace = {
-    ...currentWorkspace,
-    tripState: applyTripStatePatch(currentWorkspace.tripState, patch),
+  const nextState = applyTripStatePatch(
+    currentWorkspaceSnapshot.tripState,
+    patch,
+  );
+  await tripStateRepository.update(nextState);
+  currentWorkspaceSnapshot = {
+    ...currentWorkspaceSnapshot,
+    tripState: nextState,
   };
   emitChange();
   return true;

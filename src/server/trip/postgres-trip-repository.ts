@@ -2,7 +2,6 @@ import { eq } from "drizzle-orm";
 
 import type { Trip } from "@/domain/trip/trip";
 import { trips } from "@/server/database/schema/trips";
-import type { TripRepository } from "./trip-repository";
 
 type TripDatabase = typeof import("@/server/database/db").db;
 type TripRow = typeof trips.$inferSelect;
@@ -24,8 +23,13 @@ export class PostgresTripRepositoryError extends Error {
   }
 }
 
-export class PostgresTripRepository implements TripRepository {
+export class PostgresTripRepository {
   constructor(private readonly database: TripDatabase) {}
+
+  async create(trip: Trip): Promise<Trip> {
+    await this.save(trip);
+    return trip;
+  }
 
   async save(trip: Trip): Promise<void> {
     try {

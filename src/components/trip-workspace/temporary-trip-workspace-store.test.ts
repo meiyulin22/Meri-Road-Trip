@@ -21,13 +21,13 @@ const draft: TripDraft = {
   transportPreference: { state: "missing" },
 };
 
-function resetWorkspace(): void {
+async function resetWorkspace(): Promise<void> {
   clearTemporaryTripWorkspace();
-  setTemporaryTripWorkspace(draft, "今年冬天想找个地方滑雪");
+  await setTemporaryTripWorkspace(draft, "今年冬天想找个地方滑雪");
 }
 
-test("creates authoritative TripState when the temporary Workspace starts", () => {
-  resetWorkspace();
+test("creates authoritative TripState when the temporary Workspace starts", async () => {
+  await resetWorkspace();
 
   assert.deepEqual(getTemporaryTripWorkspace(), {
     tripState: {
@@ -58,9 +58,9 @@ test("creates authoritative TripState when the temporary Workspace starts", () =
   assert.equal(getTemporaryTripWorkspace(), null);
 });
 
-test("direct edit marks a known field as user-sourced", () => {
-  resetWorkspace();
-  applyTemporaryTripStateEdit({
+test("direct edit marks a known field as user-sourced", async () => {
+  await resetWorkspace();
+  await applyTemporaryTripStateEdit({
     type: "confirm",
     field: "name",
     value: "北海道雪季慢旅行",
@@ -73,9 +73,9 @@ test("direct edit marks a known field as user-sourced", () => {
   });
 });
 
-test("direct edit preserves approximate certainty and exact natural language", () => {
-  resetWorkspace();
-  applyTemporaryTripStateEdit({
+test("direct edit preserves approximate certainty and exact natural language", async () => {
+  await resetWorkspace();
+  await applyTemporaryTripStateEdit({
     type: "confirm",
     field: "startDate",
     value: "十月底",
@@ -88,9 +88,9 @@ test("direct edit preserves approximate certainty and exact natural language", (
   });
 });
 
-test("direct edit preserves ambiguous certainty", () => {
-  resetWorkspace();
-  applyTemporaryTripStateEdit({
+test("direct edit preserves ambiguous certainty", async () => {
+  await resetWorkspace();
+  await applyTemporaryTripStateEdit({
     type: "confirm",
     field: "destination",
     value: "长野或者北海道",
@@ -103,9 +103,9 @@ test("direct edit preserves ambiguous certainty", () => {
   });
 });
 
-test("entering a previously missing field establishes a user-known value", () => {
-  resetWorkspace();
-  applyTemporaryTripStateEdit({
+test("entering a previously missing field establishes a user-known value", async () => {
+  await resetWorkspace();
+  await applyTemporaryTripStateEdit({
     type: "confirm",
     field: "origin",
     value: "大连",
@@ -118,9 +118,9 @@ test("entering a previously missing field establishes a user-known value", () =>
   });
 });
 
-test("clearing a field produces missing without source metadata", () => {
-  resetWorkspace();
-  applyTemporaryTripStateEdit({
+test("clearing a field produces missing without source metadata", async () => {
+  await resetWorkspace();
+  await applyTemporaryTripStateEdit({
     type: "confirm",
     field: "duration",
     value: "   ",
@@ -131,20 +131,20 @@ test("clearing a field produces missing without source metadata", () => {
   assert.equal(duration && "source" in duration, false);
 });
 
-test("cancelling does not mutate TripState", () => {
-  resetWorkspace();
+test("cancelling does not mutate TripState", async () => {
+  await resetWorkspace();
   const beforeCancel = getTemporaryTripWorkspace()?.tripState;
 
-  applyTemporaryTripStateEdit({ type: "cancel" });
+  await applyTemporaryTripStateEdit({ type: "cancel" });
 
   assert.strictEqual(getTemporaryTripWorkspace()?.tripState, beforeCancel);
 });
 
-test("editing one field leaves unrelated fields unchanged", () => {
-  resetWorkspace();
+test("editing one field leaves unrelated fields unchanged", async () => {
+  await resetWorkspace();
   const beforeEdit = getTemporaryTripWorkspace()?.tripState;
 
-  applyTemporaryTripStateEdit({
+  await applyTemporaryTripStateEdit({
     type: "confirm",
     field: "origin",
     value: "上海",
@@ -159,9 +159,9 @@ test("editing one field leaves unrelated fields unchanged", () => {
   );
 });
 
-test("accepts only an existing transport preference enum value", () => {
-  resetWorkspace();
-  applyTemporaryTripStateEdit({
+test("accepts only an existing transport preference enum value", async () => {
+  await resetWorkspace();
+  await applyTemporaryTripStateEdit({
     type: "confirm",
     field: "transportPreference",
     value: "public_transport",
@@ -175,8 +175,8 @@ test("accepts only an existing transport preference enum value", () => {
       source: "user",
     },
   );
-  assert.throws(
-    () =>
+  await assert.rejects(
+    async () =>
       applyTemporaryTripStateEdit({
         type: "confirm",
         field: "transportPreference",
@@ -186,11 +186,11 @@ test("accepts only an existing transport preference enum value", () => {
   );
 });
 
-test("applies a validated conversation update through the same TripState", () => {
-  resetWorkspace();
+test("applies a validated conversation update through the same TripState", async () => {
+  await resetWorkspace();
   const beforeUpdate = getTemporaryTripWorkspace()?.tripState;
 
-  const applied = applyTemporaryWorkspaceConversationInterpretation({
+  const applied = await applyTemporaryWorkspaceConversationInterpretation({
     intent: "trip_state_update",
     changes: [
       { field: "destination", state: "known", value: "富良野" },
@@ -209,12 +209,12 @@ test("applies a validated conversation update through the same TripState", () =>
   assert.strictEqual(afterUpdate?.startDate, beforeUpdate?.startDate);
 });
 
-test("question and unclear conversation intents leave TripState unchanged", () => {
-  resetWorkspace();
+test("question and unclear conversation intents leave TripState unchanged", async () => {
+  await resetWorkspace();
   const beforeQuestion = getTemporaryTripWorkspace()?.tripState;
 
   assert.equal(
-    applyTemporaryWorkspaceConversationInterpretation({
+    await applyTemporaryWorkspaceConversationInterpretation({
       intent: "question",
       changes: [],
       reply: "这个问题需要接入 Research 后再查。",
@@ -224,7 +224,7 @@ test("question and unclear conversation intents leave TripState unchanged", () =
   assert.strictEqual(getTemporaryTripWorkspace()?.tripState, beforeQuestion);
 
   assert.equal(
-    applyTemporaryWorkspaceConversationInterpretation({
+    await applyTemporaryWorkspaceConversationInterpretation({
       intent: "unclear_update_intent",
       changes: [],
       reply: "你是想改成富良野，还是先比较一下？",
