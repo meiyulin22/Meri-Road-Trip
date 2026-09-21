@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 
+import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 
 import {
@@ -22,6 +23,7 @@ import {
 } from "@/server/ai/workspace-conversation-interpreter";
 import { TripStateNotFoundError } from "@/server/journey/journey-errors";
 import { journeyService } from "@/server/journey/journey-service-instance";
+import { readGuestId } from "@/server/identity/guest-identity";
 import { logger, logEvents } from "@/server/observability/logger";
 import { serializeError } from "@/server/observability/serialize-error";
 
@@ -122,7 +124,15 @@ export async function POST(request: Request) {
     }
 
     const tripId = body.tripId;
-    const { tripState } = await journeyService.loadJourney(tripId);
+    const ownerGuestId = readGuestId(await cookies());
+    if (!ownerGuestId) {
+      throw new TripNotFoundError(tripId);
+    }
+
+    const { tripState } = await journeyService.loadJourney(
+      tripId,
+      ownerGuestId,
+    );
     logger.info(
       { event: logEvents.workspaceConversationRequested, ...context },
       "Workspace conversation requested",
@@ -138,7 +148,11 @@ export async function POST(request: Request) {
     let persistedTripState = tripState;
 
     if (patch !== null) {
-      persistedTripState = await journeyService.updateTripState(tripId, patch);
+      persistedTripState = await journeyService.updateTripState(
+        tripId,
+        ownerGuestId,
+        patch,
+      );
       logger.info(
         {
           event: logEvents.tripStateUpdateApplied,

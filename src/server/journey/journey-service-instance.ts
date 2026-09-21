@@ -8,5 +8,6 @@ export const journeyService = new JourneyService({
   tripService,
   createTripStateRepository: (tripId) =>
     new PostgresTripStateRepository(db, tripId),
-  deleteTripById: (tripId) => tripRepository.deleteById(tripId),
+  deleteTripById: (tripId, ownerGuestId) =>
+    tripRepository.deleteById(tripId, ownerGuestId),
 });

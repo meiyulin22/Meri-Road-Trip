@@ -15,6 +15,7 @@ export const trips = pgTable(
   "trips",
   {
     id: uuid("id").primaryKey(),
+    ownerGuestId: uuid("owner_guest_id").notNull(),
     name: text("name").notNull(),
     origin: text("origin"),
     destination: text("destination"),

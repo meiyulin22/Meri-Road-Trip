@@ -1,6 +1,14 @@
 import { randomUUID } from "node:crypto";
 
+import { cookies } from "next/headers";
+import { NextResponse } from "next/server";
+
 import { InvalidTripDraftError } from "@/domain/trip-draft/trip-draft";
+import {
+  getOrCreateGuestIdentity,
+  guestIdCookieName,
+  guestIdCookieOptions,
+} from "@/server/identity/guest-identity";
 import { JourneyCreationError } from "@/server/journey/journey-errors";
 import { journeyService } from "@/server/journey/journey-service-instance";
 import { logger, logEvents } from "@/server/observability/logger";
@@ -20,7 +28,12 @@ export async function POST(request: Request) {
       throw new InvalidTripDraftError("Request body must contain a draft.");
     }
 
-    const journey = await journeyService.createJourney(body.draft);
+    const cookieStore = await cookies();
+    const guestIdentity = getOrCreateGuestIdentity(cookieStore);
+    const journey = await journeyService.createJourney(
+      body.draft,
+      guestIdentity.guestId,
+    );
     logger.info(
       {
         event: logEvents.journeyCreated,
@@ -31,7 +44,15 @@ export async function POST(request: Request) {
       "Journey created",
     );
 
-    return Response.json(journey, { status: 201 });
+    const response = NextResponse.json(journey, { status: 201 });
+    if (guestIdentity.isNew) {
+      response.cookies.set(
+        guestIdCookieName,
+        guestIdentity.guestId,
+        guestIdCookieOptions,
+      );
+    }
+    return response;
   } catch (error) {
     const isInvalidInput =
       error instanceof SyntaxError || error instanceof InvalidTripDraftError;

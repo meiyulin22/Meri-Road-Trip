@@ -26,17 +26,24 @@ export interface Journey {
 interface JourneyServiceDependencies {
   readonly tripService: Pick<TripService, "createTrip" | "getTripById">;
   readonly createTripStateRepository: (tripId: string) => TripStateRepository;
-  readonly deleteTripById: (tripId: string) => Promise<void>;
+  readonly deleteTripById: (
+    tripId: string,
+    ownerGuestId: string,
+  ) => Promise<void>;
 }
 
 export class JourneyService {
   constructor(private readonly dependencies: JourneyServiceDependencies) {}
 
-  async createJourney(draftInput: unknown): Promise<Journey> {
+  async createJourney(
+    draftInput: unknown,
+    ownerGuestId: string,
+  ): Promise<Journey> {
     const draft = validateTripDraftDomain(draftInput);
     const tripState = initializeTripState(draft);
     const trip = await this.dependencies.tripService.createTrip(
       createTripInput(draft),
+      ownerGuestId,
     );
 
     try {
@@ -45,7 +52,7 @@ export class JourneyService {
         .create(tripState);
     } catch (stateError) {
       try {
-        await this.dependencies.deleteTripById(trip.id);
+        await this.dependencies.deleteTripById(trip.id, ownerGuestId);
       } catch (cleanupError) {
         throw new JourneyCreationError(
           `Failed to create TripState and roll back Trip ${trip.id}.`,
@@ -62,8 +69,14 @@ export class JourneyService {
     return { trip, tripState };
   }
 
-  async loadJourney(tripId: string): Promise<Journey> {
-    const trip = await this.dependencies.tripService.getTripById(tripId);
+  async loadJourney(
+    tripId: string,
+    ownerGuestId: string,
+  ): Promise<Journey> {
+    const trip = await this.dependencies.tripService.getTripById(
+      tripId,
+      ownerGuestId,
+    );
     const tripState = await this.dependencies
       .createTripStateRepository(tripId)
       .findByTripId(tripId);
@@ -77,9 +90,10 @@ export class JourneyService {
 
   async updateTripState(
     tripId: string,
+    ownerGuestId: string,
     patch: TripStatePatch,
   ): Promise<TripState> {
-    const { tripState } = await this.loadJourney(tripId);
+    const { tripState } = await this.loadJourney(tripId, ownerGuestId);
     const nextState = applyTripStatePatch(tripState, patch);
     await this.dependencies
       .createTripStateRepository(tripId)

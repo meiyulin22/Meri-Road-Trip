@@ -1,6 +1,14 @@
 import { randomUUID } from "node:crypto";
 
+import { cookies } from "next/headers";
+import { NextResponse } from "next/server";
+
 import { InvalidTripInputError } from "@/domain/trip/trip-errors";
+import {
+  getOrCreateGuestIdentity,
+  guestIdCookieName,
+  guestIdCookieOptions,
+} from "@/server/identity/guest-identity";
 import { logger, logEvents } from "@/server/observability/logger";
 import { serializeError } from "@/server/observability/serialize-error";
 import { tripService } from "@/server/trip/trip-service-instance";
@@ -11,7 +19,9 @@ export async function POST(request: Request) {
 
   try {
     const input: unknown = await request.json();
-    const trip = await tripService.createTrip(input);
+    const cookieStore = await cookies();
+    const guestIdentity = getOrCreateGuestIdentity(cookieStore);
+    const trip = await tripService.createTrip(input, guestIdentity.guestId);
     const durationMs = elapsedMilliseconds(startedAt);
 
     logger.info(
@@ -24,7 +34,15 @@ export async function POST(request: Request) {
       "Trip created",
     );
 
-    return Response.json(trip, { status: 201 });
+    const response = NextResponse.json(trip, { status: 201 });
+    if (guestIdentity.isNew) {
+      response.cookies.set(
+        guestIdCookieName,
+        guestIdentity.guestId,
+        guestIdCookieOptions,
+      );
+    }
+    return response;
   } catch (error) {
     const durationMs = elapsedMilliseconds(startedAt);
 

@@ -28,7 +28,7 @@ export class TripService {
     this.now = now;
   }
 
-  async createTrip(input: unknown): Promise<Trip> {
+  async createTrip(input: unknown, ownerGuestId: string): Promise<Trip> {
     const creationInput = validateTripCreationInput(input);
     const timestamp = this.now().toISOString();
 
@@ -44,13 +44,13 @@ export class TripService {
       updatedAt: timestamp,
     };
 
-    await this.repository.create(trip);
+    await this.repository.create(trip, ownerGuestId);
 
     return trip;
   }
 
-  async getTripById(tripId: string): Promise<Trip> {
-    const trip = await this.repository.findById(tripId);
+  async getTripById(tripId: string, ownerGuestId: string): Promise<Trip> {
+    const trip = await this.repository.findById(tripId, ownerGuestId);
 
     if (!trip) {
       throw new TripNotFoundError(tripId);

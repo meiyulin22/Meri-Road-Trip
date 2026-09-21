@@ -10,6 +10,9 @@ import type { TripStateRepository } from "@/repositories/trip-state-repository";
 import { JourneyCreationError, TripStateNotFoundError } from "./journey-errors";
 import { JourneyService } from "./journey-service";
 
+const guestA = "25ba5b26-8db0-4fe3-bfcc-b684dd7889cc";
+const guestB = "f6dd6c50-91c6-4ad1-9089-dbb3feaa61cc";
+
 const draft: TripDraft = {
   name: { state: "known", value: "富良野滑雪" },
   origin: { state: "missing" },
@@ -59,11 +62,13 @@ function createStateRepository(
 test("creates an incomplete Trip and authoritative TripState with one identity", async () => {
   const stateRepository = createStateRepository();
   let receivedTripInput: unknown;
+  let receivedOwnerGuestId = "";
   let repositoryTripId = "";
   const service = new JourneyService({
     tripService: {
-      async createTrip(input) {
+      async createTrip(input, ownerGuestId) {
         receivedTripInput = input;
+        receivedOwnerGuestId = ownerGuestId;
         return trip;
       },
       async getTripById() {
@@ -77,9 +82,10 @@ test("creates an incomplete Trip and authoritative TripState with one identity",
     async deleteTripById() {},
   });
 
-  const journey = await service.createJourney(draft);
+  const journey = await service.createJourney(draft, guestA);
 
   assert.equal(repositoryTripId, trip.id);
+  assert.equal(receivedOwnerGuestId, guestA);
   assert.deepEqual(receivedTripInput, {
     name: "富良野滑雪",
     origin: null,
@@ -111,12 +117,16 @@ test("rolls back Trip when initial TripState creation fails", async () => {
       },
     },
     createTripStateRepository: () => stateRepository.repository,
-    async deleteTripById(tripId) {
+    async deleteTripById(tripId, ownerGuestId) {
+      assert.equal(ownerGuestId, guestA);
       deletedTripIds.push(tripId);
     },
   });
 
-  await assert.rejects(service.createJourney(draft), JourneyCreationError);
+  await assert.rejects(
+    service.createJourney(draft, guestA),
+    JourneyCreationError,
+  );
   assert.deepEqual(deletedTripIds, [trip.id]);
 });
 
@@ -143,7 +153,7 @@ test("loads an existing Trip and TripState", async () => {
     async deleteTripById() {},
   });
 
-  const journey = await service.loadJourney(trip.id);
+  const journey = await service.loadJourney(trip.id, guestA);
 
   assert.equal(journey.trip.id, trip.id);
   assert.strictEqual(journey.tripState, stateRepository.getState());
@@ -164,7 +174,10 @@ test("does not invent replacement state when TripState is missing", async () => 
     async deleteTripById() {},
   });
 
-  await assert.rejects(service.loadJourney(trip.id), TripStateNotFoundError);
+  await assert.rejects(
+    service.loadJourney(trip.id, guestA),
+    TripStateNotFoundError,
+  );
 });
 
 test("propagates a missing Trip without loading TripState", async () => {
@@ -185,7 +198,10 @@ test("propagates a missing Trip without loading TripState", async () => {
     async deleteTripById() {},
   });
 
-  await assert.rejects(service.loadJourney("missing"), TripNotFoundError);
+  await assert.rejects(
+    service.loadJourney("missing", guestA),
+    TripNotFoundError,
+  );
   assert.equal(stateRepositoryCreated, false);
 });
 
@@ -217,9 +233,13 @@ test("updates state through the repository bound to the real Trip ID", async () 
     async deleteTripById() {},
   });
 
-  const updated = await service.updateTripState(trip.id, {
-    destination: { state: "known", value: "富良野", source: "user" },
-  });
+  const updated = await service.updateTripState(
+    trip.id,
+    guestA,
+    {
+      destination: { state: "known", value: "富良野", source: "user" },
+    },
+  );
 
   assert.deepEqual(updated.destination, {
     state: "known",
@@ -228,4 +248,62 @@ test("updates state through the repository bound to the real Trip ID", async () 
   });
   assert.deepEqual(repositoryTripIds, [trip.id, trip.id]);
   assert.strictEqual(stateRepository.getState(), updated);
+});
+
+test("does not load another guest's Journey", async () => {
+  const stateRepository = createStateRepository();
+  const service = new JourneyService({
+    tripService: {
+      async createTrip() {
+        return trip;
+      },
+      async getTripById(tripId, ownerGuestId) {
+        if (ownerGuestId !== guestA) {
+          throw new TripNotFoundError(tripId);
+        }
+        return trip;
+      },
+    },
+    createTripStateRepository: () => stateRepository.repository,
+    async deleteTripById() {},
+  });
+
+  await assert.rejects(
+    service.loadJourney(trip.id, guestB),
+    TripNotFoundError,
+  );
+});
+
+test("does not update another guest's TripState", async () => {
+  const stateRepository = createStateRepository();
+  let updateWasCalled = false;
+  const repository: TripStateRepository = {
+    ...stateRepository.repository,
+    async update() {
+      updateWasCalled = true;
+    },
+  };
+  const service = new JourneyService({
+    tripService: {
+      async createTrip() {
+        return trip;
+      },
+      async getTripById(tripId, ownerGuestId) {
+        if (ownerGuestId !== guestA) {
+          throw new TripNotFoundError(tripId);
+        }
+        return trip;
+      },
+    },
+    createTripStateRepository: () => repository,
+    async deleteTripById() {},
+  });
+
+  await assert.rejects(
+    service.updateTripState(trip.id, guestB, {
+      destination: { state: "known", value: "札幌", source: "user" },
+    }),
+    TripNotFoundError,
+  );
+  assert.equal(updateWasCalled, false);
 });

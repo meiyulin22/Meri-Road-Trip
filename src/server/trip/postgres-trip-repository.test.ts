@@ -8,6 +8,9 @@ import {
   PostgresTripRepositoryError,
 } from "./postgres-trip-repository";
 
+const guestA = "25ba5b26-8db0-4fe3-bfcc-b684dd7889cc";
+const guestB = "f6dd6c50-91c6-4ad1-9089-dbb3feaa61cc";
+
 type TripDatabase = ConstructorParameters<typeof PostgresTripRepository>[0];
 type TripRow = typeof trips.$inferSelect;
 type TripInsert = typeof trips.$inferInsert;
@@ -124,23 +127,27 @@ test("saves an explicitly mapped Trip row", async () => {
   const { database, inspection } = createDatabaseDouble();
   const repository = new PostgresTripRepository(database);
 
-  await repository.save(trip);
+  await repository.save(trip, guestA);
 
   assert.equal(inspection.insertedTable, trips);
   assert.equal(inspection.insertedTrip?.origin, "成都");
-  assert.deepEqual(inspection.insertedTrip, trip);
+  assert.deepEqual(inspection.insertedTrip, {
+    ...trip,
+    ownerGuestId: guestA,
+  });
 });
 
 test("finds and maps a Trip row to the domain representation", async () => {
   const row: TripRow = {
     ...trip,
+    ownerGuestId: guestA,
     createdAt: "2026-09-16 01:02:03+00",
     updatedAt: "2026-09-16 04:05:06+00",
   };
   const { database, inspection } = createDatabaseDouble({ rows: [row] });
   const repository = new PostgresTripRepository(database);
 
-  const result = await repository.findById(trip.id);
+  const result = await repository.findById(trip.id, guestA);
 
   assert.equal(inspection.selectedTable, trips);
   assert.equal(inspection.whereWasCalled, true);
@@ -151,6 +158,7 @@ test("finds and maps a Trip row to the domain representation", async () => {
 test("maps an incomplete Trip row without filling missing information", async () => {
   const row: TripRow = {
     ...trip,
+    ownerGuestId: guestA,
     origin: null,
     destination: null,
     startDate: null,
@@ -159,7 +167,7 @@ test("maps an incomplete Trip row without filling missing information", async ()
   const { database } = createDatabaseDouble({ rows: [row] });
   const repository = new PostgresTripRepository(database);
 
-  const result = await repository.findById(trip.id);
+  const result = await repository.findById(trip.id, guestA);
 
   assert.equal(result?.origin, null);
   assert.equal(result?.destination, null);
@@ -171,7 +179,7 @@ test("returns null when no Trip row exists", async () => {
   const { database } = createDatabaseDouble();
   const repository = new PostgresTripRepository(database);
 
-  const result = await repository.findById("missing-trip");
+  const result = await repository.findById("missing-trip", guestA);
 
   assert.equal(result, null);
 });
@@ -180,7 +188,7 @@ test("deletes a Trip for failed Journey creation compensation", async () => {
   const { database, inspection } = createDatabaseDouble();
   const repository = new PostgresTripRepository(database);
 
-  await repository.deleteById(trip.id);
+  await repository.deleteById(trip.id, guestA);
 
   assert.equal(inspection.deletedTable, trips);
   assert.equal(inspection.deleteWhereWasCalled, true);
@@ -191,7 +199,7 @@ test("preserves the cause when saving fails", async () => {
   const { database } = createDatabaseDouble({ saveError: databaseError });
   const repository = new PostgresTripRepository(database);
 
-  await assert.rejects(repository.save(trip), (error: unknown) => {
+  await assert.rejects(repository.save(trip, guestA), (error: unknown) => {
     assert.ok(error instanceof PostgresTripRepositoryError);
     assert.equal(error.operation, "save");
     assert.equal(error.tripId, trip.id);
@@ -206,7 +214,7 @@ test("preserves the cause when finding a Trip fails", async () => {
   const { database } = createDatabaseDouble({ findError: databaseError });
   const repository = new PostgresTripRepository(database);
 
-  await assert.rejects(repository.findById(trip.id), (error: unknown) => {
+  await assert.rejects(repository.findById(trip.id, guestB), (error: unknown) => {
     assert.ok(error instanceof PostgresTripRepositoryError);
     assert.equal(error.operation, "findById");
     assert.equal(error.tripId, trip.id);

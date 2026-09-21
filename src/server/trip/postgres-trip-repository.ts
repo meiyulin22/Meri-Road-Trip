@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 
 import type { Trip } from "@/domain/trip/trip";
 import { trips } from "@/server/database/schema/trips";
@@ -31,25 +31,30 @@ export class PostgresTripRepositoryError extends Error {
 export class PostgresTripRepository {
   constructor(private readonly database: TripDatabase) {}
 
-  async create(trip: Trip): Promise<Trip> {
-    await this.save(trip);
+  async create(trip: Trip, ownerGuestId: string): Promise<Trip> {
+    await this.save(trip, ownerGuestId);
     return trip;
   }
 
-  async save(trip: Trip): Promise<void> {
+  async save(trip: Trip, ownerGuestId: string): Promise<void> {
     try {
-      await this.database.insert(trips).values(toTripInsert(trip));
+      await this.database.insert(trips).values(toTripInsert(trip, ownerGuestId));
     } catch (error) {
       throw new PostgresTripRepositoryError("save", trip.id, error);
     }
   }
 
-  async findById(tripId: string): Promise<Trip | null> {
+  async findById(tripId: string, ownerGuestId: string): Promise<Trip | null> {
     try {
       const rows = await this.database
         .select()
         .from(trips)
-        .where(eq(trips.id, tripId))
+        .where(
+          and(
+            eq(trips.id, tripId),
+            eq(trips.ownerGuestId, ownerGuestId),
+          ),
+        )
         .limit(1);
       const row = rows[0];
 
@@ -59,18 +64,26 @@ export class PostgresTripRepository {
     }
   }
 
-  async deleteById(tripId: string): Promise<void> {
+  async deleteById(tripId: string, ownerGuestId: string): Promise<void> {
     try {
-      await this.database.delete(trips).where(eq(trips.id, tripId));
+      await this.database
+        .delete(trips)
+        .where(
+          and(
+            eq(trips.id, tripId),
+            eq(trips.ownerGuestId, ownerGuestId),
+          ),
+        );
     } catch (error) {
       throw new PostgresTripRepositoryError("deleteById", tripId, error);
     }
   }
 }
 
-function toTripInsert(trip: Trip): TripInsert {
+function toTripInsert(trip: Trip, ownerGuestId: string): TripInsert {
   return {
     id: trip.id,
+    ownerGuestId,
     name: trip.name,
     origin: trip.origin,
     destination: trip.destination,

@@ -1,10 +1,13 @@
 import { randomUUID } from "node:crypto";
 
+import { cookies } from "next/headers";
+
 import {
   InvalidTripStateError,
   validateTripStatePatch,
 } from "@/domain/trip-state/trip-state";
 import { TripNotFoundError } from "@/domain/trip/trip-errors";
+import { readGuestId } from "@/server/identity/guest-identity";
 import { TripStateNotFoundError } from "@/server/journey/journey-errors";
 import { journeyService } from "@/server/journey/journey-service-instance";
 import { logger, logEvents } from "@/server/observability/logger";
@@ -18,7 +21,8 @@ export async function GET(_request: Request, context: TripStateRouteContext) {
   const { id: tripId } = await context.params;
 
   try {
-    const journey = await journeyService.loadJourney(tripId);
+    const ownerGuestId = await requireOwnerGuestId(tripId);
+    const journey = await journeyService.loadJourney(tripId, ownerGuestId);
     return Response.json({ tripState: journey.tripState });
   } catch (error) {
     return stateErrorResponse(error, tripId, randomUUID());
@@ -39,8 +43,13 @@ export async function PATCH(request: Request, context: TripStateRouteContext) {
       throw new InvalidTripStateError("Request body must contain a patch.");
     }
 
+    const ownerGuestId = await requireOwnerGuestId(tripId);
     const patch = validateTripStatePatch(body.patch);
-    const tripState = await journeyService.updateTripState(tripId, patch);
+    const tripState = await journeyService.updateTripState(
+      tripId,
+      ownerGuestId,
+      patch,
+    );
     logger.info(
       {
         event: logEvents.tripStateUpdateApplied,
@@ -54,6 +63,16 @@ export async function PATCH(request: Request, context: TripStateRouteContext) {
   } catch (error) {
     return stateErrorResponse(error, tripId, requestId);
   }
+}
+
+async function requireOwnerGuestId(tripId: string): Promise<string> {
+  const guestId = readGuestId(await cookies());
+
+  if (!guestId) {
+    throw new TripNotFoundError(tripId);
+  }
+
+  return guestId;
 }
 
 function stateErrorResponse(

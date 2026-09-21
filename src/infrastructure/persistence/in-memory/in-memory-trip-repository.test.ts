@@ -5,6 +5,9 @@ import type { Trip } from "@/domain/trip/trip";
 
 import { InMemoryTripRepository } from "./in-memory-trip-repository";
 
+const guestA = "25ba5b26-8db0-4fe3-bfcc-b684dd7889cc";
+const guestB = "f6dd6c50-91c6-4ad1-9089-dbb3feaa61cc";
+
 const trip: Trip = {
   id: "trip_123",
   name: "贡嘎徒步",
@@ -20,28 +23,35 @@ const trip: Trip = {
 test("creates and finds a Trip", async () => {
   const repository = new InMemoryTripRepository();
 
-  const created = await repository.create(trip);
+  const created = await repository.create(trip, guestA);
 
   assert.strictEqual(created, trip);
-  assert.strictEqual(await repository.findById(trip.id), trip);
+  assert.strictEqual(await repository.findById(trip.id, guestA), trip);
+});
+
+test("does not return another guest's Trip", async () => {
+  const repository = new InMemoryTripRepository();
+  await repository.create(trip, guestA);
+
+  assert.equal(await repository.findById(trip.id, guestB), null);
 });
 
 test("updates a Trip by replacing its previous value", async () => {
   const repository = new InMemoryTripRepository();
-  await repository.create(trip);
+  await repository.create(trip, guestA);
   const updatedTrip: Trip = {
     ...trip,
     destination: "四姑娘山",
     updatedAt: "2026-09-20T09:00:00.000Z",
   };
 
-  await repository.update(updatedTrip);
+  await repository.update(updatedTrip, guestA);
 
-  assert.strictEqual(await repository.findById(trip.id), updatedTrip);
+  assert.strictEqual(await repository.findById(trip.id, guestA), updatedTrip);
 });
 
 test("returns null when a Trip is missing", async () => {
   const repository = new InMemoryTripRepository();
 
-  assert.equal(await repository.findById("missing"), null);
+  assert.equal(await repository.findById("missing", guestA), null);
 });

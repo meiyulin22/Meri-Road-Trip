@@ -1,6 +1,9 @@
 import { randomUUID } from "node:crypto";
 
+import { cookies } from "next/headers";
+
 import { TripNotFoundError } from "@/domain/trip/trip-errors";
+import { readGuestId } from "@/server/identity/guest-identity";
 import { logger, logEvents } from "@/server/observability/logger";
 import { serializeError } from "@/server/observability/serialize-error";
 import { tripService } from "@/server/trip/trip-service-instance";
@@ -18,7 +21,12 @@ export async function GET(
   const { id: tripId } = await context.params;
 
   try {
-    const trip = await tripService.getTripById(tripId);
+    const ownerGuestId = readGuestId(await cookies());
+    if (!ownerGuestId) {
+      throw new TripNotFoundError(tripId);
+    }
+
+    const trip = await tripService.getTripById(tripId, ownerGuestId);
     const durationMs = elapsedMilliseconds(startedAt);
 
     logger.info(
