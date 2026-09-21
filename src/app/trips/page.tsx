@@ -1,4 +1,4 @@
-import { ArrowRight, CalendarDays, MapPin, Plus } from "lucide-react";
+import { ArrowLeft, ArrowRight, CalendarDays, MapPin, Plus } from "lucide-react";
 import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
@@ -33,10 +33,16 @@ export default async function MyJourneysPage() {
               width={1101}
             />
           </Link>
-          <Link className={styles.newJourney} href="/#new-trip">
-            <Plus aria-hidden="true" size={18} />
-            <span>New Journey</span>
-          </Link>
+          <div className={styles.headerActions}>
+            <Link className={styles.homeLink} href="/">
+              <ArrowLeft aria-hidden="true" size={17} />
+              <span>Home</span>
+            </Link>
+            <Link className={styles.newJourney} href="/#new-trip">
+              <Plus aria-hidden="true" size={18} />
+              <span>New Journey</span>
+            </Link>
+          </div>
         </header>
 
         <section className={styles.content} aria-labelledby="journeys-title">

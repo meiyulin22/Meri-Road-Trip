@@ -61,7 +61,12 @@ export function newTripComposerReducer(
     case "submission.started":
       return { ...state, phase: "submitting", draft: null, error: null };
     case "submission.succeeded":
-      return { ...state, phase: "review", draft: action.draft, error: null };
+      return {
+        message: "",
+        phase: "review",
+        draft: action.draft,
+        error: null,
+      };
     case "submission.failed":
       return { ...state, phase: "error", draft: null, error: action.error };
   }

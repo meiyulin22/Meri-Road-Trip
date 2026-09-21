@@ -38,6 +38,23 @@ test("does not submit an empty trip idea", async () => {
   assert.equal(canSubmitTripDraft(createInitialComposerState()), false);
 });
 
+test("clears the composer before leaving after a successful submission", () => {
+  const submittingState = {
+    ...createInitialComposerState(),
+    message: "今年冬天想出去走走",
+    phase: "submitting" as const,
+  };
+
+  const succeededState = newTripComposerReducer(submittingState, {
+    type: "submission.succeeded",
+    draft,
+  });
+
+  assert.equal(succeededState.message, "");
+  assert.equal(succeededState.phase, "review");
+  assert.equal(canSubmitTripDraft(succeededState), false);
+});
+
 test("accepts a successful validated TripDraft response", async () => {
   const fetcher: typeof fetch = async () => Response.json({ draft });
 

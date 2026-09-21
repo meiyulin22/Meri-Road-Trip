@@ -47,6 +47,34 @@
   filter: brightness(0) invert(1);
 }
 
+.headerActions {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+}
+
+.homeLink {
+  min-height: 2.75rem;
+  padding: 0.65rem 0.8rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.42rem;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 0.75rem;
+  color: rgba(238, 243, 252, 0.82);
+  background: rgba(8, 17, 36, 0.58);
+  font-size: 0.78rem;
+  font-weight: 680;
+  backdrop-filter: blur(12px);
+}
+
+.homeLink,
+.newJourney {
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
 .newJourney {
   min-height: 2.75rem;
   padding: 0.65rem 0.9rem;
@@ -225,6 +253,18 @@
 }
 
 @media (max-width: 680px) {
+  .header {
+    gap: 0.5rem;
+  }
+
+  .brand {
+    width: 6.5rem;
+  }
+
+  .headerActions {
+    gap: 0.4rem;
+  }
+
   .shell {
     width: min(100% - 1.25rem, 68rem);
   }

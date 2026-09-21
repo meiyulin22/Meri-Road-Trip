@@ -55,8 +55,10 @@ export function NewTripComposer() {
 
     try {
       const draft = await requestTripDraft(state.message);
-      await createJourneyAndNavigate(draft, (path) => router.push(path));
-      dispatch({ type: "submission.succeeded", draft });
+      await createJourneyAndNavigate(draft, (path) => {
+        dispatch({ type: "submission.succeeded", draft });
+        router.push(path);
+      });
     } catch {
       dispatch({ type: "submission.failed", error: errorMessage });
     }
@@ -89,12 +91,13 @@ export function NewTripComposer() {
         </div>
       </div>
 
-      <form aria-busy={isSubmitting} onSubmit={handleSubmit}>
+      <form autoComplete="off" aria-busy={isSubmitting} onSubmit={handleSubmit}>
         <div className={styles.composerInput}>
           <label className={styles.srOnly} htmlFor="trip-idea">
             Tell Meri anything about your trip
           </label>
           <textarea
+            autoComplete="off"
             disabled={isSubmitting}
             id="trip-idea"
             onChange={(event) =>
