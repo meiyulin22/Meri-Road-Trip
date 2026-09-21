@@ -167,6 +167,24 @@ test("rejects an unsupported Trip status", async () => {
   );
 });
 
+test("lists only Trips belonging to the requested guest", async () => {
+  const repository = new InMemoryTripRepository();
+  const service = new TripService({
+    repository,
+    generateId: () => "trip_123",
+    now: () => new Date("2026-09-13T08:00:00.000Z"),
+  });
+  const ownedTrip = await service.createTrip(validInput, guestA);
+  await repository.create(
+    { ...ownedTrip, id: "trip_other", name: "另一个人的旅程" },
+    guestB,
+  );
+
+  const result = await service.listTrips(guestA);
+
+  assert.deepEqual(result, [ownedTrip]);
+});
+
 test("retrieves a stored Trip by ID", async () => {
   const service = createTestService();
   const createdTrip = await service.createTrip(validInput, guestA);

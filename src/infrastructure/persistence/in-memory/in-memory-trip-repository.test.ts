@@ -55,3 +55,37 @@ test("returns null when a Trip is missing", async () => {
 
   assert.equal(await repository.findById("missing", guestA), null);
 });
+
+
+test("lists only the owner's Trips in recent-first order", async () => {
+  const repository = new InMemoryTripRepository();
+  const olderTrip: Trip = {
+    ...trip,
+    id: "trip_older",
+    updatedAt: "2026-09-20T08:00:00.000Z",
+  };
+  const newerTrip: Trip = {
+    ...trip,
+    id: "trip_newer",
+    destination: null,
+    startDate: null,
+    endDate: null,
+    updatedAt: "2026-09-21T08:00:00.000Z",
+  };
+  const otherGuestTrip: Trip = {
+    ...trip,
+    id: "trip_other_guest",
+    updatedAt: "2026-09-22T08:00:00.000Z",
+  };
+
+  await repository.create(olderTrip, guestA);
+  await repository.create(otherGuestTrip, guestB);
+  await repository.create(newerTrip, guestA);
+
+  const result = await repository.listByOwner(guestA);
+
+  assert.deepEqual(result, [newerTrip, olderTrip]);
+  assert.deepEqual(await repository.listByOwner(guestB), [otherGuestTrip]);
+  assert.equal(result[0].destination, null);
+  assert.equal(result[0].startDate, null);
+});

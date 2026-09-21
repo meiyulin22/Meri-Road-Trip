@@ -1,4 +1,4 @@
-import { and, eq } from "drizzle-orm";
+import { and, desc, eq } from "drizzle-orm";
 
 import type { Trip } from "@/domain/trip/trip";
 import { trips } from "@/server/database/schema/trips";
@@ -7,21 +7,33 @@ type TripDatabase = typeof import("@/server/database/db").db;
 type TripRow = typeof trips.$inferSelect;
 type TripInsert = typeof trips.$inferInsert;
 
-type PostgresTripOperation = "save" | "findById" | "deleteById";
+type PostgresTripOperation =
+  | "save"
+  | "findById"
+  | "listByOwner"
+  | "deleteById";
 
 export class PostgresTripRepositoryError extends Error {
   readonly operation: PostgresTripOperation;
-  readonly tripId: string;
+  readonly tripId: string | null;
 
-  constructor(operation: PostgresTripOperation, tripId: string, cause: unknown) {
+  constructor(
+    operation: PostgresTripOperation,
+    tripId: string | null,
+    cause: unknown,
+  ) {
     const action =
       operation === "save"
         ? "save"
         : operation === "deleteById"
           ? "delete"
-          : "find";
+          : operation === "listByOwner"
+            ? "list"
+            : "find";
 
-    super(`Failed to ${action} Trip ${tripId} in PostgreSQL.`, { cause });
+    const target = operation === "listByOwner" ? "Trips" : `Trip ${tripId}`;
+
+    super(`Failed to ${action} ${target} in PostgreSQL.`, { cause });
     this.name = "PostgresTripRepositoryError";
     this.operation = operation;
     this.tripId = tripId;
@@ -61,6 +73,24 @@ export class PostgresTripRepository {
       return row ? toTrip(row) : null;
     } catch (error) {
       throw new PostgresTripRepositoryError("findById", tripId, error);
+    }
+  }
+
+  async listByOwner(ownerGuestId: string): Promise<Trip[]> {
+    try {
+      const rows = await this.database
+        .select()
+        .from(trips)
+        .where(eq(trips.ownerGuestId, ownerGuestId))
+        .orderBy(
+          desc(trips.updatedAt),
+          desc(trips.createdAt),
+          desc(trips.id),
+        );
+
+      return rows.map(toTrip);
+    } catch (error) {
+      throw new PostgresTripRepositoryError("listByOwner", null, error);
     }
   }
 

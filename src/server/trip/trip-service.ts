@@ -8,13 +8,16 @@ import {
 import type { TripRepository } from "@/repositories/trip-repository";
 
 type TripServiceDependencies = {
-  repository: Pick<TripRepository, "create" | "findById">;
+  repository: Pick<TripRepository, "create" | "findById" | "listByOwner">;
   generateId?: () => string;
   now?: () => Date;
 };
 
 export class TripService {
-  private readonly repository: Pick<TripRepository, "create" | "findById">;
+  private readonly repository: Pick<
+    TripRepository,
+    "create" | "findById" | "listByOwner"
+  >;
   private readonly generateId: () => string;
   private readonly now: () => Date;
 
@@ -47,6 +50,10 @@ export class TripService {
     await this.repository.create(trip, ownerGuestId);
 
     return trip;
+  }
+
+  listTrips(ownerGuestId: string): Promise<Trip[]> {
+    return this.repository.listByOwner(ownerGuestId);
   }
 
   async getTripById(tripId: string, ownerGuestId: string): Promise<Trip> {

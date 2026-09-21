@@ -19,6 +19,15 @@ export class InMemoryTripRepository implements TripRepository {
     );
   }
 
+  listByOwner(ownerGuestId: string): Promise<Trip[]> {
+    const ownedTrips = [...this.trips.values()]
+      .filter((storedTrip) => storedTrip.ownerGuestId === ownerGuestId)
+      .map((storedTrip) => storedTrip.trip)
+      .sort(compareTripRecency);
+
+    return Promise.resolve(ownedTrips);
+  }
+
   update(trip: Trip, ownerGuestId: string): Promise<void> {
     const storedTrip = this.trips.get(trip.id);
 
@@ -28,4 +37,12 @@ export class InMemoryTripRepository implements TripRepository {
 
     return Promise.resolve();
   }
+}
+
+function compareTripRecency(left: Trip, right: Trip): number {
+  return (
+    right.updatedAt.localeCompare(left.updatedAt) ||
+    right.createdAt.localeCompare(left.createdAt) ||
+    right.id.localeCompare(left.id)
+  );
 }

@@ -19,11 +19,13 @@ type NavigationItem = {
   label: string;
   icon: LucideIcon;
   available: boolean;
+  href?: string;
+  active?: boolean;
 };
 
 const desktopNavigation: NavigationItem[] = [
-  { label: "Home", icon: Home, available: true },
-  { label: "Trips", icon: Backpack, available: false },
+  { label: "Home", icon: Home, available: true, href: "#top", active: true },
+  { label: "Trips", icon: Backpack, available: true, href: "/trips" },
   { label: "Explore", icon: Compass, available: false },
   { label: "Map", icon: Map, available: false },
   { label: "Weather", icon: CloudSun, available: false },
@@ -109,9 +111,12 @@ function DesktopSidebar() {
 function NavigationEntry({ item }: { item: NavigationItem }) {
   const Icon = item.icon;
 
-  if (item.available) {
+  if (item.available && item.href) {
     return (
-      <a className={`${styles.navItem} ${styles.navItemActive}`} href="#top">
+      <a
+        className={`${styles.navItem} ${item.active ? styles.navItemActive : ""}`}
+        href={item.href}
+      >
         <Icon aria-hidden="true" size={19} />
         <span>{item.label}</span>
       </a>
@@ -196,9 +201,13 @@ function MobileBottomNavigation() {
       {mobileNavigation.map((item) => {
         const Icon = item.icon;
 
-        if (item.available) {
+        if (item.available && item.href) {
           return (
-            <a className={styles.mobileNavActive} href="#top" key={item.label}>
+            <a
+              className={item.active ? styles.mobileNavActive : undefined}
+              href={item.href}
+              key={item.label}
+            >
               <Icon aria-hidden="true" size={21} />
               <span>{item.label}</span>
             </a>
