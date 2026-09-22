@@ -49,65 +49,116 @@ The decision layer must not generate:
 The React renderer remains deterministic. It validates a typed UI decision and
 composes only components from Meri's controlled component library.
 
+## Journey-Centered World Model
+
+Meri is Journey-centered. It is not map-first, weather-first, content-first, or
+chat-first. The Journey remains the stable center while Meri's understanding of
+the surrounding world grows and the user's current intent changes.
+
+### Journey State
+
+Journey State represents the user's evolving Journey. In the current codebase,
+this authoritative state is represented by `TripState`.
+
+It contains user-established Journey information such as:
+
+- origin
+- destination
+- dates and duration
+- transport and other preferences
+
+Journey State may remain incomplete, approximate, or ambiguous. It describes
+the Journey; it is not a UI layout model and should not contain component
+visibility, priority, or layout decisions.
+
+### Meri World State
+
+Meri World State is a future conceptual representation of what Meri currently
+knows about the Journey and the relevant surrounding real world. It may
+eventually combine:
+
+- resolved locations
+- `ResearchContext`
+- research results and progress
+- evidence
+- weather
+- routes and transport
+- risks and equipment implications
+- current user intent
+- observed real-world changes
+
+This concept must not be implemented now as a speculative giant
+`MeriWorldState` interface. Its concrete shape should emerge incrementally as
+Location Resolve, `ResearchContext`, Evidence, and Research become real product
+capabilities.
+
+### Views Over World State
+
+Map, Weather, Route, Transport, Risk, Equipment, and similar capabilities are
+views over the relevant parts of the current Meri World State. They are not the
+center of the product.
+
+> Map is not the product. Weather is not the product. Route is not the product.
+> They are views over the current Meri World State.
+
 ## Conceptual Flow
 
 ```text
-Current user intent
-+ TripState
-+ ResearchContext
-+ Evidence
-+ Research progress
+Journey State
         ↓
-Typed UI Decision
+Resolve / Research / Evidence / real-world changes
         ↓
-Validation / Ranking / Safety Constraints
+Meri World State
         ↓
-Deterministic React Renderer
+UI Decision Layer
         ↓
-Meri Controlled Component Library
+Adaptive Workspace
 ```
 
-The decision layer decides how existing product capabilities should be
-composed. It does not invent new UI capabilities at runtime.
+The UI Decision Layer evaluates current intent and the relevant World State. It
+produces a typed, validated decision describing which trusted Meri components
+should be visible, primary, secondary, compact, or emphasized.
 
-## Example: Focused Outdoor Decision
+The Adaptive Workspace then uses the deterministic React renderer to compose
+only approved components. It does not invent new UI capabilities or generate
+arbitrary React and CSS at runtime.
+
+Because the Journey remains authoritative and independent from layout, the same
+Journey can produce different Workspace compositions as the user's immediate
+intent changes without losing or rewriting Journey State.
+
+## Example: Same Journey, Different Intent
 
 User:
 
-> 我不想看详细攻略，就告诉我明天上午去雨崩徒步行不行。
+> 明天上午去雨崩徒步行不行？
 
-A possible typed UI decision could express:
-
-```text
-WeatherTimeline → high relevance / primary
-RiskBanner      → high relevance
-Map             → low relevance
-RouteCompare    → low relevance
-EquipmentList   → low relevance
-
-density         → compact
-risk priority   → high
-companion       → explain
-```
-
-The renderer would use these decisions to compose approved Meri components. It
-would not execute model-generated React or CSS.
-
-If the user then asks:
-
-> 把三条路线放一起比较。
-
-The decision may change to:
+A possible Workspace emphasis is:
 
 ```text
-RouteCompare    → primary
-Map             → visible
-WeatherTimeline → secondary
-RiskBanner      → keep
+RiskBanner       → high relevance / primary
+WeatherTimeline  → high relevance
+Trail / Route    → visible
+Map              → supporting context
+Transport        → secondary
 ```
 
-The Workspace can therefore respond to changing intent without becoming either
-a fixed dashboard or an arbitrary AI-generated interface.
+The same user then asks:
+
+> 那从丽江怎么过去？
+
+The Journey has not changed, but current intent has. A possible new emphasis is:
+
+```text
+TransportTimeline → primary
+Map               → high relevance
+Route options     → visible
+WeatherTimeline   → secondary
+RiskBanner        → retain when still relevant
+```
+
+The Workspace changes emphasis while preserving the same authoritative Journey
+State and accumulated knowledge.
 
 ## Decision Boundaries
 
@@ -159,45 +210,64 @@ The experiment should evaluate:
 - testability
 
 The result of that experiment—not framework novelty—should determine whether
-Jev or another approach belongs in the product.
+Jev or another approach belongs in the product. The Journey-centered World
+State and Adaptive Workspace product model must remain independent from Jev,
+any specific model, or any decision framework.
 
 ## Companion
 
-The Companion may eventually consume the same system state used by the
-Workspace decision layer and express meaningful behavior such as:
+The Companion and Adaptive Workspace may eventually consume the same Meri World
+State while making different decisions about how to express it.
 
-- `idle`
-- `walk`
-- `look-map`
-- `thinking`
-- `warning`
-- `success`
-- `backpack`
+```text
+Meri World State
+├── UI Decision Layer
+│       ↓
+│   Adaptive Workspace
+│
+└── Companion Decision
+        ↓
+    idle / thinking / look-map / warning / success
+```
 
-Companion behavior should reflect real Meri state. It should not be driven by
-decorative random animation.
-
-For example, the Companion may explain a high-priority risk, look toward a map
-when route context becomes primary, or show a success state after a meaningful
-research task completes.
+The Companion should express meaningful system or workflow state rather than
+act as random decoration. It may eventually explain a high-priority risk, look
+toward a map when location context is primary, show thinking while research is
+active, or show success after a meaningful task completes.
 
 ## Timing
 
-Do not implement Adaptive Workspace during the current B2C persistence phase.
+This is a product and architecture direction, not a current implementation
+task. Meri does not yet have enough real-world research state to justify an
+Adaptive Workspace decision layer.
 
-Meri first needs meaningful research and evidence state. Without that state,
-an adaptive UI would mostly become an expensive and premature collection of
-`if/else` conditions.
+The implementation order remains incremental:
 
-Revisit this architecture only after TripState, ResearchContext, Evidence,
-research progress, and current user intent provide enough real product context
-to evaluate adaptive composition.
+```text
+TripState
+    ↓
+Location Resolve
+    ↓
+ResearchContext
+    ↓
+Evidence / Research
+    ↓
+Allow concrete Meri World State concepts to emerge
+    ↓
+Adaptive Workspace
+```
+
+Do not create a speculative `MeriWorldState` interface before those preceding
+capabilities establish the real data and decisions it must represent. Revisit
+Adaptive Workspace only when the repository contains meaningful World State
+that can support an honest evaluation of adaptive composition.
 
 ## Current Non-Goals
 
 This vision does not currently authorize:
 
 - adding Jev or another decision framework
+- creating a speculative `MeriWorldState` interface
 - creating UI decision domain types or registries
 - changing the current Workspace layout
 - generating React or CSS with an LLM
