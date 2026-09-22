@@ -611,6 +611,23 @@
   background: rgba(75, 111, 205, 0.17);
 }
 
+.messageDelivery {
+  display: block;
+  margin-top: 3px;
+  color: rgba(190, 203, 229, 0.54) !important;
+  font-size: 8px;
+  text-align: right;
+}
+
+.messageFailed {
+  color: #e7aaaa !important;
+}
+
+.revealCursor {
+  margin-left: 1px;
+  color: #9bb2f5 !important;
+}
+
 .conversationHint {
   color: rgba(183, 197, 222, 0.5);
   font-size: 9px;

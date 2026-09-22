@@ -38,6 +38,15 @@ import type {
 
 import styles from "./trip-workspace.module.css";
 import {
+  addOptimisticUserMessage,
+  createInitialConversationMessages,
+  markTemporaryMessageFailed,
+  markTemporaryMessageSending,
+  reconcilePersistedTurn,
+  revealNextAssistantChunk,
+  type ConversationDisplayMessage,
+} from "./conversation-display-model";
+import {
   createDirectTripStatePatch,
   requestTripStateUpdate,
 } from "./trip-state-persistence-model";
@@ -509,10 +518,14 @@ function ConversationDock({
   const [message, setMessage] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [failedMessage, setFailedMessage] = useState<string | null>(null);
-  const [messages, setMessages] = useState<TripMessage[]>([
-    ...initialMessages,
-  ]);
+  const [failedMessage, setFailedMessage] = useState<{
+    readonly content: string;
+    readonly temporaryId: string;
+  } | null>(null);
+  const [messages, setMessages] = useState<ConversationDisplayMessage[]>(() =>
+    createInitialConversationMessages(initialMessages),
+  );
+  const nextTemporaryMessageId = useRef(0);
   const messageHistoryRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -522,10 +535,45 @@ function ConversationDock({
     }
   }, [error, isSubmitting, messages]);
 
-  async function submitMessage(submittedMessage: string): Promise<void> {
+  useEffect(() => {
+    const revealingAssistant = messages.find(
+      (conversationMessage) =>
+        conversationMessage.role === "assistant" &&
+        conversationMessage.delivery === "revealing",
+    );
+
+    if (!revealingAssistant) {
+      return;
+    }
+
+    const timer = window.setTimeout(() => {
+      setMessages((current) =>
+        revealNextAssistantChunk(current, revealingAssistant.id),
+      );
+    }, 42);
+
+    return () => window.clearTimeout(timer);
+  }, [messages]);
+
+  async function submitMessage(
+    submittedMessage: string,
+    existingTemporaryId?: string,
+  ): Promise<void> {
+    const temporaryId = existingTemporaryId ?? createTemporaryMessageId();
+
     setIsExpanded(true);
     setIsSubmitting(true);
     setError(null);
+    setFailedMessage(null);
+    setMessage("");
+    setMessages((current) =>
+      existingTemporaryId
+        ? markTemporaryMessageSending(current, temporaryId)
+        : addOptimisticUserMessage(current, {
+            id: temporaryId,
+            content: submittedMessage,
+          }),
+    );
 
     try {
       const result = await requestWorkspaceConversation(
@@ -533,16 +581,28 @@ function ConversationDock({
         tripId,
       );
       onTripStateChange(result.tripState);
-      setMessages((current) => [...current, ...result.messages]);
-      setMessage("");
-      setFailedMessage(null);
+      setMessages((current) =>
+        reconcilePersistedTurn(
+          current,
+          temporaryId,
+          result.messages,
+        ),
+      );
     } catch {
+      setMessages((current) =>
+        markTemporaryMessageFailed(current, temporaryId),
+      );
       setError(workspaceConversationError);
-      setFailedMessage(submittedMessage);
+      setFailedMessage({ content: submittedMessage, temporaryId });
       setMessage(submittedMessage);
     } finally {
       setIsSubmitting(false);
     }
+  }
+
+  function createTemporaryMessageId(): string {
+    nextTemporaryMessageId.current += 1;
+    return `temporary:${nextTemporaryMessageId.current}`;
   }
 
   function handleSubmit(event: React.FormEvent<HTMLFormElement>): void {
@@ -618,13 +678,28 @@ function ConversationDock({
                 />
                 <div>
                   <span>Meri</span>
-                  <p>{conversationMessage.content}</p>
+                  <p>
+                    {conversationMessage.visibleContent}
+                    {conversationMessage.delivery === "revealing" ? (
+                      <span className={styles.revealCursor} aria-hidden="true">
+                        ▍
+                      </span>
+                    ) : null}
+                  </p>
                 </div>
               </article>
             ) : (
               <article className={styles.userMessage} key={conversationMessage.id}>
                 <span>你</span>
-                <p>{conversationMessage.content}</p>
+                <p>{conversationMessage.visibleContent}</p>
+                {conversationMessage.delivery === "sending" ? (
+                  <span className={styles.messageDelivery}>发送中…</span>
+                ) : null}
+                {conversationMessage.delivery === "failed" ? (
+                  <span className={`${styles.messageDelivery} ${styles.messageFailed}`}>
+                    发送失败
+                  </span>
+                ) : null}
               </article>
             ),
           )}
@@ -640,7 +715,10 @@ function ConversationDock({
                 disabled={isSubmitting || failedMessage === null}
                 onClick={() => {
                   if (failedMessage !== null) {
-                    void submitMessage(failedMessage);
+                    void submitMessage(
+                      failedMessage.content,
+                      failedMessage.temporaryId,
+                    );
                   }
                 }}
                 type="button"
