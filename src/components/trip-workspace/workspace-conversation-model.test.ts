@@ -34,6 +34,22 @@ test("accepts a persisted workspace conversation response", async () => {
           reply: "好的，目的地改成富良野。",
         },
         tripState,
+        messages: [
+          {
+            id: "00000000-0000-4000-8000-000000000001",
+            tripId: "trip_123",
+            role: "user",
+            content: "改成富良野",
+            createdAt: "2026-09-22T08:00:00.000Z",
+          },
+          {
+            id: "00000000-0000-4000-8000-000000000002",
+            tripId: "trip_123",
+            role: "assistant",
+            content: "好的，目的地改成富良野。",
+            createdAt: "2026-09-22T08:00:00.001Z",
+          },
+        ],
       });
     },
   );
@@ -44,6 +60,10 @@ test("accepts a persisted workspace conversation response", async () => {
   });
   assert.equal(result.interpretation.intent, "trip_state_update");
   assert.deepEqual(result.tripState, tripState);
+  assert.deepEqual(
+    result.messages.map((message) => message.role),
+    ["user", "assistant"],
+  );
 });
 
 test("failed AI request does not produce replacement state", async () => {

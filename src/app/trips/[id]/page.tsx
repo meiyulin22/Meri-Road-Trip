@@ -9,6 +9,7 @@ import { TripNotFoundError } from "@/domain/trip/trip-errors";
 import { readGuestId } from "@/server/identity/guest-identity";
 import { TripStateNotFoundError } from "@/server/journey/journey-errors";
 import { journeyService } from "@/server/journey/journey-service-instance";
+import { tripMessageService } from "@/server/trip-message/trip-message-service-instance";
 
 import styles from "@/components/trip-workspace/trip-workspace.module.css";
 
@@ -51,8 +52,14 @@ export default async function TripWorkspacePage({
     return <MissingTripState />;
   }
 
+  const initialMessages = await tripMessageService.listMessages(
+    journey.trip.id,
+    ownerGuestId,
+  );
+
   return (
     <TripWorkspace
+      initialMessages={initialMessages}
       initialTripState={journey.tripState}
       tripId={journey.trip.id}
     />

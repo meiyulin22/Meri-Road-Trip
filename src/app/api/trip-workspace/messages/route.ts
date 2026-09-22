@@ -25,6 +25,7 @@ import { TripStateNotFoundError } from "@/server/journey/journey-errors";
 import { journeyService } from "@/server/journey/journey-service-instance";
 import { readGuestId } from "@/server/identity/guest-identity";
 import { logger, logEvents } from "@/server/observability/logger";
+import { tripMessageService } from "@/server/trip-message/trip-message-service-instance";
 import { serializeError } from "@/server/observability/serialize-error";
 
 type ErrorResponse = {
@@ -164,6 +165,22 @@ export async function POST(request: Request) {
       );
     }
 
+    const messages = await tripMessageService.persistSuccessfulTurn({
+      tripId,
+      ownerGuestId,
+      userContent: body.message,
+      assistantContent: interpretation.reply,
+    });
+    logger.info(
+      {
+        event: logEvents.tripMessageTurnPersisted,
+        ...context,
+        tripId,
+        messageIds: messages.map((message) => message.id),
+      },
+      "Trip conversation turn persisted",
+    );
+
     logger.info(
       {
         event: logEvents.httpRequestCompleted,
@@ -177,6 +194,7 @@ export async function POST(request: Request) {
     return NextResponse.json({
       interpretation,
       tripState: persistedTripState,
+      messages,
     });
   } catch (error) {
     const response = mapError(error);

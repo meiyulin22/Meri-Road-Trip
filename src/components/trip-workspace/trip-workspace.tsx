@@ -25,6 +25,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 
+import type { TripMessage } from "@/domain/trip-message/trip-message";
 import {
   transportPreferences,
   type TransportPreference,
@@ -108,9 +109,11 @@ function getLayoutDebugState(): boolean {
 }
 
 export function TripWorkspace({
+  initialMessages,
   initialTripState,
   tripId,
 }: {
+  readonly initialMessages: readonly TripMessage[];
   readonly initialTripState: TripState;
   readonly tripId: string;
 }) {
@@ -179,6 +182,7 @@ export function TripWorkspace({
           />
           <MeriWorld />
           <ConversationDock
+            initialMessages={initialMessages}
             onTripStateChange={setTripState}
             tripId={tripId}
             tripState={tripState}
@@ -491,10 +495,12 @@ function MeriWorld() {
 }
 
 function ConversationDock({
+  initialMessages,
   onTripStateChange,
   tripId,
   tripState,
 }: {
+  readonly initialMessages: readonly TripMessage[];
   readonly onTripStateChange: (state: TripState) => void;
   readonly tripId: string;
   readonly tripState: TripState;
@@ -504,10 +510,9 @@ function ConversationDock({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [failedMessage, setFailedMessage] = useState<string | null>(null);
-  const [messages, setMessages] = useState<
-    Array<{ readonly id: number; readonly role: "user" | "meri"; readonly text: string }>
-  >([]);
-  const nextMessageId = useRef(0);
+  const [messages, setMessages] = useState<TripMessage[]>([
+    ...initialMessages,
+  ]);
   const messageHistoryRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -517,22 +522,10 @@ function ConversationDock({
     }
   }, [error, isSubmitting, messages]);
 
-  function addMessage(role: "user" | "meri", text: string): void {
-    nextMessageId.current += 1;
-    const conversationMessage = { id: nextMessageId.current, role, text } as const;
-    setMessages((current) => [...current, conversationMessage]);
-  }
-
-  async function submitMessage(
-    submittedMessage: string,
-    addUserMessage: boolean,
-  ): Promise<void> {
+  async function submitMessage(submittedMessage: string): Promise<void> {
     setIsExpanded(true);
     setIsSubmitting(true);
     setError(null);
-    if (addUserMessage) {
-      addMessage("user", submittedMessage);
-    }
 
     try {
       const result = await requestWorkspaceConversation(
@@ -540,7 +533,7 @@ function ConversationDock({
         tripId,
       );
       onTripStateChange(result.tripState);
-      addMessage("meri", result.interpretation.reply);
+      setMessages((current) => [...current, ...result.messages]);
       setMessage("");
       setFailedMessage(null);
     } catch {
@@ -559,10 +552,7 @@ function ConversationDock({
       return;
     }
 
-    void submitMessage(
-      submittedMessage,
-      failedMessage !== submittedMessage,
-    );
+    void submitMessage(submittedMessage);
   }
 
   function handleMessageKeyDown(
@@ -618,7 +608,7 @@ function ConversationDock({
             旅程不需要一次想完整，我们可以边聊边整理。
           </p>
           {messages.map((conversationMessage) =>
-            conversationMessage.role === "meri" ? (
+            conversationMessage.role === "assistant" ? (
               <article className={styles.meriMessage} key={conversationMessage.id}>
                 <Image
                   alt=""
@@ -628,13 +618,13 @@ function ConversationDock({
                 />
                 <div>
                   <span>Meri</span>
-                  <p>{conversationMessage.text}</p>
+                  <p>{conversationMessage.content}</p>
                 </div>
               </article>
             ) : (
               <article className={styles.userMessage} key={conversationMessage.id}>
                 <span>你</span>
-                <p>{conversationMessage.text}</p>
+                <p>{conversationMessage.content}</p>
               </article>
             ),
           )}
@@ -650,7 +640,7 @@ function ConversationDock({
                 disabled={isSubmitting || failedMessage === null}
                 onClick={() => {
                   if (failedMessage !== null) {
-                    void submitMessage(failedMessage, false);
+                    void submitMessage(failedMessage);
                   }
                 }}
                 type="button"

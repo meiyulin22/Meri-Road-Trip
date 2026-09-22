@@ -1,3 +1,7 @@
+import {
+  validateTripMessage,
+  type TripMessage,
+} from "@/domain/trip-message/trip-message";
 import { validateTripState, type TripState } from "@/domain/trip-state/trip-state";
 import {
   validateWorkspaceConversationInterpretation,
@@ -23,6 +27,7 @@ export async function requestWorkspaceConversation(
 ): Promise<{
   readonly interpretation: WorkspaceConversationInterpretation;
   readonly tripState: TripState;
+  readonly messages: TripMessage[];
 }> {
   if (message.trim() === "") {
     throw new WorkspaceConversationRequestError(
@@ -59,7 +64,9 @@ export async function requestWorkspaceConversation(
     typeof body !== "object" ||
     body === null ||
     !("interpretation" in body) ||
-    !("tripState" in body)
+    !("tripState" in body) ||
+    !("messages" in body) ||
+    !Array.isArray(body.messages)
   ) {
     throw new WorkspaceConversationRequestError(
       "The workspace conversation request was unsuccessful.",
@@ -72,6 +79,7 @@ export async function requestWorkspaceConversation(
         body.interpretation,
       ),
       tripState: validateTripState(body.tripState),
+      messages: body.messages.map(validateTripMessage),
     };
   } catch (error) {
     throw new WorkspaceConversationRequestError(

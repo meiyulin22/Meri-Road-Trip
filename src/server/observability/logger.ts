@@ -24,6 +24,7 @@ export const logEvents = {
   workspaceConversationInterpreted: "workspace.conversation.interpreted",
   workspaceConversationFailed: "workspace.conversation.failed",
   tripStateUpdateApplied: "trip_state.update.applied",
+  tripMessageTurnPersisted: "trip_message.turn.persisted",
 } as const;
 
 const isDevelopment = process.env.NODE_ENV === "development";
