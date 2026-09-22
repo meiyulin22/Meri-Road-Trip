@@ -29,6 +29,30 @@ function applyInterpretation(value: unknown) {
   return { state, patch, nextState: patch && applyTripStatePatch(state, patch) };
 }
 
+test("accepts a normal non-empty reply", () => {
+  const interpretation = validateWorkspaceConversationInterpretation({
+    intent: "question",
+    changes: [],
+    reply: "这个问题需要接入 Research 后再查。",
+  });
+
+  assert.equal(interpretation.reply, "这个问题需要接入 Research 后再查。");
+});
+
+test("rejects empty and whitespace-only replies", () => {
+  for (const reply of ["", "   "]) {
+    assert.throws(
+      () =>
+        validateWorkspaceConversationInterpretation({
+          intent: "question",
+          changes: [],
+          reply,
+        }),
+      /reply must be a non-empty string/,
+    );
+  }
+});
+
 test("clear destination update changes only destination and assigns user source", () => {
   const { state, nextState } = applyInterpretation({
     intent: "trip_state_update",

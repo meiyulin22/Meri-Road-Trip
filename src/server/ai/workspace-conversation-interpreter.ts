@@ -3,10 +3,8 @@ import {
   validateWorkspaceConversationInterpretation,
   type WorkspaceConversationInterpretation,
 } from "@/domain/trip-state/workspace-conversation";
-import {
-  createKimiClientFromEnvironment,
-  type StructuredOutputModelClient,
-} from "@/server/ai/kimi-client";
+import { createAiSdkKimiClientFromEnvironment } from "@/server/ai/ai-sdk-kimi-client";
+import type { StructuredOutputModelClient } from "@/server/ai/kimi-client";
 import { buildWorkspaceConversationSystemPrompt } from "@/server/ai/prompts/workspace-conversation-prompt";
 import { logger, logEvents } from "@/server/observability/logger";
 import { serializeError } from "@/server/observability/serialize-error";
@@ -72,7 +70,7 @@ export const workspaceConversationJsonSchema: Record<string, unknown> = {
       maxItems: 7,
       items: changeSchema,
     },
-    reply: { type: "string" },
+    reply: { type: "string", minLength: 1 },
   },
 };
 
@@ -103,7 +101,7 @@ export async function interpretWorkspaceConversation(
   client?: StructuredOutputModelClient,
 ): Promise<WorkspaceConversationInterpretation> {
   validateInput(input);
-  const modelClient = client ?? createKimiClientFromEnvironment();
+  const modelClient = client ?? createAiSdkKimiClientFromEnvironment();
 
   try {
     const response = await modelClient.generateStructuredOutput({

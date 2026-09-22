@@ -2,10 +2,8 @@ import {
   validateTripDraft,
   type TripDraft,
 } from "@/domain/trip-draft/trip-draft";
-import {
-  createKimiClientFromEnvironment,
-  type StructuredOutputModelClient,
-} from "@/server/ai/kimi-client";
+import { createAiSdkKimiClientFromEnvironment } from "@/server/ai/ai-sdk-kimi-client";
+import type { StructuredOutputModelClient } from "@/server/ai/kimi-client";
 import { buildTripDraftSystemPrompt } from "@/server/ai/prompts/trip-draft-prompt";
 import { logger, logEvents } from "@/server/observability/logger";
 import { serializeError } from "@/server/observability/serialize-error";
@@ -106,7 +104,7 @@ export async function extractTripDraft(
 ): Promise<TripDraft> {
   validateInput(input);
 
-  const modelClient = client ?? createKimiClientFromEnvironment();
+  const modelClient = client ?? createAiSdkKimiClientFromEnvironment();
   const response = await modelClient.generateStructuredOutput({
     requestId: input.requestId,
     operation: "trip_draft_extraction",
