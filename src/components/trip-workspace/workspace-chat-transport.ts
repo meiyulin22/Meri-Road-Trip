@@ -45,7 +45,7 @@ export class WorkspaceChatTransport implements ChatTransport<UIMessage> {
   constructor(
     private readonly tripId: string,
     private readonly onCommitted: (turn: CommittedWorkspaceTurn) => void,
-    private readonly fetcher: Fetcher = fetch,
+    private readonly fetcher: Fetcher = (input, init) => globalThis.fetch(input, init),
   ) {}
 
   async sendMessages({

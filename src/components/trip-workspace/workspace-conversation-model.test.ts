@@ -66,6 +66,20 @@ test("accepts a persisted workspace conversation response", async () => {
   );
 });
 
+test("default conversation fetch uses the browser global receiver", async (t) => {
+  let receiverIsGlobal = false;
+  t.mock.method(globalThis, "fetch", async function (this: unknown): Promise<Response> {
+    receiverIsGlobal = this === globalThis;
+    return Response.json({ error: "expected test response" }, { status: 502 });
+  });
+
+  await assert.rejects(
+    requestWorkspaceConversation("改成富良野", "trip_123"),
+    WorkspaceConversationRequestError,
+  );
+  assert.equal(receiverIsGlobal, true);
+});
+
 test("failed AI request does not produce replacement state", async () => {
   await assert.rejects(
     requestWorkspaceConversation("改成富良野", "trip_123", async () => {

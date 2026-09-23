@@ -23,7 +23,7 @@ export class WorkspaceConversationRequestError extends Error {
 export async function requestWorkspaceConversation(
   message: string,
   tripId: string,
-  fetcher: Fetcher = fetch,
+  fetcher: Fetcher = (input, init) => globalThis.fetch(input, init),
 ): Promise<{
   readonly interpretation: WorkspaceConversationInterpretation;
   readonly tripState: TripState;

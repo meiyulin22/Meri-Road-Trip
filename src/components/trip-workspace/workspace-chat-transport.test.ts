@@ -94,6 +94,25 @@ test("calls the existing JSON contract and exposes only a committed assistant tu
   }]);
 });
 
+test("default transport fetch uses the browser global receiver", async (t) => {
+  let calls = 0;
+  t.mock.method(globalThis, "fetch", async function (
+    this: unknown,
+    input: RequestInfo | URL,
+    init?: RequestInit,
+  ): Promise<Response> {
+    assert.equal(this, globalThis);
+    assert.equal(input, "/api/trip-workspace/messages");
+    assert.equal(init?.method, "POST");
+    calls += 1;
+    return Response.json(responseBody);
+  });
+
+  const transport = new WorkspaceChatTransport("trip-1", () => {});
+  await transport.sendMessages(sendOptions());
+  assert.equal(calls, 1);
+});
+
 test("does not expose an assistant before the server response finishes", async () => {
   let finishRequest: ((response: Response) => void) | undefined;
   const pending = new Promise<Response>((resolve) => { finishRequest = resolve; });
