@@ -130,19 +130,19 @@ function EmptyState() {
   );
 }
 
-function formatDateRange(trip: JourneySummary): string {
-  if (trip.startDate && trip.endDate) {
-    return trip.startDate === trip.endDate
-      ? trip.startDate
-      : `${trip.startDate} — ${trip.endDate}`;
+function formatDateRange(journey: JourneySummary): string {
+  if (journey.startDate && journey.endDate) {
+    return journey.startDate === journey.endDate
+      ? journey.startDate
+      : `${journey.startDate} — ${journey.endDate}`;
   }
 
-  if (trip.startDate) {
-    return `From ${trip.startDate}`;
+  if (journey.startDate) {
+    return `From ${journey.startDate}`;
   }
 
-  if (trip.endDate) {
-    return `Until ${trip.endDate}`;
+  if (journey.endDate) {
+    return `Until ${journey.endDate}`;
   }
 
   return "Flexible";

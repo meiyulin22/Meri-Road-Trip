@@ -1,78 +1,15 @@
-Create Trip API
-Browser / iPhone
-Send POST /api/trips
-        ↓
-src/app/api/trips/route.ts
-        ↓
-src/server/trip/trip-service-instance.ts
-        ↓
-src/server/trip/trip-service.ts
-TripService.createTrip()
-        ↓
-src/repositories/trip-repository.ts
-TripRepository.create()
-        ↓
-src/infrastructure/persistence/postgres/postgres-trip-repository.ts
-PostgresTripRepository.create()
-        ↓
-src/server/database/schema/trips.ts
-Confirm trips  //table and attribute
-        ↓
-src/server/database/db.ts
-Drizzle + Neon client
-        ↓
-Neon PostgreSQL
-public.trips
+# Journey persistence flows
 
+## Create a Journey
 
-Select Trip API
+`POST /api/journeys` validates a TripDraft. `JourneyService.createJourney()` creates a Trip identity/lifecycle root through `TripService`, initializes authoritative TripState from the draft, and persists that state. If TripState creation fails, it deletes the new Trip.
 
-Browser / iPhone
-Send GET /api/trips/:id
-        ↓
-src/app/api/trips/[id]/route.ts
-        ↓
-src/server/trip/trip-service-instance.ts
-        ↓
-src/server/trip/trip-service.ts
-TripService.getTripById()
-        ↓
-src/repositories/trip-repository.ts
-TripRepository.findById()
-        ↓
-src/infrastructure/persistence/postgres/postgres-trip-repository.ts
-PostgresTripRepository.findById()
-        ↓
-Drizzle SELECT
-        ↓
-Neon public.trips
+The standalone `POST /api/trips` route was retired because it created Trips without TripState.
 
+## Load a Workspace
 
-List My Journeys
+`/trips/{id}` calls `JourneyService.loadJourney()`. The owner-scoped Trip lookup checks identity and ownership; the TripState repository loads the current evolving state. A missing TripState is an error.
 
-Browser / iPhone
-Open GET /trips
-        ↓
-src/app/trips/page.tsx
-        ↓
-Read existing meri_guest_id cookie
-        ↓
-src/server/journey/my-journeys.ts
-loadMyJourneys()
-        ↓
-src/server/trip/trip-service.ts
-TripService.listTrips()
-        ↓
-src/repositories/trip-repository.ts
-TripRepository.listByOwner()
-        ↓
-src/infrastructure/persistence/postgres/postgres-trip-repository.ts
-PostgresTripRepository.listByOwner()
-        ↓
-Drizzle SELECT
-WHERE owner_guest_id = current guest
-ORDER BY updated_at DESC, created_at DESC, id DESC
-        ↓
-My Journeys cards
-        ↓
-Continue /trips/{id}
+## List My Journeys
+
+`/trips` uses `loadMyJourneys()` and an owner-scoped `PostgresJourneySummaryRepository` query. The derived JourneySummary combines Trip identity/lifecycle metadata with evolving values from authoritative TripState.

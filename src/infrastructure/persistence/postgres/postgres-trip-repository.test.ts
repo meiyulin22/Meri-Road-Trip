@@ -17,11 +17,6 @@ type TripInsert = typeof trips.$inferInsert;
 
 const trip: Trip = {
   id: "3d17d2c7-fd9b-4748-b751-3a76a9a920be",
-  name: "四姑娘山周末",
-  origin: "成都",
-  destination: "四姑娘山",
-  startDate: "2026-09-19",
-  endDate: "2026-09-21",
   status: "planning",
   createdAt: "2026-09-16T01:02:03.000Z",
   updatedAt: "2026-09-16T04:05:06.000Z",
@@ -31,21 +26,18 @@ type DatabaseDoubleOptions = {
   rows?: TripRow[];
   saveError?: Error;
   findError?: Error;
-  listError?: Error;
 };
 
 function createDatabaseDouble({
   rows = [],
   saveError,
   findError,
-  listError,
 }: DatabaseDoubleOptions = {}) {
   let insertedTable: unknown;
   let insertedTrip: TripInsert | undefined;
   let selectedTable: unknown;
   let whereWasCalled = false;
   let selectedLimit: number | undefined;
-  let orderByArgumentCount: number | undefined;
   let deletedTable: unknown;
   let deleteWhereWasCalled = false;
 
@@ -78,15 +70,6 @@ function createDatabaseDouble({
 
                   if (findError) {
                     throw findError;
-                  }
-
-                  return rows;
-                },
-                async orderBy(...values: unknown[]) {
-                  orderByArgumentCount = values.length;
-
-                  if (listError) {
-                    throw listError;
                   }
 
                   return rows;
@@ -125,9 +108,6 @@ function createDatabaseDouble({
       get whereWasCalled() {
         return whereWasCalled;
       },
-      get orderByArgumentCount() {
-        return orderByArgumentCount;
-      },
       get deletedTable() {
         return deletedTable;
       },
@@ -145,7 +125,6 @@ test("saves an explicitly mapped Trip row", async () => {
   await repository.save(trip, guestA);
 
   assert.equal(inspection.insertedTable, trips);
-  assert.equal(inspection.insertedTrip?.origin, "成都");
   assert.deepEqual(inspection.insertedTrip, {
     ...trip,
     ownerGuestId: guestA,
@@ -168,59 +147,6 @@ test("finds and maps a Trip row to the domain representation", async () => {
   assert.equal(inspection.whereWasCalled, true);
   assert.equal(inspection.selectedLimit, 1);
   assert.deepEqual(result, trip);
-});
-
-test("maps an incomplete Trip row without filling missing information", async () => {
-  const row: TripRow = {
-    ...trip,
-    ownerGuestId: guestA,
-    origin: null,
-    destination: null,
-    startDate: null,
-    endDate: null,
-  };
-  const { database } = createDatabaseDouble({ rows: [row] });
-  const repository = new PostgresTripRepository(database);
-
-  const result = await repository.findById(trip.id, guestA);
-
-  assert.equal(result?.origin, null);
-  assert.equal(result?.destination, null);
-  assert.equal(result?.startDate, null);
-  assert.equal(result?.endDate, null);
-});
-
-test("lists owned Trips using deterministic database ordering", async () => {
-  const newerTrip: TripRow = {
-    ...trip,
-    id: "3d17d2c7-fd9b-4748-b751-3a76a9a920bf",
-    ownerGuestId: guestA,
-    destination: null,
-    startDate: null,
-    endDate: null,
-    updatedAt: "2026-09-21 04:05:06+00",
-  };
-  const olderTrip: TripRow = {
-    ...trip,
-    ownerGuestId: guestA,
-    createdAt: "2026-09-16 01:02:03+00",
-    updatedAt: "2026-09-16 04:05:06+00",
-  };
-  const { database, inspection } = createDatabaseDouble({
-    rows: [newerTrip, olderTrip],
-  });
-  const repository = new PostgresTripRepository(database);
-
-  const result = await repository.listByOwner(guestA);
-
-  assert.equal(inspection.selectedTable, trips);
-  assert.equal(inspection.whereWasCalled, true);
-  assert.equal(inspection.orderByArgumentCount, 3);
-  assert.deepEqual(
-    result.map((listedTrip) => listedTrip.id),
-    [newerTrip.id, olderTrip.id],
-  );
-  assert.equal(result[0].destination, null);
 });
 
 test("returns null when no Trip row exists", async () => {
@@ -253,20 +179,6 @@ test("preserves the cause when saving fails", async () => {
     assert.equal(error.tripId, trip.id);
     assert.equal(error.cause, databaseError);
     assert.match(error.stack ?? "", /PostgresTripRepositoryError/);
-    return true;
-  });
-});
-
-test("preserves the cause when listing Trips fails", async () => {
-  const databaseError = new Error("database list failed");
-  const { database } = createDatabaseDouble({ listError: databaseError });
-  const repository = new PostgresTripRepository(database);
-
-  await assert.rejects(repository.listByOwner(guestA), (error: unknown) => {
-    assert.ok(error instanceof PostgresTripRepositoryError);
-    assert.equal(error.operation, "listByOwner");
-    assert.equal(error.tripId, null);
-    assert.equal(error.cause, databaseError);
     return true;
   });
 });

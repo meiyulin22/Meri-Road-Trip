@@ -121,11 +121,11 @@ Example:
 
 Meri creates a Trip.
 
-A Trip becomes a persistent object that evolves over time.
+A Trip is a persistent Journey identity and lifecycle root. TripState holds the evolving Journey values.
 
 Example:
 
-Trip
+TripState
 ├── Destination
 ├── Dates
 ├── Route

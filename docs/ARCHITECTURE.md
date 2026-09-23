@@ -112,37 +112,22 @@ The domain should not be designed around LangGraph, Mastra, or any specific LLM 
 
 # 4. Trip
 
-Trip is the primary aggregate in Meri.
+Trip is the Journey identity, ownership, and lifecycle root. Evolving Journey values belong to TripState.
 
 Example:
 
 Trip {
   id
-  destination
-  startDate
-  endDate
+  ownerGuestId (persistence)
   status
-
-  route
-  transport
-  weather
-  accommodation
-  gear
-  risks
-  intelligence
-
-  researchState
-  lastUpdated
+  createdAt
+  updatedAt
 }
 
-Possible states:
+Current lifecycle states:
 
 IDEA
 PLANNING
-READY
-IN_PROGRESS
-COMPLETED
-ARCHIVED
 
 
 ---
@@ -156,22 +141,16 @@ It should contain structured data rather than only conversation history.
 Example:
 
 TripState {
-  tripId
-
+  name
+  origin
   destination
-
-  routeState
-  weatherState
-  transportState
-  gearState
-  accommodationState
-  riskState
-
-  unresolvedQuestions
-
-  lastResearchAt
-  confidence
+  startDate
+  endDate
+  duration
+  transportPreference
 }
+
+TripState is stored once per Trip. List cards use JourneySummary, a read model derived from Trip and TripState rather than another source of truth.
 
 This distinction is important.
 

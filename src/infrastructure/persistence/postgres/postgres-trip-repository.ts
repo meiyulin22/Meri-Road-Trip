@@ -1,4 +1,4 @@
-import { and, desc, eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 
 import type { Trip } from "@/domain/trip/trip";
 import { trips } from "@/server/database/schema/trips";
@@ -7,19 +7,15 @@ type TripDatabase = typeof import("@/server/database/db").db;
 type TripRow = typeof trips.$inferSelect;
 type TripInsert = typeof trips.$inferInsert;
 
-type PostgresTripOperation =
-  | "save"
-  | "findById"
-  | "listByOwner"
-  | "deleteById";
+type PostgresTripOperation = "save" | "findById" | "deleteById";
 
 export class PostgresTripRepositoryError extends Error {
   readonly operation: PostgresTripOperation;
-  readonly tripId: string | null;
+  readonly tripId: string;
 
   constructor(
     operation: PostgresTripOperation,
-    tripId: string | null,
+    tripId: string,
     cause: unknown,
   ) {
     const action =
@@ -27,11 +23,9 @@ export class PostgresTripRepositoryError extends Error {
         ? "save"
         : operation === "deleteById"
           ? "delete"
-          : operation === "listByOwner"
-            ? "list"
-            : "find";
+        : "find";
 
-    const target = operation === "listByOwner" ? "Trips" : `Trip ${tripId}`;
+    const target = `Trip ${tripId}`;
 
     super(`Failed to ${action} ${target} in PostgreSQL.`, { cause });
     this.name = "PostgresTripRepositoryError";
@@ -76,24 +70,6 @@ export class PostgresTripRepository {
     }
   }
 
-  async listByOwner(ownerGuestId: string): Promise<Trip[]> {
-    try {
-      const rows = await this.database
-        .select()
-        .from(trips)
-        .where(eq(trips.ownerGuestId, ownerGuestId))
-        .orderBy(
-          desc(trips.updatedAt),
-          desc(trips.createdAt),
-          desc(trips.id),
-        );
-
-      return rows.map(toTrip);
-    } catch (error) {
-      throw new PostgresTripRepositoryError("listByOwner", null, error);
-    }
-  }
-
   async deleteById(tripId: string, ownerGuestId: string): Promise<void> {
     try {
       await this.database
@@ -114,11 +90,6 @@ function toTripInsert(trip: Trip, ownerGuestId: string): TripInsert {
   return {
     id: trip.id,
     ownerGuestId,
-    name: trip.name,
-    origin: trip.origin,
-    destination: trip.destination,
-    startDate: trip.startDate,
-    endDate: trip.endDate,
     status: trip.status,
     createdAt: trip.createdAt,
     updatedAt: trip.updatedAt,
@@ -128,11 +99,6 @@ function toTripInsert(trip: Trip, ownerGuestId: string): TripInsert {
 function toTrip(row: TripRow): Trip {
   return {
     id: row.id,
-    name: row.name,
-    origin: row.origin,
-    destination: row.destination,
-    startDate: row.startDate,
-    endDate: row.endDate,
     status: row.status,
     createdAt: toIsoTimestamp(row.createdAt, "created_at"),
     updatedAt: toIsoTimestamp(row.updatedAt, "updated_at"),

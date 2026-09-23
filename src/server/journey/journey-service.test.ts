@@ -25,11 +25,6 @@ const draft: TripDraft = {
 
 const trip: Trip = {
   id: "trip_123",
-  name: "富良野滑雪",
-  origin: null,
-  destination: "富良野",
-  startDate: null,
-  endDate: null,
   status: "idea",
   createdAt: "2026-09-20T08:00:00.000Z",
   updatedAt: "2026-09-20T08:00:00.000Z",
@@ -86,12 +81,11 @@ test("creates an incomplete Trip and authoritative TripState with one identity",
 
   assert.equal(repositoryTripId, trip.id);
   assert.equal(receivedOwnerGuestId, guestA);
-  assert.deepEqual(receivedTripInput, {
-    name: "富良野滑雪",
-    origin: null,
-    destination: "富良野",
-    startDate: null,
-    endDate: null,
+  assert.deepEqual(receivedTripInput, {});
+  assert.deepEqual(journey.tripState.destination, {
+    state: "known",
+    value: "富良野",
+    source: "user",
   });
   assert.deepEqual(journey.tripState.startDate, {
     state: "approximate",
