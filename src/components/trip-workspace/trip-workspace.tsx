@@ -23,6 +23,8 @@ import {
 } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
+import { useChat } from "@ai-sdk/react";
+import type { UIMessage } from "ai";
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 
 import type { TripMessage } from "@/domain/trip-message/trip-message";
@@ -37,20 +39,17 @@ import type {
 } from "@/domain/trip-state/trip-state";
 
 import styles from "./trip-workspace.module.css";
-import {
-  addOptimisticUserMessage,
-  createInitialConversationMessages,
-  markTemporaryMessageFailed,
-  markTemporaryMessageSending,
-  reconcilePersistedTurn,
-  revealNextAssistantChunk,
-  type ConversationDisplayMessage,
-} from "./conversation-display-model";
+import { nextRevealCharacterCount, visibleAssistantText } from "./conversation-reveal";
 import {
   createDirectTripStatePatch,
   requestTripStateUpdate,
 } from "./trip-state-persistence-model";
-import { requestWorkspaceConversation } from "./workspace-conversation-model";
+import { toWorkspaceUIMessages } from "./trip-message-ui-adapter";
+import {
+  reconcileCommittedUserId,
+  WorkspaceChatTransport,
+  type CommittedWorkspaceTurn,
+} from "./workspace-chat-transport";
 
 const certaintyLabels = {
   known: "已理解",
@@ -92,7 +91,7 @@ const contextualActions = [
 ];
 
 const workspaceConversationError =
-  "Meri 暂时没能理解这条消息。内容还在，你可以再试一次。";
+  "发送结果暂时无法确认。请刷新旅程，查看最新消息和状态后再继续。";
 
 const sidebarNavigation: Array<{
   label: string;
@@ -516,103 +515,62 @@ function ConversationDock({
 }) {
   const [isExpanded, setIsExpanded] = useState(false);
   const [message, setMessage] = useState("");
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [failedMessage, setFailedMessage] = useState<{
-    readonly content: string;
-    readonly temporaryId: string;
+  const [revealing, setRevealing] = useState<{
+    readonly id: string;
+    readonly visibleCharacters: number;
   } | null>(null);
-  const [messages, setMessages] = useState<ConversationDisplayMessage[]>(() =>
-    createInitialConversationMessages(initialMessages),
-  );
-  const nextTemporaryMessageId = useRef(0);
   const messageHistoryRef = useRef<HTMLDivElement>(null);
+
+  function handleCommittedTurn(turn: CommittedWorkspaceTurn): void {
+    onTripStateChange(turn.tripState);
+    setRevealing({ id: turn.persistedAssistant.id, visibleCharacters: 0 });
+    setMessages((current) =>
+      reconcileCommittedUserId(current, turn.temporaryUserId, turn.persistedUser),
+    );
+  }
+
+  const { messages, sendMessage, setMessages, status } = useChat({
+    id: tripId,
+    messages: toWorkspaceUIMessages(initialMessages),
+    transport: new WorkspaceChatTransport(tripId, handleCommittedTurn),
+  });
+  const isSubmitting = status === "submitted" || status === "streaming";
+  const hasError = status === "error";
 
   useEffect(() => {
     const history = messageHistoryRef.current;
     if (history !== null) {
       history.scrollTop = history.scrollHeight;
     }
-  }, [error, isExpanded, isSubmitting, messages]);
+  }, [hasError, isExpanded, isSubmitting, messages, revealing]);
 
   useEffect(() => {
-    const revealingAssistant = messages.find(
-      (conversationMessage) =>
-        conversationMessage.role === "assistant" &&
-        conversationMessage.delivery === "revealing",
-    );
-
-    if (!revealingAssistant) {
+    if (!revealing) {
       return;
     }
-
-    const timer = window.setTimeout(() => {
-      setMessages((current) =>
-        revealNextAssistantChunk(current, revealingAssistant.id),
-      );
-    }, 42);
-
-    return () => window.clearTimeout(timer);
-  }, [messages]);
-
-  async function submitMessage(
-    submittedMessage: string,
-    existingTemporaryId?: string,
-  ): Promise<void> {
-    const temporaryId = existingTemporaryId ?? createTemporaryMessageId();
-
-    setIsExpanded(true);
-    setIsSubmitting(true);
-    setError(null);
-    setFailedMessage(null);
-    setMessage("");
-    setMessages((current) =>
-      existingTemporaryId
-        ? markTemporaryMessageSending(current, temporaryId)
-        : addOptimisticUserMessage(current, {
-            id: temporaryId,
-            content: submittedMessage,
-          }),
-    );
-
-    try {
-      const result = await requestWorkspaceConversation(
-        submittedMessage,
-        tripId,
-      );
-      onTripStateChange(result.tripState);
-      setMessages((current) =>
-        reconcilePersistedTurn(
-          current,
-          temporaryId,
-          result.messages,
-        ),
-      );
-    } catch {
-      setMessages((current) =>
-        markTemporaryMessageFailed(current, temporaryId),
-      );
-      setError(workspaceConversationError);
-      setFailedMessage({ content: submittedMessage, temporaryId });
-      setMessage(submittedMessage);
-    } finally {
-      setIsSubmitting(false);
+    const assistant = messages.find((item) => item.id === revealing.id);
+    const content = assistant ? messageText(assistant) : "";
+    const length = Array.from(content).length;
+    if (length === 0 || revealing.visibleCharacters >= length) {
+      return;
     }
-  }
-
-  function createTemporaryMessageId(): string {
-    nextTemporaryMessageId.current += 1;
-    return `temporary:${nextTemporaryMessageId.current}`;
-  }
+    const timer = window.setTimeout(() => {
+      setRevealing((current) => current?.id === revealing.id
+        ? { ...current, visibleCharacters: nextRevealCharacterCount(content, current.visibleCharacters) }
+        : current);
+    }, 42);
+    return () => window.clearTimeout(timer);
+  }, [messages, revealing]);
 
   function handleSubmit(event: React.FormEvent<HTMLFormElement>): void {
     event.preventDefault();
     const submittedMessage = message.trim();
-    if (submittedMessage === "" || isSubmitting) {
+    if (submittedMessage === "" || status !== "ready") {
       return;
     }
-
-    void submitMessage(submittedMessage);
+    setIsExpanded(true);
+    setMessage("");
+    void sendMessage({ text: submittedMessage });
   }
 
   function handleMessageKeyDown(
@@ -667,7 +625,7 @@ function ConversationDock({
           <p className={styles.conversationHint}>
             旅程不需要一次想完整，我们可以边聊边整理。
           </p>
-          {messages.map((conversationMessage) =>
+          {messages.map((conversationMessage, index) =>
             conversationMessage.role === "assistant" ? (
               <article className={styles.meriMessage} key={conversationMessage.id}>
                 <Image
@@ -679,8 +637,11 @@ function ConversationDock({
                 <div>
                   <span>Meri</span>
                   <p>
-                    {conversationMessage.visibleContent}
-                    {conversationMessage.delivery === "revealing" ? (
+                    {revealing?.id === conversationMessage.id
+                      ? visibleAssistantText(messageText(conversationMessage), revealing.visibleCharacters)
+                      : messageText(conversationMessage)}
+                    {revealing?.id === conversationMessage.id &&
+                    revealing.visibleCharacters < Array.from(messageText(conversationMessage)).length ? (
                       <span className={styles.revealCursor} aria-hidden="true">
                         ▍
                       </span>
@@ -691,13 +652,13 @@ function ConversationDock({
             ) : (
               <article className={styles.userMessage} key={conversationMessage.id}>
                 <span>你</span>
-                <p>{conversationMessage.visibleContent}</p>
-                {conversationMessage.delivery === "sending" ? (
+                <p>{messageText(conversationMessage)}</p>
+                {index === messages.length - 1 && isSubmitting ? (
                   <span className={styles.messageDelivery}>发送中…</span>
                 ) : null}
-                {conversationMessage.delivery === "failed" ? (
+                {index === messages.length - 1 && hasError ? (
                   <span className={`${styles.messageDelivery} ${styles.messageFailed}`}>
-                    发送失败
+                    发送结果未确认
                   </span>
                 ) : null}
               </article>
@@ -708,22 +669,14 @@ function ConversationDock({
               Meri 正在理解这条消息…
             </p>
           ) : null}
-          {error ? (
+          {hasError ? (
             <div className={styles.conversationError} role="alert">
-              <span>{error}</span>
+              <span>{workspaceConversationError}</span>
               <button
-                disabled={isSubmitting || failedMessage === null}
-                onClick={() => {
-                  if (failedMessage !== null) {
-                    void submitMessage(
-                      failedMessage.content,
-                      failedMessage.temporaryId,
-                    );
-                  }
-                }}
+                onClick={() => window.location.reload()}
                 type="button"
               >
-                重试
+                刷新核对
               </button>
             </div>
           ) : null}
@@ -756,7 +709,7 @@ function ConversationDock({
           告诉 Meri 你还在想什么
         </label>
         <input
-          disabled={isSubmitting}
+          disabled={isSubmitting || hasError}
           id="workspace-message"
           onChange={(event) => setMessage(event.target.value)}
           onKeyDown={handleMessageKeyDown}
@@ -766,7 +719,7 @@ function ConversationDock({
         />
         <button
           aria-label="发送消息"
-          disabled={isSubmitting || message.trim() === ""}
+          disabled={isSubmitting || hasError || message.trim() === ""}
           type="submit"
         >
           {isSubmitting ? (
@@ -790,6 +743,13 @@ function getWorkspaceTitle(tripState: TripState): string {
   }
 
   return "新的旅程想法";
+}
+
+function messageText(message: UIMessage): string {
+  return message.parts
+    .filter((part) => part.type === "text")
+    .map((part) => part.text)
+    .join("");
 }
 
 function getConversationOpening(tripState: TripState): string {
