@@ -1,4 +1,5 @@
 import type { TripState } from "@/domain/trip-state/trip-state";
+import { AmapLocationProvider } from "@/infrastructure/location/amap-location-provider";
 import {
   validateWorkspaceConversationInterpretation,
   type WorkspaceConversationInterpretation,
@@ -9,6 +10,8 @@ import type {
   StructuredOutputModelClient,
 } from "@/server/ai/kimi-client";
 import { buildWorkspaceConversationSystemPrompt } from "@/server/ai/prompts/workspace-conversation-prompt";
+import { createResolveLocationTool } from "@/server/ai/tools/resolve-location";
+import { LocationService } from "@/server/location/location-service";
 import { logger, logEvents } from "@/server/observability/logger";
 import { serializeError } from "@/server/observability/serialize-error";
 
@@ -103,6 +106,7 @@ function validateInput(input: InterpretWorkspaceConversationInput): void {
 export async function interpretWorkspaceConversation(
   input: InterpretWorkspaceConversationInput,
   client?: StructuredOutputModelClient,
+  locationService?: LocationService,
 ): Promise<WorkspaceConversationInterpretation> {
   validateInput(input);
   const modelClient = client ?? createAiSdkKimiClientFromEnvironment();
@@ -120,6 +124,14 @@ export async function interpretWorkspaceConversation(
       userMessage: input.message,
       conversationHistory: input.conversationHistory,
       jsonSchema: workspaceConversationJsonSchema,
+      tools: {
+        resolve_location: createResolveLocationTool({
+          tripState: input.tripState,
+          currentUserMessage: input.message,
+          requestId: input.requestId,
+          locationService: locationService ?? new LocationService(new AmapLocationProvider()),
+        }),
+      },
     });
 
     if (response.content === null || response.content.trim() === "") {

@@ -28,4 +28,6 @@ test("distinguishes destination mentions from explicit update intent", () => {
   assert.match(prompt, /富良野雪怎么样？.*question/);
   assert.match(prompt, /要不富良野？.*unclear_update_intent/);
   assert.match(prompt, /Never return source/);
+  assert.match(prompt, /unconfirmed candidates/);
+  assert.match(prompt, /Geographic ambiguity does not make the user's update intent unclear/);
 });

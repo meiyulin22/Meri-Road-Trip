@@ -2,7 +2,7 @@ import {
   createOpenAICompatible,
   type OpenAICompatibleProviderSettings,
 } from "@ai-sdk/openai-compatible";
-import { generateText, jsonSchema, NoObjectGeneratedError, Output } from "ai";
+import { generateText, jsonSchema, NoObjectGeneratedError, Output, stepCountIs } from "ai";
 
 import {
   LlmProviderRequestError,
@@ -221,17 +221,33 @@ export class AiSdkKimiClient implements StructuredOutputModelClient {
           thinking: { type: "disabled" },
         }),
       });
+      const model = provider.chatModel(this.options.model);
+      const messages = [
+        ...(request.conversationHistory ?? []),
+        { role: "user" as const, content: request.userMessage },
+      ];
+      // Moonshot favors the strict JSON response over optional tool calls when
+      // both are requested in one generation. Let it choose a tool first, then
+      // keep the existing strict schema for the final Workspace interpretation.
+      const toolDecision = request.tools
+        ? await generateText({
+            model,
+            system: `${request.systemPrompt}\n\nThis is a tool-selection step, not the final JSON reply. Call resolve_location if real-world identification of the user's named destination is useful. Otherwise respond only NO_TOOL. Do not answer the user yet.`,
+            messages,
+            tools: request.tools,
+            stopWhen: stepCountIs(1),
+            maxRetries: 0,
+            timeout: this.options.requestTimeoutMs ?? REQUEST_TIMEOUT_MS,
+          })
+        : null;
       const result = await generateText({
-        model: provider.chatModel(this.options.model),
+        model,
         system: request.systemPrompt,
-        ...(request.conversationHistory?.length
-          ? {
-              messages: [
-                ...request.conversationHistory,
-                { role: "user" as const, content: request.userMessage },
-              ],
-            }
-          : { prompt: request.userMessage }),
+        ...(toolDecision?.toolCalls.length
+          ? { messages: [...messages, ...toolDecision.response.messages] }
+          : request.conversationHistory?.length
+            ? { messages }
+            : { prompt: request.userMessage }),
         output: Output.object({
           name: request.schemaName,
           schema: jsonSchema(request.jsonSchema),
@@ -239,13 +255,29 @@ export class AiSdkKimiClient implements StructuredOutputModelClient {
         maxRetries: 0,
         timeout: this.options.requestTimeoutMs ?? REQUEST_TIMEOUT_MS,
       });
-      const response = createResponse({
+      const finalResponse = createResponse({
         fallbackContent: result.text === "" ? null : result.text,
         fallbackFinishReason: result.rawFinishReason ?? result.finishReason,
         fallbackModel: this.options.model,
         metadata: result.response,
         usage: result.usage,
       });
+      const decisionUsage = toolDecision
+        ? normalizeUsage(undefined, toolDecision.totalUsage)
+        : undefined;
+      const response = decisionUsage && finalResponse.usage
+        ? {
+            ...finalResponse,
+            usage: {
+              inputTokens: decisionUsage.inputTokens + finalResponse.usage.inputTokens,
+              outputTokens: decisionUsage.outputTokens + finalResponse.usage.outputTokens,
+              ...(decisionUsage.reasoningTokens !== undefined || finalResponse.usage.reasoningTokens !== undefined
+                ? { reasoningTokens: (decisionUsage.reasoningTokens ?? 0) + (finalResponse.usage.reasoningTokens ?? 0) }
+                : {}),
+              totalTokens: decisionUsage.totalTokens + finalResponse.usage.totalTokens,
+            },
+          }
+        : finalResponse;
 
       this.logCompletedResponse(context, startedAt, response);
       return response;

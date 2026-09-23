@@ -1,5 +1,6 @@
 import OpenAI from "openai";
 import type { ChatCompletionCreateParamsNonStreaming } from "openai/resources/chat/completions";
+import type { ToolSet } from "ai";
 
 import { logger, logEvents } from "@/server/observability/logger";
 import { serializeError } from "@/server/observability/serialize-error";
@@ -16,6 +17,7 @@ export interface StructuredOutputModelRequest {
   readonly userMessage: string;
   readonly conversationHistory?: readonly StructuredOutputConversationMessage[];
   readonly jsonSchema: Record<string, unknown>;
+  readonly tools?: ToolSet;
 }
 
 export interface StructuredOutputConversationMessage {

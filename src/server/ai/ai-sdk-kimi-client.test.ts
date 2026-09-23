@@ -3,6 +3,9 @@ import test from "node:test";
 
 import { tripDraftJsonSchema } from "@/server/ai/trip-draft-extractor";
 import { workspaceConversationJsonSchema } from "@/server/ai/workspace-conversation-interpreter";
+import { interpretWorkspaceConversation } from "@/server/ai/workspace-conversation-interpreter";
+import type { TripState } from "@/domain/trip-state/trip-state";
+import { LocationService, type LocationProvider } from "@/server/location/location-service";
 import {
   AiSdkKimiClient,
   createAiSdkKimiClientFromEnvironment,
@@ -104,6 +107,220 @@ test.afterEach(() => {
   }
 
   globalThis.fetch = originalFetch;
+});
+
+test("Workspace tool loop passes history, current user, multiple candidates, then structured reply", async () => {
+  const state: TripState = {
+    name: { state: "known", value: "假期旅行", source: "user" },
+    origin: { state: "missing" },
+    destination: { state: "missing" },
+    startDate: { state: "missing" },
+    endDate: { state: "missing" },
+    duration: { state: "missing" },
+    transportPreference: { state: "missing" },
+  };
+  const before = structuredClone(state);
+  const queries: string[] = [];
+  const locationProvider: LocationProvider = {
+    async searchByKeyword(query) {
+      queries.push(query);
+      return {
+        status: "success",
+        candidates: [
+          { providerId: "city", name: "阿尔山市", region: "内蒙古自治区", address: null, longitude: 119.94, latitude: 47.18, coordinateSystem: "GCJ-02" },
+          { providerId: "park", name: "阿尔山国家森林公园", region: "内蒙古自治区", address: null, longitude: 120.42, latitude: 47.28, coordinateSystem: "GCJ-02" },
+        ],
+      };
+    },
+  };
+  const bodies: Record<string, unknown>[] = [];
+  const client = createClient(async (_input, init) => {
+    const body = JSON.parse(String(init?.body)) as Record<string, unknown>;
+    bodies.push(body);
+    if (bodies.length === 1) {
+      return Response.json({
+        id: "chatcmpl_tool",
+        object: "chat.completion",
+        created: 1_800_000_000,
+        model: "kimi-k2.6",
+        choices: [{
+          index: 0,
+          message: {
+            role: "assistant",
+            content: null,
+            tool_calls: [{
+              id: "call_resolve_1",
+              type: "function",
+              function: { name: "resolve_location", arguments: '{"query":"阿尔山"}' },
+            }],
+          },
+          finish_reason: "tool_calls",
+        }],
+        usage: { prompt_tokens: 30, completion_tokens: 8, total_tokens: 38 },
+      });
+    }
+    return createProviderResponse({
+      content: JSON.stringify({
+        intent: "trip_state_update",
+        changes: [{ field: "destination", state: "known", value: "阿尔山" }],
+        reply: "阿尔山可能指城市或森林公园，你想去哪个？",
+      }),
+    });
+  });
+
+  const interpretation = await interpretWorkspaceConversation({
+    message: "阿尔山吧",
+    tripState: state,
+    requestId: "request_tool_loop",
+    referenceDate: "2026-09-23",
+    timezone: "Asia/Shanghai",
+    conversationHistory: [
+      { role: "user", content: "我十一想出去玩" },
+      { role: "assistant", content: "想去哪一带？" },
+    ],
+  }, client, new LocationService(locationProvider));
+
+  assert.deepEqual(queries, ["阿尔山"]);
+  assert.equal(bodies.length, 2);
+  assert.equal(bodies[0].response_format, undefined);
+  assert.deepEqual(bodies[0].thinking, { type: "disabled" });
+  assert.deepEqual(bodies[1].thinking, { type: "disabled" });
+  assert.deepEqual(bodies[1].response_format, {
+    type: "json_schema",
+    json_schema: {
+      name: "workspace_conversation_interpretation",
+      strict: true,
+      schema: workspaceConversationJsonSchema,
+    },
+  });
+  assert.deepEqual((bodies[0].messages as unknown[]).slice(-3), [
+    { role: "user", content: "我十一想出去玩" },
+    { role: "assistant", content: "想去哪一带？" },
+    { role: "user", content: "阿尔山吧" },
+  ]);
+  assert.ok(JSON.stringify(bodies[1].messages).includes("阿尔山国家森林公园"));
+  assert.deepEqual(interpretation.changes, [
+    { field: "destination", state: "known", value: "阿尔山" },
+  ]);
+  assert.deepEqual(state, before);
+});
+
+test("unrelated Workspace message completes without executing the location tool", async () => {
+  const state: TripState = {
+    name: { state: "known", value: "假期旅行", source: "user" },
+    origin: { state: "missing" },
+    destination: { state: "missing" },
+    startDate: { state: "missing" },
+    endDate: { state: "missing" },
+    duration: { state: "missing" },
+    transportPreference: { state: "missing" },
+  };
+  let providerCalls = 0;
+  const locationProvider: LocationProvider = {
+    async searchByKeyword() {
+      providerCalls += 1;
+      return { status: "success", candidates: [] };
+    },
+  };
+  const bodies: Record<string, unknown>[] = [];
+  const client = createClient(async (_input, init) => {
+    bodies.push(JSON.parse(String(init?.body)) as Record<string, unknown>);
+    return bodies.length === 1
+      ? createProviderResponse({ content: "NO_TOOL" })
+      : createProviderResponse({
+          content: JSON.stringify({
+            intent: "question",
+            changes: [],
+            reply: "想去哪一带？",
+          }),
+        });
+  });
+
+  const interpretation = await interpretWorkspaceConversation({
+    message: "我十一想出去玩，但还没想好去哪",
+    tripState: state,
+    requestId: "request_no_location_tool",
+    referenceDate: "2026-09-23",
+    timezone: "Asia/Shanghai",
+  }, client, new LocationService(locationProvider));
+
+  assert.equal(bodies.length, 2);
+  assert.equal(bodies[0].response_format, undefined);
+  assert.deepEqual(bodies[1].response_format, {
+    type: "json_schema",
+    json_schema: {
+      name: "workspace_conversation_interpretation",
+      strict: true,
+      schema: workspaceConversationJsonSchema,
+    },
+  });
+  assert.equal(providerCalls, 0);
+  assert.deepEqual(interpretation.changes, []);
+  assert.equal(interpretation.intent, "question");
+});
+
+test("Workspace can complete after a location provider failure without leaking provider details", async () => {
+  const state: TripState = {
+    name: { state: "known", value: "假期旅行", source: "user" },
+    origin: { state: "missing" },
+    destination: { state: "missing" },
+    startDate: { state: "missing" },
+    endDate: { state: "missing" },
+    duration: { state: "missing" },
+    transportPreference: { state: "missing" },
+  };
+  const locationProvider: LocationProvider = {
+    async searchByKeyword() {
+      throw new Error("provider failed with test-secret-key");
+    },
+  };
+  const bodies: Record<string, unknown>[] = [];
+  const client = createClient(async (_input, init) => {
+    bodies.push(JSON.parse(String(init?.body)) as Record<string, unknown>);
+    if (bodies.length === 1) {
+      return Response.json({
+        id: "chatcmpl_tool_failure",
+        object: "chat.completion",
+        created: 1_800_000_000,
+        model: "kimi-k2.6",
+        choices: [{
+          index: 0,
+          message: {
+            role: "assistant",
+            content: null,
+            tool_calls: [{
+              id: "call_resolve_failure",
+              type: "function",
+              function: { name: "resolve_location", arguments: '{"query":"阿尔山"}' },
+            }],
+          },
+          finish_reason: "tool_calls",
+        }],
+        usage: { prompt_tokens: 30, completion_tokens: 8, total_tokens: 38 },
+      });
+    }
+    return createProviderResponse({
+      content: JSON.stringify({
+        intent: "trip_state_update",
+        changes: [{ field: "destination", state: "known", value: "阿尔山" }],
+        reply: "我记下阿尔山了，地点查询暂时不可用，稍后可以再确认具体位置。",
+      }),
+    });
+  });
+
+  const interpretation = await interpretWorkspaceConversation({
+    message: "阿尔山吧",
+    tripState: state,
+    requestId: "request_tool_failure",
+    referenceDate: "2026-09-23",
+    timezone: "Asia/Shanghai",
+  }, client, new LocationService(locationProvider));
+
+  assert.equal(bodies.length, 2);
+  assert.ok(JSON.stringify(bodies[1].messages).includes("provider_error"));
+  assert.equal(JSON.stringify(bodies[1].messages).includes("test-secret-key"), false);
+  assert.equal(interpretation.intent, "trip_state_update");
+  assert.equal(JSON.stringify(interpretation).includes("test-secret-key"), false);
 });
 
 test("sends the current strict JSON Schema request with Kimi thinking disabled", async () => {

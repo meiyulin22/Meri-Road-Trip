@@ -25,6 +25,10 @@ export const logEvents = {
   workspaceConversationFailed: "workspace.conversation.failed",
   tripStateUpdateApplied: "trip_state.update.applied",
   tripMessageTurnPersisted: "trip_message.turn.persisted",
+  locationResolveFailed: "location.resolve.failed",
+  locationToolRequested: "location.tool.requested",
+  locationToolExecuted: "location.tool.executed",
+  locationToolCompleted: "location.tool.completed",
 } as const;
 
 const isDevelopment = process.env.NODE_ENV === "development";
