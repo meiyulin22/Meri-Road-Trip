@@ -20,7 +20,7 @@ export function createResolveLocationTool({
 }: ResolveLocationToolContext) {
   return tool({
     description:
-      "Resolve a destination the user named into real-world location candidates when geographic identification or disambiguation is useful. Do not call for every message. Candidates are unconfirmed.",
+      "Resolve a place into unconfirmed real-world location candidates only when the current user task needs geographic identification or disambiguation, such as an explicit trip location update or a question that depends on the resolved place. An origin or destination in TripState alone is not a reason to call this tool. Do not call for casual conversation, questions about Meri, or requests unrelated to geographic resolution.",
     inputSchema: z.object({ query: z.string().trim().min(1).max(80) }),
     execute: async ({ query }) => {
       logger.info(

@@ -38,6 +38,10 @@ test("newly mentioned destination uses LocationService and returns unconfirmed c
     locationService: new LocationService(provider),
   });
 
+  assert.match(resolver.description ?? "", /current user task needs geographic identification or disambiguation/);
+  assert.match(resolver.description ?? "", /origin or destination in TripState alone is not a reason/);
+  assert.match(resolver.description ?? "", /casual conversation, questions about Meri/);
+
   const result = await resolver.execute?.(
     { query: "阿尔山" },
     { toolCallId: "call_1", messages: [] },

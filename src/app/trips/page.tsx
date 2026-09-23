@@ -4,9 +4,9 @@ import Image from "next/image";
 import Link from "next/link";
 import { cookies } from "next/headers";
 
-import type { Trip } from "@/domain/trip/trip";
+import type { JourneySummary } from "@/repositories/journey-summary-repository";
+import { journeySummaryRepository } from "@/server/journey/journey-summary-repository-instance";
 import { loadMyJourneys } from "@/server/journey/my-journeys";
-import { tripService } from "@/server/trip/trip-service-instance";
 
 import styles from "./trips.module.css";
 
@@ -17,7 +17,7 @@ export const metadata: Metadata = {
 export const dynamic = "force-dynamic";
 
 export default async function MyJourneysPage() {
-  const journeys = await loadMyJourneys(await cookies(), tripService);
+  const journeys = await loadMyJourneys(await cookies(), journeySummaryRepository);
 
   return (
     <main className={styles.page}>
@@ -68,7 +68,7 @@ export default async function MyJourneysPage() {
   );
 }
 
-function JourneyCard({ journey }: { readonly journey: Trip }) {
+function JourneyCard({ journey }: { readonly journey: JourneySummary }) {
   return (
     <li>
       <Link
@@ -130,7 +130,7 @@ function EmptyState() {
   );
 }
 
-function formatDateRange(trip: Trip): string {
+function formatDateRange(trip: JourneySummary): string {
   if (trip.startDate && trip.endDate) {
     return trip.startDate === trip.endDate
       ? trip.startDate

@@ -29,5 +29,9 @@ test("distinguishes destination mentions from explicit update intent", () => {
   assert.match(prompt, /要不富良野？.*unclear_update_intent/);
   assert.match(prompt, /Never return source/);
   assert.match(prompt, /unconfirmed candidates/);
+  assert.match(prompt, /current task needs geographic identification or disambiguation/);
+  assert.match(prompt, /origin or destination in TripState alone is not a reason/);
+  assert.match(prompt, /casual conversation, meta questions about Meri/);
+  assert.match(prompt, /explicit trip location update naming an unverified place/);
   assert.match(prompt, /Geographic ambiguity does not make the user's update intent unclear/);
 });

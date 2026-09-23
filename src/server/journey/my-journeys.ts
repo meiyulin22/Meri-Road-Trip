@@ -1,19 +1,17 @@
-import type { Trip } from "@/domain/trip/trip";
+import type { JourneySummary, JourneySummaryRepository } from "@/repositories/journey-summary-repository";
 import { readGuestId } from "@/server/identity/guest-identity";
-import type { TripService } from "@/server/trip/trip-service";
 
 type CookieReader = Parameters<typeof readGuestId>[0];
-type TripLister = Pick<TripService, "listTrips">;
 
 export async function loadMyJourneys(
   cookieReader: CookieReader,
-  tripService: TripLister,
-): Promise<Trip[]> {
+  repository: JourneySummaryRepository,
+): Promise<JourneySummary[]> {
   const ownerGuestId = readGuestId(cookieReader);
 
   if (!ownerGuestId) {
     return [];
   }
 
-  return tripService.listTrips(ownerGuestId);
+  return repository.listByOwner(ownerGuestId);
 }

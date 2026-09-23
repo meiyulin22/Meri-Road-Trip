@@ -205,11 +205,11 @@ test("Workspace tool loop passes history, current user, multiple candidates, the
   assert.deepEqual(state, before);
 });
 
-test("unrelated Workspace message completes without executing the location tool", async () => {
+test("meta question with a known destination completes without executing the location tool", async () => {
   const state: TripState = {
     name: { state: "known", value: "假期旅行", source: "user" },
     origin: { state: "missing" },
-    destination: { state: "missing" },
+    destination: { state: "known", value: "吉林", source: "user" },
     startDate: { state: "missing" },
     endDate: { state: "missing" },
     duration: { state: "missing" },
@@ -231,13 +231,13 @@ test("unrelated Workspace message completes without executing the location tool"
           content: JSON.stringify({
             intent: "question",
             changes: [],
-            reply: "想去哪一带？",
+            reply: "抱歉让你久等了。",
           }),
         });
   });
 
   const interpretation = await interpretWorkspaceConversation({
-    message: "我十一想出去玩，但还没想好去哪",
+    message: "你为什么聊天这么慢 哈哈",
     tripState: state,
     requestId: "request_no_location_tool",
     referenceDate: "2026-09-23",
@@ -246,6 +246,8 @@ test("unrelated Workspace message completes without executing the location tool"
 
   assert.equal(bodies.length, 2);
   assert.equal(bodies[0].response_format, undefined);
+  assert.match(JSON.stringify(bodies[0].messages), /origin or destination in TripState alone is not a reason/);
+  assert.match(JSON.stringify(bodies[0].messages), /meta questions about Meri/);
   assert.deepEqual(bodies[1].response_format, {
     type: "json_schema",
     json_schema: {
