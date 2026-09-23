@@ -24,12 +24,14 @@ const trip: Trip = {
 
 type DatabaseDoubleOptions = {
   rows?: TripRow[];
+  deletedRows?: { id: string }[];
   saveError?: Error;
   findError?: Error;
 };
 
 function createDatabaseDouble({
   rows = [],
+  deletedRows = [],
   saveError,
   findError,
 }: DatabaseDoubleOptions = {}) {
@@ -83,8 +85,13 @@ function createDatabaseDouble({
     delete(table: unknown) {
       deletedTable = table;
       return {
-        async where() {
+        where() {
           deleteWhereWasCalled = true;
+          return {
+            async returning() {
+              return deletedRows;
+            },
+          };
         },
       };
     },
@@ -158,14 +165,16 @@ test("returns null when no Trip row exists", async () => {
   assert.equal(result, null);
 });
 
-test("deletes a Trip for failed Journey creation compensation", async () => {
-  const { database, inspection } = createDatabaseDouble();
+test("returns whether an owner-scoped Trip delete removed a row", async () => {
+  const { database, inspection } = createDatabaseDouble({ deletedRows: [{ id: trip.id }] });
   const repository = new PostgresTripRepository(database);
 
-  await repository.deleteById(trip.id, guestA);
+  assert.equal(await repository.deleteById(trip.id, guestA), true);
 
   assert.equal(inspection.deletedTable, trips);
   assert.equal(inspection.deleteWhereWasCalled, true);
+  const absent = new PostgresTripRepository(createDatabaseDouble().database);
+  assert.equal(await absent.deleteById(trip.id, guestB), false);
 });
 
 test("preserves the cause when saving fails", async () => {

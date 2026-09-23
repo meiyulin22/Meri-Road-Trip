@@ -14,6 +14,8 @@ export const logEvents = {
   tripLoadFailed: "trip.load.failed",
   journeyCreated: "journey.created",
   journeyCreateFailed: "journey.create.failed",
+  journeyDeleted: "journey.deleted",
+  journeyDeleteFailed: "journey.delete.failed",
   tripStatePersistenceFailed: "trip_state.persistence.failed",
   llmRequestStarted: "llm.request.started",
   llmRequestCompleted: "llm.request.completed",

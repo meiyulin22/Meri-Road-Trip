@@ -2,92 +2,58 @@ import { randomUUID } from "node:crypto";
 
 import { cookies } from "next/headers";
 
-import { TripNotFoundError } from "@/domain/trip/trip-errors";
 import { readGuestId } from "@/server/identity/guest-identity";
+import { journeyService } from "@/server/journey/journey-service-instance";
 import { logger, logEvents } from "@/server/observability/logger";
 import { serializeError } from "@/server/observability/serialize-error";
-import { tripService } from "@/server/trip/trip-service-instance";
 
 type TripRouteContext = {
   params: Promise<{ id: string }>;
 };
 
-export async function GET(
-  _request: Request,
-  context: TripRouteContext,
-) {
+const uuidPattern =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+export async function DELETE(_request: Request, context: TripRouteContext) {
   const requestId = randomUUID();
-  const startedAt = performance.now();
   const { id: tripId } = await context.params;
 
   try {
     const ownerGuestId = readGuestId(await cookies());
-    if (!ownerGuestId) {
-      throw new TripNotFoundError(tripId);
+    if (!ownerGuestId || !uuidPattern.test(tripId)) {
+      return notFound();
     }
 
-    const trip = await tripService.getTripById(tripId, ownerGuestId);
-    const durationMs = elapsedMilliseconds(startedAt);
+    const deleted = await journeyService.deleteJourney(tripId, ownerGuestId);
+    if (!deleted) {
+      return notFound();
+    }
 
     logger.info(
-      {
-        event: logEvents.tripLoaded,
-        requestId,
-        tripId,
-        durationMs,
-      },
-      "Trip loaded",
+      { event: logEvents.journeyDeleted, requestId, tripId },
+      "Journey deleted",
     );
-
-    return Response.json(trip);
+    return new Response(null, { status: 204 });
   } catch (error) {
-    const durationMs = elapsedMilliseconds(startedAt);
-
-    if (error instanceof TripNotFoundError) {
-      logger.info(
-        {
-          event: logEvents.tripNotFound,
-          requestId,
-          tripId,
-          durationMs,
-        },
-        "Trip not found",
-      );
-
-      return Response.json(
-        {
-          error: {
-            code: "trip_not_found",
-            message: error.message,
-          },
-        },
-        { status: 404 },
-      );
-    }
-
     logger.error(
       {
-        event: logEvents.tripLoadFailed,
+        event: logEvents.journeyDeleteFailed,
         requestId,
         tripId,
-        durationMs,
         error: serializeError(error),
       },
-      "Trip load failed",
+      "Journey deletion failed",
     );
-
     return Response.json(
-      {
-        error: {
-          code: "internal_error",
-          message: "Failed to load Trip.",
-        },
-      },
+      { error: { code: "internal_error", message: "Failed to delete Journey." } },
       { status: 500 },
     );
   }
 }
 
-function elapsedMilliseconds(startedAt: number): number {
-  return Math.round((performance.now() - startedAt) * 100) / 100;
+function notFound(): Response {
+  return Response.json(
+    { error: { code: "journey_not_found", message: "Journey not found." } },
+    { status: 404 },
+  );
 }

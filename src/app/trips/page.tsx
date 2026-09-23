@@ -8,6 +8,7 @@ import type { JourneySummary } from "@/repositories/journey-summary-repository";
 import { journeySummaryRepository } from "@/server/journey/journey-summary-repository-instance";
 import { loadMyJourneys } from "@/server/journey/my-journeys";
 
+import { JourneyDeleteAction } from "./journey-delete-action";
 import styles from "./trips.module.css";
 
 export const metadata: Metadata = {
@@ -70,7 +71,7 @@ export default async function MyJourneysPage() {
 
 function JourneyCard({ journey }: { readonly journey: JourneySummary }) {
   return (
-    <li>
+    <li className={styles.cardItem}>
       <Link
         aria-label={`Continue ${journey.name}`}
         className={styles.journeyCard}
@@ -105,6 +106,7 @@ function JourneyCard({ journey }: { readonly journey: JourneySummary }) {
           Updated <time dateTime={journey.updatedAt}>{formatUpdatedAt(journey.updatedAt)}</time>
         </p>
       </Link>
+      <JourneyDeleteAction name={journey.name} tripId={journey.id} />
     </li>
   );
 }

@@ -127,6 +127,11 @@
   list-style: none;
 }
 
+.cardItem {
+  position: relative;
+  min-width: 0;
+}
+
 .journeyCard {
   min-height: 15rem;
   padding: 1.35rem;
@@ -152,6 +157,76 @@
   align-items: flex-start;
   justify-content: space-between;
   gap: 1rem;
+  padding-right: 2.5rem;
+}
+
+.cardMenu {
+  position: absolute;
+  z-index: 2;
+  top: 1rem;
+  right: 1rem;
+}
+
+.cardMenu summary {
+  width: 2.25rem;
+  height: 2.25rem;
+  display: grid;
+  place-items: center;
+  border-radius: 0.6rem;
+  color: #dce6ff;
+  cursor: pointer;
+  list-style: none;
+}
+
+.cardMenu summary::-webkit-details-marker {
+  display: none;
+}
+
+.cardMenu summary:hover,
+.cardMenu[open] summary {
+  background: rgba(157, 181, 255, 0.18);
+}
+
+.cardMenuPanel {
+  position: absolute;
+  top: 2.6rem;
+  right: 0;
+  width: min(16rem, calc(100vw - 3rem));
+  padding: 0.8rem;
+  border: 1px solid rgba(157, 181, 255, 0.3);
+  border-radius: 0.8rem;
+  background: #182642;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.4);
+  color: #f5f7ff;
+  font-size: 0.82rem;
+}
+
+.cardMenuPanel button {
+  min-height: 2.2rem;
+  padding: 0.45rem 0.6rem;
+  border-radius: 0.45rem;
+  color: inherit;
+  text-align: left;
+}
+
+.cardMenuPanel button:hover {
+  background: rgba(157, 181, 255, 0.15);
+}
+
+.cardMenuActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.3rem;
+  margin-top: 0.7rem;
+}
+
+.cardMenuPanel .deleteConfirm {
+  color: #ffb9b9;
+}
+
+.cardMenuError {
+  margin-top: 0.6rem;
+  color: #ffb9b9;
 }
 
 .cardHeading svg {
@@ -248,6 +323,12 @@
 }
 
 .page a:focus-visible {
+  outline: 3px solid #9cb5ff;
+  outline-offset: 3px;
+}
+
+.page button:focus-visible,
+.page summary:focus-visible {
   outline: 3px solid #9cb5ff;
   outline-offset: 3px;
 }

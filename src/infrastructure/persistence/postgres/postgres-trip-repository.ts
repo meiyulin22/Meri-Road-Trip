@@ -70,16 +70,18 @@ export class PostgresTripRepository {
     }
   }
 
-  async deleteById(tripId: string, ownerGuestId: string): Promise<void> {
+  async deleteById(tripId: string, ownerGuestId: string): Promise<boolean> {
     try {
-      await this.database
+      const deleted = await this.database
         .delete(trips)
         .where(
           and(
             eq(trips.id, tripId),
             eq(trips.ownerGuestId, ownerGuestId),
           ),
-        );
+        )
+        .returning({ id: trips.id });
+      return deleted.length === 1;
     } catch (error) {
       throw new PostgresTripRepositoryError("deleteById", tripId, error);
     }

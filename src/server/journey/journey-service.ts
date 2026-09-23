@@ -27,7 +27,7 @@ interface JourneyServiceDependencies {
   readonly deleteTripById: (
     tripId: string,
     ownerGuestId: string,
-  ) => Promise<void>;
+  ) => Promise<boolean>;
 }
 
 export class JourneyService {
@@ -47,7 +47,15 @@ export class JourneyService {
         .create(tripState);
     } catch (stateError) {
       try {
-        await this.dependencies.deleteTripById(trip.id, ownerGuestId);
+        const deleted = await this.dependencies.deleteTripById(
+          trip.id,
+          ownerGuestId,
+        );
+        if (!deleted) {
+          throw new Error(
+            `Trip ${trip.id} was not deleted during creation rollback.`,
+          );
+        }
       } catch (cleanupError) {
         throw new JourneyCreationError(
           `Failed to create TripState and roll back Trip ${trip.id}.`,
@@ -81,6 +89,10 @@ export class JourneyService {
     }
 
     return { trip, tripState };
+  }
+
+  deleteJourney(tripId: string, ownerGuestId: string): Promise<boolean> {
+    return this.dependencies.deleteTripById(tripId, ownerGuestId);
   }
 
   async updateTripState(
