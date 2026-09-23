@@ -74,6 +74,49 @@ test("returns a validated change proposal without source metadata", async () => 
   ]);
 });
 
+test("passes recent assistant context and current TripState for a confirmation", async () => {
+  let capturedRequest:
+    | Parameters<StructuredOutputModelClient["generateStructuredOutput"]>[0]
+    | undefined;
+  await interpretWorkspaceConversation(
+    {
+      ...input,
+      message: "Yes.",
+      conversationHistory: [
+        { role: "user", content: "Could we go to Furano?" },
+        {
+          role: "assistant",
+          content: "Would you like to change the destination to Furano?",
+        },
+      ],
+    },
+    createClient(
+      {
+        content: JSON.stringify({
+          intent: "trip_state_update",
+          changes: [{ field: "destination", state: "known", value: "富良野" }],
+          reply: "好的，目的地改成富良野。",
+        }),
+        model: "kimi-k2.6",
+        finishReason: "stop",
+      },
+      (request) => {
+        capturedRequest = request;
+      },
+    ),
+  );
+
+  assert.deepEqual(capturedRequest?.conversationHistory, [
+    { role: "user", content: "Could we go to Furano?" },
+    {
+      role: "assistant",
+      content: "Would you like to change the destination to Furano?",
+    },
+  ]);
+  assert.equal(capturedRequest?.userMessage, "Yes.");
+  assert.match(capturedRequest?.systemPrompt ?? "", /"destination":\{"state":"known","value":"二世谷"/);
+});
+
 test("rejects invalid model output without applying partial data", async () => {
   await assert.rejects(
     interpretWorkspaceConversation(

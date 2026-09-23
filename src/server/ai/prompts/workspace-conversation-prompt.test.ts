@@ -22,6 +22,8 @@ test("distinguishes destination mentions from explicit update intent", () => {
   });
 
   assert.match(prompt, /Current authoritative TripState/);
+  assert.match(prompt, /Previous conversation messages may clarify references/);
+  assert.match(prompt, /earlier assistant suggestion alone must not change TripState/);
   assert.match(prompt, /"destination":\{"state":"known","value":"二世谷"/);
   assert.match(prompt, /富良野雪怎么样？.*question/);
   assert.match(prompt, /要不富良野？.*unclear_update_intent/);

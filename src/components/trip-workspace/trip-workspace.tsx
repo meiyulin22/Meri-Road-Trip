@@ -533,7 +533,7 @@ function ConversationDock({
     if (history !== null) {
       history.scrollTop = history.scrollHeight;
     }
-  }, [error, isSubmitting, messages]);
+  }, [error, isExpanded, isSubmitting, messages]);
 
   useEffect(() => {
     const revealingAssistant = messages.find(

@@ -14,7 +14,13 @@ export interface StructuredOutputModelRequest {
   readonly schemaName: string;
   readonly systemPrompt: string;
   readonly userMessage: string;
+  readonly conversationHistory?: readonly StructuredOutputConversationMessage[];
   readonly jsonSchema: Record<string, unknown>;
+}
+
+export interface StructuredOutputConversationMessage {
+  readonly role: "user" | "assistant";
+  readonly content: string;
 }
 
 export interface StructuredOutputModelResponse {
@@ -100,6 +106,7 @@ class KimiClient implements StructuredOutputModelClient {
         model: this.options.model,
         messages: [
           { role: "system", content: request.systemPrompt },
+          ...(request.conversationHistory ?? []),
           { role: "user", content: request.userMessage },
         ],
         response_format: {

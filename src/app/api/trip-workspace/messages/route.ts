@@ -21,6 +21,7 @@ import {
   InvalidWorkspaceConversationModelOutputError,
   InvalidWorkspaceConversationRequestError,
 } from "@/server/ai/workspace-conversation-interpreter";
+import { selectRecentConversationMessages } from "@/server/ai/workspace-conversation-context";
 import { TripStateNotFoundError } from "@/server/journey/journey-errors";
 import { journeyService } from "@/server/journey/journey-service-instance";
 import { readGuestId } from "@/server/identity/guest-identity";
@@ -134,6 +135,10 @@ export async function POST(request: Request) {
       tripId,
       ownerGuestId,
     );
+    const previousMessages = await tripMessageService.listMessages(
+      tripId,
+      ownerGuestId,
+    );
     logger.info(
       { event: logEvents.workspaceConversationRequested, ...context },
       "Workspace conversation requested",
@@ -142,6 +147,7 @@ export async function POST(request: Request) {
     const interpretation = await interpretWorkspaceConversation({
       message: body.message,
       tripState,
+      conversationHistory: selectRecentConversationMessages(previousMessages),
       requestId,
       ...getRequestContext(),
     });

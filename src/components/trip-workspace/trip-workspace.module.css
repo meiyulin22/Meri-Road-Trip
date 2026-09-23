@@ -530,19 +530,22 @@
   right: 18px;
   bottom: 18px;
   width: min(774px, calc(100% - 344px));
-  height: 150px;
+  box-sizing: border-box;
+  height: 176px;
+  max-height: calc(100% - 36px);
   padding: 12px 14px;
-  display: grid;
-  grid-template-rows: auto minmax(0, 1fr) auto;
+  display: flex;
+  flex-direction: column;
   gap: 7px;
   overflow: hidden;
   background: rgba(5, 16, 38, 0.67);
   transition: height 180ms ease;
 }
 
-.conversationDock[data-expanded="true"] { height: min(430px, calc(100% - 36px)); }
+.conversationDock[data-expanded="true"] { height: 456px; }
 
 .dockHeader {
+  flex: 0 0 auto;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -554,6 +557,7 @@
 .dockToggle { cursor: pointer; }
 
 .messageHistory {
+  flex: 1 1 auto;
   min-height: 0;
   padding: 3px 1px;
   display: flex;
@@ -561,7 +565,10 @@
   flex-direction: column;
   gap: 8px;
   overflow-y: auto;
+  overscroll-behavior: contain;
 }
+
+.messageHistory > * { flex: 0 0 auto; }
 
 .meriMessage,
 .userMessage {
@@ -601,7 +608,7 @@
 .meriMessage span,
 .userMessage span { color: #9bb2f5; font-size: 8px; }
 .meriMessage p,
-.userMessage p { margin-top: 1px; color: #edf2ff; }
+.userMessage p { margin-top: 1px; color: #edf2ff; overflow-wrap: anywhere; }
 
 .userMessage {
   width: fit-content;
@@ -665,6 +672,7 @@
 }
 
 .conversationComposer {
+  flex: 0 0 auto;
   min-height: 43px;
   padding: 3px 4px;
   display: flex;

@@ -224,7 +224,14 @@ export class AiSdkKimiClient implements StructuredOutputModelClient {
       const result = await generateText({
         model: provider.chatModel(this.options.model),
         system: request.systemPrompt,
-        prompt: request.userMessage,
+        ...(request.conversationHistory?.length
+          ? {
+              messages: [
+                ...request.conversationHistory,
+                { role: "user" as const, content: request.userMessage },
+              ],
+            }
+          : { prompt: request.userMessage }),
         output: Output.object({
           name: request.schemaName,
           schema: jsonSchema(request.jsonSchema),

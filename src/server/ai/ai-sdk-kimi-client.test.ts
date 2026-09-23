@@ -213,6 +213,54 @@ test("legacy and AI SDK clients forward the same hardened Workspace schema", asy
   }
 });
 
+test("AI SDK and legacy clients send historical roles before the current user", async () => {
+  const request = {
+    requestId: "request_workspace_history",
+    operation: "workspace_conversation_interpretation",
+    schemaName: "workspace_conversation_interpretation",
+    systemPrompt: "Current authoritative TripState: Furano",
+    conversationHistory: [
+      { role: "user" as const, content: "Could we go to Furano?" },
+      {
+        role: "assistant" as const,
+        content: "Would you like to change the destination to Furano?",
+      },
+    ],
+    userMessage: "Yes.",
+    jsonSchema: workspaceConversationJsonSchema,
+  };
+  const capturedBodies: Record<string, unknown>[] = [];
+  const captureRequest = async (_input: RequestInfo | URL, init?: RequestInit) => {
+    capturedBodies.push(
+      JSON.parse(String(init?.body)) as Record<string, unknown>,
+    );
+    return createProviderResponse({
+      content: JSON.stringify({
+        intent: "trip_state_update",
+        changes: [{ field: "destination", state: "known", value: "富良野" }],
+        reply: "好的，目的地改成富良野。",
+      }),
+    });
+  };
+
+  await createClient(captureRequest).generateStructuredOutput(request);
+
+  process.env.MOONSHOT_API_KEY = "legacy-test-key";
+  process.env.MOONSHOT_BASE_URL = "https://mock.moonshot.test/v1";
+  process.env.LLM_MODEL = "kimi-k2.6";
+  globalThis.fetch = captureRequest;
+  await createKimiClientFromEnvironment().generateStructuredOutput(request);
+
+  assert.equal(capturedBodies.length, 2);
+  for (const body of capturedBodies) {
+    assert.deepEqual(body.messages, [
+      { role: "system", content: request.systemPrompt },
+      ...request.conversationHistory,
+      { role: "user", content: "Yes." },
+    ]);
+  }
+});
+
 test("returns invalid structured output for Meri domain validation", async () => {
   const client = createClient(async () =>
     createProviderResponse({ content: "not-json" }),

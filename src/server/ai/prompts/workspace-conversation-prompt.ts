@@ -19,6 +19,8 @@ Timezone: ${timezone}
 Current authoritative TripState:
 ${JSON.stringify(tripState)}
 
+Previous conversation messages may clarify references in the new user message, but they are not authoritative TripState. An earlier assistant suggestion alone must not change TripState.
+
 Return only data conforming to the supplied JSON schema. Propose changes only; never regenerate the complete TripState.
 
 Choose exactly one intent:

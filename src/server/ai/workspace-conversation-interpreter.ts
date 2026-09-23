@@ -4,7 +4,10 @@ import {
   type WorkspaceConversationInterpretation,
 } from "@/domain/trip-state/workspace-conversation";
 import { createAiSdkKimiClientFromEnvironment } from "@/server/ai/ai-sdk-kimi-client";
-import type { StructuredOutputModelClient } from "@/server/ai/kimi-client";
+import type {
+  StructuredOutputConversationMessage,
+  StructuredOutputModelClient,
+} from "@/server/ai/kimi-client";
 import { buildWorkspaceConversationSystemPrompt } from "@/server/ai/prompts/workspace-conversation-prompt";
 import { logger, logEvents } from "@/server/observability/logger";
 import { serializeError } from "@/server/observability/serialize-error";
@@ -15,6 +18,7 @@ export interface InterpretWorkspaceConversationInput {
   readonly requestId: string;
   readonly referenceDate: string;
   readonly timezone: string;
+  readonly conversationHistory?: readonly StructuredOutputConversationMessage[];
 }
 
 export class InvalidWorkspaceConversationRequestError extends Error {
@@ -114,6 +118,7 @@ export async function interpretWorkspaceConversation(
         timezone: input.timezone,
       }),
       userMessage: input.message,
+      conversationHistory: input.conversationHistory,
       jsonSchema: workspaceConversationJsonSchema,
     });
 
