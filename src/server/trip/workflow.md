@@ -12,7 +12,7 @@ TripService.createTrip()
 src/repositories/trip-repository.ts
 TripRepository.create()
         ↓
-src/server/trip/postgres-trip-repository.ts
+src/infrastructure/persistence/postgres/postgres-trip-repository.ts
 PostgresTripRepository.create()
         ↓
 src/server/database/schema/trips.ts
@@ -40,7 +40,7 @@ TripService.getTripById()
 src/repositories/trip-repository.ts
 TripRepository.findById()
         ↓
-src/server/trip/postgres-trip-repository.ts
+src/infrastructure/persistence/postgres/postgres-trip-repository.ts
 PostgresTripRepository.findById()
         ↓
 Drizzle SELECT
@@ -66,7 +66,7 @@ TripService.listTrips()
 src/repositories/trip-repository.ts
 TripRepository.listByOwner()
         ↓
-src/server/trip/postgres-trip-repository.ts
+src/infrastructure/persistence/postgres/postgres-trip-repository.ts
 PostgresTripRepository.listByOwner()
         ↓
 Drizzle SELECT
