@@ -22,9 +22,15 @@ import {
   InvalidWorkspaceConversationRequestError,
 } from "@/server/ai/workspace-conversation-interpreter";
 import { selectRecentConversationMessages } from "@/server/ai/workspace-conversation-context";
+import { AmapLocationProvider } from "@/infrastructure/location/amap-location-provider";
 import { TripStateNotFoundError } from "@/server/journey/journey-errors";
 import { journeyService } from "@/server/journey/journey-service-instance";
 import { readGuestId } from "@/server/identity/guest-identity";
+import { LocationService } from "@/server/location/location-service";
+import {
+  persistWorkspacePatchAndResolveDestination,
+  replyAfterDestinationResolution,
+} from "@/server/location/post-update-destination-resolution";
 import { logger, logEvents } from "@/server/observability/logger";
 import { tripMessageService } from "@/server/trip-message/trip-message-service-instance";
 import { serializeError } from "@/server/observability/serialize-error";
@@ -152,14 +158,19 @@ export async function POST(request: Request) {
       ...getRequestContext(),
     });
     const patch = createTripStatePatchFromInterpretation(interpretation);
-    let persistedTripState = tripState;
+    const { tripState: persistedTripState, resolution } =
+      await persistWorkspacePatchAndResolveDestination(
+        tripState,
+        patch,
+        (committedPatch) => journeyService.updateTripState(tripId, ownerGuestId, committedPatch),
+        new LocationService(new AmapLocationProvider()),
+      );
+    const finalInterpretation = {
+      ...interpretation,
+      reply: replyAfterDestinationResolution(interpretation, persistedTripState, resolution),
+    };
 
     if (patch !== null) {
-      persistedTripState = await journeyService.updateTripState(
-        tripId,
-        ownerGuestId,
-        patch,
-      );
       logger.info(
         {
           event: logEvents.tripStateUpdateApplied,
@@ -175,7 +186,7 @@ export async function POST(request: Request) {
       tripId,
       ownerGuestId,
       userContent: body.message,
-      assistantContent: interpretation.reply,
+      assistantContent: finalInterpretation.reply,
     });
     logger.info(
       {
@@ -198,7 +209,7 @@ export async function POST(request: Request) {
     );
 
     return NextResponse.json({
-      interpretation,
+      interpretation: finalInterpretation,
       tripState: persistedTripState,
       messages,
     });
