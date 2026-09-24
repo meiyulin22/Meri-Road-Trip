@@ -50,6 +50,108 @@ test("uses the narrow system default for a TripDraft name with unknown provenanc
   });
 });
 
+test("initializes a default name from a known destination", () => {
+  const state = initializeTripState({
+    ...draft,
+    name: { state: "missing" },
+    destination: { state: "known", value: "东京" },
+  });
+
+  assert.deepEqual(state.name, {
+    state: "known",
+    value: "东京之旅",
+    source: "system",
+  });
+});
+
+test("keeps the name missing when the initial destination is not known", () => {
+  for (const destination of [
+    { state: "missing" },
+    { state: "approximate", value: "日本附近" },
+    { state: "ambiguous", value: "东京或大阪" },
+  ] as const) {
+    const state = initializeTripState({
+      ...draft,
+      name: { state: "missing" },
+      destination,
+    });
+    assert.deepEqual(state.name, { state: "missing" });
+  }
+});
+
+test("generates a default name when a later destination becomes known", () => {
+  const state = initializeTripState({
+    ...draft,
+    name: { state: "missing" },
+    destination: { state: "missing" },
+  });
+  const nextState = applyTripStatePatch(state, {
+    destination: { state: "known", value: "东京", source: "user" },
+  });
+
+  assert.deepEqual(nextState.name, {
+    state: "known",
+    value: "东京之旅",
+    source: "system",
+  });
+  assert.deepEqual(state.name, { state: "missing" });
+});
+
+test("does not generate from approximate or ambiguous destination patches", () => {
+  const state = initializeTripState({
+    ...draft,
+    name: { state: "missing" },
+    destination: { state: "missing" },
+  });
+
+  for (const destination of [
+    { state: "approximate", value: "日本附近", source: "user" },
+    { state: "ambiguous", value: "东京或大阪", source: "user" },
+    { state: "missing" },
+  ] as const) {
+    assert.deepEqual(
+      applyTripStatePatch(state, { destination }).name,
+      { state: "missing" },
+    );
+  }
+});
+
+test("an explicit name patch wins over default generation", () => {
+  const state = initializeTripState({
+    ...draft,
+    name: { state: "missing" },
+    destination: { state: "missing" },
+  });
+  const destination = { state: "known", value: "东京", source: "user" } as const;
+
+  assert.deepEqual(
+    applyTripStatePatch(state, {
+      name: { state: "known", value: "我的秋季旅行", source: "user" },
+      destination,
+    }).name,
+    { state: "known", value: "我的秋季旅行", source: "user" },
+  );
+  assert.deepEqual(
+    applyTripStatePatch(state, { name: { state: "missing" }, destination }).name,
+    { state: "missing" },
+  );
+});
+
+test("preserves every existing nonmissing name when destination changes", () => {
+  for (const source of ["user", "system"] as const) {
+    const name = { state: "known", value: "我的旅行", source } as const;
+    const state = initializeTripState({
+      ...draft,
+      name: { state: "missing" },
+      destination: { state: "missing" },
+    });
+    const nextState = applyTripStatePatch({ ...state, name }, {
+      destination: { state: "known", value: "东京", source: "user" },
+    });
+    assert.strictEqual(nextState.name, name);
+  }
+});
+
 test("applies a patch without changing or reconstructing unrelated fields", () => {
   const state = initializeTripState(draft);
   const patch: TripStatePatch = {

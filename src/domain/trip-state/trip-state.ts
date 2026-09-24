@@ -187,12 +187,14 @@ function initializeField<T extends string>(
 }
 
 export function initializeTripState(draft: TripDraft): TripState {
+  const destination = initializeField(draft.destination, "user");
+  const name = initializeField(draft.name, "system");
   return {
     // TripDraft currently cannot distinguish a user-supplied name from one
     // inferred by the model, so the narrow safe default is system-sourced.
-    name: initializeField(draft.name, "system"),
+    name: withDefaultName(name, destination),
     origin: initializeField(draft.origin, "user"),
-    destination: initializeField(draft.destination, "user"),
+    destination,
     startDate: initializeField(draft.startDate, "user"),
     endDate: initializeField(draft.endDate, "user"),
     duration: initializeField(draft.duration, "user"),
@@ -207,5 +209,28 @@ export function applyTripStatePatch(
   state: TripState,
   patch: TripStatePatch,
 ): TripState {
-  return { ...state, ...patch };
+  const nextState = { ...state, ...patch };
+  if (Object.hasOwn(patch, "name")) {
+    return nextState;
+  }
+
+  return {
+    ...nextState,
+    name: withDefaultName(nextState.name, nextState.destination),
+  };
+}
+
+function withDefaultName(
+  name: TripStateField,
+  destination: TripStateField,
+): TripStateField {
+  if (name.state !== "missing" || destination.state !== "known") {
+    return name;
+  }
+
+  return {
+    state: "known",
+    value: `${destination.value}之旅`,
+    source: "system",
+  };
 }

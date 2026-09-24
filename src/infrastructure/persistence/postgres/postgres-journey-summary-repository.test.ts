@@ -127,4 +127,11 @@ test("filters by Trip owner and keeps missing TripState fields missing", async (
   assert.equal(summary.startDate, null);
   assert.equal(summary.status, "planning");
   assert.equal(summary.updatedAt, row.tripUpdatedAt);
+
+  row.state = {
+    ...row.state,
+    destination: { state: "known", value: "东京", source: "user" },
+  };
+  const [legacySummary] = await repository.listByOwner(guestA);
+  assert.equal(legacySummary.name, "新的旅程想法");
 });

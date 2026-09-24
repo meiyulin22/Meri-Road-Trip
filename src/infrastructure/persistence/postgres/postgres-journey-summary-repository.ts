@@ -54,8 +54,5 @@ function titleFromState(state: TripState): string {
   if (state.name.state !== "missing") {
     return state.name.value;
   }
-  if (state.destination.state !== "missing") {
-    return `${state.destination.value}之旅`;
-  }
   return "新的旅程想法";
 }

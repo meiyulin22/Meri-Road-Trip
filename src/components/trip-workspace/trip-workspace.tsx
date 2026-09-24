@@ -738,10 +738,6 @@ function getWorkspaceTitle(tripState: TripState): string {
     return tripState.name.value;
   }
 
-  if (tripState.destination.state !== "missing") {
-    return `${tripState.destination.value}之旅`;
-  }
-
   return "新的旅程想法";
 }
 
