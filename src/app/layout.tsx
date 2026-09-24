@@ -1,5 +1,12 @@
 import type { Metadata, Viewport } from "next";
 import { Geist } from "next/font/google";
+import {
+  GeistPixelCircle,
+  GeistPixelGrid,
+  GeistPixelLine,
+  GeistPixelSquare,
+  GeistPixelTriangle,
+} from "geist/font/pixel";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -36,7 +43,10 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
-    <html lang="en" className={geistSans.variable}>
+    <html
+      lang="en"
+      className={`${geistSans.variable} ${GeistPixelSquare.variable} ${GeistPixelGrid.variable} ${GeistPixelCircle.variable} ${GeistPixelTriangle.variable} ${GeistPixelLine.variable}`}
+    >
       <body>{children}</body>
     </html>
   );

@@ -1,0 +1,65 @@
+.root {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.heading {
+  cursor: default;
+  user-select: none;
+}
+
+.heading:focus-visible {
+  outline: 2px solid currentColor;
+  outline-offset: 4px;
+}
+
+.square {
+  font-family: var(--font-geist-pixel-square), monospace;
+}
+
+.grid {
+  font-family: var(--font-geist-pixel-grid), monospace;
+}
+
+.circle {
+  font-family: var(--font-geist-pixel-circle), monospace;
+}
+
+.triangle {
+  font-family: var(--font-geist-pixel-triangle), monospace;
+}
+
+.line {
+  font-family: var(--font-geist-pixel-line), monospace;
+}
+
+.sans {
+  font-family: var(--font-geist-sans), sans-serif;
+}
+
+.mono {
+  font-family: monospace;
+}
+
+.label {
+  font-size: 0.75rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  transition: opacity 200ms ease;
+}
+
+.labelVisible {
+  opacity: 1;
+}
+
+.labelHidden {
+  opacity: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .label {
+    transition: none;
+  }
+}
