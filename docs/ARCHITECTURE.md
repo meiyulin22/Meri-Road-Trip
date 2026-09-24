@@ -152,6 +152,8 @@ TripState {
 
 TripState is stored once per Trip. List cards use JourneySummary, a read model derived from Trip and TripState rather than another source of truth.
 
+Destination is the core geographic anchor of a Journey. Other Journey fields are progressively collected when specific capabilities require them; origin, dates, duration, and transport preference are not prerequisites for destination resolution. A known TripState destination is a user-established value, not geographic verification.
+
 This distinction is important.
 
 Conversation history is not application state.

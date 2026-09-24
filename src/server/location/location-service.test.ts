@@ -60,7 +60,7 @@ for (const destination of [
 
     const result = await new LocationService(provider).resolve(state);
 
-    assert.equal(result.status, "candidates");
+    assert.equal(result.status, destination.state === "known" ? "resolved" : "unresolved");
     assert.deepEqual(queries, [destination.value]);
     assert.deepEqual(state, before);
   });
@@ -78,7 +78,7 @@ test("empty provider results are distinct from failure", async () => {
   };
 
   assert.deepEqual(await new LocationService(provider).resolve(state), {
-    status: "no_candidates",
+    status: "unresolved",
   });
 });
 
@@ -98,7 +98,7 @@ test("provider failures are reported without exposing provider details", async (
   });
 });
 
-test("a provisional destination expression can be searched without changing TripState", async () => {
+test("an expression can be resolved without changing TripState", async () => {
   const queries: string[] = [];
   const provider: LocationProvider = {
     async searchByKeyword(query) {
@@ -109,7 +109,7 @@ test("a provisional destination expression can be searched without changing Trip
   const before = structuredClone(baseState);
   const service = new LocationService(provider);
 
-  assert.deepEqual(await service.resolveExpression("阿尔山"), { status: "no_candidates" });
+  assert.deepEqual(await service.resolveExpression("阿尔山"), { status: "unresolved" });
   assert.deepEqual(await service.resolveExpression("  "), {
     status: "not_ready",
     reason: "destination_missing",

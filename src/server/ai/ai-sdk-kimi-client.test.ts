@@ -109,11 +109,11 @@ test.afterEach(() => {
   globalThis.fetch = originalFetch;
 });
 
-test("Workspace tool loop passes history, current user, multiple candidates, then structured reply", async () => {
+test("Workspace tool loop passes history, current user, destination resolution, then structured reply", async () => {
   const state: TripState = {
     name: { state: "known", value: "假期旅行", source: "user" },
     origin: { state: "missing" },
-    destination: { state: "missing" },
+    destination: { state: "known", value: "阿尔山", source: "user" },
     startDate: { state: "missing" },
     endDate: { state: "missing" },
     duration: { state: "missing" },
@@ -161,15 +161,15 @@ test("Workspace tool loop passes history, current user, multiple candidates, the
     }
     return createProviderResponse({
       content: JSON.stringify({
-        intent: "trip_state_update",
-        changes: [{ field: "destination", state: "known", value: "阿尔山" }],
-        reply: "阿尔山可能指城市或森林公园，你想去哪个？",
+        intent: "question",
+        changes: [],
+        reply: "地点查询匹配到阿尔山市。",
       }),
     });
   });
 
   const interpretation = await interpretWorkspaceConversation({
-    message: "阿尔山吧",
+    message: "我说的阿尔山是哪里？",
     tripState: state,
     requestId: "request_tool_loop",
     referenceDate: "2026-09-23",
@@ -196,12 +196,11 @@ test("Workspace tool loop passes history, current user, multiple candidates, the
   assert.deepEqual((bodies[0].messages as unknown[]).slice(-3), [
     { role: "user", content: "我十一想出去玩" },
     { role: "assistant", content: "想去哪一带？" },
-    { role: "user", content: "阿尔山吧" },
+    { role: "user", content: "我说的阿尔山是哪里？" },
   ]);
-  assert.ok(JSON.stringify(bodies[1].messages).includes("阿尔山国家森林公园"));
-  assert.deepEqual(interpretation.changes, [
-    { field: "destination", state: "known", value: "阿尔山" },
-  ]);
+  assert.ok(JSON.stringify(bodies[1].messages).includes("resolved"));
+  assert.ok(JSON.stringify(bodies[1].messages).includes("阿尔山市"));
+  assert.deepEqual(interpretation.changes, []);
   assert.deepEqual(state, before);
 });
 
@@ -265,7 +264,7 @@ test("Workspace can complete after a location provider failure without leaking p
   const state: TripState = {
     name: { state: "known", value: "假期旅行", source: "user" },
     origin: { state: "missing" },
-    destination: { state: "missing" },
+    destination: { state: "known", value: "阿尔山", source: "user" },
     startDate: { state: "missing" },
     endDate: { state: "missing" },
     duration: { state: "missing" },
@@ -303,15 +302,15 @@ test("Workspace can complete after a location provider failure without leaking p
     }
     return createProviderResponse({
       content: JSON.stringify({
-        intent: "trip_state_update",
-        changes: [{ field: "destination", state: "known", value: "阿尔山" }],
-        reply: "我记下阿尔山了，地点查询暂时不可用，稍后可以再确认具体位置。",
+        intent: "question",
+        changes: [],
+        reply: "地点查询暂时不可用，稍后可以再确认具体位置。",
       }),
     });
   });
 
   const interpretation = await interpretWorkspaceConversation({
-    message: "阿尔山吧",
+    message: "阿尔山在哪里？",
     tripState: state,
     requestId: "request_tool_failure",
     referenceDate: "2026-09-23",
@@ -321,7 +320,7 @@ test("Workspace can complete after a location provider failure without leaking p
   assert.equal(bodies.length, 2);
   assert.ok(JSON.stringify(bodies[1].messages).includes("provider_error"));
   assert.equal(JSON.stringify(bodies[1].messages).includes("test-secret-key"), false);
-  assert.equal(interpretation.intent, "trip_state_update");
+  assert.equal(interpretation.intent, "question");
   assert.equal(JSON.stringify(interpretation).includes("test-secret-key"), false);
 });
 

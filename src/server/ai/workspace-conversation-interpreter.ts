@@ -127,7 +127,6 @@ export async function interpretWorkspaceConversation(
       tools: {
         resolve_location: createResolveLocationTool({
           tripState: input.tripState,
-          currentUserMessage: input.message,
           requestId: input.requestId,
           locationService: locationService ?? new LocationService(new AmapLocationProvider()),
         }),

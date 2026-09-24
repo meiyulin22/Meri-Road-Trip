@@ -9,14 +9,14 @@ import { createResolveLocationTool } from "./resolve-location";
 const tripState: TripState = {
   name: { state: "known", value: "旅行", source: "user" },
   origin: { state: "missing" },
-  destination: { state: "missing" },
+  destination: { state: "known", value: "朝阳", source: "user" },
   startDate: { state: "missing" },
   endDate: { state: "missing" },
   duration: { state: "missing" },
   transportPreference: { state: "missing" },
 };
 
-test("newly mentioned destination uses LocationService and returns unconfirmed candidates", async () => {
+test("stored Journey destination returns ambiguous candidates without changing TripState", async () => {
   const queries: string[] = [];
   const provider: LocationProvider = {
     async searchByKeyword(query) {
@@ -24,8 +24,8 @@ test("newly mentioned destination uses LocationService and returns unconfirmed c
       return {
         status: "success",
         candidates: [
-          { providerId: "city", name: "阿尔山市", region: "内蒙古自治区", address: null, longitude: 119.94, latitude: 47.18, coordinateSystem: "GCJ-02" },
-          { providerId: "park", name: "阿尔山国家森林公园", region: "内蒙古自治区", address: null, longitude: 120.42, latitude: 47.28, coordinateSystem: "GCJ-02" },
+          { providerId: "city", name: "朝阳市", region: "辽宁省", address: null, longitude: 119.94, latitude: 47.18, coordinateSystem: "GCJ-02" },
+          { providerId: "district", name: "朝阳区", region: "北京市", address: null, longitude: 116.4, latitude: 39.9, coordinateSystem: "GCJ-02" },
         ],
       };
     },
@@ -33,31 +33,30 @@ test("newly mentioned destination uses LocationService and returns unconfirmed c
   const before = structuredClone(tripState);
   const resolver = createResolveLocationTool({
     tripState,
-    currentUserMessage: "我十一想去阿尔山玩几天",
     requestId: "test-location-tool",
     locationService: new LocationService(provider),
   });
 
-  assert.match(resolver.description ?? "", /current user task needs geographic identification or disambiguation/);
-  assert.match(resolver.description ?? "", /origin or destination in TripState alone is not a reason/);
+  assert.match(resolver.description ?? "", /current Journey destination stored in TripState/);
+  assert.match(resolver.description ?? "", /destination in TripState alone is not a reason/);
   assert.match(resolver.description ?? "", /casual conversation, questions about Meri/);
 
   const result = await resolver.execute?.(
-    { query: "阿尔山" },
+    { query: "朝阳" },
     { toolCallId: "call_1", messages: [] },
   );
 
-  assert.deepEqual(queries, ["阿尔山"]);
+  assert.deepEqual(queries, ["朝阳"]);
   assert.ok(result && "status" in result);
-  assert.equal(result.status, "candidates");
-  if (result.status === "candidates") {
-    assert.deepEqual(result.candidates.map((candidate) => candidate.name), ["阿尔山市", "阿尔山国家森林公园"]);
+  assert.equal(result.status, "ambiguous");
+  if (result.status === "ambiguous") {
+    assert.deepEqual(result.candidates.map((candidate) => candidate.name), ["朝阳市", "朝阳区"]);
     assert.equal(result.candidates.some((candidate) => "confirmed" in candidate), false);
   }
   assert.deepEqual(tripState, before);
 });
 
-test("a query absent from current message and TripState cannot invoke the provider", async () => {
+test("unrelated geographic mention cannot replace or resolve the Journey destination", async () => {
   let calls = 0;
   const provider: LocationProvider = {
     async searchByKeyword() {
@@ -67,14 +66,33 @@ test("a query absent from current message and TripState cannot invoke the provid
   };
   const resolver = createResolveLocationTool({
     tripState,
-    currentUserMessage: "我还没想好去哪",
     requestId: "test-location-tool-blocked",
     locationService: new LocationService(provider),
   });
 
   assert.deepEqual(
     await resolver.execute?.({ query: "阿尔山" }, { toolCallId: "call_1", messages: [] }),
-    { status: "not_ready" },
+    { status: "not_ready", reason: "destination_missing_or_mismatch" },
+  );
+  assert.equal(calls, 0);
+});
+
+test("missing TripState destination blocks provider access", async () => {
+  let calls = 0;
+  const provider: LocationProvider = {
+    async searchByKeyword() {
+      calls += 1;
+      return { status: "success", candidates: [] };
+    },
+  };
+  const resolver = createResolveLocationTool({
+    tripState: { ...tripState, destination: { state: "missing" } },
+    requestId: "test-location-tool-missing",
+    locationService: new LocationService(provider),
+  });
+  assert.deepEqual(
+    await resolver.execute?.({ query: "阿尔山" }, { toolCallId: "call_1", messages: [] }),
+    { status: "not_ready", reason: "destination_missing_or_mismatch" },
   );
   assert.equal(calls, 0);
 });
@@ -87,12 +105,11 @@ test("provider failure reaches the model as a safe status", async () => {
   };
   const resolver = createResolveLocationTool({
     tripState,
-    currentUserMessage: "阿尔山吧",
     requestId: "test-location-tool-failed",
     locationService: new LocationService(provider),
   });
 
-  const result = await resolver.execute?.({ query: "阿尔山" }, { toolCallId: "call_1", messages: [] });
+  const result = await resolver.execute?.({ query: "朝阳" }, { toolCallId: "call_1", messages: [] });
   assert.deepEqual(result, { status: "provider_error" });
   assert.equal(JSON.stringify(result).includes("AMAP_API_KEY"), false);
 });

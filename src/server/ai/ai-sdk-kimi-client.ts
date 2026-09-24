@@ -232,7 +232,7 @@ export class AiSdkKimiClient implements StructuredOutputModelClient {
       const toolDecision = request.tools
         ? await generateText({
             model,
-            system: `${request.systemPrompt}\n\nThis is a tool-selection step, not the final JSON reply. Call resolve_location only if the current user task needs geographic identification or disambiguation, including an explicit trip location update or a question that depends on a resolved place. An origin or destination in TripState alone is not a reason to call it. Do not call it for casual conversation, meta questions about Meri, or unrelated questions. Otherwise respond only NO_TOOL. Do not answer the user yet.`,
+            system: `${request.systemPrompt}\n\nThis is a tool-selection step, not the final JSON reply. Call resolve_location only for the current TripState destination when the current user task needs geographic identification or disambiguation. The query must exactly match TripState.destination.value. An origin or destination in TripState alone is not a reason to call it. Do not call it for casual conversation, meta questions about Meri, or unrelated questions. Otherwise respond only NO_TOOL. Do not answer the user yet.`,
             messages,
             tools: request.tools,
             stopWhen: stepCountIs(1),

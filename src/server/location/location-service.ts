@@ -1,4 +1,5 @@
 import type { LocationCandidate } from "@/domain/location/location";
+import { resolveDestinationCandidates, type DestinationResolution } from "@/domain/location/destination-resolution-policy";
 import { evaluatePlanningReadiness } from "@/domain/trip-state/planning-readiness";
 import type { TripState } from "@/domain/trip-state/trip-state";
 import { logger, logEvents } from "@/server/observability/logger";
@@ -22,8 +23,7 @@ export interface LocationProvider {
 
 export type LocationResolveResult =
   | { readonly status: "not_ready"; readonly reason: "destination_missing" }
-  | { readonly status: "candidates"; readonly candidates: readonly LocationCandidate[] }
-  | { readonly status: "no_candidates" }
+  | DestinationResolution
   | { readonly status: "provider_error" };
 
 export class LocationService {
@@ -43,8 +43,6 @@ export class LocationService {
     return this.resolveExpression(tripState.destination.value);
   }
 
-  // A newly mentioned destination can be searched before a TripState update is persisted.
-  // This never changes the authoritative state or confirms a candidate.
   async resolveExpression(query: string): Promise<LocationResolveResult> {
     if (query.trim() === "") {
       return { status: "not_ready", reason: "destination_missing" };
@@ -60,9 +58,7 @@ export class LocationService {
         return { status: "provider_error" };
       }
 
-      return search.candidates.length === 0
-        ? { status: "no_candidates" }
-        : { status: "candidates", candidates: search.candidates };
+      return resolveDestinationCandidates(query, search.candidates);
     } catch {
       // Provider exceptions can contain a URL with the API key; never log them.
       logger.warn(
