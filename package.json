@@ -14,6 +14,7 @@
     "@ai-sdk/openai-compatible": "2.0.76",
     "@ai-sdk/react": "3.0.290",
     "@neondatabase/serverless": "^1.1.0",
+    "@radix-ui/react-popover": "^1.1.23",
     "ai": "6.0.287",
     "drizzle-orm": "^0.45.2",
     "embla-carousel-react": "^8.6.0",

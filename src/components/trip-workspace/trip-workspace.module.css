@@ -145,6 +145,23 @@
 .stateField[data-certainty="missing"] dd { color: #a0a89d; }
 .stateField input, .stateField select { width: 100%; min-width: 0; border: 1px solid #91a890; border-radius: 6px; padding: 6px; background: #fffdf8; color: var(--ink); font: inherit; }
 .briefPersistenceError { margin: 8px 0; padding: 9px; border-radius: 8px; color: #995747; background: #fff0e7; font-size: 11px; }
+.destinationPopover { z-index: 20; width: min(342px, calc(100vw - 24px)); max-height: min(440px, calc(100dvh - 24px)); overflow: hidden; padding: 14px; border: 1px solid #d8cfbb; border-radius: 13px; background: #fffdf7; box-shadow: 0 10px 28px rgba(48, 58, 43, .13); color: var(--ink); outline: none; transform-origin: var(--radix-popover-content-transform-origin); }
+.destinationPopoverHeading { display: flex; align-items: center; gap: 8px; margin-bottom: 11px; color: #385d4b; font-size: 13px; font-weight: 650; }
+.destinationSearch { display: flex; align-items: center; gap: 8px; min-height: 40px; padding: 0 10px; border: 1px solid #d7d3c4; border-radius: 8px; background: #fcfaf4; color: #779084; }
+.destinationSearch:focus-within { border-color: #62866d; box-shadow: 0 0 0 2px rgba(96, 133, 105, .15); }
+.destinationSearch input { width: 100%; min-width: 0; border: 0; outline: 0; background: transparent; color: var(--ink); font: inherit; font-size: 14px; }
+.destinationSearch input::placeholder { color: #9b9e90; }
+.destinationMessage, .destinationError { margin: 11px 3px 2px; color: #78877c; font-size: 11px; line-height: 1.5; }
+.destinationError { color: #9b5848; }
+.destinationSuggestions { max-height: 270px; overflow-y: auto; margin-top: 8px; padding: 2px; overscroll-behavior: contain; }
+.destinationSuggestion { display: grid; gap: 2px; width: 100%; min-height: 52px; padding: 8px 10px; border: 0; border-radius: 8px; background: transparent; color: var(--ink); text-align: left; cursor: pointer; }
+.destinationSuggestion + .destinationSuggestion { border-top: 1px solid rgba(107, 99, 78, .07); }
+.destinationSuggestion:hover, .destinationSuggestion[data-active="true"] { background: #eef1e7; }
+.destinationSuggestion:focus-visible { outline: 2px solid #5f886d; outline-offset: -2px; }
+.destinationSuggestion:disabled { opacity: .6; cursor: wait; }
+.destinationSuggestion strong { font-size: 12px; font-weight: 650; }
+.destinationSuggestion span { color: #64756c; font-size: 11px; line-height: 1.4; overflow-wrap: anywhere; }
+.destinationSuggestion small { color: #94a095; font-size: 10px; line-height: 1.4; overflow-wrap: anywhere; }
 .generatePlan { display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%; min-height: 45px; margin-top: 16px; padding: 10px; border: 1px solid #8fa48e; border-radius: 11px; background: #dce5d7; color: #67826d; cursor: not-allowed; font-size: 13px; }
 .generatePlan small { margin-left: auto; padding-left: 6px; font-size: 9px; color: #7e927e; }
 .meriWorld { margin-top: 12px; }
