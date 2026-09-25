@@ -1,6 +1,6 @@
 "use client";
 
-import { ChevronDown, ChevronUp, Pencil } from "lucide-react";
+import { CalendarDays, CarFront, Check, ChevronDown, ChevronUp, CircleHelp, Map, MapPin, Pencil, Route } from "lucide-react";
 import { useRef, useState } from "react";
 
 import {
@@ -17,7 +17,7 @@ import {
   createDirectTripStatePatch,
   requestTripStateUpdate,
 } from "./trip-state-persistence-model";
-import { getWorkspaceTitle } from "./workspace-title";
+import { journeyDateLabel, journeyFieldLabel, transportLabels } from "./workspace-presentation";
 import styles from "./trip-workspace.module.css";
 
 const certaintyLabels = {
@@ -112,14 +112,13 @@ export function ExpeditionBriefPanel({
   return (
     <aside
       aria-labelledby="expedition-brief-title"
-      className={`${styles.glassPanel} ${styles.expeditionBrief}`}
+      className={styles.expeditionBrief}
       data-expanded={isExpanded ? "true" : "false"}
       data-region="expedition-brief"
     >
       <header className={styles.briefHeader}>
         <div className={styles.regionHeading}>
-          <p>EXPEDITION BRIEF</p>
-          <h2 id="expedition-brief-title">{getWorkspaceTitle(tripState)}</h2>
+          <h2 id="expedition-brief-title"><Map size={21} aria-hidden="true" />Journey overview</h2>
         </div>
         <button
           aria-expanded={isExpanded}
@@ -130,7 +129,7 @@ export function ExpeditionBriefPanel({
           }}
           type="button"
         >
-          <span>{isExpanded ? "收起" : "查看全部信息"}</span>
+          <span className={styles.srOnly}>{isExpanded ? "收起" : "查看全部信息"}</span>
           {isExpanded ? (
             <ChevronUp aria-hidden="true" size={14} />
           ) : (
@@ -139,10 +138,22 @@ export function ExpeditionBriefPanel({
         </button>
       </header>
 
+      <div className={styles.briefCover} role="img" aria-label="像素山湖插画，旅程示意封面">
+        <span>旅程印象 · 示意</span>
+      </div>
+      <ul className={styles.briefSummary} aria-label="Journey summary">
+        <li><MapPin size={17} aria-hidden="true" /><span>{journeyFieldLabel(tripState.destination, "目的地待定")}</span></li>
+        <li><CalendarDays size={17} aria-hidden="true" /><span>{journeyDateLabel(tripState)}</span></li>
+        <li><CarFront size={17} aria-hidden="true" /><span>{tripState.transportPreference.state === "known" ? transportLabels[tripState.transportPreference.value] : journeyFieldLabel(tripState.transportPreference, "交通方式待定")}</span></li>
+      </ul>
+
+      <div className={styles.briefProgress}>
+        <h3>Expedition brief</h3>
+        <span>{Object.values(tripState).filter((field) => field.state === "known").length}<small> / 7 已理解</small></span>
+      </div>
       <div className={styles.briefGuidance}>
-        <p className={styles.attentionSummary}>旅程还在构思中</p>
         <p className={styles.editingHint}>
-          这是 Meri 目前理解的旅程，点击任意信息即可修改
+          Meri 目前理解的旅程。点一下，就能补充或修改。
         </p>
       </div>
 
@@ -168,6 +179,11 @@ export function ExpeditionBriefPanel({
           />
         ))}
       </dl>
+      <button className={styles.generatePlan} type="button" disabled title="规划功能尚未开放">
+        <Route size={18} aria-hidden="true" />
+        <span>Generate plan</span>
+        <small>即将开放</small>
+      </button>
     </aside>
   );
 }
@@ -219,8 +235,11 @@ function ExpeditionBriefField({
   return (
     <div className={styles.stateField} data-certainty={field.state}>
       <dt>
-        <span>{label}</span>
-        <span>{certaintyLabels[field.state]}</span>
+        <span className={styles.fieldLabel}>
+          {field.state === "known" ? <Check size={14} aria-hidden="true" /> : <CircleHelp size={16} aria-hidden="true" />}
+          {label}
+        </span>
+        <span className={styles.fieldCertainty}>{certaintyLabels[field.state]}</span>
       </dt>
       <dd>
         {isEditing ? (

@@ -1,9 +1,9 @@
 "use client";
 
-import { Backpack, CloudSun, Compass, Home, Map, MountainSnow, Plus, type LucideIcon } from "lucide-react";
+import { Backpack, CloudSun, Compass, Home, Map, Menu, MountainSnow, Plus, X, type LucideIcon } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
-import { useState, useSyncExternalStore } from "react";
+import { useRef, useState, useSyncExternalStore } from "react";
 
 import type { TripMessage } from "@/domain/trip-message/trip-message";
 import type { TripState } from "@/domain/trip-state/trip-state";
@@ -58,20 +58,9 @@ export function TripWorkspace({
       className={styles.workspace}
       data-layout-debug={layoutDebugEnabled ? "true" : "false"}
     >
-      <div className={styles.background} aria-hidden="true">
-        <Image
-          alt=""
-          className={styles.backgroundImage}
-          height={941}
-          priority
-          src="/backgrounds/trip-workspace-desktop.png"
-          unoptimized
-          width={1672}
-        />
-      </div>
-      <WorkspaceSidebar />
-
+      <div className={styles.background} aria-hidden="true" />
       <div className={styles.workspaceApplication} data-region="workspace-content">
+        <WorkspaceSidebar />
         <WorkspaceHeader tripState={tripState} />
         <div className={styles.workspaceStage} data-region="workspace-stage">
           <ConversationPanel
@@ -80,71 +69,86 @@ export function TripWorkspace({
             tripId={tripId}
             tripState={tripState}
           />
-          <ExpeditionBriefPanel
-            onTripStateChange={setTripState}
-            tripId={tripId}
-            tripState={tripState}
-          />
-          <MeriWorld />
-          <GeneratePlanAction />
-          <PlanningPanel />
+          <div className={styles.briefColumn}>
+            <ExpeditionBriefPanel
+              onTripStateChange={setTripState}
+              tripId={tripId}
+              tripState={tripState}
+            />
+            <MeriWorld />
+          </div>
         </div>
       </div>
     </main>
   );
 }
 
-// These slots have no UI or behavior until a later planning step defines them.
-function GeneratePlanAction() { return null; }
-function PlanningPanel() { return null; }
-
 function WorkspaceSidebar() {
+  const dialogRef = useRef<HTMLDialogElement>(null);
+
   return (
-    <aside className={styles.sidebar} aria-label="Meri sidebar" data-region="sidebar">
-      <Link
-        aria-label="Meri home"
-        className={styles.sidebarBrand}
-        href="/"
+    <>
+      <button
+        aria-haspopup="dialog"
+        aria-label="打开 Meri 导航"
+        className={styles.sidebarTrigger}
+        onClick={() => dialogRef.current?.showModal()}
+        type="button"
       >
-        <Image
-          alt=""
-          height={500}
-          priority
-          src="/brand/meri-lockup.svg"
-          width={640}
-        />
-      </Link>
-      <p className={styles.sidebarTagline}>Explore Further<br />With Meri</p>
-
-      <Link
-        className={styles.newJourneyLink}
-        href="/"
+        <Menu aria-hidden="true" size={19} />
+      </button>
+      <dialog
+        aria-label="Meri 导航"
+        className={styles.sidebar}
+        data-region="sidebar"
+        ref={dialogRef}
       >
-        <Plus aria-hidden="true" size={17} />
-        新旅程
-      </Link>
+        <button
+          aria-label="关闭 Meri 导航"
+          className={styles.sidebarClose}
+          onClick={() => dialogRef.current?.close()}
+          type="button"
+        >
+          <X aria-hidden="true" size={18} />
+        </button>
+        <Link aria-label="Meri home" className={styles.sidebarBrand} href="/">
+          <Image
+            alt=""
+            height={500}
+            priority
+            src="/brand/meri-lockup.svg"
+            width={640}
+          />
+        </Link>
+        <p className={styles.sidebarTagline}>Explore Further<br />With Meri</p>
 
-      <nav className={styles.sidebarNavigation} aria-label="Primary navigation">
-        {sidebarNavigation.map(({ href, icon: Icon, label }) =>
-          href ? (
-            <Link href={href} key={label}>
-              <Icon aria-hidden="true" size={18} />
-              <span>{label}</span>
-            </Link>
-          ) : (
-            <span aria-disabled="true" key={label}>
-              <Icon aria-hidden="true" size={18} />
-              <span>{label}</span>
-              <small>Soon</small>
-            </span>
-          ),
-        )}
-      </nav>
+        <Link className={styles.newJourneyLink} href="/">
+          <Plus aria-hidden="true" size={17} />
+          新旅程
+        </Link>
 
-      <p className={styles.sidebarMotto}>
-        <MountainSnow aria-hidden="true" size={23} strokeWidth={1.5} />
-        <span>Small steps.<br />A wider world.</span>
-      </p>
-    </aside>
+        <nav className={styles.sidebarNavigation} aria-label="Primary navigation">
+          {sidebarNavigation.map(({ href, icon: Icon, label }) =>
+            href ? (
+              <Link href={href} key={label}>
+                <Icon aria-hidden="true" size={18} />
+                <span>{label}</span>
+              </Link>
+            ) : (
+              <span aria-disabled="true" key={label}>
+                <Icon aria-hidden="true" size={18} />
+                <span>{label}</span>
+                <small>Soon</small>
+              </span>
+            ),
+          )}
+        </nav>
+
+        <p className={styles.sidebarMotto}>
+          <MountainSnow aria-hidden="true" size={23} strokeWidth={1.5} />
+          <span>Small steps.<br />A wider world.</span>
+        </p>
+      </dialog>
+    </>
   );
 }

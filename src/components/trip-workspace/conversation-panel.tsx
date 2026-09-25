@@ -1,6 +1,6 @@
 "use client";
 
-import { ChevronDown, ChevronUp, LoaderCircle, Plus, Send } from "lucide-react";
+import { ArrowUp, ChevronDown, ChevronUp, ImageIcon, LoaderCircle } from "lucide-react";
 import Image from "next/image";
 import { useChat } from "@ai-sdk/react";
 import type { UIMessage } from "ai";
@@ -32,7 +32,7 @@ export function ConversationPanel({
   readonly tripId: string;
   readonly tripState: TripState;
 }) {
-  const [isExpanded, setIsExpanded] = useState(false);
+  const [isExpanded, setIsExpanded] = useState(true);
   const [message, setMessage] = useState("");
   const [revealing, setRevealing] = useState<{
     readonly id: string;
@@ -103,14 +103,14 @@ export function ConversationPanel({
   return (
     <section
       aria-labelledby="conversation-title"
-      className={`${styles.glassPanel} ${styles.conversationDock}`}
+      className={styles.conversationDock}
       data-expanded={isExpanded ? "true" : "false"}
       data-region="conversation-dock"
     >
       <header className={styles.dockHeader}>
         <div className={styles.regionHeading}>
-          <p>CONVERSATION</p>
-          <h2 id="conversation-title">继续和 Meri 聊聊</h2>
+          <p>THE JOURNEY STARTS WITH A CONVERSATION</p>
+          <h2 id="conversation-title">和 Meri 一起，把想法变成旅程</h2>
         </div>
         <button
           aria-expanded={isExpanded}
@@ -133,7 +133,7 @@ export function ConversationPanel({
             <Image
               alt=""
               height={84}
-              src="/companion/idle/south.png"
+              src="/companion/home-v2-companion.png"
               width={84}
             />
             <div>
@@ -150,7 +150,7 @@ export function ConversationPanel({
                 <Image
                   alt=""
                   height={84}
-                  src="/companion/idle/south.png"
+                  src="/companion/home-v2-companion.png"
                   width={84}
                 />
                 <div>
@@ -205,7 +205,7 @@ export function ConversationPanel({
           <Image
             alt=""
             height={84}
-            src="/companion/idle/south.png"
+            src="/companion/home-v2-companion.png"
             width={84}
           />
           <div>
@@ -222,7 +222,7 @@ export function ConversationPanel({
         onSubmit={handleSubmit}
       >
         <button aria-label="添加内容（暂不可用）" disabled type="button">
-          <Plus aria-hidden="true" size={18} />
+          <ImageIcon aria-hidden="true" size={21} />
         </button>
         <label className={styles.srOnly} htmlFor="workspace-message">
           告诉 Meri 你还在想什么
@@ -232,7 +232,7 @@ export function ConversationPanel({
           id="workspace-message"
           onChange={(event) => setMessage(event.target.value)}
           onKeyDown={handleMessageKeyDown}
-          placeholder="告诉 Meri 你还在想什么..."
+          placeholder="告诉 Meri 你的想法…"
           type="text"
           value={message}
         />
@@ -244,7 +244,7 @@ export function ConversationPanel({
           {isSubmitting ? (
             <LoaderCircle aria-hidden="true" className={styles.loadingIcon} size={18} />
           ) : (
-            <Send aria-hidden="true" size={18} />
+            <ArrowUp aria-hidden="true" size={21} />
           )}
         </button>
       </form>
