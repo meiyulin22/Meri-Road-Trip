@@ -46,6 +46,8 @@ export function replyAfterDestinationResolution(
     : "";
 
   switch (resolution.status) {
+    case "selected":
+      return interpretation.reply;
     case "resolved":
       return `${saved}${otherChanges}匹配到地点：${candidateLabel(resolution.candidate)}。`;
     case "ambiguous":

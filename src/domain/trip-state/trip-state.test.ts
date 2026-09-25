@@ -7,6 +7,7 @@ import {
   applyTripStatePatch,
   initializeTripState,
   InvalidTripStateError,
+  validateTripState,
   validateTripStatePatch,
   type TripStatePatch,
 } from "./trip-state";
@@ -201,4 +202,68 @@ test("rejects empty and unknown TripStatePatch fields", () => {
     () => validateTripStatePatch({ weather: { state: "missing" } }),
     InvalidTripStateError,
   );
+});
+
+test("validates old TripState JSON and a known selected destination without changing its display value", () => {
+  const oldState = initializeTripState({ ...draft, destination: { state: "known", value: "香格里拉" } });
+  assert.deepEqual(validateTripState(JSON.parse(JSON.stringify(oldState))), oldState);
+
+  const destination = {
+    state: "known",
+    value: "香格里拉",
+    source: "user",
+    selection: {
+      provider: "amap",
+      providerId: "tip-1",
+      region: "云南省迪庆藏族自治州德钦县",
+      address: "环湖公路18号",
+      coordinates: { longitude: 99.1, latitude: 28.2, coordinateSystem: "GCJ-02" },
+    },
+  } as const;
+  assert.deepEqual(validateTripStatePatch({ destination }).destination, destination);
+  const selectedState = applyTripStatePatch(oldState, { destination });
+  assert.deepEqual(validateTripState(JSON.parse(JSON.stringify(selectedState))), selectedState);
+  assert.equal(selectedState.destination.state === "known" && selectedState.destination.value, "香格里拉");
+});
+
+test("selected destination accepts absent optional provider ID and coordinates", () => {
+  const destination = {
+    state: "known",
+    value: "香格里拉",
+    source: "user",
+    selection: { provider: "amap", region: "四川省凉山彝族自治州" },
+  } as const;
+  assert.deepEqual(validateTripStatePatch({ destination }).destination, destination);
+});
+
+test("destination selection rejects invalid shapes and non-known states", () => {
+  const selected = {
+    state: "known",
+    value: "香格里拉",
+    source: "user",
+    selection: { provider: "amap", region: "云南省" },
+  };
+  for (const destination of [
+    { ...selected, state: "approximate" },
+    { ...selected, state: "ambiguous" },
+    { ...selected, source: "system" },
+    { ...selected, selection: { provider: "amap", adcode: "123" } },
+    { ...selected, selection: { provider: "unknown" } },
+    { ...selected, selection: { provider: "amap", providerId: "" } },
+    { ...selected, selection: { provider: "amap", coordinates: { longitude: 200, latitude: 28, coordinateSystem: "GCJ-02" } } },
+    { ...selected, selection: { provider: "amap", coordinates: { longitude: 99, latitude: 28, coordinateSystem: "WGS84" } } },
+  ]) {
+    assert.throws(() => validateTripStatePatch({ destination }), InvalidTripStateError);
+  }
+});
+
+test("a conversational destination replacement removes stale selection", () => {
+  const state = initializeTripState({ ...draft, destination: { state: "known", value: "香格里拉" } });
+  const selected = applyTripStatePatch(state, {
+    destination: { state: "known", value: "香格里拉", source: "user", selection: { provider: "amap", region: "云南省" } },
+  });
+  const replaced = applyTripStatePatch(selected, {
+    destination: { state: "known", value: "富良野", source: "user" },
+  });
+  assert.deepEqual(replaced.destination, { state: "known", value: "富良野", source: "user" });
 });

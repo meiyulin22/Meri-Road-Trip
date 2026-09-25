@@ -1,7 +1,7 @@
 import type { LocationCandidate } from "@/domain/location/location";
 import { resolveDestinationCandidates, type DestinationResolution } from "@/domain/location/destination-resolution-policy";
 import { evaluatePlanningReadiness } from "@/domain/trip-state/planning-readiness";
-import type { TripState } from "@/domain/trip-state/trip-state";
+import type { DestinationSelection, TripState } from "@/domain/trip-state/trip-state";
 import { logger, logEvents } from "@/server/observability/logger";
 
 export type LocationSearchResult =
@@ -23,6 +23,7 @@ export interface LocationProvider {
 
 export type LocationResolveResult =
   | { readonly status: "not_ready"; readonly reason: "destination_missing" }
+  | { readonly status: "selected"; readonly name: string; readonly selection: DestinationSelection }
   | DestinationResolution
   | { readonly status: "provider_error" };
 
@@ -38,6 +39,14 @@ export class LocationService {
     // Readiness permits every non-missing destination state, each with text.
     if (tripState.destination.state === "missing") {
       return { status: "not_ready", reason: "destination_missing" };
+    }
+
+    if (tripState.destination.state === "known" && tripState.destination.selection) {
+      return {
+        status: "selected",
+        name: tripState.destination.value,
+        selection: tripState.destination.selection,
+      };
     }
 
     return this.resolveExpression(tripState.destination.value);

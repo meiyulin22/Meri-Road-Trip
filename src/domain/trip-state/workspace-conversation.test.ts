@@ -70,6 +70,25 @@ test("clear destination update changes only destination and assigns user source"
   assert.strictEqual(nextState?.startDate, state.startDate);
 });
 
+test("a conversational destination update drops the previous explicit selection", () => {
+  const state = applyTripStatePatch(initializeTripState(draft), {
+    destination: {
+      state: "known", value: "二世谷", source: "user",
+      selection: { provider: "amap", region: "北海道" },
+    },
+  });
+  const interpretation = validateWorkspaceConversationInterpretation({
+    intent: "trip_state_update",
+    changes: [{ field: "destination", state: "known", value: "富良野" }],
+    reply: "好的。",
+  });
+  const patch = createTripStatePatchFromInterpretation(interpretation);
+  assert.ok(patch);
+  assert.deepEqual(applyTripStatePatch(state, patch).destination, {
+    state: "known", value: "富良野", source: "user",
+  });
+});
+
 test("clear origin update changes origin", () => {
   const { nextState } = applyInterpretation({
     intent: "trip_state_update",

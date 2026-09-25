@@ -117,3 +117,26 @@ test("an expression can be resolved without changing TripState", async () => {
   assert.deepEqual(queries, ["阿尔山"]);
   assert.deepEqual(baseState, before);
 });
+
+test("an explicit destination selection is returned without re-searching or re-ambiguating", async () => {
+  let searches = 0;
+  const provider: LocationProvider = {
+    async searchByKeyword() {
+      searches += 1;
+      return { status: "success", candidates: [] };
+    },
+  };
+  const selection = {
+    provider: "amap",
+    region: "云南省迪庆藏族自治州德钦县",
+    coordinates: { longitude: 99.1, latitude: 28.2, coordinateSystem: "GCJ-02" },
+  } as const;
+  const state: TripState = {
+    ...baseState,
+    destination: { state: "known", value: "香格里拉", source: "user", selection },
+  };
+  assert.deepEqual(await new LocationService(provider).resolve(state), {
+    status: "selected", name: "香格里拉", selection,
+  });
+  assert.equal(searches, 0);
+});

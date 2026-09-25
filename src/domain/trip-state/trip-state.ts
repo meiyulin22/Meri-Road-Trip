@@ -4,6 +4,7 @@ import {
   type TripDraftField,
   type TransportPreference,
 } from "@/domain/trip-draft/trip-draft";
+import type { LocationSuggestion } from "@/domain/location/location-suggestion";
 
 export type TripFieldSource = "user" | "system";
 
@@ -25,10 +26,28 @@ export type TripStateField<T extends string = string> =
     }
   | { readonly state: "missing" };
 
+export interface DestinationSelection {
+  readonly provider: LocationSuggestion["provider"];
+  readonly providerId?: string | null;
+  readonly region?: string | null;
+  readonly address?: string | null;
+  readonly coordinates?: LocationSuggestion["coordinates"];
+}
+
+export type DestinationField =
+  | {
+      readonly state: "known";
+      readonly value: string;
+      readonly source: TripFieldSource;
+      readonly selection?: DestinationSelection;
+    }
+  | { readonly state: "approximate" | "ambiguous"; readonly value: string; readonly source: TripFieldSource }
+  | { readonly state: "missing" };
+
 export interface TripState {
   readonly name: TripStateField;
   readonly origin: TripStateField;
-  readonly destination: TripStateField;
+  readonly destination: DestinationField;
   readonly startDate: TripStateField;
   readonly endDate: TripStateField;
   readonly duration: TripStateField;
@@ -105,6 +124,58 @@ function validateStateField<T extends string = string>(
   return value as TripStateField<T>;
 }
 
+function validateDestinationSelection(value: unknown): DestinationSelection {
+  if (!isRecord(value) || value.provider !== "amap") {
+    throw new InvalidTripStateError("destination.selection.provider is invalid.");
+  }
+
+  const allowedKeys = ["provider", "providerId", "region", "address", "coordinates"];
+  if (Object.keys(value).some((key) => !allowedKeys.includes(key))) {
+    throw new InvalidTripStateError("destination.selection has invalid fields.");
+  }
+
+  for (const key of ["providerId", "region", "address"] as const) {
+    if (Object.hasOwn(value, key) && value[key] !== null &&
+      (typeof value[key] !== "string" || value[key].trim() === "")) {
+      throw new InvalidTripStateError(`destination.selection.${key} is invalid.`);
+    }
+  }
+
+  if (Object.hasOwn(value, "coordinates") && value.coordinates !== null) {
+    const coordinates = value.coordinates;
+    if (!isRecord(coordinates) ||
+      !hasExactKeys(coordinates, ["longitude", "latitude", "coordinateSystem"]) ||
+      typeof coordinates.longitude !== "number" ||
+      !Number.isFinite(coordinates.longitude) ||
+      coordinates.longitude < -180 || coordinates.longitude > 180 ||
+      typeof coordinates.latitude !== "number" ||
+      !Number.isFinite(coordinates.latitude) ||
+      coordinates.latitude < -90 || coordinates.latitude > 90 ||
+      coordinates.coordinateSystem !== "GCJ-02") {
+      throw new InvalidTripStateError("destination.selection.coordinates are invalid.");
+    }
+  }
+
+  return value as unknown as DestinationSelection;
+}
+
+function validateDestinationField(value: unknown): DestinationField {
+  if (!isRecord(value) || !Object.hasOwn(value, "selection")) {
+    return validateStateField(value, "destination");
+  }
+
+  if (value.state !== "known" || value.source !== "user" ||
+    !hasExactKeys(value, ["state", "value", "source", "selection"])) {
+    throw new InvalidTripStateError("destination selection requires a known user destination.");
+  }
+
+  const base = validateStateField({ state: value.state, value: value.value, source: value.source }, "destination");
+  if (base.state !== "known") {
+    throw new InvalidTripStateError("destination selection requires a known destination.");
+  }
+  return { ...base, selection: validateDestinationSelection(value.selection) };
+}
+
 export function validateTripState(value: unknown): TripState {
   const fieldNames: TripStateFieldName[] = [
     "name",
@@ -123,7 +194,7 @@ export function validateTripState(value: unknown): TripState {
   return {
     name: validateStateField(value.name, "name"),
     origin: validateStateField(value.origin, "origin"),
-    destination: validateStateField(value.destination, "destination"),
+    destination: validateDestinationField(value.destination),
     startDate: validateStateField(value.startDate, "startDate"),
     endDate: validateStateField(value.endDate, "endDate"),
     duration: validateStateField(value.duration, "duration"),
@@ -161,6 +232,10 @@ export function validateTripStatePatch(value: unknown): TripStatePatch {
 
   const patch: { -readonly [K in keyof TripState]?: TripState[K] } = {};
   for (const key of keys as TripStateFieldName[]) {
+    if (key === "destination") {
+      patch.destination = validateDestinationField(value.destination);
+      continue;
+    }
     const field = validateStateField(
       value[key],
       key,

@@ -56,6 +56,30 @@ test("stored Journey destination returns ambiguous candidates without changing T
   assert.deepEqual(tripState, before);
 });
 
+test("an explicitly selected Journey destination remains selected through the tool", async () => {
+  let calls = 0;
+  const provider: LocationProvider = {
+    async searchByKeyword() {
+      calls += 1;
+      return { status: "success", candidates: [] };
+    },
+  };
+  const selection = { provider: "amap", region: "云南省迪庆藏族自治州德钦县" } as const;
+  const resolver = createResolveLocationTool({
+    tripState: {
+      ...tripState,
+      destination: { state: "known", value: "香格里拉", source: "user", selection },
+    },
+    requestId: "test-location-tool-selected",
+    locationService: new LocationService(provider),
+  });
+  assert.deepEqual(
+    await resolver.execute?.({ query: "香格里拉" }, { toolCallId: "call_1", messages: [] }),
+    { status: "selected", name: "香格里拉", selection },
+  );
+  assert.equal(calls, 0);
+});
+
 test("unrelated geographic mention cannot replace or resolve the Journey destination", async () => {
   let calls = 0;
   const provider: LocationProvider = {
