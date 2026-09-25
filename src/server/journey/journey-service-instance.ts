@@ -1,6 +1,7 @@
 import { PostgresTripStateRepository } from "@/infrastructure/persistence/postgres/postgres-trip-state-repository";
 import { db } from "@/server/database/db";
 import { tripRepository, tripService } from "@/server/trip/trip-service-instance";
+import { tripMessageService } from "@/server/trip-message/trip-message-service-instance";
 
 import { JourneyService } from "./journey-service";
 
@@ -10,4 +11,6 @@ export const journeyService = new JourneyService({
     new PostgresTripStateRepository(db, tripId),
   deleteTripById: (tripId, ownerGuestId) =>
     tripRepository.deleteById(tripId, ownerGuestId),
+  persistInitialUserMessage: (input) =>
+    tripMessageService.persistInitialUserMessage(input),
 });

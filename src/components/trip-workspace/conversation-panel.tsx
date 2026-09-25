@@ -55,6 +55,7 @@ export function ConversationPanel({
   });
   const isSubmitting = status === "submitted" || status === "streaming";
   const hasError = status === "error";
+  const latestMessage = messages.at(-1);
 
   useEffect(() => {
     const history = messageHistoryRef.current;
@@ -129,21 +130,25 @@ export function ConversationPanel({
 
       {isExpanded ? (
         <div className={styles.messageHistory} ref={messageHistoryRef}>
-          <article className={styles.meriMessage}>
-            <Image
-              alt=""
-              height={84}
-              src="/companion/home-v2-companion.png"
-              width={84}
-            />
-            <div>
-              <span>Meri</span>
-              <p>{getConversationOpening(tripState)}</p>
-            </div>
-          </article>
-          <p className={styles.conversationHint}>
-            旅程不需要一次想完整，我们可以边聊边整理。
-          </p>
+          {messages.length === 0 ? (
+            <>
+              <article className={styles.meriMessage}>
+                <Image
+                  alt=""
+                  height={84}
+                  src="/companion/home-v2-companion.png"
+                  width={84}
+                />
+                <div>
+                  <span>Meri</span>
+                  <p>{getConversationOpening(tripState)}</p>
+                </div>
+              </article>
+              <p className={styles.conversationHint}>
+                旅程不需要一次想完整，我们可以边聊边整理。
+              </p>
+            </>
+          ) : null}
           {messages.map((conversationMessage, index) =>
             conversationMessage.role === "assistant" ? (
               <article className={styles.meriMessage} key={conversationMessage.id}>
@@ -200,6 +205,11 @@ export function ConversationPanel({
             </div>
           ) : null}
         </div>
+      ) : latestMessage?.role === "user" ? (
+        <article className={styles.userMessage}>
+          <span>你</span>
+          <p>{messageText(latestMessage)}</p>
+        </article>
       ) : (
         <article className={styles.meriMessage}>
           <Image
@@ -210,7 +220,7 @@ export function ConversationPanel({
           />
           <div>
             <span>Meri</span>
-            <p>{getConversationOpening(tripState)}</p>
+            <p>{latestMessage ? messageText(latestMessage) : getConversationOpening(tripState)}</p>
           </div>
         </article>
       )}

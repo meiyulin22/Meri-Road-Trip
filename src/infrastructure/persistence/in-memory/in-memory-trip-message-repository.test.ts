@@ -55,6 +55,19 @@ test("persists complete turns in chronological order", async () => {
   ]);
 });
 
+test("lists a standalone initial user message", async () => {
+  const repository = new InMemoryTripMessageRepository();
+  const first = message(
+    "00000000-0000-4000-8000-000000000005",
+    "user",
+    "想去富良野滑雪",
+    "2026-09-21T08:00:00.000Z",
+  );
+  await repository.createMessage(first);
+
+  assert.deepEqual(await repository.listByTripId(tripId), [first]);
+});
+
 test("does not return messages from another Trip", async () => {
   const repository = new InMemoryTripMessageRepository();
   const user = message(

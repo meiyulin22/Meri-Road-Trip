@@ -4,6 +4,7 @@ import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 
 import { InvalidTripDraftError } from "@/domain/trip-draft/trip-draft";
+import { InvalidTripMessageError } from "@/domain/trip-message/trip-message";
 import {
   getOrCreateGuestIdentity,
   guestIdCookieName,
@@ -27,12 +28,19 @@ export async function POST(request: Request) {
     ) {
       throw new InvalidTripDraftError("Request body must contain a draft.");
     }
+    const initialUserMessage = "initialUserMessage" in body
+      ? body.initialUserMessage
+      : undefined;
+    if (initialUserMessage !== undefined && typeof initialUserMessage !== "string") {
+      throw new InvalidTripMessageError("initialUserMessage must be text.");
+    }
 
     const cookieStore = await cookies();
     const guestIdentity = getOrCreateGuestIdentity(cookieStore);
     const journey = await journeyService.createJourney(
       body.draft,
       guestIdentity.guestId,
+      initialUserMessage,
     );
     logger.info(
       {
@@ -55,7 +63,8 @@ export async function POST(request: Request) {
     return response;
   } catch (error) {
     const isInvalidInput =
-      error instanceof SyntaxError || error instanceof InvalidTripDraftError;
+      error instanceof SyntaxError || error instanceof InvalidTripDraftError ||
+      error instanceof InvalidTripMessageError;
     const status = isInvalidInput ? 400 : 500;
 
     logger.error(

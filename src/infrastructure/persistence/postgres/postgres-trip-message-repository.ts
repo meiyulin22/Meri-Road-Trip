@@ -10,7 +10,7 @@ import { tripMessages } from "@/server/database/schema/trip-messages";
 type TripMessageDatabase = typeof import("@/server/database/db").db;
 type TripMessageRow = typeof tripMessages.$inferSelect;
 
-type PostgresTripMessageOperation = "createTurn" | "listByTripId";
+type PostgresTripMessageOperation = "createMessage" | "createTurn" | "listByTripId";
 
 export class PostgresTripMessageRepositoryError extends Error {
   readonly operation: PostgresTripMessageOperation;
@@ -32,6 +32,18 @@ export class PostgresTripMessageRepository
   implements TripMessageRepository
 {
   constructor(private readonly database: TripMessageDatabase) {}
+
+  async createMessage(message: TripMessage): Promise<void> {
+    try {
+      await this.database.insert(tripMessages).values(toTripMessageInsert(message));
+    } catch (error) {
+      throw new PostgresTripMessageRepositoryError(
+        "createMessage",
+        message.tripId,
+        error,
+      );
+    }
+  }
 
   async createTurn(
     userMessage: TripMessage,

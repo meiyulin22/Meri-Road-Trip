@@ -114,6 +114,16 @@ test("persists both sides of a completed turn in one insert", async () => {
   assert.deepEqual(inspection.insertedRows, [userMessage, assistantMessage]);
 });
 
+test("persists an initial user message in the existing messages table", async () => {
+  const { database, inspection } = createDatabaseDouble();
+  const repository = new PostgresTripMessageRepository(database);
+
+  await repository.createMessage(userMessage);
+
+  assert.equal(inspection.insertedTable, tripMessages);
+  assert.deepEqual(inspection.insertedRows, userMessage);
+});
+
 test("restores messages in chronological database order", async () => {
   const rows: TripMessageRow[] = [
     { ...userMessage, createdAt: "2026-09-22 08:00:00+00" },
@@ -144,4 +154,17 @@ test("preserves persistence failure causes", async () => {
       return true;
     },
   );
+});
+
+test("preserves the initial message insert failure cause", async () => {
+  const databaseError = new Error("message insert failed");
+  const { database } = createDatabaseDouble({ createError: databaseError });
+  const repository = new PostgresTripMessageRepository(database);
+
+  await assert.rejects(repository.createMessage(userMessage), (error: unknown) => {
+    assert.ok(error instanceof PostgresTripMessageRepositoryError);
+    assert.equal(error.operation, "createMessage");
+    assert.equal(error.cause, databaseError);
+    return true;
+  });
 });

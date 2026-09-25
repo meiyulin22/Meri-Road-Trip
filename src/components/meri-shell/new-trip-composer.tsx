@@ -36,7 +36,7 @@ export function NewTripComposer() {
 
     try {
       const draft = await requestTripDraft(state.message);
-      await createJourneyAndNavigate(draft, (path) => {
+      await createJourneyAndNavigate(draft, state.message, (path) => {
         dispatch({ type: "submission.succeeded", draft });
         router.push(path);
       });

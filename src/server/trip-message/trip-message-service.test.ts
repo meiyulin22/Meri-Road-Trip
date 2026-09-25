@@ -16,6 +16,9 @@ function createRepository(initialMessages: TripMessage[] = []) {
   let createTurnCalls = 0;
 
   const repository: TripMessageRepository = {
+    async createMessage(message) {
+      messages.push(message);
+    },
     async createTurn(userMessage, assistantMessage) {
       createTurnCalls += 1;
       messages.push(userMessage, assistantMessage);
@@ -85,6 +88,28 @@ test("persists a completed user and assistant turn", async () => {
   );
 });
 
+test("persists one original user message with its exact content", async () => {
+  const messageRepository = createRepository();
+  const service = new TripMessageService({
+    tripService: createTripService(guestA),
+    repository: messageRepository.repository,
+    generateId: () => "00000000-0000-4000-8000-000000000003",
+    now: () => new Date("2026-09-22T08:00:00.000Z"),
+  });
+
+  const message = await service.persistInitialUserMessage({
+    tripId,
+    ownerGuestId: guestA,
+    content: "  我想去日本滑雪。\n  ",
+  });
+  assert.equal(message.role, "user");
+  assert.equal(message.content, "  我想去日本滑雪。\n  ");
+  assert.deepEqual(await service.listMessages(tripId, guestA), [message]);
+  assert.deepEqual(await service.listMessages(tripId, guestA), [message]);
+  assert.equal(messageRepository.getMessages().length, 1);
+  assert.equal(messageRepository.getCreateTurnCalls(), 0);
+});
+
 test("restores persisted conversation history", async () => {
   const persistedMessages: TripMessage[] = [
     {
@@ -127,6 +152,9 @@ test("does not expose another guest's messages", async () => {
 test("does not leave half a turn when persistence fails", async () => {
   const storedMessages: TripMessage[] = [];
   const repository: TripMessageRepository = {
+    async createMessage() {
+      throw new Error("insert failed");
+    },
     async createTurn() {
       throw new Error("insert failed");
     },

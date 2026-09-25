@@ -125,6 +125,91 @@ test("rolls back Trip when initial TripState creation fails", async () => {
   assert.deepEqual(deletedTripIds, [trip.id]);
 });
 
+test("persists the exact Home message after TripState creation", async () => {
+  const events: string[] = [];
+  const initialUserMessage = "  我想去富良野滑雪。\n十月左右。  ";
+  const service = new JourneyService({
+    tripService: {
+      async createTrip() { events.push("trip"); return trip; },
+      async getTripById() { return trip; },
+    },
+    createTripStateRepository: () => ({
+      ...createStateRepository().repository,
+      async create(state) { events.push("state"); return state; },
+    }),
+    async persistInitialUserMessage(input) {
+      events.push("message");
+      assert.deepEqual(input, { tripId: trip.id, ownerGuestId: guestA, content: initialUserMessage });
+    },
+    async deleteTripById() { throw new Error("cleanup must not run"); },
+  });
+
+  await service.createJourney(draft, guestA, initialUserMessage);
+  assert.deepEqual(events, ["trip", "state", "message"]);
+});
+
+test("initial message failure cleans up the newly created Trip", async () => {
+  const deleted: string[] = [];
+  const messageError = new Error("message insert failed");
+  const service = new JourneyService({
+    tripService: {
+      async createTrip() { return trip; },
+      async getTripById() { return trip; },
+    },
+    createTripStateRepository: () => createStateRepository().repository,
+    async persistInitialUserMessage() { throw messageError; },
+    async deleteTripById(tripId, ownerGuestId) {
+      assert.equal(ownerGuestId, guestA);
+      deleted.push(tripId);
+      return true;
+    },
+  });
+
+  await assert.rejects(service.createJourney(draft, guestA, "原始想法"), (error) => {
+    assert.ok(error instanceof JourneyCreationError);
+    assert.equal(error.cause, messageError);
+    return true;
+  });
+  assert.deepEqual(deleted, [trip.id]);
+});
+
+test("initial message and cleanup failures preserve both causes", async () => {
+  const messageError = new Error("message insert failed");
+  const cleanupError = new Error("trip delete failed");
+  const service = new JourneyService({
+    tripService: {
+      async createTrip() { return trip; },
+      async getTripById() { return trip; },
+    },
+    createTripStateRepository: () => createStateRepository().repository,
+    async persistInitialUserMessage() { throw messageError; },
+    async deleteTripById() { throw cleanupError; },
+  });
+
+  await assert.rejects(service.createJourney(draft, guestA, "原始想法"), (error) => {
+    assert.ok(error instanceof JourneyCreationError);
+    assert.ok(error.cause instanceof AggregateError);
+    assert.deepEqual(error.cause.errors, [messageError, cleanupError]);
+    return true;
+  });
+});
+
+test("rejects a blank initial message before creating a Trip", async () => {
+  let createCount = 0;
+  const service = new JourneyService({
+    tripService: {
+      async createTrip() { createCount += 1; return trip; },
+      async getTripById() { return trip; },
+    },
+    createTripStateRepository: () => createStateRepository().repository,
+    async persistInitialUserMessage() { throw new Error("must not persist"); },
+    async deleteTripById() { return true; },
+  });
+
+  await assert.rejects(service.createJourney(draft, guestA, "  \n  "));
+  assert.equal(createCount, 0);
+});
+
 test("deletes only an owned Journey and treats other-owner and missing IDs alike", async () => {
   const calls: Array<[string, string]> = [];
   const service = new JourneyService({

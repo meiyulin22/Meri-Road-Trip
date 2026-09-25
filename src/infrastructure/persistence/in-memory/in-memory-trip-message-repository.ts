@@ -6,6 +6,11 @@ export class InMemoryTripMessageRepository
 {
   private readonly messages: TripMessage[] = [];
 
+  createMessage(message: TripMessage): Promise<void> {
+    this.messages.push(message);
+    return Promise.resolve();
+  }
+
   createTurn(
     userMessage: TripMessage,
     assistantMessage: TripMessage,

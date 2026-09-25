@@ -2,7 +2,7 @@
 
 ## Create a Journey
 
-`POST /api/journeys` validates a TripDraft. `JourneyService.createJourney()` creates a Trip identity/lifecycle root through `TripService`, initializes authoritative TripState from the draft, and persists that state. If TripState creation fails, it deletes the new Trip.
+`POST /api/journeys` validates a TripDraft and may receive the original Home `initialUserMessage` separately. `JourneyService.createJourney()` creates a Trip identity/lifecycle root through `TripService`, initializes authoritative TripState from the draft, persists that state, and writes the optional original user message to `trip_messages`. If TripState or initial message persistence fails, it deletes the new Trip. Opening a Workspace only reads already persisted messages.
 
 The standalone `POST /api/trips` route was retired because it created Trips without TripState.
 

@@ -31,6 +31,27 @@ export class TripMessageService {
     return this.dependencies.repository.listByTripId(tripId);
   }
 
+  async persistInitialUserMessage(input: {
+    readonly tripId: string;
+    readonly ownerGuestId: string;
+    readonly content: string;
+  }): Promise<TripMessage> {
+    await this.dependencies.tripService.getTripById(
+      input.tripId,
+      input.ownerGuestId,
+    );
+
+    const message = validateTripMessage({
+      id: this.generateId(),
+      tripId: input.tripId,
+      role: "user",
+      content: input.content,
+      createdAt: this.now().toISOString(),
+    });
+    await this.dependencies.repository.createMessage(message);
+    return message;
+  }
+
   async persistSuccessfulTurn(input: {
     readonly tripId: string;
     readonly ownerGuestId: string;

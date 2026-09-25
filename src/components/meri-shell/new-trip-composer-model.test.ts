@@ -84,8 +84,15 @@ test("creates a Journey and navigates to its real Trip ID", async () => {
 
   const tripId = await createJourneyAndNavigate(
     draft,
+    "  我想去日本滑雪。  ",
     (path) => navigations.push(path),
-    async () => Response.json({ trip: { id: "trip_123" } }, { status: 201 }),
+    async (_url, init) => {
+      assert.deepEqual(JSON.parse(init?.body as string), {
+        draft,
+        initialUserMessage: "  我想去日本滑雪。  ",
+      });
+      return Response.json({ trip: { id: "trip_123" } }, { status: 201 });
+    },
   );
 
   assert.equal(tripId, "trip_123");
@@ -98,6 +105,7 @@ test("does not navigate when Journey persistence fails", async () => {
   await assert.rejects(
     createJourneyAndNavigate(
       draft,
+      "我想去日本滑雪。",
       (path) => navigations.push(path),
       async () => Response.json({ error: "failed" }, { status: 500 }),
     ),

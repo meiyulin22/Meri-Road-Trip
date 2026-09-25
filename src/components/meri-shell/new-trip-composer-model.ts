@@ -186,6 +186,7 @@ export async function requestTripDraft(
 
 export async function createJourneyAndNavigate(
   draft: TripDraft,
+  initialUserMessage: string,
   navigate: (path: string) => void,
   fetcher: typeof fetch = fetch,
 ): Promise<string> {
@@ -195,7 +196,7 @@ export async function createJourneyAndNavigate(
     response = await fetcher("/api/journeys", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ draft }),
+      body: JSON.stringify({ draft, initialUserMessage }),
     });
   } catch (error) {
     throw new JourneyCreationRequestError(
