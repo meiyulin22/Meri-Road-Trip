@@ -29,6 +29,8 @@ export const logEvents = {
   tripMessageTurnPersisted: "trip_message.turn.persisted",
   openingConversationInitializationFailed: "opening_conversation.initialization.failed",
   locationResolveFailed: "location.resolve.failed",
+  locationSuggestionsCompleted: "location.suggestions.completed",
+  locationSuggestionsFailed: "location.suggestions.failed",
   locationToolRequested: "location.tool.requested",
   locationToolExecuted: "location.tool.executed",
   locationToolCompleted: "location.tool.completed",
