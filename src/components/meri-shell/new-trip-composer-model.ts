@@ -3,21 +3,26 @@ import {
   type TripDraft,
   type TripDraftField,
 } from "@/domain/trip-draft/trip-draft";
+import { validateTripMessage } from "@/domain/trip-message/trip-message";
 
-export type NewTripComposerPhase = "editing" | "submitting" | "review" | "error";
+export type NewTripComposerPhase = "editing" | "submitting" | "review" | "error" | "opening_failed" | "retrying_opening";
 
 export interface NewTripComposerState {
   readonly message: string;
   readonly phase: NewTripComposerPhase;
   readonly draft: TripDraft | null;
   readonly error: string | null;
+  readonly createdTripId: string | null;
 }
 
 export type NewTripComposerAction =
   | { readonly type: "message.changed"; readonly message: string }
   | { readonly type: "submission.started" }
   | { readonly type: "submission.succeeded"; readonly draft: TripDraft }
-  | { readonly type: "submission.failed"; readonly error: string };
+  | { readonly type: "submission.failed"; readonly error: string }
+  | { readonly type: "opening.failed"; readonly tripId: string; readonly draft: TripDraft }
+  | { readonly type: "opening.retry.started" }
+  | { readonly type: "opening.retry.failed"; readonly error: string };
 
 export class TripDraftRequestError extends Error {
   constructor(message: string, cause?: unknown) {
@@ -39,11 +44,12 @@ export function createInitialComposerState(): NewTripComposerState {
     phase: "editing",
     draft: null,
     error: null,
+    createdTripId: null,
   };
 }
 
 export function canSubmitTripDraft(state: NewTripComposerState): boolean {
-  return state.phase !== "submitting" && state.message.trim() !== "";
+  return (state.phase === "editing" || state.phase === "error") && state.message.trim() !== "";
 }
 
 export function newTripComposerReducer(
@@ -59,16 +65,23 @@ export function newTripComposerReducer(
         error: null,
       };
     case "submission.started":
-      return { ...state, phase: "submitting", draft: null, error: null };
+      return { ...state, phase: "submitting", draft: null, error: null, createdTripId: null };
     case "submission.succeeded":
       return {
         message: "",
         phase: "review",
         draft: action.draft,
         error: null,
+        createdTripId: null,
       };
     case "submission.failed":
-      return { ...state, phase: "error", draft: null, error: action.error };
+      return { ...state, phase: "error", draft: null, error: action.error, createdTripId: null };
+    case "opening.failed":
+      return { ...state, phase: "opening_failed", draft: action.draft, createdTripId: action.tripId, error: null };
+    case "opening.retry.started":
+      return { ...state, phase: "retrying_opening", error: null };
+    case "opening.retry.failed":
+      return { ...state, phase: "opening_failed", error: action.error };
   }
 }
 
@@ -188,6 +201,7 @@ export async function createJourneyAndNavigate(
   draft: TripDraft,
   initialUserMessage: string,
   navigate: (path: string) => void,
+  onOpeningFailure: (tripId: string) => void,
   fetcher: typeof fetch = fetch,
 ): Promise<string> {
   let response: Response;
@@ -220,7 +234,8 @@ export async function createJourneyAndNavigate(
     !isRecord(body) ||
     !isRecord(body.trip) ||
     typeof body.trip.id !== "string" ||
-    body.trip.id.trim() === ""
+    body.trip.id.trim() === "" ||
+    (body.opening !== "completed" && body.opening !== "failed")
   ) {
     throw new JourneyCreationRequestError(
       "The Journey creation request was unsuccessful.",
@@ -228,6 +243,37 @@ export async function createJourneyAndNavigate(
   }
 
   const tripId = body.trip.id;
+  if (body.opening === "failed") {
+    onOpeningFailure(tripId);
+    return tripId;
+  }
   navigate(`/trips/${encodeURIComponent(tripId)}`);
   return tripId;
+}
+
+export async function retryOpeningAndNavigate(
+  tripId: string,
+  navigate: (path: string) => void,
+  fetcher: typeof fetch = fetch,
+): Promise<void> {
+  const response = await fetcher(`/api/trips/${encodeURIComponent(tripId)}/conversation/initialize`, {
+    method: "POST",
+  });
+  if (!response.ok) {
+    throw new JourneyCreationRequestError("The opening response could not be completed.");
+  }
+  const body: unknown = await response.json();
+  if (typeof body !== "object" || body === null || !("message" in body)) {
+    throw new JourneyCreationRequestError("The opening response was invalid.");
+  }
+  let message;
+  try {
+    message = validateTripMessage(body.message);
+  } catch (error) {
+    throw new JourneyCreationRequestError("The opening response was invalid.", error);
+  }
+  if (message.tripId !== tripId || message.role !== "assistant") {
+    throw new JourneyCreationRequestError("The opening response was invalid.");
+  }
+  navigate(`/trips/${encodeURIComponent(tripId)}`);
 }

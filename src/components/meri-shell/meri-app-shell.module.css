@@ -205,6 +205,18 @@
   background: #f9e9e5;
 }
 
+.composerError button {
+  margin: 0.6rem 0.5rem 0 0;
+  padding: 0.4rem 0.65rem;
+  border: 1px solid currentColor;
+  border-radius: 0.5rem;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+}
+
+.composerError button:disabled { opacity: 0.55; cursor: wait; }
+
 .landscape {
   position: absolute;
   z-index: 0;

@@ -130,3 +130,41 @@ test("rejects invalid model output without applying partial data", async () => {
     InvalidWorkspaceConversationModelOutputError,
   );
 });
+
+test("opening mode uses the original message and authoritative TripState without tools or changes", async () => {
+  let capturedRequest:
+    | Parameters<StructuredOutputModelClient["generateStructuredOutput"]>[0]
+    | undefined;
+  const opening = await interpretWorkspaceConversation(
+    { ...input, mode: "opening", message: "I want to ski in Japan in October." },
+    createClient({
+      content: JSON.stringify({ intent: "question", changes: [], reply: "That sounds exciting. Which part of Japan interests you most?" }),
+      model: "kimi-k2.6",
+      finishReason: "stop",
+    }, (request) => { capturedRequest = request; }),
+  );
+  assert.equal(opening.reply, "That sounds exciting. Which part of Japan interests you most?");
+  assert.equal(capturedRequest?.userMessage, "I want to ski in Japan in October.");
+  assert.match(capturedRequest?.systemPrompt ?? "", /Current authoritative TripState/);
+  assert.match(capturedRequest?.systemPrompt ?? "", /二世谷/);
+  assert.match(capturedRequest?.systemPrompt ?? "", /Do not propose, repeat, or apply TripState changes/);
+  assert.equal(capturedRequest?.tools, undefined);
+});
+
+test("opening mode rejects model-proposed TripState changes", async () => {
+  await assert.rejects(
+    interpretWorkspaceConversation(
+      { ...input, mode: "opening" },
+      createClient({
+        content: JSON.stringify({
+          intent: "trip_state_update",
+          changes: [{ field: "destination", state: "known", value: "富良野" }],
+          reply: "好的。",
+        }),
+        model: "kimi-k2.6",
+        finishReason: "stop",
+      }),
+    ),
+    InvalidWorkspaceConversationModelOutputError,
+  );
+});

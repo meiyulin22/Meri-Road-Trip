@@ -68,6 +68,29 @@ test("lists a standalone initial user message", async () => {
   assert.deepEqual(await repository.listByTripId(tripId), [first]);
 });
 
+test("opening assistant write returns the winner and rejects an unrelated ID", async () => {
+  const repository = new InMemoryTripMessageRepository();
+  const assistant = message(
+    "00000000-0000-4000-8000-000000000006",
+    "assistant",
+    "first reply",
+    "2026-09-21T08:00:01.000Z",
+  );
+  assert.strictEqual(await repository.createOpeningAssistantIfAbsent(assistant), assistant);
+  assert.strictEqual(await repository.createOpeningAssistantIfAbsent({ ...assistant, content: "second reply" }), assistant);
+  await repository.createMessage(message(
+    "00000000-0000-4000-8000-000000000007",
+    "user",
+    "unrelated",
+    "2026-09-21T08:00:02.000Z",
+  ));
+  await assert.rejects(repository.createOpeningAssistantIfAbsent({
+    ...assistant,
+    id: "00000000-0000-4000-8000-000000000007",
+  }));
+  assert.equal((await repository.listByTripId(tripId)).length, 2);
+});
+
 test("does not return messages from another Trip", async () => {
   const repository = new InMemoryTripMessageRepository();
   const user = message(

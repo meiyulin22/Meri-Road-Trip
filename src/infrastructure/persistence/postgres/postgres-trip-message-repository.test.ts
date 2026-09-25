@@ -168,3 +168,58 @@ test("preserves the initial message insert failure cause", async () => {
     return true;
   });
 });
+
+function openingDatabaseDouble(winner: TripMessageRow | null) {
+  const database = {
+    insert() {
+      return {
+        values() {
+          return {
+            onConflictDoNothing() {
+              return {
+                async returning() {
+                  return winner ? [] : [{ id: userMessage.id }];
+                },
+              };
+            },
+          };
+        },
+      };
+    },
+    select() {
+      return {
+        from() {
+          return {
+            where() {
+              return { async limit() { return winner ? [winner] : []; } };
+            },
+          };
+        },
+      };
+    },
+  } as unknown as TripMessageDatabase;
+  return database;
+}
+
+test("opening assistant insert uses the existing message ID primary key", async () => {
+  const repository = new PostgresTripMessageRepository(openingDatabaseDouble(null));
+  assert.deepEqual(await repository.createOpeningAssistantIfAbsent(assistantMessage), assistantMessage);
+});
+
+test("opening assistant insert returns the persisted conflict winner", async () => {
+  const proposed: TripMessage = { ...assistantMessage, content: "candidate" };
+  const persisted: TripMessageRow = { ...assistantMessage, content: "winner" };
+  const repository = new PostgresTripMessageRepository(openingDatabaseDouble(persisted));
+
+  assert.deepEqual(await repository.createOpeningAssistantIfAbsent(proposed), persisted);
+});
+
+test("opening assistant insert rejects an unrelated ID conflict", async () => {
+  const conflicting: TripMessageRow = { ...assistantMessage, role: "user" };
+  const repository = new PostgresTripMessageRepository(openingDatabaseDouble(conflicting));
+
+  await assert.rejects(
+    repository.createOpeningAssistantIfAbsent(assistantMessage),
+    PostgresTripMessageRepositoryError,
+  );
+});

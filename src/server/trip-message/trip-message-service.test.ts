@@ -16,6 +16,12 @@ function createRepository(initialMessages: TripMessage[] = []) {
   let createTurnCalls = 0;
 
   const repository: TripMessageRepository = {
+    async createOpeningAssistantIfAbsent(message) {
+      const existing = messages.find((item) => item.id === message.id);
+      if (existing) return existing;
+      messages.push(message);
+      return message;
+    },
     async createMessage(message) {
       messages.push(message);
     },
@@ -152,6 +158,9 @@ test("does not expose another guest's messages", async () => {
 test("does not leave half a turn when persistence fails", async () => {
   const storedMessages: TripMessage[] = [];
   const repository: TripMessageRepository = {
+    async createOpeningAssistantIfAbsent() {
+      throw new Error("insert failed");
+    },
     async createMessage() {
       throw new Error("insert failed");
     },

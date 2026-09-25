@@ -6,6 +6,7 @@ import {
 } from "@/domain/trip-message/trip-message";
 import type { TripMessageRepository } from "@/repositories/trip-message-repository";
 import type { TripService } from "@/server/trip/trip-service";
+import { openingAssistantMessageId } from "./opening-assistant-id";
 
 type TripMessageServiceDependencies = {
   readonly tripService: Pick<TripService, "getTripById">;
@@ -50,6 +51,22 @@ export class TripMessageService {
     });
     await this.dependencies.repository.createMessage(message);
     return message;
+  }
+
+  async persistOpeningAssistant(input: {
+    readonly tripId: string;
+    readonly ownerGuestId: string;
+    readonly content: string;
+  }): Promise<TripMessage> {
+    await this.dependencies.tripService.getTripById(input.tripId, input.ownerGuestId);
+    const message = validateTripMessage({
+      id: openingAssistantMessageId(input.tripId),
+      tripId: input.tripId,
+      role: "assistant",
+      content: input.content,
+      createdAt: this.now().toISOString(),
+    });
+    return this.dependencies.repository.createOpeningAssistantIfAbsent(message);
   }
 
   async persistSuccessfulTurn(input: {

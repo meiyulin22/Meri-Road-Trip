@@ -22,6 +22,7 @@ export interface InterpretWorkspaceConversationInput {
   readonly referenceDate: string;
   readonly timezone: string;
   readonly conversationHistory?: readonly StructuredOutputConversationMessage[];
+  readonly mode?: "conversation" | "opening";
 }
 
 export class InvalidWorkspaceConversationRequestError extends Error {
@@ -120,11 +121,12 @@ export async function interpretWorkspaceConversation(
         tripState: input.tripState,
         referenceDate: input.referenceDate,
         timezone: input.timezone,
+        mode: input.mode,
       }),
       userMessage: input.message,
       conversationHistory: input.conversationHistory,
       jsonSchema: workspaceConversationJsonSchema,
-      tools: {
+      tools: input.mode === "opening" ? undefined : {
         resolve_location: createResolveLocationTool({
           tripState: input.tripState,
           requestId: input.requestId,
@@ -156,6 +158,12 @@ export async function interpretWorkspaceConversation(
     }
 
     const interpretation = validateWorkspaceConversationInterpretation(parsed);
+    if (input.mode === "opening" &&
+      (interpretation.intent !== "question" || interpretation.changes.length !== 0)) {
+      throw new InvalidWorkspaceConversationModelOutputError(
+        "Opening response must not propose TripState changes.",
+      );
+    }
     logger.info(
       {
         event: logEvents.workspaceConversationInterpreted,

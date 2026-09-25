@@ -11,6 +11,18 @@ export class InMemoryTripMessageRepository
     return Promise.resolve();
   }
 
+  createOpeningAssistantIfAbsent(message: TripMessage): Promise<TripMessage> {
+    const existing = this.messages.find((item) => item.id === message.id);
+    if (existing) {
+      if (existing.tripId !== message.tripId || existing.role !== "assistant") {
+        return Promise.reject(new Error("Opening assistant ID conflicts with an unrelated message."));
+      }
+      return Promise.resolve(existing);
+    }
+    this.messages.push(message);
+    return Promise.resolve(message);
+  }
+
   createTurn(
     userMessage: TripMessage,
     assistantMessage: TripMessage,

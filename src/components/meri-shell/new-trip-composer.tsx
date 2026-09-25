@@ -11,6 +11,7 @@ import {
   createInitialComposerState,
   newTripComposerReducer,
   requestTripDraft,
+  retryOpeningAndNavigate,
 } from "./new-trip-composer-model";
 
 const errorMessage = "Meri 暂时无法理解这段旅行想法。你的输入还在，请稍后重试。";
@@ -22,7 +23,7 @@ export function NewTripComposer() {
     undefined,
     createInitialComposerState,
   );
-  const isSubmitting = state.phase === "submitting";
+  const isSubmitting = state.phase === "submitting" || state.phase === "retrying_opening";
   const canSubmit = canSubmitTripDraft(state);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -36,12 +37,27 @@ export function NewTripComposer() {
 
     try {
       const draft = await requestTripDraft(state.message);
-      await createJourneyAndNavigate(draft, state.message, (path) => {
-        dispatch({ type: "submission.succeeded", draft });
-        router.push(path);
-      });
+      await createJourneyAndNavigate(
+        draft,
+        state.message,
+        (path) => {
+          dispatch({ type: "submission.succeeded", draft });
+          router.push(path);
+        },
+        (tripId) => dispatch({ type: "opening.failed", tripId, draft }),
+      );
     } catch {
       dispatch({ type: "submission.failed", error: errorMessage });
+    }
+  }
+
+  async function handleOpeningRetry() {
+    if (!state.createdTripId || state.phase !== "opening_failed") return;
+    dispatch({ type: "opening.retry.started" });
+    try {
+      await retryOpeningAndNavigate(state.createdTripId, (path) => router.push(path));
+    } catch {
+      dispatch({ type: "opening.retry.failed", error: "Meri 仍暂时无法回复。旅程已经保存，你可以稍后再试或先进入旅程。" });
     }
   }
 
@@ -67,7 +83,7 @@ export function NewTripComposer() {
           </label>
           <textarea
             autoComplete="off"
-            disabled={isSubmitting}
+            disabled={isSubmitting || state.createdTripId !== null}
             id="trip-idea"
             onChange={(event) =>
               dispatch({ type: "message.changed", message: event.target.value })
@@ -92,10 +108,21 @@ export function NewTripComposer() {
           </p>
         ) : null}
 
-        {state.error ? (
+        {state.error && !state.createdTripId ? (
           <p className={styles.composerError} role="alert">
             {state.error}
           </p>
+        ) : null}
+        {state.createdTripId ? (
+          <div className={styles.composerError} role="status">
+            <p>旅程和你的原始想法已保存。{state.error ?? "Meri 暂时没能完成第一条回复。"}</p>
+            <button disabled={isSubmitting} onClick={() => void handleOpeningRetry()} type="button">
+              {isSubmitting ? "正在重试…" : "重试 Meri 回复"}
+            </button>
+            <button onClick={() => router.push(`/trips/${encodeURIComponent(state.createdTripId!)}`)} type="button">
+              先进入旅程
+            </button>
+          </div>
         ) : null}
       </form>
     </section>

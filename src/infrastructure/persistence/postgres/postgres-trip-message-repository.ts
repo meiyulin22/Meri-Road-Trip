@@ -10,7 +10,7 @@ import { tripMessages } from "@/server/database/schema/trip-messages";
 type TripMessageDatabase = typeof import("@/server/database/db").db;
 type TripMessageRow = typeof tripMessages.$inferSelect;
 
-type PostgresTripMessageOperation = "createMessage" | "createTurn" | "listByTripId";
+type PostgresTripMessageOperation = "createMessage" | "createOpeningAssistantIfAbsent" | "createTurn" | "listByTripId";
 
 export class PostgresTripMessageRepositoryError extends Error {
   readonly operation: PostgresTripMessageOperation;
@@ -39,6 +39,36 @@ export class PostgresTripMessageRepository
     } catch (error) {
       throw new PostgresTripMessageRepositoryError(
         "createMessage",
+        message.tripId,
+        error,
+      );
+    }
+  }
+
+  async createOpeningAssistantIfAbsent(message: TripMessage): Promise<TripMessage> {
+    try {
+      const inserted = await this.database
+        .insert(tripMessages)
+        .values(toTripMessageInsert(message))
+        .onConflictDoNothing({ target: tripMessages.id })
+        .returning({ id: tripMessages.id });
+      if (inserted.length > 0) {
+        return message;
+      }
+
+      const rows = await this.database
+        .select()
+        .from(tripMessages)
+        .where(eq(tripMessages.id, message.id))
+        .limit(1);
+      const winner = rows[0] ? toTripMessage(rows[0]) : null;
+      if (!winner || winner.tripId !== message.tripId || winner.role !== "assistant") {
+        throw new Error("Opening assistant ID conflicts with an unrelated message.");
+      }
+      return winner;
+    } catch (error) {
+      throw new PostgresTripMessageRepositoryError(
+        "createOpeningAssistantIfAbsent",
         message.tripId,
         error,
       );

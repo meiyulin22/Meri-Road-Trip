@@ -36,3 +36,17 @@ test("distinguishes destination mentions from explicit update intent", () => {
   assert.match(prompt, /application resolves the committed destination after persistence/);
   assert.match(prompt, /Geographic ambiguity does not make the user's update intent unclear/);
 });
+
+test("opening prompt asks for one natural reply without state updates", () => {
+  const prompt = buildWorkspaceConversationSystemPrompt({
+    tripState,
+    referenceDate: "2026-09-19",
+    timezone: "Asia/Shanghai",
+    mode: "opening",
+  });
+  assert.match(prompt, /first user message/);
+  assert.match(prompt, /authoritative TripState/);
+  assert.match(prompt, /changes \[\]/);
+  assert.match(prompt, /one high-value missing detail/);
+  assert.match(prompt, /do not use a fixed greeting/);
+});

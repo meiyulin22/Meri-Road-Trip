@@ -10,6 +10,7 @@ import {
   JourneyCreationRequestError,
   newTripComposerReducer,
   requestTripDraft,
+  retryOpeningAndNavigate,
   TripDraftRequestError,
 } from "./new-trip-composer-model";
 
@@ -86,12 +87,13 @@ test("creates a Journey and navigates to its real Trip ID", async () => {
     draft,
     "  我想去日本滑雪。  ",
     (path) => navigations.push(path),
+    () => assert.fail("opening should have succeeded"),
     async (_url, init) => {
       assert.deepEqual(JSON.parse(init?.body as string), {
         draft,
         initialUserMessage: "  我想去日本滑雪。  ",
       });
-      return Response.json({ trip: { id: "trip_123" } }, { status: 201 });
+      return Response.json({ trip: { id: "trip_123" }, opening: "completed" }, { status: 201 });
     },
   );
 
@@ -107,10 +109,47 @@ test("does not navigate when Journey persistence fails", async () => {
       draft,
       "我想去日本滑雪。",
       (path) => navigations.push(path),
+      () => assert.fail("creation failed before opening"),
       async () => Response.json({ error: "failed" }, { status: 500 }),
     ),
     JourneyCreationRequestError,
   );
 
   assert.deepEqual(navigations, []);
+});
+
+test("opening failure keeps the created Trip ID for explicit retry", async () => {
+  const navigations: string[] = [];
+  const failures: string[] = [];
+  await createJourneyAndNavigate(
+    draft,
+    "原始想法",
+    (path) => navigations.push(path),
+    (tripId) => failures.push(tripId),
+    async () => Response.json({ trip: { id: "trip_123" }, opening: "failed" }, { status: 201 }),
+  );
+  assert.deepEqual(navigations, []);
+  assert.deepEqual(failures, ["trip_123"]);
+
+  const failedState = newTripComposerReducer(createInitialComposerState(), {
+    type: "opening.failed", tripId: "trip_123", draft,
+  });
+  assert.equal(failedState.createdTripId, "trip_123");
+  assert.equal(canSubmitTripDraft(failedState), false);
+});
+
+test("explicit opening retry navigates without creating a second Journey", async () => {
+  const navigations: string[] = [];
+  await retryOpeningAndNavigate("trip_123", (path) => navigations.push(path), async (url, init) => {
+    assert.equal(url, "/api/trips/trip_123/conversation/initialize");
+    assert.equal(init?.method, "POST");
+    return Response.json({ message: {
+      id: "00000000-0000-4000-8000-000000000002",
+      tripId: "trip_123",
+      role: "assistant",
+      content: "好的，我们开始规划。",
+      createdAt: "2026-09-25T01:00:00.000Z",
+    } });
+  });
+  assert.deepEqual(navigations, ["/trips/trip_123"]);
 });
