@@ -2,6 +2,9 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { DEFAULT_DESTINATION_IMAGE, destinationImageUrl, requestDestinationRecommendations, selectDestinationRecommendation, selectDestinationRecommendationAndApply } from "./destination-recommendation-model";
+import { getWorkspaceTitle } from "./workspace-title";
+import { journeyFieldLabel } from "./workspace-presentation";
+import type { TripState } from "@/domain/trip-state/trip-state";
 
 const message = {
   id: "message-1", tripId: "trip 1", role: "assistant", content: "先看看这三个方向。",
@@ -48,13 +51,39 @@ test("selection PATCH sends only a known user destination and returns authoritat
 });
 
 test("failed selection PATCH rejects without returning optimistic state", async () => {
-  let applied = false;
+  const original: TripState = {
+    name: { state: "known", value: "云南大理之旅", source: "system" },
+    origin: { state: "missing" },
+    destination: { state: "known", value: "云南大理", source: "user" },
+    startDate: { state: "missing" }, endDate: { state: "missing" },
+    duration: { state: "missing" }, transportPreference: { state: "missing" },
+  };
+  let displayed = original;
   await assert.rejects(selectDestinationRecommendationAndApply("trip", "香格里拉", () => {
-    applied = true;
+    displayed = { ...original, name: { state: "known", value: "香格里拉之旅", source: "system" } };
   }, async () => Response.json({ error: "failed" }, { status: 500 })));
-  assert.equal(applied, false);
+  assert.strictEqual(displayed, original);
+  assert.equal(getWorkspaceTitle(displayed), "云南大理之旅");
   await assert.rejects(selectDestinationRecommendation("trip", "香格里拉", async () =>
     Response.json({ error: "failed" }, { status: 500 })));
+});
+
+test("successful selection applies the server name to Workspace title and Journey overview state", async () => {
+  const persisted: TripState = {
+    name: { state: "known", value: "泉州之旅", source: "system" },
+    origin: { state: "missing" },
+    destination: { state: "known", value: "泉州", source: "user" },
+    startDate: { state: "missing" }, endDate: { state: "missing" },
+    duration: { state: "missing" }, transportPreference: { state: "missing" },
+  };
+  const appliedStates: TripState[] = [];
+  await selectDestinationRecommendationAndApply("trip", "泉州", (state) => { appliedStates.push(state); },
+    async () => Response.json({ tripState: persisted }));
+  assert.equal(appliedStates.length, 1);
+  const displayed = appliedStates[0];
+  assert.deepEqual(displayed, persisted);
+  assert.equal(getWorkspaceTitle(displayed), "泉州之旅");
+  assert.equal(journeyFieldLabel(displayed.name, "旅程名称待定"), "泉州之旅");
 });
 
 test("unavailable or broken provider image uses the same local destination image", () => {

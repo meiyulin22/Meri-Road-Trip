@@ -98,6 +98,35 @@ test("generates a default name when a later destination becomes known", () => {
   assert.deepEqual(state.name, { state: "missing" });
 });
 
+test("a changed destination renames a system-named Journey and retains system source", () => {
+  const state = initializeTripState({
+    ...draft,
+    name: { state: "missing" },
+    destination: { state: "known", value: "云南大理" },
+  });
+  const nextState = applyTripStatePatch(state, {
+    destination: { state: "known", value: "泉州", source: "user" },
+  });
+
+  assert.deepEqual(nextState.name, { state: "known", value: "泉州之旅", source: "system" });
+  assert.deepEqual(state.name, { state: "known", value: "云南大理之旅", source: "system" });
+});
+
+test("a changed destination preserves a user-named Journey", () => {
+  const state = initializeTripState({
+    ...draft,
+    name: { state: "missing" },
+    destination: { state: "known", value: "云南大理" },
+  });
+  const userNamed = applyTripStatePatch(state, {
+    name: { state: "known", value: "我的毕业旅行", source: "user" },
+  });
+
+  assert.deepEqual(applyTripStatePatch(userNamed, {
+    destination: { state: "known", value: "泉州", source: "user" },
+  }).name, { state: "known", value: "我的毕业旅行", source: "user" });
+});
+
 test("does not generate from approximate or ambiguous destination patches", () => {
   const state = initializeTripState({
     ...draft,
@@ -138,19 +167,17 @@ test("an explicit name patch wins over default generation", () => {
   );
 });
 
-test("preserves every existing nonmissing name when destination changes", () => {
-  for (const source of ["user", "system"] as const) {
-    const name = { state: "known", value: "我的旅行", source } as const;
-    const state = initializeTripState({
-      ...draft,
-      name: { state: "missing" },
-      destination: { state: "missing" },
-    });
-    const nextState = applyTripStatePatch({ ...state, name }, {
-      destination: { state: "known", value: "东京", source: "user" },
-    });
-    assert.strictEqual(nextState.name, name);
-  }
+test("preserves a user name when destination changes", () => {
+  const name = { state: "known", value: "我的旅行", source: "user" } as const;
+  const state = initializeTripState({
+    ...draft,
+    name: { state: "missing" },
+    destination: { state: "missing" },
+  });
+  const nextState = applyTripStatePatch({ ...state, name }, {
+    destination: { state: "known", value: "东京", source: "user" },
+  });
+  assert.strictEqual(nextState.name, name);
 });
 
 test("applies a patch without changing or reconstructing unrelated fields", () => {

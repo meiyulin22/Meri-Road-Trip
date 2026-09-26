@@ -350,6 +350,11 @@ test("updates state through the repository bound to the real Trip ID", async () 
     value: "富良野",
     source: "user",
   });
+  assert.deepEqual(updated.name, {
+    state: "known",
+    value: "富良野之旅",
+    source: "system",
+  });
   assert.deepEqual(repositoryTripIds, [trip.id, trip.id]);
   assert.strictEqual(stateRepository.getState(), updated);
 });

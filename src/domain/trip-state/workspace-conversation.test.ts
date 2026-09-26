@@ -53,7 +53,7 @@ test("rejects empty and whitespace-only replies", () => {
   }
 });
 
-test("clear destination update changes only destination and assigns user source", () => {
+test("clear destination update assigns user source and renames a system-named Journey", () => {
   const { state, nextState } = applyInterpretation({
     intent: "trip_state_update",
     changes: [{ field: "destination", state: "known", value: "富良野" }],
@@ -65,7 +65,8 @@ test("clear destination update changes only destination and assigns user source"
     value: "富良野",
     source: "user",
   });
-  assert.strictEqual(nextState?.name, state.name);
+  assert.deepEqual(nextState?.name, { state: "known", value: "富良野之旅", source: "system" });
+  assert.deepEqual(state.name, { state: "known", value: "二世谷滑雪", source: "system" });
   assert.strictEqual(nextState?.origin, state.origin);
   assert.strictEqual(nextState?.startDate, state.startDate);
 });

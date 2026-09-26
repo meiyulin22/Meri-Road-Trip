@@ -289,6 +289,15 @@ export function applyTripStatePatch(
     return nextState;
   }
 
+  if (patch.destination?.state === "known" &&
+    state.name.state !== "missing" && state.name.source === "system" &&
+    (state.destination.state !== "known" || state.destination.value !== patch.destination.value)) {
+    return {
+      ...nextState,
+      name: { state: "known", value: `${patch.destination.value}之旅`, source: "system" },
+    };
+  }
+
   return {
     ...nextState,
     name: withDefaultName(nextState.name, nextState.destination),
