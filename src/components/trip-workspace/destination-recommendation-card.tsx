@@ -11,19 +11,20 @@ import styles from "./destination-recommendation-card.module.css";
 type Destination = DestinationRecommendationPresentation["destinations"][number];
 
 export function DestinationRecommendationCard({
-  destination, onSelect, pending, selected, error,
+  destination, onSelect, pending, selected, disabled, error,
 }: {
   readonly destination: Destination;
   readonly onSelect: () => void;
   readonly pending: boolean;
   readonly selected: boolean;
+  readonly disabled: boolean;
   readonly error: boolean;
 }) {
   const [imageFailed, setImageFailed] = useState(false);
   const imageUrl = destinationImageUrl(destination.imageUrl, imageFailed);
 
   return (
-    <article className={styles.card}>
+    <article className={styles.card} data-selected={selected}>
       <div className={styles.media}>
         <Image
           alt=""
@@ -40,7 +41,7 @@ export function DestinationRecommendationCard({
         <h3>{destination.name}</h3>
         {destination.region ? <span className={styles.region}>{destination.region}</span> : null}
         <p>{destination.reason}</p>
-        <button disabled={pending || selected} onClick={onSelect} type="button">
+        <button disabled={disabled || pending || selected} onClick={onSelect} type="button">
           {selected ? "已选择" : pending ? "保存中…" : "选择这个目的地"}
         </button>
         {error ? <span className={styles.error} role="alert">保存失败，请重试。</span> : null}

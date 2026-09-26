@@ -1,7 +1,21 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { appendPersistedMessageIfAbsent, recommendationPresentation, toWorkspaceUIMessages } from "./trip-message-ui-adapter";
+import { formatMessageTimestamp } from "./message-timestamp";
+import { appendPersistedMessageIfAbsent, messageCreatedAt, recommendationPresentation, toWorkspaceUIMessages } from "./trip-message-ui-adapter";
+
+function localDate(year: number, month: number, day: number, hour: number, minute: number): string {
+  return new Date(year, month - 1, day, hour, minute).toISOString();
+}
+
+test("message timestamps use local today, yesterday, and older labels", () => {
+  assert.equal(formatMessageTimestamp(localDate(2026, 9, 26, 19, 32),
+    new Date(2026, 8, 26, 23, 0)), "19:32");
+  assert.equal(formatMessageTimestamp(localDate(2026, 9, 25, 19, 32),
+    new Date(2026, 8, 26, 1, 0)), "昨天 19:32");
+  assert.equal(formatMessageTimestamp(localDate(2026, 9, 24, 19, 32),
+    new Date(2026, 8, 26, 1, 0)), "9月24日 19:32");
+});
 
 test("maps persisted TripMessages to ordered UI messages without changing IDs, roles, or text", () => {
   const messages = [
@@ -10,10 +24,12 @@ test("maps persisted TripMessages to ordered UI messages without changing IDs, r
   ];
 
   assert.deepEqual(toWorkspaceUIMessages(messages), [
-    { id: "user-1", role: "user", parts: [{ type: "text", text: "去阿尔山" }] },
-    { id: "assistant-1", role: "assistant", parts: [{ type: "text", text: "好，我们慢慢计划。" }] },
+    { id: "user-1", role: "user", parts: [{ type: "text", text: "去阿尔山" }], metadata: { createdAt: messages[0].createdAt } },
+    { id: "assistant-1", role: "assistant", parts: [{ type: "text", text: "好，我们慢慢计划。" }], metadata: { createdAt: messages[1].createdAt } },
   ]);
   assert.equal(messages[0].id, "user-1");
+  assert.equal(messageCreatedAt(toWorkspaceUIMessages(messages)[0]), messages[0].createdAt);
+  assert.equal(messageCreatedAt({ id: "temporary", role: "user", parts: [] }), null);
 });
 
 test("restored recommendation presentation remains attached to its assistant message", () => {
@@ -27,6 +43,7 @@ test("restored recommendation presentation remains attached to its assistant mes
     presentation, createdAt: "2026-09-26T00:00:00.000Z",
   }]);
   assert.deepEqual(recommendationPresentation(restored[0]), presentation);
+  assert.equal(messageCreatedAt(restored[0]), "2026-09-26T00:00:00.000Z");
   assert.equal(restored[0].parts[0].type, "text");
 });
 
@@ -40,6 +57,7 @@ test("appends persisted guidance once without turning it into a user message", (
   const withGuidance = appendPersistedMessageIfAbsent(initial, guidance);
   assert.deepEqual(withGuidance, [{
     id: guidance.id, role: "assistant", parts: [{ type: "text", text: guidance.content }],
+    metadata: { createdAt: guidance.createdAt },
   }]);
   assert.strictEqual(appendPersistedMessageIfAbsent(withGuidance, guidance), withGuidance);
 });

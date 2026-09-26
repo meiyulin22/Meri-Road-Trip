@@ -1,7 +1,10 @@
 import assert from "node:assert/strict";
+import { createRequire } from "node:module";
 import test from "node:test";
+import { createElement } from "react";
+import { renderToStaticMarkup } from "react-dom/server";
 
-import { DEFAULT_DESTINATION_IMAGE, destinationImageUrl, requestDestinationRecommendations, selectDestinationRecommendation, selectDestinationRecommendationAndApply } from "./destination-recommendation-model";
+import { canSelectDestinationRecommendation, canUseDestinationGuidance, DEFAULT_DESTINATION_IMAGE, destinationImageUrl, requestDestinationRecommendations, requestDestinationRecommendationsIfMissing, selectDestinationRecommendation, selectDestinationRecommendationAndApply } from "./destination-recommendation-model";
 import { getWorkspaceTitle } from "./workspace-title";
 import { journeyFieldLabel } from "./workspace-presentation";
 import type { TripState } from "@/domain/trip-state/trip-state";
@@ -15,6 +18,51 @@ const message = {
     { id: "c", name: "丙", region: null, reason: "方向三", imageUrl: null },
   ] },
 };
+
+const missingDestination: TripState = {
+  name: { state: "missing" }, origin: { state: "missing" }, destination: { state: "missing" },
+  startDate: { state: "missing" }, endDate: { state: "missing" },
+  duration: { state: "missing" }, transportPreference: { state: "missing" },
+};
+
+const nodeRequire = createRequire(import.meta.url);
+nodeRequire.extensions[".css"] = (module) => {
+  module.exports = { default: new Proxy({}, { get: (_target, key) => String(key) }) };
+};
+
+test("guidance and recommendation selection are available while destination is missing", () => {
+  assert.equal(canUseDestinationGuidance(missingDestination), true);
+  assert.equal(canSelectDestinationRecommendation(missingDestination), true);
+});
+
+test("a selected destination disables historical guidance and all recommendation actions", async () => {
+  const selected = { ...missingDestination,
+    destination: { state: "known", value: "乙", source: "user" } as const };
+  assert.equal(canUseDestinationGuidance(selected), false);
+  assert.equal(canSelectDestinationRecommendation(selected), false);
+  assert.equal(selected.destination.value === message.presentation.destinations[1].name, true);
+  let calls = 0;
+  const result = await requestDestinationRecommendationsIfMissing("trip-1", selected, async () => {
+    calls += 1;
+    return Response.json({ message });
+  });
+  assert.equal(result, null);
+  assert.equal(calls, 0);
+});
+
+test("selected recommendation stays marked while every card button is disabled", async () => {
+  const { DestinationRecommendationCard } = await import("./destination-recommendation-card");
+  const markup = message.presentation.destinations.map((destination) =>
+    renderToStaticMarkup(createElement(DestinationRecommendationCard, {
+      destination, onSelect: () => {}, pending: false, error: false,
+      selected: destination.name === "乙", disabled: true,
+    })));
+  assert.equal(markup.length, 3);
+  assert.ok(markup.every((card) => /<button[^>]*disabled=""/.test(card)));
+  assert.match(markup[1], /data-selected="true"/);
+  assert.match(markup[1], /已选择/);
+  assert.match(markup[0], /data-selected="false"/);
+});
 
 test("button client posts without a synthetic user message and validates result", async () => {
   const received = await requestDestinationRecommendations("trip 1", async (input, init) => {

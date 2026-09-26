@@ -7,8 +7,14 @@ export function toWorkspaceUIMessages(messages: readonly TripMessage[]): UIMessa
     id: message.id,
     role: message.role,
     parts: [{ type: "text", text: message.content }],
-    ...(message.presentation ? { metadata: { presentation: message.presentation } } : {}),
+    metadata: { createdAt: message.createdAt, ...(message.presentation ? { presentation: message.presentation } : {}) },
   }));
+}
+
+export function messageCreatedAt(message: UIMessage): string | null {
+  const metadata = message.metadata;
+  return typeof metadata === "object" && metadata !== null && "createdAt" in metadata &&
+    typeof metadata.createdAt === "string" ? metadata.createdAt : null;
 }
 
 export function recommendationPresentation(message: UIMessage): TripMessage["presentation"] {

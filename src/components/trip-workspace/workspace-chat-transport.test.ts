@@ -4,6 +4,7 @@ import { Chat } from "@ai-sdk/react";
 import type { ChatTransport, UIMessage, UIMessageChunk } from "ai";
 
 import type { TripState } from "@/domain/trip-state/trip-state";
+import { messageCreatedAt } from "./trip-message-ui-adapter";
 
 import {
   reconcileCommittedUserId,
@@ -81,7 +82,7 @@ test("calls the existing JSON contract and exposes only a committed assistant tu
   assert.deepEqual(commits[0].tripState, tripState);
   assert.equal(commits[0].persistedUser.id, "persisted-user");
   assert.deepEqual(chunks, [
-    { type: "start", messageId: "persisted-assistant" },
+    { type: "start", messageId: "persisted-assistant", messageMetadata: { createdAt: responseBody.messages[1].createdAt } },
     { type: "text-start", id: "persisted-assistant" },
     { type: "text-delta", id: "persisted-assistant", delta: "好的，目的地改成富良野。" },
     { type: "text-end", id: "persisted-assistant" },
@@ -91,6 +92,7 @@ test("calls the existing JSON contract and exposes only a committed assistant tu
     id: "persisted-user",
     role: "user",
     parts: [{ type: "text", text: "改成富良野" }],
+    metadata: { createdAt: responseBody.messages[0].createdAt },
   }]);
 });
 
@@ -188,6 +190,8 @@ test("AI SDK Chat finishes with the authoritative persisted IDs and one assistan
     "persisted-assistant",
   ]);
   assert.equal(chat.messages[1].role, "assistant");
+  assert.deepEqual(chat.messages.map(messageCreatedAt),
+    responseBody.messages.map((message) => message.createdAt));
   assert.equal(chat.messages[1].parts[0].type, "text");
   if (chat.messages[1].parts[0].type === "text") {
     assert.equal(chat.messages[1].parts[0].text, "好的，目的地改成富良野。");

@@ -84,7 +84,9 @@
 .meriMessage { display: flex; align-items: flex-start; gap: 12px; min-width: 0; max-width: 96%; }
 .meriMessage > img { flex: 0 0 44px; width: 44px; height: 48px; object-fit: cover; object-position: center; image-rendering: pixelated; }
 .meriMessage > div { min-width: 0; padding: 13px 16px 16px; border: 1px solid rgba(119, 111, 91, .045); border-radius: 4px 15px 15px; background: rgba(255, 255, 255, .45); }
-.meriMessage > div > span { color: var(--ink); font-size: 12px; font-weight: 600; }
+.messageHeader { display: flex; align-items: baseline; justify-content: space-between; gap: 18px; }
+.meriMessage .messageHeader > span { color: var(--ink); font-size: 12px; font-weight: 600; }
+.messageHeader time { color: #929c94; font-size: 10px; font-weight: 400; white-space: nowrap; }
 .meriMessage p, .userMessage p { margin-top: 5px; font-size: 14px; line-height: 1.85; white-space: pre-wrap; overflow-wrap: anywhere; }
 .guidanceActions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
 .guidanceActions button { padding: 6px 10px; border: 1px solid #b8c9b6; border-radius: 8px; background: #edf2e9; color: #385d4b; font-size: 11px; cursor: pointer; }
@@ -92,7 +94,7 @@
 .guidanceActions button:disabled { opacity: .55; cursor: not-allowed; }
 .recommendationGrid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 185px), 1fr)); gap: 12px; width: min(100%, 760px); margin-top: 14px; }
 .userMessage { align-self: flex-end; max-width: 83%; margin-right: 2px; padding: 12px 16px; border-radius: 15px 4px 15px 15px; background: #e9ecde; }
-.userMessage > span { color: #76836d; font-size: 10px; }
+.userMessage .messageHeader > span { color: #76836d; font-size: 10px; }
 .userMessage p { margin-top: 2px; }
 .conversationHint { padding-left: 57px; margin-top: -12px; color: #8d978e; font-size: 10px; line-height: 1.7; }
 .conversationStatus { padding: 10px; color: var(--green); font-size: 12px; }

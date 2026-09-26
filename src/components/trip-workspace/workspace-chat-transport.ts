@@ -36,7 +36,8 @@ export function reconcileCommittedUserId(
 ): UIMessage[] {
   return messages.map((message) =>
     message.id === temporaryUserId && message.role === "user"
-      ? { ...message, id: persistedUser.id, parts: [{ type: "text", text: persistedUser.content }] }
+      ? { ...message, id: persistedUser.id, parts: [{ type: "text", text: persistedUser.content }],
+          metadata: { createdAt: persistedUser.createdAt } }
       : message,
   );
 }
@@ -89,7 +90,8 @@ export class WorkspaceChatTransport implements ChatTransport<UIMessage> {
     // chunks adapt its committed response to useChat; they are not model output.
     return new ReadableStream<UIMessageChunk>({
       start(controller) {
-        controller.enqueue({ type: "start", messageId: persistedAssistant.id });
+        controller.enqueue({ type: "start", messageId: persistedAssistant.id,
+          messageMetadata: { createdAt: persistedAssistant.createdAt } });
         controller.enqueue({ type: "text-start", id: persistedAssistant.id });
         controller.enqueue({ type: "text-delta", id: persistedAssistant.id, delta: persistedAssistant.content });
         controller.enqueue({ type: "text-end", id: persistedAssistant.id });

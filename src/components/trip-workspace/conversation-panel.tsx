@@ -4,15 +4,16 @@ import { ArrowUp, ChevronDown, ChevronUp, ImageIcon, LoaderCircle } from "lucide
 import Image from "next/image";
 import { useChat } from "@ai-sdk/react";
 import type { UIMessage } from "ai";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 
 import type { TripMessage } from "@/domain/trip-message/trip-message";
 import type { TripState } from "@/domain/trip-state/trip-state";
 
 import { nextRevealCharacterCount, visibleAssistantText } from "./conversation-reveal";
-import { requestDestinationRecommendations, selectDestinationRecommendationAndApply } from "./destination-recommendation-model";
+import { canSelectDestinationRecommendation, canUseDestinationGuidance, requestDestinationRecommendationsIfMissing, selectDestinationRecommendationAndApply } from "./destination-recommendation-model";
 import { DestinationRecommendationCard } from "./destination-recommendation-card";
-import { appendPersistedMessageIfAbsent, recommendationPresentation, toWorkspaceUIMessages } from "./trip-message-ui-adapter";
+import { formatMessageTimestamp } from "./message-timestamp";
+import { appendPersistedMessageIfAbsent, messageCreatedAt, recommendationPresentation, toWorkspaceUIMessages } from "./trip-message-ui-adapter";
 import {
   reconcileCommittedUserId,
   WorkspaceChatTransport,
@@ -22,6 +23,10 @@ import styles from "./trip-workspace.module.css";
 
 const workspaceConversationError =
   "发送结果暂时无法确认。请刷新旅程，查看最新消息和状态后再继续。";
+
+function subscribeToBrowser(): () => void { return () => undefined; }
+function browserSnapshot(): boolean { return true; }
+function serverSnapshot(): boolean { return false; }
 
 export function ConversationPanel({
   destinationGuidanceMessageId,
@@ -73,6 +78,9 @@ export function ConversationPanel({
   const isSubmitting = status === "submitted" || status === "streaming";
   const hasError = status === "error";
   const latestMessage = messages.at(-1);
+  const localNow = useSyncExternalStore(subscribeToBrowser, browserSnapshot, serverSnapshot) ? new Date() : null;
+  const guidanceAvailable = canUseDestinationGuidance(tripState);
+  const recommendationSelectionAvailable = canSelectDestinationRecommendation(tripState);
 
   useEffect(() => {
     if (!guidanceMessage) return;
@@ -116,13 +124,13 @@ export function ConversationPanel({
   }
 
   async function handleRecommendationRequest(): Promise<void> {
-    if (recommendationInFlight.current) return;
+    if (!guidanceAvailable || recommendationInFlight.current) return;
     recommendationInFlight.current = true;
     setRecommendationPending(true);
     setRecommendationError(false);
     try {
-      const persisted = await requestDestinationRecommendations(tripId);
-      setMessages((current) => appendPersistedMessageIfAbsent(current, persisted));
+      const persisted = await requestDestinationRecommendationsIfMissing(tripId, tripState);
+      if (persisted) setMessages((current) => appendPersistedMessageIfAbsent(current, persisted));
     } catch {
       setRecommendationError(true);
     } finally {
@@ -132,7 +140,7 @@ export function ConversationPanel({
   }
 
   async function handleRecommendationSelection(id: string, name: string): Promise<void> {
-    if (selectionInFlight.current) return;
+    if (!recommendationSelectionAvailable || selectionInFlight.current) return;
     selectionInFlight.current = true;
     setSelectionPendingId(id);
     setSelectionErrorId(null);
@@ -144,6 +152,10 @@ export function ConversationPanel({
       selectionInFlight.current = false;
       setSelectionPendingId(null);
     }
+  }
+
+  function handleChooseDestination(): void {
+    if (guidanceAvailable) onChooseDestination();
   }
 
   function handleMessageKeyDown(
@@ -193,7 +205,7 @@ export function ConversationPanel({
                   width={84}
                 />
                 <div>
-                  <span>Meri</span>
+                  <MessageHeader speaker="Meri" createdAt={null} now={localNow} />
                   <p>{getConversationOpening(tripState)}</p>
                 </div>
               </article>
@@ -212,7 +224,7 @@ export function ConversationPanel({
                   width={84}
                 />
                 <div>
-                  <span>Meri</span>
+                  <MessageHeader speaker="Meri" createdAt={messageCreatedAt(conversationMessage)} now={localNow} />
                   <p>
                     {revealing?.id === conversationMessage.id
                       ? visibleAssistantText(messageText(conversationMessage), revealing.visibleCharacters)
@@ -226,10 +238,10 @@ export function ConversationPanel({
                   </p>
                   {conversationMessage.id === destinationGuidanceMessageId ? (
                     <div className={styles.guidanceActions}>
-                      <button disabled={recommendationPending || tripState.destination.state !== "missing"} onClick={() => void handleRecommendationRequest()} type="button">
+                      <button disabled={recommendationPending || !guidanceAvailable} onClick={() => void handleRecommendationRequest()} type="button">
                         {recommendationPending ? "正在推荐…" : "帮我推荐"}
                       </button>
-                      <button onClick={onChooseDestination} type="button">我自己选</button>
+                      <button disabled={!guidanceAvailable} onClick={handleChooseDestination} type="button">我自己选</button>
                     </div>
                   ) : null}
                   {recommendationPresentation(conversationMessage)?.destinations ? (
@@ -237,6 +249,7 @@ export function ConversationPanel({
                       {recommendationPresentation(conversationMessage)?.destinations.map((destination) => (
                         <DestinationRecommendationCard
                           destination={destination}
+                          disabled={!recommendationSelectionAvailable || selectionPendingId !== null}
                           error={selectionErrorId === destination.id}
                           key={destination.id}
                           onSelect={() => void handleRecommendationSelection(destination.id, destination.name)}
@@ -250,7 +263,7 @@ export function ConversationPanel({
               </article>
             ) : (
               <article className={styles.userMessage} key={conversationMessage.id}>
-                <span>你</span>
+                <MessageHeader speaker="你" createdAt={messageCreatedAt(conversationMessage)} now={localNow} />
                 <p>{messageText(conversationMessage)}</p>
                 {index === messages.length - 1 && isSubmitting ? (
                   <span className={styles.messageDelivery}>发送中…</span>
@@ -283,7 +296,7 @@ export function ConversationPanel({
         </div>
       ) : latestMessage?.role === "user" ? (
         <article className={styles.userMessage}>
-          <span>你</span>
+          <MessageHeader speaker="你" createdAt={messageCreatedAt(latestMessage)} now={localNow} />
           <p>{messageText(latestMessage)}</p>
         </article>
       ) : (
@@ -295,7 +308,7 @@ export function ConversationPanel({
             width={84}
           />
           <div>
-            <span>Meri</span>
+            <MessageHeader speaker="Meri" createdAt={latestMessage ? messageCreatedAt(latestMessage) : null} now={localNow} />
             <p>{latestMessage ? messageText(latestMessage) : getConversationOpening(tripState)}</p>
           </div>
         </article>
@@ -335,6 +348,19 @@ export function ConversationPanel({
         </button>
       </form>
     </section>
+  );
+}
+
+function MessageHeader({ speaker, createdAt, now }: {
+  readonly speaker: "Meri" | "你";
+  readonly createdAt: string | null;
+  readonly now: Date | null;
+}) {
+  return (
+    <div className={styles.messageHeader}>
+      <span>{speaker}</span>
+      {createdAt && now ? <time dateTime={createdAt}>{formatMessageTimestamp(createdAt, now)}</time> : null}
+    </div>
   );
 }
 

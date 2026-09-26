@@ -6,6 +6,14 @@ type Fetcher = (input: RequestInfo | URL, init?: RequestInit) => Promise<Respons
 
 export const DEFAULT_DESTINATION_IMAGE = "/backgrounds/home-v2-landscape.png";
 
+export function canUseDestinationGuidance(tripState: TripState): boolean {
+  return tripState.destination.state === "missing";
+}
+
+export function canSelectDestinationRecommendation(tripState: TripState): boolean {
+  return tripState.destination.state !== "known";
+}
+
 export function destinationImageUrl(imageUrl: string | null, imageFailed: boolean): string {
   return imageFailed ? DEFAULT_DESTINATION_IMAGE : imageUrl ?? DEFAULT_DESTINATION_IMAGE;
 }
@@ -27,6 +35,14 @@ export async function requestDestinationRecommendations(
     throw new Error("Destination recommendation response lacks its presentation.");
   }
   return message;
+}
+
+export async function requestDestinationRecommendationsIfMissing(
+  tripId: string, tripState: TripState, fetcher: Fetcher = fetch,
+): Promise<TripMessage | null> {
+  return canUseDestinationGuidance(tripState)
+    ? requestDestinationRecommendations(tripId, fetcher)
+    : null;
 }
 
 export function recommendationSelectionPatch(name: string) {

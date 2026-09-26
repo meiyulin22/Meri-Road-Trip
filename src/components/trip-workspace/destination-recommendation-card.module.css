@@ -1,4 +1,5 @@
 .card { min-width: 0; overflow: hidden; border: 1px solid #d9ded1; border-radius: 18px; background: #faf9f3; box-shadow: 0 8px 24px rgba(64, 78, 59, .08); }
+.card[data-selected="true"] { border-color: #71947b; }
 .media { position: relative; height: 170px; overflow: hidden; background: #e4e9db; }
 .image { object-fit: cover; object-position: center; }
 .insetLabel { position: absolute; bottom: 0; left: 0; padding: 8px 14px 7px; border-radius: 0 15px 0 0; background: #faf9f3; color: #5c715d; font-size: 11px; letter-spacing: .08em; }
