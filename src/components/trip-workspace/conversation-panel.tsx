@@ -8,9 +8,11 @@ import { useEffect, useRef, useState } from "react";
 
 import type { TripMessage } from "@/domain/trip-message/trip-message";
 import type { TripState } from "@/domain/trip-state/trip-state";
+import type { DestinationRecommendations } from "@/domain/location/destination-recommendations";
 
 import { nextRevealCharacterCount, visibleAssistantText } from "./conversation-reveal";
-import { toWorkspaceUIMessages } from "./trip-message-ui-adapter";
+import { requestDestinationRecommendations } from "./destination-recommendation-model";
+import { appendPersistedMessageIfAbsent, toWorkspaceUIMessages } from "./trip-message-ui-adapter";
 import {
   reconcileCommittedUserId,
   WorkspaceChatTransport,
@@ -22,18 +24,31 @@ const workspaceConversationError =
   "发送结果暂时无法确认。请刷新旅程，查看最新消息和状态后再继续。";
 
 export function ConversationPanel({
+  destinationGuidanceMessageId,
+  guidanceMessage,
   initialMessages,
+  isExpanded,
+  onChooseDestination,
+  onExpandedChange,
   onTripStateChange,
   tripId,
   tripState,
 }: {
+  readonly destinationGuidanceMessageId: string;
+  readonly guidanceMessage: TripMessage | null;
   readonly initialMessages: readonly TripMessage[];
+  readonly isExpanded: boolean;
+  readonly onChooseDestination: () => void;
+  readonly onExpandedChange: (expanded: boolean) => void;
   readonly onTripStateChange: (state: TripState) => void;
   readonly tripId: string;
   readonly tripState: TripState;
 }) {
-  const [isExpanded, setIsExpanded] = useState(true);
   const [message, setMessage] = useState("");
+  const [recommendations, setRecommendations] = useState<DestinationRecommendations | null>(null);
+  const [recommendationPending, setRecommendationPending] = useState(false);
+  const [recommendationError, setRecommendationError] = useState(false);
+  const recommendationInFlight = useRef(false);
   const [revealing, setRevealing] = useState<{
     readonly id: string;
     readonly visibleCharacters: number;
@@ -56,6 +71,11 @@ export function ConversationPanel({
   const isSubmitting = status === "submitted" || status === "streaming";
   const hasError = status === "error";
   const latestMessage = messages.at(-1);
+
+  useEffect(() => {
+    if (!guidanceMessage) return;
+    setMessages((current) => appendPersistedMessageIfAbsent(current, guidanceMessage));
+  }, [guidanceMessage, setMessages]);
 
   useEffect(() => {
     const history = messageHistoryRef.current;
@@ -88,9 +108,25 @@ export function ConversationPanel({
     if (submittedMessage === "" || status !== "ready") {
       return;
     }
-    setIsExpanded(true);
+    onExpandedChange(true);
     setMessage("");
     void sendMessage({ text: submittedMessage });
+  }
+
+  async function handleRecommendationRequest(): Promise<void> {
+    if (recommendationInFlight.current) return;
+    recommendationInFlight.current = true;
+    setRecommendationPending(true);
+    setRecommendationError(false);
+    setRecommendations(null);
+    try {
+      setRecommendations(await requestDestinationRecommendations(tripId));
+    } catch {
+      setRecommendationError(true);
+    } finally {
+      recommendationInFlight.current = false;
+      setRecommendationPending(false);
+    }
   }
 
   function handleMessageKeyDown(
@@ -117,7 +153,7 @@ export function ConversationPanel({
           aria-expanded={isExpanded}
           aria-label={isExpanded ? "收起对话" : "展开对话"}
           className={styles.dockToggle}
-          onClick={() => setIsExpanded((current) => !current)}
+          onClick={() => onExpandedChange(!isExpanded)}
           type="button"
         >
           {isExpanded ? (
@@ -171,6 +207,14 @@ export function ConversationPanel({
                       </span>
                     ) : null}
                   </p>
+                  {conversationMessage.id === destinationGuidanceMessageId ? (
+                    <div className={styles.guidanceActions}>
+                      <button disabled={recommendationPending || tripState.destination.state !== "missing"} onClick={() => void handleRecommendationRequest()} type="button">
+                        {recommendationPending ? "正在推荐…" : "帮我推荐"}
+                      </button>
+                      <button onClick={onChooseDestination} type="button">我自己选</button>
+                    </div>
+                  ) : null}
                 </div>
               </article>
             ) : (
@@ -188,6 +232,14 @@ export function ConversationPanel({
               </article>
             ),
           )}
+          {recommendations ? (
+            <div role="status">
+              <p>本次推荐预览（刷新后不会保留）</p>
+              <p>{recommendations.reply}</p>
+              <pre>{JSON.stringify(recommendations.destinations, null, 2)}</pre>
+            </div>
+          ) : null}
+          {recommendationError ? <p role="alert">推荐暂时没有完成，请重试。</p> : null}
           {isSubmitting ? (
             <p className={styles.conversationStatus} role="status">
               Meri 正在理解这条消息…

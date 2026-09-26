@@ -13,7 +13,9 @@ import type {
   TripStateFieldName,
 } from "@/domain/trip-state/trip-state";
 import type { GeneratePlanReadiness } from "@/domain/trip-state/planning-readiness";
+import type { TripMessage } from "@/domain/trip-message/trip-message";
 
+import { requestDestinationMissingGuidance } from "./destination-missing-guidance-model";
 import { LocationEditor } from "./location-editor";
 import { planningReadinessMessage, requestPlanningReadiness, shouldHighlightMissingDestination } from "./planning-readiness-model";
 import {
@@ -57,10 +59,14 @@ const allBriefFields: Array<{
 ];
 
 export function ExpeditionBriefPanel({
+  destinationEditorOpenRequest,
+  onGuidanceMessage,
   onTripStateChange,
   tripId,
   tripState,
 }: {
+  readonly destinationEditorOpenRequest: number;
+  readonly onGuidanceMessage: (message: TripMessage) => void;
   readonly onTripStateChange: (state: TripState) => void;
   readonly tripId: string;
   readonly tripState: TripState;
@@ -72,6 +78,7 @@ export function ExpeditionBriefPanel({
     readonly result: GeneratePlanReadiness;
   } | null>(null);
   const [readinessErrorKey, setReadinessErrorKey] = useState<string | null>(null);
+  const [guidanceErrorKey, setGuidanceErrorKey] = useState<string | null>(null);
   const [isCheckingReadiness, setIsCheckingReadiness] = useState(false);
   const readinessRequestInFlight = useRef(false);
   const isPersistingEdit = useRef(false);
@@ -88,6 +95,7 @@ export function ExpeditionBriefPanel({
   function handleDestinationStateChange(state: TripState): void {
     setReadiness(null);
     setReadinessErrorKey(null);
+    setGuidanceErrorKey(null);
     onTripStateChange(state);
   }
 
@@ -97,9 +105,17 @@ export function ExpeditionBriefPanel({
     setIsCheckingReadiness(true);
     setReadiness(null);
     setReadinessErrorKey(null);
+    setGuidanceErrorKey(null);
     try {
       const result = await requestPlanningReadiness(tripId);
       setReadiness({ destinationKey, result });
+      if (!result.canProceed && result.reason === "destination_missing") {
+        try {
+          onGuidanceMessage(await requestDestinationMissingGuidance(tripId));
+        } catch {
+          setGuidanceErrorKey(destinationKey);
+        }
+      }
     } catch {
       setReadinessErrorKey(destinationKey);
     } finally {
@@ -203,7 +219,8 @@ export function ExpeditionBriefPanel({
           <LocationEditor
             field={key}
             highlightMissing={key === "destination" && highlightMissingDestination}
-            key={key}
+            initiallyOpen={key === "destination" && destinationEditorOpenRequest > 0}
+            key={key === "destination" ? `${key}-${destinationEditorOpenRequest}` : key}
             onTripStateChange={key === "destination" ? handleDestinationStateChange : onTripStateChange}
             tripId={tripId}
             tripState={tripState}
@@ -241,6 +258,11 @@ export function ExpeditionBriefPanel({
       {readinessErrorKey === destinationKey ? (
         <p className={styles.planReadinessResult} role="alert" data-ready="false">
           暂时无法完成检查，请重试。
+        </p>
+      ) : null}
+      {guidanceErrorKey === destinationKey ? (
+        <p className={styles.planReadinessResult} role="alert" data-ready="false">
+          Meri 的引导暂时没能保存，请再试一次。
         </p>
       ) : null}
     </aside>

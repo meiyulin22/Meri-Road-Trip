@@ -8,7 +8,8 @@ import { useCallback, useEffect, useRef, useState, type MouseEvent, type Pointer
 
 import type { JourneySummary } from "@/repositories/journey-summary-repository";
 
-import { shouldLoopRecentJourneys, shouldOpenJourneyCard } from "./recent-journeys-model";
+import { shouldLoopRecentJourneys, shouldOpenJourneyCard, visibleRecentJourneys } from "./recent-journeys-model";
+import { RecentJourneyActions } from "./recent-journey-actions";
 import styles from "./recent-journeys.module.css";
 
 type RecentJourneysProps = {
@@ -16,27 +17,37 @@ type RecentJourneysProps = {
 };
 
 export function RecentJourneys({ journeys }: RecentJourneysProps) {
-  if (journeys.length === 0) {
+  const [deletedIds, setDeletedIds] = useState<readonly string[]>([]);
+  const visibleJourneys = visibleRecentJourneys(journeys, deletedIds);
+
+  if (visibleJourneys.length === 0) {
     return null;
   }
 
+  function handleDeleted(tripId: string) {
+    setDeletedIds((current) => [...current, tripId]);
+  }
+
   return (
-    <section aria-labelledby="recent-journeys-title" className={styles.section}>
+    <section aria-labelledby="recent-journeys-title" className={styles.section} data-region="recent-journeys">
       <div className={styles.headingRow}>
         <h2 id="recent-journeys-title">Continue exploring</h2>
       </div>
-      {journeys.length === 1 ? (
+      {visibleJourneys.length === 1 ? (
         <div className={styles.single}>
-          <JourneyCard journey={journeys[0]} isActive />
+          <JourneyCard journey={visibleJourneys[0]} isActive onDeleted={handleDeleted} />
         </div>
       ) : (
-        <JourneyCarousel journeys={journeys} />
+        <JourneyCarousel journeys={visibleJourneys} onDeleted={handleDeleted} />
       )}
     </section>
   );
 }
 
-function JourneyCarousel({ journeys }: RecentJourneysProps) {
+function JourneyCarousel({
+  journeys,
+  onDeleted,
+}: RecentJourneysProps & { readonly onDeleted: (tripId: string) => void }) {
   const reduceMotion = useReducedMotion();
   const [viewportRef, emblaApi] = useEmblaCarousel({
     align: "center",
@@ -113,6 +124,7 @@ function JourneyCarousel({ journeys }: RecentJourneysProps) {
                 <JourneyCard
                   isActive={index === selectedIndex}
                   journey={journey}
+                  onDeleted={onDeleted}
                   onClick={(event) => {
                     if (!shouldOpenJourneyCard(selectedIndex, index, gestureWasDragged.current)) {
                       event.preventDefault();
@@ -147,28 +159,33 @@ function JourneyCard({
   isActive,
   journey,
   onClick,
+  onDeleted,
 }: {
   isActive: boolean;
   journey: JourneySummary;
   onClick?: (event: MouseEvent<HTMLAnchorElement>) => void;
+  onDeleted: (tripId: string) => void;
 }) {
   return (
-    <Link
-      aria-label={`${isActive ? "Open" : "Select"} ${journey.name}`}
-      className={styles.card}
-      href={`/trips/${encodeURIComponent(journey.id)}`}
-      onClick={onClick}
-      tabIndex={isActive ? 0 : -1}
-    >
-      <div aria-hidden="true" className={styles.cover}>
-        <span className={styles.coverRidge} />
-      </div>
-      <div className={styles.cardDetails}>
-        <span className={styles.destination}>{journey.destination ?? "Destination not set"}</span>
-        <span className={styles.name}>{journey.name}</span>
-        <span className={styles.dates}>{formatDateRange(journey)}</span>
-      </div>
-    </Link>
+    <div className={styles.cardShell}>
+      <Link
+        aria-label={`${isActive ? "Open" : "Select"} ${journey.name}`}
+        className={styles.card}
+        href={`/trips/${encodeURIComponent(journey.id)}`}
+        onClick={onClick}
+        tabIndex={isActive ? 0 : -1}
+      >
+        <div aria-hidden="true" className={styles.cover}>
+          <span className={styles.coverRidge} />
+        </div>
+        <div className={styles.cardDetails}>
+          <span className={styles.destination}>{journey.destination ?? "Destination not set"}</span>
+          <span className={styles.name}>{journey.name}</span>
+          <span className={styles.dates}>{formatDateRange(journey)}</span>
+        </div>
+      </Link>
+      <RecentJourneyActions name={journey.name} onDeleted={onDeleted} tripId={journey.id} />
+    </div>
   );
 }
 

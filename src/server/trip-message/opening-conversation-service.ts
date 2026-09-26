@@ -1,6 +1,7 @@
 import type { TripMessage } from "@/domain/trip-message/trip-message";
 import type { TripState } from "@/domain/trip-state/trip-state";
 import { openingAssistantMessageId } from "./opening-assistant-id";
+import { destinationMissingGuidanceMessageId } from "./destination-missing-guidance";
 
 export class OpeningConversationNotEligibleError extends Error {
   constructor() {
@@ -10,7 +11,16 @@ export class OpeningConversationNotEligibleError extends Error {
 }
 
 export function isPendingOpeningConversation(messages: readonly TripMessage[]): boolean {
-  return messages.length === 1 && messages[0].role === "user";
+  const relevant = withoutDestinationGuidance(messages);
+  return relevant.length === 1 && relevant[0].role === "user";
+}
+
+function withoutDestinationGuidance(messages: readonly TripMessage[]): readonly TripMessage[] {
+  const tripId = messages[0]?.tripId;
+  if (!tripId) return messages;
+  const guidanceId = destinationMissingGuidanceMessageId(tripId);
+  return messages.filter((message) => message.id !== guidanceId ||
+    message.role !== "assistant" || message.tripId !== tripId);
 }
 
 type OpeningConversationDependencies = {
@@ -79,10 +89,11 @@ function existingOpeningAssistant(
   messages: readonly TripMessage[],
   tripId: string,
 ): TripMessage | null {
+  const relevant = withoutDestinationGuidance(messages);
   const openingId = openingAssistantMessageId(tripId);
-  const matching = messages.find((message) => message.id === openingId);
+  const matching = relevant.find((message) => message.id === openingId);
   if (matching && (matching.tripId !== tripId || matching.role !== "assistant" ||
-    messages[0]?.role !== "user" || messages[1]?.id !== openingId)) {
+    relevant[0]?.role !== "user" || relevant[1]?.id !== openingId)) {
     throw new OpeningConversationNotEligibleError();
   }
   return matching ?? null;

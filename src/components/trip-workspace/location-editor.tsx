@@ -16,20 +16,22 @@ type SearchStatus = "idle" | "searching" | "results" | "empty" | "error";
 export function LocationEditor({
   field,
   highlightMissing = false,
+  initiallyOpen = false,
   onTripStateChange,
   tripId,
   tripState,
 }: {
   readonly field: "origin" | "destination";
   readonly highlightMissing?: boolean;
+  readonly initiallyOpen?: boolean;
   readonly onTripStateChange: (state: TripState) => void;
   readonly tripId: string;
   readonly tripState: TripState;
 }) {
   const location = tripState[field];
   const label = field === "origin" ? "出发地" : "目的地";
-  const [open, setOpen] = useState(false);
-  const [query, setQuery] = useState("");
+  const [open, setOpen] = useState(initiallyOpen);
+  const [query, setQuery] = useState(initiallyOpen && location.state !== "missing" ? location.value : "");
   const [suggestions, setSuggestions] = useState<readonly LocationSuggestion[]>([]);
   const [status, setStatus] = useState<SearchStatus>("idle");
   const [activeIndex, setActiveIndex] = useState(-1);

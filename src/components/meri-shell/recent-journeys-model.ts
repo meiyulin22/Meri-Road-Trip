@@ -4,6 +4,13 @@ export function recentJourneysForHome(journeys: readonly JourneySummary[]): Jour
   return journeys.slice(0, 5);
 }
 
+export function visibleRecentJourneys(
+  journeys: readonly JourneySummary[],
+  deletedIds: readonly string[],
+): JourneySummary[] {
+  return journeys.filter((journey) => !deletedIds.includes(journey.id));
+}
+
 export function shouldLoopRecentJourneys(count: number): boolean {
   return count >= 3;
 }

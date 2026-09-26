@@ -6,6 +6,7 @@ import type { TripState } from "@/domain/trip-state/trip-state";
 import { TripNotFoundError } from "@/domain/trip/trip-errors";
 import { selectRecentConversationMessages } from "@/server/ai/workspace-conversation-context";
 import { openingAssistantMessageId } from "./opening-assistant-id";
+import { destinationMissingGuidanceContent, destinationMissingGuidanceMessageId } from "./destination-missing-guidance";
 import {
   isPendingOpeningConversation,
   OpeningConversationNotEligibleError,
@@ -115,6 +116,23 @@ test("AI and persistence failures keep the initial user and allow retry", async 
   setup.failInsert(null);
   await setup.service.initialize(input);
   assert.equal(setup.messages.length, 2);
+});
+
+test("destination guidance does not make a failed opening response permanently unretryable", async () => {
+  const setup = fixture();
+  setup.failAI(new Error("model unavailable"));
+  await assert.rejects(setup.service.initialize(input));
+  const guidance: TripMessage = {
+    id: destinationMissingGuidanceMessageId(tripId), tripId, role: "assistant",
+    content: destinationMissingGuidanceContent, createdAt: "2026-09-25T01:00:02.000Z",
+  };
+  setup.messages.push(guidance);
+  assert.equal(isPendingOpeningConversation(setup.messages), true);
+  setup.failAI(null);
+  const opening = await setup.service.initialize(input);
+  assert.equal(opening.id, openingAssistantMessageId(tripId));
+  assert.equal((await setup.service.initialize(input)).id, opening.id);
+  assert.equal(setup.messages.length, 3);
 });
 
 test("zero messages, unrelated conversations, and wrong owner are ineligible", async () => {

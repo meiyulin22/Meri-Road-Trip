@@ -10,7 +10,7 @@ import { tripMessages } from "@/server/database/schema/trip-messages";
 type TripMessageDatabase = typeof import("@/server/database/db").db;
 type TripMessageRow = typeof tripMessages.$inferSelect;
 
-type PostgresTripMessageOperation = "createMessage" | "createOpeningAssistantIfAbsent" | "createTurn" | "listByTripId";
+type PostgresTripMessageOperation = "createMessage" | "createAssistantIfAbsent" | "createTurn" | "listByTripId";
 
 export class PostgresTripMessageRepositoryError extends Error {
   readonly operation: PostgresTripMessageOperation;
@@ -45,7 +45,7 @@ export class PostgresTripMessageRepository
     }
   }
 
-  async createOpeningAssistantIfAbsent(message: TripMessage): Promise<TripMessage> {
+  async createAssistantIfAbsent(message: TripMessage): Promise<TripMessage> {
     try {
       const inserted = await this.database
         .insert(tripMessages)
@@ -68,7 +68,7 @@ export class PostgresTripMessageRepository
       return winner;
     } catch (error) {
       throw new PostgresTripMessageRepositoryError(
-        "createOpeningAssistantIfAbsent",
+        "createAssistantIfAbsent",
         message.tripId,
         error,
       );

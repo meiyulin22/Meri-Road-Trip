@@ -158,6 +158,8 @@ This distinction is important.
 
 Conversation history is not application state.
 
+UI actions are not disguised as user messages. What Meri actually says may be persisted as assistant conversation. Structured actions and conversation records are conceptually separate. The destination recommendation request is persisted as a TripUserAction before its dedicated model generation; it is not a TripMessage. Recommendation output is not persisted yet.
+
 The system should be able to understand a Trip without replaying an entire chat conversation.
 
 

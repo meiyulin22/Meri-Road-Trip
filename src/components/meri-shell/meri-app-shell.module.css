@@ -49,7 +49,7 @@
   text-align: center;
 }
 
-.entryWithRecent {
+.entry:has([data-region="recent-journeys"]) {
   padding-bottom: clamp(2rem, 4dvh, 3rem);
 }
 
@@ -285,7 +285,7 @@
     padding-bottom: clamp(10rem, 30dvh, 18rem);
   }
 
-  .entryWithRecent {
+  .entry:has([data-region="recent-journeys"]) {
     padding-bottom: clamp(13rem, 34dvh, 22rem);
   }
 
@@ -323,7 +323,7 @@
     padding-bottom: 11rem;
   }
 
-  .entryWithRecent {
+  .entry:has([data-region="recent-journeys"]) {
     padding-bottom: 13rem;
   }
 

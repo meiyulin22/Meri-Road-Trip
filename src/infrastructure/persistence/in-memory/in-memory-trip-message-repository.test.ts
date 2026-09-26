@@ -76,15 +76,15 @@ test("opening assistant write returns the winner and rejects an unrelated ID", a
     "first reply",
     "2026-09-21T08:00:01.000Z",
   );
-  assert.strictEqual(await repository.createOpeningAssistantIfAbsent(assistant), assistant);
-  assert.strictEqual(await repository.createOpeningAssistantIfAbsent({ ...assistant, content: "second reply" }), assistant);
+  assert.strictEqual(await repository.createAssistantIfAbsent(assistant), assistant);
+  assert.strictEqual(await repository.createAssistantIfAbsent({ ...assistant, content: "second reply" }), assistant);
   await repository.createMessage(message(
     "00000000-0000-4000-8000-000000000007",
     "user",
     "unrelated",
     "2026-09-21T08:00:02.000Z",
   ));
-  await assert.rejects(repository.createOpeningAssistantIfAbsent({
+  await assert.rejects(repository.createAssistantIfAbsent({
     ...assistant,
     id: "00000000-0000-4000-8000-000000000007",
   }));

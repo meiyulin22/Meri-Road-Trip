@@ -50,6 +50,13 @@
       "when": 1790228281270,
       "tag": "0006_backfill_default_journey_names",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1790380800000,
+      "tag": "0007_trip_user_actions",
+      "breakpoints": true
     }
   ]
 }

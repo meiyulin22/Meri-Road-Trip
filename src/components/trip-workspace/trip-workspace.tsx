@@ -38,15 +38,25 @@ function getLayoutDebugState(): boolean {
 }
 
 export function TripWorkspace({
+  destinationGuidanceMessageId,
   initialMessages,
   initialTripState,
   tripId,
 }: {
+  readonly destinationGuidanceMessageId: string;
   readonly initialMessages: readonly TripMessage[];
   readonly initialTripState: TripState;
   readonly tripId: string;
 }) {
   const [tripState, setTripState] = useState(initialTripState);
+  const [guidanceMessage, setGuidanceMessage] = useState<TripMessage | null>(null);
+  const [conversationExpanded, setConversationExpanded] = useState(true);
+  const [destinationEditorOpenRequest, setDestinationEditorOpenRequest] = useState(0);
+
+  function handleGuidanceMessage(message: TripMessage): void {
+    setGuidanceMessage(message);
+    setConversationExpanded(true);
+  }
   const layoutDebugEnabled = useSyncExternalStore(
     subscribeToStaticClientState,
     getLayoutDebugState,
@@ -64,13 +74,20 @@ export function TripWorkspace({
         <WorkspaceHeader tripState={tripState} />
         <div className={styles.workspaceStage} data-region="workspace-stage">
           <ConversationPanel
+            destinationGuidanceMessageId={destinationGuidanceMessageId}
+            guidanceMessage={guidanceMessage}
             initialMessages={initialMessages}
+            isExpanded={conversationExpanded}
+            onChooseDestination={() => setDestinationEditorOpenRequest((request) => request + 1)}
+            onExpandedChange={setConversationExpanded}
             onTripStateChange={setTripState}
             tripId={tripId}
             tripState={tripState}
           />
           <div className={styles.briefColumn}>
             <ExpeditionBriefPanel
+              destinationEditorOpenRequest={destinationEditorOpenRequest}
+              onGuidanceMessage={handleGuidanceMessage}
               onTripStateChange={setTripState}
               tripId={tripId}
               tripState={tripState}

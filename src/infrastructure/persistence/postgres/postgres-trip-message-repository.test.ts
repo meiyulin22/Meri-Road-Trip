@@ -203,7 +203,7 @@ function openingDatabaseDouble(winner: TripMessageRow | null) {
 
 test("opening assistant insert uses the existing message ID primary key", async () => {
   const repository = new PostgresTripMessageRepository(openingDatabaseDouble(null));
-  assert.deepEqual(await repository.createOpeningAssistantIfAbsent(assistantMessage), assistantMessage);
+  assert.deepEqual(await repository.createAssistantIfAbsent(assistantMessage), assistantMessage);
 });
 
 test("opening assistant insert returns the persisted conflict winner", async () => {
@@ -211,7 +211,7 @@ test("opening assistant insert returns the persisted conflict winner", async () 
   const persisted: TripMessageRow = { ...assistantMessage, content: "winner" };
   const repository = new PostgresTripMessageRepository(openingDatabaseDouble(persisted));
 
-  assert.deepEqual(await repository.createOpeningAssistantIfAbsent(proposed), persisted);
+  assert.deepEqual(await repository.createAssistantIfAbsent(proposed), persisted);
 });
 
 test("opening assistant insert rejects an unrelated ID conflict", async () => {
@@ -219,7 +219,7 @@ test("opening assistant insert rejects an unrelated ID conflict", async () => {
   const repository = new PostgresTripMessageRepository(openingDatabaseDouble(conflicting));
 
   await assert.rejects(
-    repository.createOpeningAssistantIfAbsent(assistantMessage),
+    repository.createAssistantIfAbsent(assistantMessage),
     PostgresTripMessageRepositoryError,
   );
 });

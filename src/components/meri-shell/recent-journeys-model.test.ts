@@ -7,6 +7,7 @@ import {
   recentJourneysForHome,
   shouldLoopRecentJourneys,
   shouldOpenJourneyCard,
+  visibleRecentJourneys,
 } from "./recent-journeys-model";
 
 const journeys: JourneySummary[] = Array.from({ length: 6 }, (_, index) => ({
@@ -39,4 +40,12 @@ test("does not loop two real slides and selects before opening", () => {
 test("bounds the recent-first list at five without changing order", () => {
   assert.deepEqual(recentJourneysForHome(journeys), journeys.slice(0, 5));
   assert.equal(shouldLoopRecentJourneys(5), true);
+});
+
+test("hides only successfully deleted Journey IDs from the current Home cards", () => {
+  assert.deepEqual(visibleRecentJourneys(journeys.slice(0, 3), ["journey-1"]), [
+    journeys[0],
+    journeys[2],
+  ]);
+  assert.deepEqual(visibleRecentJourneys(journeys.slice(0, 1), ["journey-0"]), []);
 });

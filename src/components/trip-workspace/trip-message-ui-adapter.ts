@@ -9,3 +9,12 @@ export function toWorkspaceUIMessages(messages: readonly TripMessage[]): UIMessa
     parts: [{ type: "text", text: message.content }],
   }));
 }
+
+export function appendPersistedMessageIfAbsent(
+  messages: UIMessage[],
+  persisted: TripMessage,
+): UIMessage[] {
+  return messages.some((message) => message.id === persisted.id)
+    ? messages
+    : [...messages, ...toWorkspaceUIMessages([persisted])];
+}

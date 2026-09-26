@@ -57,6 +57,10 @@
   margin-inline: auto;
 }
 
+.cardShell {
+  position: relative;
+}
+
 .card {
   height: 12.75rem;
   display: grid;
@@ -76,10 +80,140 @@
 }
 
 .card:focus-visible,
+.actionsTrigger:focus-visible,
+.actionsMenu button:focus-visible,
+.deleteDialog button:focus-visible,
 .arrow:focus-visible,
 .pageButton:focus-visible {
   outline: 3px solid #527588;
   outline-offset: 3px;
+}
+
+.actionsTrigger {
+  position: absolute;
+  z-index: 2;
+  top: 0.7rem;
+  right: 0.7rem;
+  width: 2.25rem;
+  height: 2.25rem;
+  display: grid;
+  place-items: center;
+  border: 1px solid rgba(67, 92, 68, 0.28);
+  border-radius: 0.62rem;
+  color: #385244;
+  background: rgba(255, 253, 247, 0.91);
+  box-shadow: 0 2px 8px rgba(39, 58, 43, 0.1);
+  cursor: pointer;
+}
+
+.actionsTrigger:hover,
+.actionsTrigger[aria-expanded="true"] {
+  border-color: #829a82;
+  background: #fffdf7;
+}
+
+.actionsTrigger:active {
+  transform: scale(0.97);
+}
+
+.actionsMenu {
+  z-index: 30;
+  width: 10.5rem;
+  padding: 0.35rem;
+  border: 1px solid #d7ddcf;
+  border-radius: 0.7rem;
+  color: #304439;
+  background: #fffdf7;
+  box-shadow: 0 10px 24px rgba(44, 60, 45, 0.16);
+  outline: none;
+}
+
+.menuDelete {
+  width: 100%;
+  min-height: 2.25rem;
+  padding: 0.45rem 0.65rem;
+  border: 0;
+  border-radius: 0.42rem;
+  color: #875248;
+  background: transparent;
+  font: inherit;
+  font-size: 0.82rem;
+  text-align: left;
+  cursor: pointer;
+}
+
+.menuDelete:hover {
+  background: #f5ebe5;
+}
+
+.deleteDialog {
+  width: min(24rem, calc(100vw - 2rem));
+  max-width: none;
+  padding: 1.35rem;
+  border: 1px solid #d5dcca;
+  border-radius: 0.9rem;
+  color: #2b3f34;
+  background: #fffdf7;
+  box-shadow: 0 18px 48px rgba(25, 40, 30, 0.2);
+  text-align: left;
+}
+
+.deleteDialog::backdrop {
+  background: rgba(30, 43, 35, 0.42);
+}
+
+.deleteDialog h2 {
+  margin: 0;
+  font-size: 1.08rem;
+  font-weight: 650;
+}
+
+.deleteDialog p {
+  margin: 0.65rem 0 0;
+  color: #58695d;
+  font-size: 0.86rem;
+  line-height: 1.5;
+}
+
+.deleteDialog .deleteError {
+  color: #8d4c43;
+}
+
+.deleteActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  margin-top: 1.25rem;
+}
+
+.deleteActions button {
+  min-height: 2.25rem;
+  padding: 0.42rem 0.8rem;
+  border: 1px solid #d2dacd;
+  border-radius: 0.55rem;
+  font: inherit;
+  font-size: 0.82rem;
+  cursor: pointer;
+}
+
+.cancelDelete {
+  color: #3d5545;
+  background: #fffdf7;
+}
+
+.deleteActions .confirmDelete {
+  border-color: #d8bcb1;
+  color: #824a41;
+  background: #f7ece6;
+}
+
+.deleteActions button:hover:not(:disabled) {
+  filter: brightness(0.97);
+}
+
+.deleteActions button:disabled {
+  opacity: 0.6;
+  cursor: wait;
 }
 
 .cover {

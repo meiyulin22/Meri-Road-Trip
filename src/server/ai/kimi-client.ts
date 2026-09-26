@@ -14,7 +14,7 @@ export interface StructuredOutputModelRequest {
   readonly operation: string;
   readonly schemaName: string;
   readonly systemPrompt: string;
-  readonly userMessage: string;
+  readonly userMessage?: string;
   readonly conversationHistory?: readonly StructuredOutputConversationMessage[];
   readonly jsonSchema: Record<string, unknown>;
   readonly tools?: ToolSet;
@@ -109,7 +109,7 @@ class KimiClient implements StructuredOutputModelClient {
         messages: [
           { role: "system", content: request.systemPrompt },
           ...(request.conversationHistory ?? []),
-          { role: "user", content: request.userMessage },
+          ...(request.userMessage === undefined ? [] : [{ role: "user" as const, content: request.userMessage }]),
         ],
         response_format: {
           type: "json_schema",

@@ -57,7 +57,7 @@ export async function MeriAppShell() {
             </PixelHeading>
           </div>
         }
-        className={`${styles.entry} ${journeys.length > 0 ? styles.entryWithRecent : ""}`}
+        className={styles.entry}
         composer={<NewTripComposer />}
         headline={
           <PixelHeading

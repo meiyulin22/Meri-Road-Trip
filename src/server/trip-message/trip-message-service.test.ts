@@ -6,6 +6,8 @@ import type { TripMessageRepository } from "@/repositories/trip-message-reposito
 import { TripNotFoundError } from "@/domain/trip/trip-errors";
 
 import { TripMessageService } from "./trip-message-service";
+import { destinationMissingGuidanceContent, destinationMissingGuidanceMessageId } from "./destination-missing-guidance";
+import { openingAssistantMessageId } from "./opening-assistant-id";
 
 const tripId = "3d17d2c7-fd9b-4748-b751-3a76a9a920be";
 const guestA = "25ba5b26-8db0-4fe3-bfcc-b684dd7889cc";
@@ -16,7 +18,7 @@ function createRepository(initialMessages: TripMessage[] = []) {
   let createTurnCalls = 0;
 
   const repository: TripMessageRepository = {
-    async createOpeningAssistantIfAbsent(message) {
+    async createAssistantIfAbsent(message) {
       const existing = messages.find((item) => item.id === message.id);
       if (existing) return existing;
       messages.push(message);
@@ -116,6 +118,24 @@ test("persists one original user message with its exact content", async () => {
   assert.equal(messageRepository.getCreateTurnCalls(), 0);
 });
 
+test("destination guidance is a single persisted assistant message with a dedicated stable ID", async () => {
+  const messageRepository = createRepository();
+  const service = new TripMessageService({
+    tripService: createTripService(guestA),
+    repository: messageRepository.repository,
+    now: () => new Date("2026-09-22T08:00:00.000Z"),
+  });
+  const first = await service.persistDestinationMissingGuidance({ tripId, ownerGuestId: guestA });
+  const repeated = await service.persistDestinationMissingGuidance({ tripId, ownerGuestId: guestA });
+  assert.strictEqual(repeated, first);
+  assert.equal(first.id, destinationMissingGuidanceMessageId(tripId));
+  assert.notEqual(first.id, openingAssistantMessageId(tripId));
+  assert.equal(first.role, "assistant");
+  assert.equal(first.content, destinationMissingGuidanceContent);
+  assert.deepEqual(messageRepository.getMessages(), [first]);
+  await assert.rejects(service.persistDestinationMissingGuidance({ tripId, ownerGuestId: guestB }), TripNotFoundError);
+});
+
 test("restores persisted conversation history", async () => {
   const persistedMessages: TripMessage[] = [
     {
@@ -158,7 +178,7 @@ test("does not expose another guest's messages", async () => {
 test("does not leave half a turn when persistence fails", async () => {
   const storedMessages: TripMessage[] = [];
   const repository: TripMessageRepository = {
-    async createOpeningAssistantIfAbsent() {
+    async createAssistantIfAbsent() {
       throw new Error("insert failed");
     },
     async createMessage() {

@@ -224,7 +224,7 @@ export class AiSdkKimiClient implements StructuredOutputModelClient {
       const model = provider.chatModel(this.options.model);
       const messages = [
         ...(request.conversationHistory ?? []),
-        { role: "user" as const, content: request.userMessage },
+        ...(request.userMessage === undefined ? [] : [{ role: "user" as const, content: request.userMessage }]),
       ];
       // Moonshot favors the strict JSON response over optional tool calls when
       // both are requested in one generation. Let it choose a tool first, then
@@ -245,7 +245,7 @@ export class AiSdkKimiClient implements StructuredOutputModelClient {
         system: request.systemPrompt,
         ...(toolDecision?.toolCalls.length
           ? { messages: [...messages, ...toolDecision.response.messages] }
-          : request.conversationHistory?.length
+          : request.userMessage === undefined || request.conversationHistory?.length
             ? { messages }
             : { prompt: request.userMessage }),
         output: Output.object({
