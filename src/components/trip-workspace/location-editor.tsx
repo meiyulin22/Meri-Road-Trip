@@ -15,11 +15,13 @@ type SearchStatus = "idle" | "searching" | "results" | "empty" | "error";
 
 export function LocationEditor({
   field,
+  highlightMissing = false,
   onTripStateChange,
   tripId,
   tripState,
 }: {
   readonly field: "origin" | "destination";
+  readonly highlightMissing?: boolean;
   readonly onTripStateChange: (state: TripState) => void;
   readonly tripId: string;
   readonly tripState: TripState;
@@ -128,7 +130,12 @@ export function LocationEditor({
 
   return (
     <Popover open={open} onOpenChange={changeOpen}>
-      <div className={styles.stateField} data-certainty={location.state} onClick={() => { if (!open) changeOpen(true); }}>
+      <div
+        className={styles.stateField}
+        data-certainty={location.state}
+        data-readiness-missing={highlightMissing ? "true" : undefined}
+        onClick={() => { if (!open) changeOpen(true); }}
+      >
         <dt>
           <span className={styles.fieldLabel}>
             {location.state === "known" ? <Check size={14} aria-hidden="true" /> : <CircleHelp size={16} aria-hidden="true" />}

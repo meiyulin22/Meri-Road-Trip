@@ -8,6 +8,17 @@ export interface PlanningReadiness {
   readonly locationResolve: LocationResolveReadiness;
 }
 
+export type GeneratePlanReadiness =
+  | { readonly canProceed: true; readonly destination: "selected" | "resolved" }
+  | {
+      readonly canProceed: false;
+      readonly reason:
+        | "destination_missing"
+        | "destination_ambiguous"
+        | "destination_unresolved"
+        | "provider_error";
+    };
+
 export function evaluatePlanningReadiness(
   tripState: TripState,
 ): PlanningReadiness {

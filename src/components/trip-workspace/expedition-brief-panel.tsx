@@ -12,8 +12,10 @@ import type {
   TripStateField,
   TripStateFieldName,
 } from "@/domain/trip-state/trip-state";
+import type { GeneratePlanReadiness } from "@/domain/trip-state/planning-readiness";
 
 import { LocationEditor } from "./location-editor";
+import { planningReadinessMessage, requestPlanningReadiness, shouldHighlightMissingDestination } from "./planning-readiness-model";
 import {
   createDirectTripStatePatch,
   requestTripStateUpdate,
@@ -65,6 +67,13 @@ export function ExpeditionBriefPanel({
 }) {
   const [isExpanded, setIsExpanded] = useState(true);
   const [persistenceError, setPersistenceError] = useState<string | null>(null);
+  const [readiness, setReadiness] = useState<{
+    readonly destinationKey: string;
+    readonly result: GeneratePlanReadiness;
+  } | null>(null);
+  const [readinessErrorKey, setReadinessErrorKey] = useState<string | null>(null);
+  const [isCheckingReadiness, setIsCheckingReadiness] = useState(false);
+  const readinessRequestInFlight = useRef(false);
   const isPersistingEdit = useRef(false);
   const [editing, setEditing] = useState<{
     readonly field: TripStateFieldName;
@@ -73,6 +82,31 @@ export function ExpeditionBriefPanel({
   const visibleFields = isExpanded
     ? allBriefFields
     : allBriefFields.filter(({ key }) => compactBriefFields.includes(key));
+  const destinationKey = JSON.stringify(tripState.destination);
+  const highlightMissingDestination = shouldHighlightMissingDestination(readiness, destinationKey);
+
+  function handleDestinationStateChange(state: TripState): void {
+    setReadiness(null);
+    setReadinessErrorKey(null);
+    onTripStateChange(state);
+  }
+
+  async function checkReadiness(): Promise<void> {
+    if (readinessRequestInFlight.current) return;
+    readinessRequestInFlight.current = true;
+    setIsCheckingReadiness(true);
+    setReadiness(null);
+    setReadinessErrorKey(null);
+    try {
+      const result = await requestPlanningReadiness(tripId);
+      setReadiness({ destinationKey, result });
+    } catch {
+      setReadinessErrorKey(destinationKey);
+    } finally {
+      readinessRequestInFlight.current = false;
+      setIsCheckingReadiness(false);
+    }
+  }
 
   function startEditing(field: TripStateFieldName): void {
     const currentField = tripState[field];
@@ -168,8 +202,9 @@ export function ExpeditionBriefPanel({
         {visibleFields.map(({ key, label }) => key === "origin" || key === "destination" ? (
           <LocationEditor
             field={key}
+            highlightMissing={key === "destination" && highlightMissingDestination}
             key={key}
-            onTripStateChange={onTripStateChange}
+            onTripStateChange={key === "destination" ? handleDestinationStateChange : onTripStateChange}
             tripId={tripId}
             tripState={tripState}
           />
@@ -188,11 +223,26 @@ export function ExpeditionBriefPanel({
           />
         ))}
       </dl>
-      <button className={styles.generatePlan} type="button" disabled title="规划功能尚未开放">
+      <button
+        aria-busy={isCheckingReadiness}
+        className={styles.generatePlan}
+        disabled={isCheckingReadiness}
+        onClick={() => void checkReadiness()}
+        type="button"
+      >
         <Route size={18} aria-hidden="true" />
-        <span>Generate plan</span>
-        <small>即将开放</small>
+        <span>{isCheckingReadiness ? "正在检查目的地…" : "Generate plan"}</span>
       </button>
+      {readiness?.destinationKey === destinationKey ? (
+        <p className={styles.planReadinessResult} role="status" data-ready={readiness.result.canProceed}>
+          {planningReadinessMessage(readiness.result)}
+        </p>
+      ) : null}
+      {readinessErrorKey === destinationKey ? (
+        <p className={styles.planReadinessResult} role="alert" data-ready="false">
+          暂时无法完成检查，请重试。
+        </p>
+      ) : null}
     </aside>
   );
 }

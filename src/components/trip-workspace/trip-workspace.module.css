@@ -142,6 +142,7 @@
 .stateField dd button svg { flex: 0 0 11px; color: #a1aaa0; opacity: .45; }
 .stateField:hover dd button svg, .stateField:focus-within dd button svg { opacity: 1; }
 .stateField:hover { background: rgba(234, 239, 226, .35); }
+.stateField[data-readiness-missing="true"], .stateField[data-readiness-missing="true"]:hover { border-radius: 8px; background: rgba(180, 111, 82, .075); outline: 1px solid rgba(162, 99, 77, .38); outline-offset: -1px; }
 .stateField[data-certainty="missing"] dd { color: #a0a89d; }
 .stateField input, .stateField select { width: 100%; min-width: 0; border: 1px solid #91a890; border-radius: 6px; padding: 6px; background: #fffdf8; color: var(--ink); font: inherit; }
 .briefPersistenceError { margin: 8px 0; padding: 9px; border-radius: 8px; color: #995747; background: #fff0e7; font-size: 11px; }
@@ -162,8 +163,13 @@
 .destinationSuggestion strong { font-size: 12px; font-weight: 650; }
 .destinationSuggestion span { color: #64756c; font-size: 11px; line-height: 1.4; overflow-wrap: anywhere; }
 .destinationSuggestion small { color: #94a095; font-size: 10px; line-height: 1.4; overflow-wrap: anywhere; }
-.generatePlan { display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%; min-height: 45px; margin-top: 16px; padding: 10px; border: 1px solid #8fa48e; border-radius: 11px; background: #dce5d7; color: #67826d; cursor: not-allowed; font-size: 13px; }
-.generatePlan small { margin-left: auto; padding-left: 6px; font-size: 9px; color: #7e927e; }
+.generatePlan { display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%; min-height: 45px; margin-top: 16px; padding: 10px; border: 1px solid #8fa48e; border-radius: 11px; background: #dce5d7; color: #385d4b; cursor: pointer; font-size: 13px; }
+.generatePlan:hover:not(:disabled) { background: #d0dfd0; }
+.generatePlan:active:not(:disabled) { background: #c3d5c2; }
+.generatePlan:focus-visible { outline: 2px solid #385d4b; outline-offset: 2px; }
+.generatePlan:disabled { cursor: wait; opacity: .7; }
+.planReadinessResult { margin: 9px 2px 0; color: #385d4b; font-size: 11px; line-height: 1.5; }
+.planReadinessResult[data-ready="false"] { color: #9b5848; }
 .meriWorld { margin-top: 12px; }
 .contextualActions { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
 .contextualActions button { min-width: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 7px; min-height: 78px; padding: 10px 4px; border: 1px solid var(--line); border-radius: 12px; background: rgba(255, 253, 248, .6); color: #758780; cursor: not-allowed; }
