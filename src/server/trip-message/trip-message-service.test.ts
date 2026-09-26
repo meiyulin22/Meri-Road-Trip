@@ -96,6 +96,22 @@ test("persists a completed user and assistant turn", async () => {
   );
 });
 
+test("persists ambiguous candidates with the assistant side of the real conversation turn", async () => {
+  const messageRepository = createRepository();
+  const service = new TripMessageService({ tripService: createTripService(guestA), repository: messageRepository.repository });
+  const assistantPresentation = { type: "location_candidates" as const, candidates: [
+    { providerId: "poi-1", name: "吉林市", region: "吉林省", address: null,
+      longitude: 126.55, latitude: 43.84, coordinateSystem: "GCJ-02" as const },
+    { providerId: "poi-2", name: "吉林", region: "中国东北", address: null,
+      longitude: 125.32, latitude: 43.89, coordinateSystem: "GCJ-02" as const },
+  ] };
+  const [user, assistant] = await service.persistSuccessfulTurn({ tripId, ownerGuestId: guestA,
+    userContent: "去吉林", assistantContent: "请选择具体地点", assistantPresentation });
+  assert.equal(user.presentation, undefined);
+  assert.deepEqual(assistant.presentation, assistantPresentation);
+  assert.deepEqual(await service.listMessages(tripId, guestA), [user, assistant]);
+});
+
 test("persists one original user message with its exact content", async () => {
   const messageRepository = createRepository();
   const service = new TripMessageService({

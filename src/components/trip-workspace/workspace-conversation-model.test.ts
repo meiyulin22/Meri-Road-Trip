@@ -5,6 +5,7 @@ import type { TripState } from "@/domain/trip-state/trip-state";
 
 import {
   requestWorkspaceConversation,
+  selectLocationCandidate,
   WorkspaceConversationRequestError,
 } from "./workspace-conversation-model";
 
@@ -64,6 +65,19 @@ test("accepts a persisted workspace conversation response", async () => {
     result.messages.map((message) => message.role),
     ["user", "assistant"],
   );
+});
+
+test("candidate selection posts only persisted message identity and index", async () => {
+  const selected = await selectLocationCandidate("trip 1", "assistant-1", 1, async (input, init) => {
+    assert.equal(input, "/api/trips/trip%201/location-candidate-selection");
+    assert.equal(init?.method, "POST");
+    assert.deepEqual(JSON.parse(init?.body as string), { messageId: "assistant-1", candidateIndex: 1 });
+    return Response.json({ tripState });
+  });
+  assert.deepEqual(selected, tripState);
+  await assert.rejects(selectLocationCandidate("trip", "assistant-1", 99,
+    async () => Response.json({ error: "Candidate selection not found." }, { status: 404 })),
+  WorkspaceConversationRequestError);
 });
 
 test("default conversation fetch uses the browser global receiver", async (t) => {

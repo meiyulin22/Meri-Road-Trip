@@ -1,3 +1,5 @@
+import type { LocationCandidate } from "@/domain/location/location";
+
 export const tripMessageRoles = ["user", "assistant"] as const;
 
 export type TripMessageRole = (typeof tripMessageRoles)[number];
@@ -13,12 +15,19 @@ export interface DestinationRecommendationPresentation {
   }[];
 }
 
+export interface LocationCandidatesPresentation {
+  readonly type: "location_candidates";
+  readonly candidates: readonly LocationCandidate[];
+}
+
+export type TripMessagePresentation = DestinationRecommendationPresentation | LocationCandidatesPresentation;
+
 export interface TripMessage {
   readonly id: string;
   readonly tripId: string;
   readonly role: TripMessageRole;
   readonly content: string;
-  readonly presentation?: DestinationRecommendationPresentation;
+  readonly presentation?: TripMessagePresentation;
   readonly createdAt: string;
 }
 
@@ -77,9 +86,23 @@ export function validateTripMessage(value: unknown): TripMessage {
   };
 }
 
-function validatePresentation(value: unknown, role: TripMessageRole): DestinationRecommendationPresentation {
-  if (role !== "assistant" || !isRecord(value) ||
-    Object.keys(value).length !== 2 || value.type !== "destination_recommendations" ||
+function validatePresentation(value: unknown, role: TripMessageRole): TripMessagePresentation {
+  if (role !== "assistant" || !isRecord(value) || Object.keys(value).length !== 2) {
+    throw new InvalidTripMessageError("TripMessage.presentation is invalid.");
+  }
+  if (value.type === "location_candidates") {
+    if (!Array.isArray(value.candidates) || value.candidates.length < 2) {
+      throw new InvalidTripMessageError("TripMessage location candidates are invalid.");
+    }
+    const candidates = value.candidates.map(validateLocationCandidate);
+    const identities = candidates.map((candidate) =>
+      `${candidate.providerId}:${candidate.longitude},${candidate.latitude}`);
+    if (new Set(identities).size !== identities.length) {
+      throw new InvalidTripMessageError("TripMessage location candidates must be distinct.");
+    }
+    return { type: "location_candidates", candidates };
+  }
+  if (value.type !== "destination_recommendations" ||
     !Array.isArray(value.destinations) || value.destinations.length !== 3) {
     throw new InvalidTripMessageError("TripMessage.presentation is invalid.");
   }
@@ -97,6 +120,23 @@ function validatePresentation(value: unknown, role: TripMessageRole): Destinatio
     throw new InvalidTripMessageError("TripMessage.presentation IDs must be distinct.");
   }
   return { type: "destination_recommendations", destinations };
+}
+
+function validateLocationCandidate(value: unknown): LocationCandidate {
+  if (!isRecord(value) || !hasExactKeys(value, ["providerId", "name", "region", "address", "longitude", "latitude", "coordinateSystem"]) ||
+    !isPresentText(value.providerId) || !isPresentText(value.name) ||
+    !(value.region === null || isPresentText(value.region)) ||
+    !(value.address === null || isPresentText(value.address)) ||
+    typeof value.longitude !== "number" || !Number.isFinite(value.longitude) || Math.abs(value.longitude) > 180 ||
+    typeof value.latitude !== "number" || !Number.isFinite(value.latitude) || Math.abs(value.latitude) > 90 ||
+    value.coordinateSystem !== "GCJ-02") {
+    throw new InvalidTripMessageError("TripMessage location candidate is invalid.");
+  }
+  return value as unknown as LocationCandidate;
+}
+
+function hasExactKeys(value: Record<string, unknown>, keys: readonly string[]): boolean {
+  return Object.keys(value).length === keys.length && keys.every((key) => Object.hasOwn(value, key));
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

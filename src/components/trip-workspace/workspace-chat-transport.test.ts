@@ -4,7 +4,7 @@ import { Chat } from "@ai-sdk/react";
 import type { ChatTransport, UIMessage, UIMessageChunk } from "ai";
 
 import type { TripState } from "@/domain/trip-state/trip-state";
-import { messageCreatedAt } from "./trip-message-ui-adapter";
+import { locationCandidatePresentation, messageCreatedAt } from "./trip-message-ui-adapter";
 
 import {
   reconcileCommittedUserId,
@@ -94,6 +94,22 @@ test("calls the existing JSON contract and exposes only a committed assistant tu
     parts: [{ type: "text", text: "改成富良野" }],
     metadata: { createdAt: responseBody.messages[0].createdAt },
   }]);
+});
+
+test("committed ambiguous assistant turn carries candidate presentation immediately", async () => {
+  const presentation = { type: "location_candidates", candidates: [
+    { providerId: "poi-1", name: "吉林市", region: "吉林省", address: null,
+      longitude: 126.55, latitude: 43.84, coordinateSystem: "GCJ-02" },
+    { providerId: "poi-2", name: "吉林", region: "中国东北", address: null,
+      longitude: 125.32, latitude: 43.89, coordinateSystem: "GCJ-02" },
+  ] };
+  const assistant = { ...responseBody.messages[1], presentation };
+  const transport = new WorkspaceChatTransport("trip-1", () => undefined, async () => Response.json({
+    ...responseBody, messages: [responseBody.messages[0], assistant],
+  }));
+  const chunks = await readChunks(await transport.sendMessages(sendOptions()));
+  assert.deepEqual(chunks[0], { type: "start", messageId: assistant.id,
+    messageMetadata: { createdAt: assistant.createdAt, presentation } });
 });
 
 test("default transport fetch uses the browser global receiver", async (t) => {
@@ -197,6 +213,24 @@ test("AI SDK Chat finishes with the authoritative persisted IDs and one assistan
     assert.equal(chat.messages[1].parts[0].text, "好的，目的地改成富良野。");
     assert.equal(chat.messages[1].parts[0].state, "done");
   }
+});
+
+test("AI SDK Chat exposes persisted candidate options immediately after the committed turn", async () => {
+  const presentation = { type: "location_candidates", candidates: [
+    { providerId: "poi-1", name: "吉林市", region: "吉林省", address: null,
+      longitude: 126.55, latitude: 43.84, coordinateSystem: "GCJ-02" },
+    { providerId: "poi-2", name: "吉林", region: "中国东北", address: null,
+      longitude: 125.32, latitude: 43.89, coordinateSystem: "GCJ-02" },
+  ] };
+  const chat = new Chat<UIMessage>({
+    id: "trip-1",
+    transport: new WorkspaceChatTransport("trip-1", (turn) => {
+      chat.messages = reconcileCommittedUserId(chat.messages, turn.temporaryUserId, turn.persistedUser);
+    }, async () => Response.json({ ...responseBody,
+      messages: [responseBody.messages[0], { ...responseBody.messages[1], presentation }] })),
+  });
+  await chat.sendMessage({ text: "改成富良野" });
+  assert.deepEqual(locationCandidatePresentation(chat.messages[1]), presentation);
 });
 
 test("AI SDK Chat keeps an unconfirmed user message without fabricating an assistant", async () => {

@@ -33,7 +33,7 @@ test("distinguishes destination mentions from explicit update intent", () => {
   assert.match(prompt, /origin or destination in TripState alone is not a reason/);
   assert.match(prompt, /casual conversation, meta questions about Meri/);
   assert.match(prompt, /Do not call resolve_location for an explicit destination update/);
-  assert.match(prompt, /application resolves the committed destination after persistence/);
+  assert.match(prompt, /application validates the proposed destination before persistence/);
   assert.match(prompt, /Geographic ambiguity does not make the user's update intent unclear/);
 });
 

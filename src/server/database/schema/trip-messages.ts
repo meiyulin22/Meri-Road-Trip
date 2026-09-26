@@ -1,6 +1,6 @@
 import { jsonb, pgEnum, pgTable, text, timestamp, uuid } from "drizzle-orm/pg-core";
 
-import { tripMessageRoles, type DestinationRecommendationPresentation } from "@/domain/trip-message/trip-message";
+import { tripMessageRoles, type TripMessagePresentation } from "@/domain/trip-message/trip-message";
 
 import { trips } from "./trips";
 
@@ -16,7 +16,7 @@ export const tripMessages = pgTable("trip_messages", {
     .references(() => trips.id, { onDelete: "cascade" }),
   role: tripMessageRoleEnum("role").notNull(),
   content: text("content").notNull(),
-  presentation: jsonb("presentation").$type<DestinationRecommendationPresentation>(),
+  presentation: jsonb("presentation").$type<TripMessagePresentation>(),
   createdAt: timestamp("created_at", {
     mode: "string",
     withTimezone: true,

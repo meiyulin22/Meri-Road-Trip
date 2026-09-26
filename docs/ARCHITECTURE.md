@@ -152,15 +152,32 @@ TripState {
 
 TripState is stored once per Trip. List cards use JourneySummary, a read model derived from Trip and TripState rather than another source of truth.
 
-Destination is the core geographic anchor of a Journey. Other Journey fields are progressively collected when specific capabilities require them; origin, dates, duration, and transport preference are not prerequisites for destination resolution. A known TripState destination is a user-established value, not geographic verification.
+Destination is the core geographic anchor of a Journey. Other Journey fields are progressively collected when specific capabilities require them; origin, dates, duration, and transport preference are not prerequisites for destination resolution. A user-established destination is not, by itself, geographic verification.
 
 This distinction is important.
 
 Conversation history is not application state.
 
-UI actions are not disguised as user messages. What Meri actually says may be persisted as assistant conversation. Structured actions and conversation records are conceptually separate. The destination recommendation request is persisted as a TripUserAction before its dedicated model generation; it is not a TripMessage. The assistant's reply is persisted as a TripMessage with a narrow destination-recommendations presentation. That presentation retains the three suggestions and any matched HTTPS destination photo URL, but no unverified provider identity. A later explicit card selection updates TripState.destination without fabricating a user message.
+UI actions are not disguised as user messages. What Meri actually says may be persisted as assistant conversation. Structured actions and conversation records are conceptually separate. The destination recommendation request is persisted as a TripUserAction before its dedicated model generation; it is not a TripMessage. The assistant's reply is persisted as a TripMessage with a narrow destination-recommendations presentation. That presentation retains the three suggestions and any matched HTTPS destination photo URL, but no unverified provider identity. An explicit card selection must pass reality validation before updating TripState.destination, without fabricating a user message.
 
 The system should be able to understand a Trip without replaying an entire chat conversation.
+
+## Reality Validation
+
+LLM interpretation is not authoritative evidence of real-world facts. For real-world destinations, the intended flow is:
+
+User input → LLM interpretation → Location Provider validation → authoritative TripState update
+
+A newly proposed destination must be validated before it replaces the authoritative TripState destination.
+
+- Resolved: persist the validated destination, not the unverified proposal.
+- Ambiguous: do not persist the proposed destination yet. Present the Provider-returned LocationCandidates as selectable UI cards or options; after explicit selection, persist the selected candidate and its provider metadata.
+- Unresolved: preserve the previous authoritative destination (or missing state) and ask the user to clarify.
+- Other valid TripState fields extracted from the same message may persist independently.
+
+Provider-returned identity and coordinates are evidence; LLM interpretation alone is not.
+
+> Meri may be uncertain, but it must not present unverified real-world information as verified fact.
 
 
 ---
@@ -244,6 +261,12 @@ This enables:
 Meri intentionally supports both deterministic workflows and agentic execution.
 
 They solve different problems.
+
+## Workflow Principle
+
+> Deterministic when possible, agentic when necessary.
+
+Critical business constraints and real-world validation are enforced by deterministic workflows. LLMs handle interpretation and judgment. Agents are reserved for genuinely open-ended exploration where the next action depends on previous observations or tool results.
 
 
 ## Workflow

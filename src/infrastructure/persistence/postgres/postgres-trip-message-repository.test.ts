@@ -173,6 +173,21 @@ test("persists and hydrates a recommendation presentation in the existing messag
   assert.deepEqual(await repository.listByTripId(tripId), [message]);
 });
 
+test("persists and hydrates ambiguous location candidates in existing presentation JSONB", async () => {
+  const presentation = { type: "location_candidates" as const, candidates: [
+    { providerId: "poi-1", name: "吉林市", region: "吉林省", address: null,
+      longitude: 126.55, latitude: 43.84, coordinateSystem: "GCJ-02" as const },
+    { providerId: "poi-2", name: "吉林", region: "中国东北", address: null,
+      longitude: 125.32, latitude: 43.89, coordinateSystem: "GCJ-02" as const },
+  ] };
+  const message: TripMessage = { ...assistantMessage, presentation };
+  const { database, inspection } = createDatabaseDouble({ rows: [{ ...message, presentation }] });
+  const repository = new PostgresTripMessageRepository(database);
+  await repository.createMessage(message);
+  assert.deepEqual(inspection.insertedRows, message);
+  assert.deepEqual(await repository.listByTripId(tripId), [message]);
+});
+
 test("preserves the initial message insert failure cause", async () => {
   const databaseError = new Error("message insert failed");
   const { database } = createDatabaseDouble({ createError: databaseError });

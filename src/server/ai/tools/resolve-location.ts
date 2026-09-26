@@ -18,7 +18,7 @@ export function createResolveLocationTool({
 }: ResolveLocationToolContext) {
   return tool({
     description:
-      "Resolve only the current Journey destination stored in TripState when the current user task needs geographic identification or disambiguation. Do not call for an explicit destination update; the application resolves the new destination after persistence. The query must exactly match TripState.destination.value. Do not resolve origin or another place merely mentioned in conversation. A destination in TripState alone is not a reason to call this tool. Do not call for casual conversation, questions about Meri, or requests unrelated to geographic resolution. A selected result preserves the user's explicit choice; a resolved candidate is only geographically matched, not user-confirmed TripState.",
+      "Resolve only the current Journey destination stored in TripState when the current user task needs geographic identification or disambiguation. Do not call for an explicit destination update; the application validates the proposed destination before persistence. The query must exactly match TripState.destination.value. Do not resolve origin or another place merely mentioned in conversation. A destination in TripState alone is not a reason to call this tool. Do not call for casual conversation, questions about Meri, or requests unrelated to geographic resolution. A selected result preserves the user's explicit choice; a resolved candidate is only geographically matched, not user-confirmed TripState.",
     inputSchema: z.object({ query: z.string().trim().min(1).max(80) }),
     execute: async ({ query }) => {
       logger.info(

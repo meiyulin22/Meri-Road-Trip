@@ -88,3 +88,22 @@ export async function requestWorkspaceConversation(
     );
   }
 }
+
+export async function selectLocationCandidate(
+  tripId: string,
+  messageId: string,
+  candidateIndex: number,
+  fetcher: Fetcher = (input, init) => globalThis.fetch(input, init),
+): Promise<TripState> {
+  const response = await fetcher(`/api/trips/${encodeURIComponent(tripId)}/location-candidate-selection`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ messageId, candidateIndex }),
+  });
+  if (!response.ok) throw new WorkspaceConversationRequestError("Location candidate selection failed.");
+  const body: unknown = await response.json();
+  if (typeof body !== "object" || body === null || !("tripState" in body)) {
+    throw new WorkspaceConversationRequestError("Location candidate selection response is invalid.");
+  }
+  return validateTripState(body.tripState);
+}

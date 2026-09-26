@@ -91,7 +91,8 @@ export class WorkspaceChatTransport implements ChatTransport<UIMessage> {
     return new ReadableStream<UIMessageChunk>({
       start(controller) {
         controller.enqueue({ type: "start", messageId: persistedAssistant.id,
-          messageMetadata: { createdAt: persistedAssistant.createdAt } });
+          messageMetadata: { createdAt: persistedAssistant.createdAt,
+            ...(persistedAssistant.presentation ? { presentation: persistedAssistant.presentation } : {}) } });
         controller.enqueue({ type: "text-start", id: persistedAssistant.id });
         controller.enqueue({ type: "text-delta", id: persistedAssistant.id, delta: persistedAssistant.content });
         controller.enqueue({ type: "text-end", id: persistedAssistant.id });

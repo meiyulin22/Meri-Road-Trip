@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { formatMessageTimestamp } from "./message-timestamp";
-import { appendPersistedMessageIfAbsent, messageCreatedAt, recommendationPresentation, toWorkspaceUIMessages } from "./trip-message-ui-adapter";
+import { appendPersistedMessageIfAbsent, locationCandidatePresentation, messageCreatedAt, recommendationPresentation, toWorkspaceUIMessages } from "./trip-message-ui-adapter";
 
 function localDate(year: number, month: number, day: number, hour: number, minute: number): string {
   return new Date(year, month - 1, day, hour, minute).toISOString();
@@ -45,6 +45,19 @@ test("restored recommendation presentation remains attached to its assistant mes
   assert.deepEqual(recommendationPresentation(restored[0]), presentation);
   assert.equal(messageCreatedAt(restored[0]), "2026-09-26T00:00:00.000Z");
   assert.equal(restored[0].parts[0].type, "text");
+});
+
+test("refresh-loaded ambiguous candidates remain attached to their assistant message", () => {
+  const presentation = { type: "location_candidates" as const, candidates: [
+    { providerId: "poi-1", name: "吉林市", region: "吉林省", address: null,
+      longitude: 126.55, latitude: 43.84, coordinateSystem: "GCJ-02" as const },
+    { providerId: "poi-2", name: "吉林", region: "中国东北", address: null,
+      longitude: 125.32, latitude: 43.89, coordinateSystem: "GCJ-02" as const },
+  ] };
+  const [restored] = toWorkspaceUIMessages([{ id: "assistant", tripId: "trip-1", role: "assistant",
+    content: "请选择具体地点", presentation, createdAt: "2026-09-26T00:00:00.000Z" }]);
+  assert.deepEqual(locationCandidatePresentation(restored), presentation);
+  assert.equal(recommendationPresentation(restored), undefined);
 });
 
 test("appends persisted guidance once without turning it into a user message", () => {

@@ -28,7 +28,7 @@ import { journeyService } from "@/server/journey/journey-service-instance";
 import { readGuestId } from "@/server/identity/guest-identity";
 import { LocationService } from "@/server/location/location-service";
 import {
-  persistWorkspacePatchAndResolveDestination,
+  persistWorkspacePatchWithDestinationValidation,
   replyAfterDestinationResolution,
 } from "@/server/location/post-update-destination-resolution";
 import { logger, logEvents } from "@/server/observability/logger";
@@ -158,8 +158,8 @@ export async function POST(request: Request) {
       ...getRequestContext(),
     });
     const patch = createTripStatePatchFromInterpretation(interpretation);
-    const { tripState: persistedTripState, resolution } =
-      await persistWorkspacePatchAndResolveDestination(
+    const { tripState: persistedTripState, resolution, persistedPatch } =
+      await persistWorkspacePatchWithDestinationValidation(
         tripState,
         patch,
         (committedPatch) => journeyService.updateTripState(tripId, ownerGuestId, committedPatch),
@@ -167,16 +167,16 @@ export async function POST(request: Request) {
       );
     const finalInterpretation = {
       ...interpretation,
-      reply: replyAfterDestinationResolution(interpretation, persistedTripState, resolution),
+      reply: replyAfterDestinationResolution(interpretation, persistedTripState, resolution, persistedPatch),
     };
 
-    if (patch !== null) {
+    if (persistedPatch !== null) {
       logger.info(
         {
           event: logEvents.tripStateUpdateApplied,
           ...context,
           tripId,
-          changedFields: Object.keys(patch),
+          changedFields: Object.keys(persistedPatch),
         },
         "TripState update applied",
       );
@@ -187,6 +187,9 @@ export async function POST(request: Request) {
       ownerGuestId,
       userContent: body.message,
       assistantContent: finalInterpretation.reply,
+      ...(resolution?.status === "ambiguous"
+        ? { assistantPresentation: { type: "location_candidates" as const, candidates: resolution.candidates } }
+        : {}),
     });
     logger.info(
       {

@@ -7,13 +7,15 @@ import type { UIMessage } from "ai";
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 
 import type { TripMessage } from "@/domain/trip-message/trip-message";
+import type { LocationCandidate } from "@/domain/location/location";
 import type { TripState } from "@/domain/trip-state/trip-state";
 
 import { nextRevealCharacterCount, visibleAssistantText } from "./conversation-reveal";
 import { canSelectDestinationRecommendation, canUseDestinationGuidance, requestDestinationRecommendationsIfMissing, selectDestinationRecommendationAndApply } from "./destination-recommendation-model";
 import { DestinationRecommendationCard } from "./destination-recommendation-card";
 import { formatMessageTimestamp } from "./message-timestamp";
-import { appendPersistedMessageIfAbsent, messageCreatedAt, recommendationPresentation, toWorkspaceUIMessages } from "./trip-message-ui-adapter";
+import { appendPersistedMessageIfAbsent, locationCandidatePresentation, messageCreatedAt, recommendationPresentation, toWorkspaceUIMessages } from "./trip-message-ui-adapter";
+import { selectLocationCandidate } from "./workspace-conversation-model";
 import {
   reconcileCommittedUserId,
   WorkspaceChatTransport,
@@ -54,6 +56,9 @@ export function ConversationPanel({
   const [recommendationError, setRecommendationError] = useState(false);
   const recommendationInFlight = useRef(false);
   const selectionInFlight = useRef(false);
+  const candidateInFlight = useRef(false);
+  const [candidatePending, setCandidatePending] = useState<string | null>(null);
+  const [candidateError, setCandidateError] = useState<string | null>(null);
   const [selectionPendingId, setSelectionPendingId] = useState<string | null>(null);
   const [selectionErrorId, setSelectionErrorId] = useState<string | null>(null);
   const [revealing, setRevealing] = useState<{
@@ -151,6 +156,21 @@ export function ConversationPanel({
     } finally {
       selectionInFlight.current = false;
       setSelectionPendingId(null);
+    }
+  }
+
+  async function handleCandidateSelection(messageId: string, candidateIndex: number): Promise<void> {
+    if (candidateInFlight.current) return;
+    candidateInFlight.current = true;
+    setCandidatePending(messageId);
+    setCandidateError(null);
+    try {
+      onTripStateChange(await selectLocationCandidate(tripId, messageId, candidateIndex));
+    } catch {
+      setCandidateError(messageId);
+    } finally {
+      candidateInFlight.current = false;
+      setCandidatePending(null);
     }
   }
 
@@ -259,6 +279,25 @@ export function ConversationPanel({
                       ))}
                     </div>
                   ) : null}
+                  {locationCandidatePresentation(conversationMessage)?.candidates ? (
+                    <div className={styles.destinationSuggestions} role="group" aria-label="选择具体目的地">
+                      {locationCandidatePresentation(conversationMessage)?.candidates.map((candidate, candidateIndex) => (
+                        <button
+                          className={styles.destinationSuggestion}
+                          data-active={isSelectedCandidate(candidate, tripState) ? "true" : "false"}
+                          disabled={candidatePending !== null || locationCandidatePresentation(conversationMessage)?.candidates.some((item) => isSelectedCandidate(item, tripState))}
+                          key={`${candidate.providerId}-${candidateIndex}`}
+                          onClick={() => void handleCandidateSelection(conversationMessage.id, candidateIndex)}
+                          type="button"
+                        >
+                          <strong>{candidate.name}</strong>
+                          {candidate.region ? <span>{candidate.region}</span> : null}
+                          {candidate.address ? <small>{candidate.address}</small> : null}
+                        </button>
+                      ))}
+                      {candidateError === conversationMessage.id ? <p role="alert">目的地暂时没能保存，请重试选择。</p> : null}
+                    </div>
+                  ) : null}
                 </div>
               </article>
             ) : (
@@ -349,6 +388,12 @@ export function ConversationPanel({
       </form>
     </section>
   );
+}
+
+function isSelectedCandidate(candidate: LocationCandidate, tripState: TripState): boolean {
+  return tripState.destination.state === "known" &&
+    tripState.destination.value === candidate.name &&
+    tripState.destination.selection?.providerId === candidate.providerId;
 }
 
 function MessageHeader({ speaker, createdAt, now }: {

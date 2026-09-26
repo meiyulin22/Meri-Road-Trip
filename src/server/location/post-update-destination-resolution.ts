@@ -4,27 +4,40 @@ import type { WorkspaceConversationInterpretation } from "@/domain/trip-state/wo
 
 import type { LocationResolveResult, LocationService } from "./location-service";
 
-export async function persistWorkspacePatchAndResolveDestination(
+export async function persistWorkspacePatchWithDestinationValidation(
   previousState: TripState,
   patch: TripStatePatch | null,
   persistPatch: (patch: TripStatePatch) => Promise<TripState>,
   locationService: LocationService,
-): Promise<{ tripState: TripState; resolution: LocationResolveResult | null }> {
-  if (patch === null) return { tripState: previousState, resolution: null };
+): Promise<{ tripState: TripState; resolution: LocationResolveResult | null; persistedPatch: TripStatePatch | null }> {
+  if (patch === null) return { tripState: previousState, resolution: null, persistedPatch: null };
 
-  const tripState = await persistPatch(patch);
   const previous = previousState.destination;
-  const current = tripState.destination;
+  const current = patch.destination;
   const destinationChanged = patch.destination !== undefined && (
-    previous.state !== current.state ||
-    (previous.state !== "missing" && current.state !== "missing" && previous.value !== current.value)
+    previous.state !== current?.state ||
+    (previous.state !== "missing" && current?.state !== "missing" && previous.value !== current?.value)
   );
-
-  if (!destinationChanged || current.state === "missing") {
-    return { tripState, resolution: null };
+  let resolution: LocationResolveResult | null = null;
+  let persistedPatch: TripStatePatch = patch;
+  if (destinationChanged && current?.state !== "missing" && current !== undefined) {
+    resolution = await locationService.resolveExpression(current.value);
+    if (resolution.status !== "resolved") {
+      persistedPatch = withoutDestination(patch);
+    }
+  } else if (!destinationChanged && current !== undefined) {
+    persistedPatch = withoutDestination(patch);
   }
+  if (Object.keys(persistedPatch).length === 0) {
+    return { tripState: previousState, resolution, persistedPatch: null };
+  }
+  return { tripState: await persistPatch(persistedPatch), resolution, persistedPatch };
+}
 
-  return { tripState, resolution: await locationService.resolve(tripState) };
+function withoutDestination(patch: TripStatePatch): TripStatePatch {
+  const otherFields: { -readonly [K in keyof TripState]?: TripState[K] } = { ...patch };
+  delete otherFields.destination;
+  return otherFields;
 }
 
 function candidateLabel(candidate: LocationCandidate): string {
@@ -36,12 +49,10 @@ export function replyAfterDestinationResolution(
   interpretation: WorkspaceConversationInterpretation,
   tripState: TripState,
   resolution: LocationResolveResult | null,
+  persistedPatch: TripStatePatch | null,
 ): string {
   if (resolution === null || resolution.status === "not_ready") return interpretation.reply;
-  if (tripState.destination.state === "missing") return interpretation.reply;
-
-  const saved = `已将目的地记为「${tripState.destination.value}」。`;
-  const otherChanges = interpretation.changes.some((change) => change.field !== "destination")
+  const otherChanges = persistedPatch && Object.keys(persistedPatch).some((field) => field !== "destination")
     ? "其他旅程信息也已保存。"
     : "";
 
@@ -49,12 +60,12 @@ export function replyAfterDestinationResolution(
     case "selected":
       return interpretation.reply;
     case "resolved":
-      return `${saved}${otherChanges}匹配到地点：${candidateLabel(resolution.candidate)}。`;
+      return `已将目的地记为「${tripState.destination.state === "missing" ? resolution.candidate.name : tripState.destination.value}」。${otherChanges}匹配到地点：${candidateLabel(resolution.candidate)}。`;
     case "ambiguous":
-      return `${saved}${otherChanges}找到多个可能的地点：${resolution.candidates.map(candidateLabel).join("、")}。你指的是哪一个？`;
+      return `${otherChanges}找到多个可能的地点，请从下方选一个。`;
     case "unresolved":
-      return `${saved}${otherChanges}目前无法识别这个地点的地理位置。请补充地区或更具体的名称。`;
+      return `${otherChanges}目前无法识别这个地点。请补充地区或更具体的名称。`;
     case "provider_error":
-      return `${saved}${otherChanges}地点查询暂时失败，无法确认地理位置。稍后可以再试。`;
+      return `${otherChanges}地点验证暂时不可用，未更改目的地。请稍后再试。`;
   }
 }

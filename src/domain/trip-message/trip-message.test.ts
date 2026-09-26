@@ -41,3 +41,14 @@ test("validates structured assistant presentation and keeps plain messages compa
   assert.throws(() => validateTripMessage({ ...message, presentation: { ...presentation, destinations: presentation.destinations.slice(0, 2) } }), InvalidTripMessageError);
   assert.throws(() => validateTripMessage({ ...message, presentation: { ...presentation, destinations: [presentation.destinations[0], presentation.destinations[0], presentation.destinations[2]] } }), InvalidTripMessageError);
 });
+
+test("validates provider-returned location candidate presentation without accepting arbitrary shapes", () => {
+  const candidate = { providerId: "poi-1", name: "吉林市", region: "吉林省", address: null,
+    longitude: 126.55, latitude: 43.84, coordinateSystem: "GCJ-02" };
+  const presentation = { type: "location_candidates", candidates: [candidate, { ...candidate, providerId: "poi-2" }] };
+  assert.deepEqual(validateTripMessage({ ...message, presentation }).presentation, presentation);
+  assert.throws(() => validateTripMessage({ ...message, role: "user", presentation }), InvalidTripMessageError);
+  assert.throws(() => validateTripMessage({ ...message, presentation: { ...presentation, candidates: [candidate] } }), InvalidTripMessageError);
+  assert.throws(() => validateTripMessage({ ...message, presentation: { ...presentation, candidates: [candidate, candidate] } }), InvalidTripMessageError);
+  assert.throws(() => validateTripMessage({ ...message, presentation: { ...presentation, candidates: [candidate, { ...candidate, providerId: "" }] } }), InvalidTripMessageError);
+});

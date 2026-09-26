@@ -3,6 +3,7 @@ import { randomUUID } from "node:crypto";
 import {
   validateTripMessage,
   type TripMessage,
+  type TripMessagePresentation,
 } from "@/domain/trip-message/trip-message";
 import type { TripMessageRepository } from "@/repositories/trip-message-repository";
 import type { TripService } from "@/server/trip/trip-service";
@@ -90,6 +91,7 @@ export class TripMessageService {
     readonly ownerGuestId: string;
     readonly userContent: string;
     readonly assistantContent: string;
+    readonly assistantPresentation?: TripMessagePresentation;
   }): Promise<readonly [TripMessage, TripMessage]> {
     await this.dependencies.tripService.getTripById(
       input.tripId,
@@ -110,6 +112,7 @@ export class TripMessageService {
       tripId: input.tripId,
       role: "assistant",
       content: input.assistantContent,
+      ...(input.assistantPresentation ? { presentation: input.assistantPresentation } : {}),
       createdAt: assistantCreatedAt.toISOString(),
     });
 
