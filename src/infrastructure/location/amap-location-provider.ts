@@ -7,6 +7,11 @@ import type {
 const AMAP_POI_SEARCH_URL = "https://restapi.amap.com/v5/place/text";
 const RESULT_LIMIT = 5;
 
+interface AmapPhoto {
+  readonly title: string;
+  readonly url: string;
+}
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
@@ -59,10 +64,18 @@ function toCandidate(value: unknown): LocationCandidate | null {
   };
 }
 
+function toPhotos(value: unknown): readonly AmapPhoto[] {
+  if (!Array.isArray(value)) return [];
+  return value.filter((photo): photo is AmapPhoto =>
+    isRecord(photo) && typeof photo.title === "string" && typeof photo.url === "string");
+}
+
 export class AmapLocationProvider implements LocationProvider {
   constructor(private readonly fetcher: typeof fetch = fetch) {}
 
-  async searchByKeyword(query: string): Promise<LocationSearchResult> {
+  async searchByKeyword(query: string, includePhotos = false): Promise<LocationSearchResult & {
+    readonly photosByProviderId?: ReadonlyMap<string, readonly AmapPhoto[]>;
+  }> {
     const apiKey = process.env.AMAP_API_KEY?.trim();
     if (!apiKey) return { status: "failure", reason: "missing_configuration" };
     if (query.trim() === "") return { status: "failure", reason: "invalid_query" };
@@ -72,6 +85,7 @@ export class AmapLocationProvider implements LocationProvider {
     url.searchParams.set("keywords", query);
     url.searchParams.set("page_size", String(RESULT_LIMIT));
     url.searchParams.set("page_num", "1");
+    if (includePhotos) url.searchParams.set("show_fields", "photos");
 
     try {
       const response = await this.fetcher(url, {
@@ -86,15 +100,23 @@ export class AmapLocationProvider implements LocationProvider {
         return { status: "failure", reason: "api_or_response_error" };
       }
 
-      const candidates = body.pois.slice(0, RESULT_LIMIT)
-        .map(toCandidate)
-        .filter((candidate): candidate is LocationCandidate => candidate !== null);
+      const candidates: LocationCandidate[] = [];
+      const photosByProviderId = new Map<string, readonly AmapPhoto[]>();
+      for (const poi of body.pois.slice(0, RESULT_LIMIT)) {
+        const candidate = toCandidate(poi);
+        if (!candidate) continue;
+        candidates.push(candidate);
+        if (includePhotos && isRecord(poi)) {
+          photosByProviderId.set(candidate.providerId, toPhotos(poi.photos));
+        }
+      }
 
       if (body.pois.length > 0 && candidates.length === 0) {
         return { status: "failure", reason: "invalid_candidates" };
       }
 
-      return { status: "success", candidates };
+      return { status: "success", candidates,
+        ...(includePhotos ? { photosByProviderId } : {}) };
     } catch {
       // Fetch errors may include the full URL (and key); expose only a fixed reason.
       return { status: "failure", reason: "network_or_response_error" };

@@ -64,9 +64,14 @@ test("generator performs one structured call without fabricating a user message"
   ]);
   assert.match(requests[0].systemPrompt, new RegExp(action.id));
   assert.match(requests[0].systemPrompt, /成都/);
+  assert.match(requests[0].systemPrompt, /name "大理", region "云南"/);
+  assert.match(requests[0].systemPrompt, /do not invent broad labels/);
   const destinationsSchema = (requests[0].jsonSchema.properties as Record<string, Record<string, unknown>>).destinations;
   assert.equal(destinationsSchema.minItems, 3);
   assert.equal(destinationsSchema.maxItems, 3);
+  const fields = (destinationsSchema.items as { properties: Record<string, { description: string }> }).properties;
+  assert.match(fields.name.description, /Concise destination/);
+  assert.match(fields.region.description, /Province-level/);
 });
 
 test("rejects incomplete, malformed, and truncated structured output", async () => {

@@ -35,6 +35,7 @@ test("maps Amap POIs into Meri candidates and encodes the keyword", async () => 
   assert.equal(requestUrl?.pathname, "/v5/place/text");
   assert.equal(requestUrl?.searchParams.get("keywords"), "西湖 & 阿尔山");
   assert.equal(requestUrl?.searchParams.get("page_size"), "5");
+  assert.equal(requestUrl?.searchParams.get("show_fields"), null);
   assert.equal(requestUrl?.searchParams.get("key"), "test-secret-key");
   assert.deepEqual(result, {
     status: "success",
@@ -59,6 +60,28 @@ test("an empty successful search returns no candidates", async () => {
     status: "success",
     candidates: [],
   });
+});
+
+test("photo-enabled Text Search parses optional photo objects without changing location candidates", async () => {
+  process.env.AMAP_API_KEY = "test-secret-key";
+  let requestUrl: URL | undefined;
+  const fetcher: typeof fetch = async (input) => {
+    requestUrl = new URL(String(input));
+    return Response.json({ status: "1", pois: [
+      { id: "a", name: "大理市", pname: "云南省", location: "100.30,25.68",
+        photos: [{ title: "风景", url: "https://example.com/photo.jpg" }, { title: "bad" }] },
+      { id: "b", name: "安吉县", location: "119.68,30.63" },
+    ] });
+  };
+  const result = await new AmapLocationProvider(fetcher).searchByKeyword("大理", true);
+  assert.equal(requestUrl?.pathname, "/v5/place/text");
+  assert.equal(requestUrl?.searchParams.get("show_fields"), "photos");
+  assert.equal(result.status, "success");
+  if (result.status === "success") {
+    assert.deepEqual(result.candidates.map((candidate) => candidate.providerId), ["a", "b"]);
+    assert.deepEqual(result.photosByProviderId?.get("a"), [{ title: "风景", url: "https://example.com/photo.jpg" }]);
+    assert.deepEqual(result.photosByProviderId?.get("b"), []);
+  }
 });
 
 test("invalid coordinates are discarded while valid candidates remain", async () => {

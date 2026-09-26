@@ -72,10 +72,9 @@ export async function handleDestinationRecommendationsPost(
       createdAt: new Date().toISOString(),
       presentation: {
         type: "destination_recommendations",
-        destinations: recommendations.destinations.map((item) => ({
+        destinations: recommendations.destinations.map((item, index) => ({
           id: randomUUID(), name: item.name, region: item.region, reason: item.reason,
-          // Amap terms do not clearly permit storing and replaying photo URLs in Journey messages.
-          imageUrl: null,
+          imageUrl: enrichments[index]?.imageUrl ?? null,
         })),
       },
     });

@@ -160,7 +160,7 @@ test("preserves persistence failure causes", async () => {
 
 test("persists and hydrates a recommendation presentation in the existing messages table", async () => {
   const presentation = { type: "destination_recommendations" as const, destinations: [
-    { id: "a", name: "甲", region: null, reason: "一", imageUrl: null },
+    { id: "a", name: "甲", region: null, reason: "一", imageUrl: "https://amap.example/photo.jpg" },
     { id: "b", name: "乙", region: null, reason: "二", imageUrl: null },
     { id: "c", name: "丙", region: null, reason: "三", imageUrl: null },
   ] };

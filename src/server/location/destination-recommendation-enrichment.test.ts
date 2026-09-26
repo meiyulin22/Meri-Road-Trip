@@ -16,46 +16,53 @@ const poi = (id: string, pname: string) => ({
   location: "99.70,27.82", address: "建塘镇",
 });
 
-test("matches a real region-qualified POI before requesting its photos by verified ID", async () => {
+test("matched POI uses its HTTPS Text Search photo without a Detail request", async () => {
   process.env.AMAP_API_KEY = "secret-test-key";
   const paths: string[] = [];
   const fetcher: typeof fetch = async (input) => {
     const url = new URL(String(input));
     paths.push(url.pathname);
-    if (url.pathname.endsWith("/text")) return Response.json({ status: "1", pois: [poi("wrong", "四川省"), poi("real", "云南省")] });
-    assert.equal(url.searchParams.get("id"), "real");
     assert.equal(url.searchParams.get("show_fields"), "photos");
-    return Response.json({ status: "1", pois: [{ id: "real", photos: [{ title: "Photo", url: "https://example.com/photo.jpg" }] }] });
+    return Response.json({ status: "1", pois: [
+      { ...poi("wrong", "四川省"), photos: [{ title: "wrong", url: "https://example.com/wrong.jpg" }] },
+      { ...poi("real", "云南省"), photos: [
+        { title: "HTTP", url: "http://example.com/older.jpg" },
+        { title: "Photo", url: "https://example.com/photo.jpg" },
+      ] },
+    ] });
   };
-  const result = await new DestinationRecommendationEnricher(new AmapLocationProvider(fetcher), fetcher).enrich(recommendation);
+  const result = await new DestinationRecommendationEnricher(new AmapLocationProvider(fetcher)).enrich(recommendation);
   assert.deepEqual(result, { matched: true, imageUrl: "https://example.com/photo.jpg" });
-  assert.deepEqual(paths, ["/v5/place/text", "/v5/place/detail"]);
+  assert.deepEqual(paths, ["/v5/place/text"]);
   assert.equal(JSON.stringify(result).includes("secret-test-key"), false);
 });
 
-test("ambiguous or unmatched recommendations never fetch a photo", async () => {
+test("ambiguous or unmatched POIs do not use any search photo", async () => {
   process.env.AMAP_API_KEY = "secret-test-key";
-  let details = 0;
+  let searches = 0;
   const fetcher: typeof fetch = async (input) => {
-    if (new URL(String(input)).pathname.endsWith("/detail")) { details += 1; throw new Error("unexpected detail"); }
-    return Response.json({ status: "1", pois: [poi("one", "云南省"), poi("two", "云南省")] });
+    assert.equal(new URL(String(input)).pathname, "/v5/place/text");
+    searches += 1;
+    return Response.json({ status: "1", pois: [
+      { ...poi("one", "云南省"), photos: [{ title: "one", url: "https://example.com/one.jpg" }] },
+      { ...poi("two", "云南省"), photos: [{ title: "two", url: "https://example.com/two.jpg" }] },
+    ] });
   };
-  const enricher = new DestinationRecommendationEnricher(new AmapLocationProvider(fetcher), fetcher);
+  const enricher = new DestinationRecommendationEnricher(new AmapLocationProvider(fetcher));
   assert.deepEqual(await enricher.enrich(recommendation), { matched: false, imageUrl: null });
   assert.deepEqual(await enricher.enrich({ ...recommendation, region: "四川" }), { matched: false, imageUrl: null });
-  assert.equal(details, 0);
+  assert.equal(searches, 2);
 });
 
-test("missing photos and detail provider failures degrade to nullable media", async () => {
+test("matched POI without a usable HTTPS photo keeps the default-image fallback", async () => {
   process.env.AMAP_API_KEY = "secret-test-key";
-  let detailFails = false;
-  const fetcher: typeof fetch = async (input) => {
-    if (new URL(String(input)).pathname.endsWith("/text")) return Response.json({ status: "1", pois: [poi("real", "云南省")] });
-    if (detailFails) throw new Error("secret-test-key must not be logged");
-    return Response.json({ status: "1", pois: [{ id: "real", photos: [] }] });
-  };
-  const enricher = new DestinationRecommendationEnricher(new AmapLocationProvider(fetcher), fetcher);
-  assert.deepEqual(await enricher.enrich(recommendation), { matched: true, imageUrl: null });
-  detailFails = true;
-  assert.deepEqual(await enricher.enrich(recommendation), { matched: true, imageUrl: null });
+  for (const photos of [undefined, [], [{ title: "http", url: "http://example.com/photo.jpg" }],
+    [{ title: "invalid", url: "not-a-url" }]]) {
+    const fetcher: typeof fetch = async (input) => {
+      assert.equal(new URL(String(input)).pathname, "/v5/place/text");
+      return Response.json({ status: "1", pois: [{ ...poi("real", "云南省"), ...(photos ? { photos } : {}) }] });
+    };
+    const enricher = new DestinationRecommendationEnricher(new AmapLocationProvider(fetcher));
+    assert.deepEqual(await enricher.enrich(recommendation), { matched: true, imageUrl: null });
+  }
 });

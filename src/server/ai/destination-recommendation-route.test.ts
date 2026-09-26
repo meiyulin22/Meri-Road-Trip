@@ -51,7 +51,12 @@ test("persists action before generation and uses the persisted record in dedicat
       receivedContexts.push(context);
       return recommendations;
     },
-    async enrich() { calls.push("enrich"); return { matched: true, imageUrl: "https://amap.example/photo.jpg" }; },
+    async enrich(recommendation) {
+      calls.push("enrich");
+      return recommendation.name === "乙"
+        ? { matched: true, imageUrl: null }
+        : { matched: true, imageUrl: `https://amap.example/${recommendation.name}.jpg` };
+    },
     async persistMessage(message) { calls.push("message"); persistedMessage = message; },
   }, "request-1");
   assert.equal(result.status, 200);
@@ -61,7 +66,13 @@ test("persists action before generation and uses the persisted record in dedicat
   assert.equal(body.message.content, recommendations.reply);
   assert.equal(body.message.presentation.destinations.length, 3);
   assert.equal(new Set(body.message.presentation.destinations.map((item: { id: string }) => item.id)).size, 3);
-  assert.ok(body.message.presentation.destinations.every((item: { imageUrl: string | null }) => item.imageUrl === null));
+  assert.deepEqual(body.message.presentation.destinations.map((item: { name: string; imageUrl: string | null }) => ({
+    name: item.name, imageUrl: item.imageUrl,
+  })), [
+    { name: "甲", imageUrl: "https://amap.example/甲.jpg" },
+    { name: "乙", imageUrl: null },
+    { name: "丙", imageUrl: "https://amap.example/丙.jpg" },
+  ]);
   assert.deepEqual(calls, ["load", "persist", "history", "generate", "enrich", "enrich", "enrich", "message"]);
   assert.deepEqual(receivedContexts[0].action, persisted);
   assert.equal(receivedContexts[0].tripState, state);
