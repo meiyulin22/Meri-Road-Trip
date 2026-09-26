@@ -26,9 +26,12 @@ export function parseSuggestionResponse(value: unknown): readonly LocationSugges
   return z.object({ suggestions: z.array(suggestionSchema) }).parse(value).suggestions;
 }
 
-export function createSelectedDestinationPatch(suggestion: LocationSuggestion): TripStatePatch {
+export function createSelectedLocationPatch(
+  field: "origin" | "destination",
+  suggestion: LocationSuggestion,
+): TripStatePatch {
   return {
-    destination: {
+    [field]: {
       state: "known",
       value: suggestion.name,
       source: "user",

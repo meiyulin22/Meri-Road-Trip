@@ -1,7 +1,7 @@
 import type { LocationCandidate } from "@/domain/location/location";
 import { resolveDestinationCandidates, type DestinationResolution } from "@/domain/location/destination-resolution-policy";
 import { evaluatePlanningReadiness } from "@/domain/trip-state/planning-readiness";
-import type { DestinationSelection, TripState } from "@/domain/trip-state/trip-state";
+import type { LocationSelection, TripState } from "@/domain/trip-state/trip-state";
 import { logger, logEvents } from "@/server/observability/logger";
 
 export type LocationSearchResult =
@@ -23,7 +23,7 @@ export interface LocationProvider {
 
 export type LocationResolveResult =
   | { readonly status: "not_ready"; readonly reason: "destination_missing" }
-  | { readonly status: "selected"; readonly name: string; readonly selection: DestinationSelection }
+  | { readonly status: "selected"; readonly name: string; readonly selection: LocationSelection }
   | DestinationResolution
   | { readonly status: "provider_error" };
 

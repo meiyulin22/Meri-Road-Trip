@@ -13,7 +13,7 @@ import type {
   TripStateFieldName,
 } from "@/domain/trip-state/trip-state";
 
-import { DestinationEditor } from "./destination-editor";
+import { LocationEditor } from "./location-editor";
 import {
   createDirectTripStatePatch,
   requestTripStateUpdate,
@@ -165,8 +165,9 @@ export function ExpeditionBriefPanel({
       ) : null}
 
       <dl className={styles.briefFields}>
-        {visibleFields.map(({ key, label }) => key === "destination" ? (
-          <DestinationEditor
+        {visibleFields.map(({ key, label }) => key === "origin" || key === "destination" ? (
+          <LocationEditor
+            field={key}
             key={key}
             onTripStateChange={onTripStateChange}
             tripId={tripId}

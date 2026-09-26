@@ -89,6 +89,25 @@ test("a conversational destination update drops the previous explicit selection"
   });
 });
 
+test("a conversational origin update drops the previous explicit selection", () => {
+  const state = applyTripStatePatch(initializeTripState(draft), {
+    origin: {
+      state: "known", value: "大连站", source: "user",
+      selection: { provider: "amap", region: "辽宁省大连市" },
+    },
+  });
+  const interpretation = validateWorkspaceConversationInterpretation({
+    intent: "trip_state_update",
+    changes: [{ field: "origin", state: "known", value: "沈阳" }],
+    reply: "好的。",
+  });
+  const patch = createTripStatePatchFromInterpretation(interpretation);
+  assert.ok(patch);
+  assert.deepEqual(applyTripStatePatch(state, patch).origin, {
+    state: "known", value: "沈阳", source: "user",
+  });
+});
+
 test("clear origin update changes origin", () => {
   const { nextState } = applyInterpretation({
     intent: "trip_state_update",

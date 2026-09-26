@@ -26,7 +26,7 @@ export type TripStateField<T extends string = string> =
     }
   | { readonly state: "missing" };
 
-export interface DestinationSelection {
+export interface LocationSelection {
   readonly provider: LocationSuggestion["provider"];
   readonly providerId?: string | null;
   readonly region?: string | null;
@@ -34,20 +34,20 @@ export interface DestinationSelection {
   readonly coordinates?: LocationSuggestion["coordinates"];
 }
 
-export type DestinationField =
+export type LocationField =
   | {
       readonly state: "known";
       readonly value: string;
       readonly source: TripFieldSource;
-      readonly selection?: DestinationSelection;
+      readonly selection?: LocationSelection;
     }
   | { readonly state: "approximate" | "ambiguous"; readonly value: string; readonly source: TripFieldSource }
   | { readonly state: "missing" };
 
 export interface TripState {
   readonly name: TripStateField;
-  readonly origin: TripStateField;
-  readonly destination: DestinationField;
+  readonly origin: LocationField;
+  readonly destination: LocationField;
   readonly startDate: TripStateField;
   readonly endDate: TripStateField;
   readonly duration: TripStateField;
@@ -124,20 +124,20 @@ function validateStateField<T extends string = string>(
   return value as TripStateField<T>;
 }
 
-function validateDestinationSelection(value: unknown): DestinationSelection {
+function validateLocationSelection(value: unknown, label: "origin" | "destination"): LocationSelection {
   if (!isRecord(value) || value.provider !== "amap") {
-    throw new InvalidTripStateError("destination.selection.provider is invalid.");
+    throw new InvalidTripStateError(`${label}.selection.provider is invalid.`);
   }
 
   const allowedKeys = ["provider", "providerId", "region", "address", "coordinates"];
   if (Object.keys(value).some((key) => !allowedKeys.includes(key))) {
-    throw new InvalidTripStateError("destination.selection has invalid fields.");
+    throw new InvalidTripStateError(`${label}.selection has invalid fields.`);
   }
 
   for (const key of ["providerId", "region", "address"] as const) {
     if (Object.hasOwn(value, key) && value[key] !== null &&
       (typeof value[key] !== "string" || value[key].trim() === "")) {
-      throw new InvalidTripStateError(`destination.selection.${key} is invalid.`);
+      throw new InvalidTripStateError(`${label}.selection.${key} is invalid.`);
     }
   }
 
@@ -152,28 +152,28 @@ function validateDestinationSelection(value: unknown): DestinationSelection {
       !Number.isFinite(coordinates.latitude) ||
       coordinates.latitude < -90 || coordinates.latitude > 90 ||
       coordinates.coordinateSystem !== "GCJ-02") {
-      throw new InvalidTripStateError("destination.selection.coordinates are invalid.");
+      throw new InvalidTripStateError(`${label}.selection.coordinates are invalid.`);
     }
   }
 
-  return value as unknown as DestinationSelection;
+  return value as unknown as LocationSelection;
 }
 
-function validateDestinationField(value: unknown): DestinationField {
+function validateLocationField(value: unknown, label: "origin" | "destination"): LocationField {
   if (!isRecord(value) || !Object.hasOwn(value, "selection")) {
-    return validateStateField(value, "destination");
+    return validateStateField(value, label);
   }
 
   if (value.state !== "known" || value.source !== "user" ||
     !hasExactKeys(value, ["state", "value", "source", "selection"])) {
-    throw new InvalidTripStateError("destination selection requires a known user destination.");
+    throw new InvalidTripStateError(`${label} selection requires a known user location.`);
   }
 
-  const base = validateStateField({ state: value.state, value: value.value, source: value.source }, "destination");
+  const base = validateStateField({ state: value.state, value: value.value, source: value.source }, label);
   if (base.state !== "known") {
-    throw new InvalidTripStateError("destination selection requires a known destination.");
+    throw new InvalidTripStateError(`${label} selection requires a known location.`);
   }
-  return { ...base, selection: validateDestinationSelection(value.selection) };
+  return { ...base, selection: validateLocationSelection(value.selection, label) };
 }
 
 export function validateTripState(value: unknown): TripState {
@@ -193,8 +193,8 @@ export function validateTripState(value: unknown): TripState {
 
   return {
     name: validateStateField(value.name, "name"),
-    origin: validateStateField(value.origin, "origin"),
-    destination: validateDestinationField(value.destination),
+    origin: validateLocationField(value.origin, "origin"),
+    destination: validateLocationField(value.destination, "destination"),
     startDate: validateStateField(value.startDate, "startDate"),
     endDate: validateStateField(value.endDate, "endDate"),
     duration: validateStateField(value.duration, "duration"),
@@ -232,8 +232,8 @@ export function validateTripStatePatch(value: unknown): TripStatePatch {
 
   const patch: { -readonly [K in keyof TripState]?: TripState[K] } = {};
   for (const key of keys as TripStateFieldName[]) {
-    if (key === "destination") {
-      patch.destination = validateDestinationField(value.destination);
+    if (key === "origin" || key === "destination") {
+      Object.assign(patch, { [key]: validateLocationField(value[key], key) });
       continue;
     }
     const field = validateStateField(

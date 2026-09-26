@@ -236,6 +236,40 @@ test("selected destination accepts absent optional provider ID and coordinates",
   assert.deepEqual(validateTripStatePatch({ destination }).destination, destination);
 });
 
+test("old origin and selected known user origin both validate through TripState JSON", () => {
+  const oldState = initializeTripState(draft);
+  assert.deepEqual(validateTripState(JSON.parse(JSON.stringify(oldState))), oldState);
+
+  const origin = {
+    state: "known", value: "大连站", source: "user",
+    selection: {
+      provider: "amap", providerId: "tip-dalian", region: "辽宁省大连市",
+      coordinates: { longitude: 121.63, latitude: 38.92, coordinateSystem: "GCJ-02" },
+    },
+  } as const;
+  assert.deepEqual(validateTripStatePatch({ origin }).origin, origin);
+  const selectedState = applyTripStatePatch(oldState, { origin });
+  assert.deepEqual(validateTripState(JSON.parse(JSON.stringify(selectedState))), selectedState);
+  assert.equal(selectedState.origin.state === "known" && selectedState.origin.value, "大连站");
+});
+
+test("origin selection rejects malformed metadata and approximate or ambiguous states", () => {
+  const selected = {
+    state: "known", value: "大连", source: "user",
+    selection: { provider: "amap", region: "辽宁省" },
+  };
+  for (const origin of [
+    { ...selected, state: "approximate" },
+    { ...selected, state: "ambiguous" },
+    { ...selected, source: "system" },
+    { ...selected, selection: { provider: "unknown" } },
+    { ...selected, selection: { provider: "amap", adcode: "210200" } },
+    { ...selected, selection: { provider: "amap", coordinates: { longitude: 121, latitude: 100, coordinateSystem: "GCJ-02" } } },
+  ]) {
+    assert.throws(() => validateTripStatePatch({ origin }), InvalidTripStateError);
+  }
+});
+
 test("destination selection rejects invalid shapes and non-known states", () => {
   const selected = {
     state: "known",

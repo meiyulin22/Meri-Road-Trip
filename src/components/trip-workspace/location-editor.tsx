@@ -7,22 +7,25 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/animate
 import type { LocationSuggestion } from "@/domain/location/location-suggestion";
 import type { TripState } from "@/domain/trip-state/trip-state";
 
-import { createSelectedDestinationPatch, normalizeSuggestionQuery, parseSuggestionResponse } from "./destination-editor-model";
+import { createSelectedLocationPatch, normalizeSuggestionQuery, parseSuggestionResponse } from "./location-editor-model";
 import { requestTripStateUpdate } from "./trip-state-persistence-model";
 import styles from "./trip-workspace.module.css";
 
 type SearchStatus = "idle" | "searching" | "results" | "empty" | "error";
 
-export function DestinationEditor({
+export function LocationEditor({
+  field,
   onTripStateChange,
   tripId,
   tripState,
 }: {
+  readonly field: "origin" | "destination";
   readonly onTripStateChange: (state: TripState) => void;
   readonly tripId: string;
   readonly tripState: TripState;
 }) {
-  const destination = tripState.destination;
+  const location = tripState[field];
+  const label = field === "origin" ? "出发地" : "目的地";
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [suggestions, setSuggestions] = useState<readonly LocationSuggestion[]>([]);
@@ -36,7 +39,7 @@ export function DestinationEditor({
   function changeOpen(next: boolean) {
     if (savingRef.current) return;
     if (next) {
-      setQuery(destination.state === "missing" ? "" : destination.value);
+      setQuery(location.state === "missing" ? "" : location.value);
       setSuggestions([]);
       setActiveIndex(-1);
       setStatus("idle");
@@ -95,13 +98,13 @@ export function DestinationEditor({
     setSaving(true);
     setSaveError(null);
     try {
-      const state = await requestTripStateUpdate(tripId, createSelectedDestinationPatch(suggestion));
+      const state = await requestTripStateUpdate(tripId, createSelectedLocationPatch(field, suggestion));
       onTripStateChange(state);
       savingRef.current = false;
       setSaving(false);
       changeOpen(false);
     } catch {
-      setSaveError("目的地暂时没能保存，请重试选择。");
+      setSaveError(`${label}暂时没能保存，请重试选择。`);
       savingRef.current = false;
       setSaving(false);
     }
@@ -125,20 +128,20 @@ export function DestinationEditor({
 
   return (
     <Popover open={open} onOpenChange={changeOpen}>
-      <div className={styles.stateField} data-certainty={destination.state} onClick={() => { if (!open) changeOpen(true); }}>
+      <div className={styles.stateField} data-certainty={location.state} onClick={() => { if (!open) changeOpen(true); }}>
         <dt>
           <span className={styles.fieldLabel}>
-            {destination.state === "known" ? <Check size={14} aria-hidden="true" /> : <CircleHelp size={16} aria-hidden="true" />}
-            目的地
+            {location.state === "known" ? <Check size={14} aria-hidden="true" /> : <CircleHelp size={16} aria-hidden="true" />}
+            {label}
           </span>
           <span className={styles.fieldCertainty}>
-            {destination.state === "known" ? "已理解" : destination.state === "missing" ? "暂未确定" : destination.state === "approximate" ? "大致范围" : "需要确认"}
+            {location.state === "known" ? "已理解" : location.state === "missing" ? "暂未确定" : location.state === "approximate" ? "大致范围" : "需要确认"}
           </span>
         </dt>
         <dd>
           <PopoverTrigger asChild>
-            <button aria-label="编辑目的地" type="button">
-              <span>{destination.state === "missing" ? "—" : destination.value}</span>
+            <button aria-label={`编辑${label}`} type="button">
+              <span>{location.state === "missing" ? "—" : location.value}</span>
               <Pencil aria-hidden="true" size={13} />
             </button>
           </PopoverTrigger>
@@ -150,16 +153,16 @@ export function DestinationEditor({
         sideOffset={7}
         collisionPadding={12}
         className={styles.destinationPopover}
-        aria-label="搜索并选择目的地"
+        aria-label={`搜索并选择${label}`}
       >
         <div className={styles.destinationPopoverHeading}>
           <MapPin size={16} aria-hidden="true" />
-          <span>选择目的地</span>
+          <span>选择{label}</span>
         </div>
         <div className={styles.destinationSearch}>
           <Search size={16} aria-hidden="true" />
           <input
-            aria-label="搜索目的地"
+            aria-label={`搜索${label}`}
             aria-autocomplete="list"
             aria-controls={suggestions.length > 0 ? listId : undefined}
             aria-expanded={suggestions.length > 0}
@@ -199,7 +202,7 @@ export function DestinationEditor({
             ))}
           </div>
         ) : null}
-        {saving ? <p className={styles.destinationMessage} role="status">正在保存目的地…</p> : null}
+        {saving ? <p className={styles.destinationMessage} role="status">正在保存{label}…</p> : null}
         {saveError ? <p className={styles.destinationError} role="alert">{saveError}</p> : null}
       </PopoverContent>
     </Popover>
