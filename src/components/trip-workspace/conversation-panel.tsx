@@ -8,11 +8,11 @@ import { useEffect, useRef, useState } from "react";
 
 import type { TripMessage } from "@/domain/trip-message/trip-message";
 import type { TripState } from "@/domain/trip-state/trip-state";
-import type { DestinationRecommendations } from "@/domain/location/destination-recommendations";
 
 import { nextRevealCharacterCount, visibleAssistantText } from "./conversation-reveal";
-import { requestDestinationRecommendations } from "./destination-recommendation-model";
-import { appendPersistedMessageIfAbsent, toWorkspaceUIMessages } from "./trip-message-ui-adapter";
+import { requestDestinationRecommendations, selectDestinationRecommendationAndApply } from "./destination-recommendation-model";
+import { DestinationRecommendationCard } from "./destination-recommendation-card";
+import { appendPersistedMessageIfAbsent, recommendationPresentation, toWorkspaceUIMessages } from "./trip-message-ui-adapter";
 import {
   reconcileCommittedUserId,
   WorkspaceChatTransport,
@@ -45,10 +45,12 @@ export function ConversationPanel({
   readonly tripState: TripState;
 }) {
   const [message, setMessage] = useState("");
-  const [recommendations, setRecommendations] = useState<DestinationRecommendations | null>(null);
   const [recommendationPending, setRecommendationPending] = useState(false);
   const [recommendationError, setRecommendationError] = useState(false);
   const recommendationInFlight = useRef(false);
+  const selectionInFlight = useRef(false);
+  const [selectionPendingId, setSelectionPendingId] = useState<string | null>(null);
+  const [selectionErrorId, setSelectionErrorId] = useState<string | null>(null);
   const [revealing, setRevealing] = useState<{
     readonly id: string;
     readonly visibleCharacters: number;
@@ -118,14 +120,29 @@ export function ConversationPanel({
     recommendationInFlight.current = true;
     setRecommendationPending(true);
     setRecommendationError(false);
-    setRecommendations(null);
     try {
-      setRecommendations(await requestDestinationRecommendations(tripId));
+      const persisted = await requestDestinationRecommendations(tripId);
+      setMessages((current) => appendPersistedMessageIfAbsent(current, persisted));
     } catch {
       setRecommendationError(true);
     } finally {
       recommendationInFlight.current = false;
       setRecommendationPending(false);
+    }
+  }
+
+  async function handleRecommendationSelection(id: string, name: string): Promise<void> {
+    if (selectionInFlight.current) return;
+    selectionInFlight.current = true;
+    setSelectionPendingId(id);
+    setSelectionErrorId(null);
+    try {
+      await selectDestinationRecommendationAndApply(tripId, name, onTripStateChange);
+    } catch {
+      setSelectionErrorId(id);
+    } finally {
+      selectionInFlight.current = false;
+      setSelectionPendingId(null);
     }
   }
 
@@ -215,6 +232,20 @@ export function ConversationPanel({
                       <button onClick={onChooseDestination} type="button">我自己选</button>
                     </div>
                   ) : null}
+                  {recommendationPresentation(conversationMessage)?.destinations ? (
+                    <div className={styles.recommendationGrid}>
+                      {recommendationPresentation(conversationMessage)?.destinations.map((destination) => (
+                        <DestinationRecommendationCard
+                          destination={destination}
+                          error={selectionErrorId === destination.id}
+                          key={destination.id}
+                          onSelect={() => void handleRecommendationSelection(destination.id, destination.name)}
+                          pending={selectionPendingId === destination.id}
+                          selected={tripState.destination.state === "known" && tripState.destination.value === destination.name}
+                        />
+                      ))}
+                    </div>
+                  ) : null}
                 </div>
               </article>
             ) : (
@@ -232,13 +263,6 @@ export function ConversationPanel({
               </article>
             ),
           )}
-          {recommendations ? (
-            <div role="status">
-              <p>本次推荐预览（刷新后不会保留）</p>
-              <p>{recommendations.reply}</p>
-              <pre>{JSON.stringify(recommendations.destinations, null, 2)}</pre>
-            </div>
-          ) : null}
           {recommendationError ? <p role="alert">推荐暂时没有完成，请重试。</p> : null}
           {isSubmitting ? (
             <p className={styles.conversationStatus} role="status">

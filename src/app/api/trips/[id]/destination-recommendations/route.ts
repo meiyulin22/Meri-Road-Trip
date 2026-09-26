@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 
 import { cookies } from "next/headers";
 
-import type { TripMessage } from "@/domain/trip-message/trip-message";
+import { validateTripMessage, type TripMessage } from "@/domain/trip-message/trip-message";
 import type { TripState } from "@/domain/trip-state/trip-state";
 import { validateTripUserAction, type TripUserAction } from "@/domain/trip-user-action/trip-user-action";
 import { TripNotFoundError } from "@/domain/trip/trip-errors";
@@ -11,6 +11,7 @@ import { generateDestinationRecommendations, InvalidDestinationRecommendationOut
 import { LlmProviderRequestError, LlmProviderTimeoutError, MissingLlmConfigurationError } from "@/server/ai/kimi-client";
 import { readGuestId } from "@/server/identity/guest-identity";
 import { TripStateNotFoundError } from "@/server/journey/journey-errors";
+import { DestinationRecommendationEnricher, type RecommendationEnrichment } from "@/server/location/destination-recommendation-enrichment";
 import { logger } from "@/server/observability/logger";
 import { serializeError } from "@/server/observability/serialize-error";
 
@@ -19,6 +20,8 @@ type Dependencies = {
   readonly listMessages: (tripId: string, ownerGuestId: string) => Promise<TripMessage[]>;
   readonly persistAction: (action: TripUserAction) => Promise<TripUserAction>;
   readonly generate: (context: DestinationRecommendationContext, requestId: string) => Promise<DestinationRecommendations>;
+  readonly enrich: (recommendation: DestinationRecommendations["destinations"][number]) => Promise<RecommendationEnrichment>;
+  readonly persistMessage: (message: TripMessage) => Promise<void>;
 };
 
 const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -51,7 +54,33 @@ export async function handleDestinationRecommendationsPost(
     const messages = await dependencies.listMessages(tripId, ownerGuestId);
     const context = buildDestinationRecommendationContext(action, tripState, messages);
     const recommendations = await dependencies.generate(context, requestId);
-    return response(recommendations, 200);
+    const enrichments = await Promise.all(recommendations.destinations.map(async (recommendation) => {
+      try {
+        return await dependencies.enrich(recommendation);
+      } catch {
+        logger.warn({ requestId, tripId, event: "destination.recommendation.enrichment_failed" },
+          "Destination enrichment unavailable");
+        return { matched: false, imageUrl: null };
+      }
+    }));
+    logger.info({ requestId, tripId, event: "destination.recommendation.enriched",
+      matchedCount: enrichments.filter((item) => item.matched).length,
+      photoCount: enrichments.filter((item) => item.imageUrl !== null).length },
+    "Destination recommendation enrichment completed");
+    const message = validateTripMessage({
+      id: randomUUID(), tripId, role: "assistant", content: recommendations.reply,
+      createdAt: new Date().toISOString(),
+      presentation: {
+        type: "destination_recommendations",
+        destinations: recommendations.destinations.map((item) => ({
+          id: randomUUID(), name: item.name, region: item.region, reason: item.reason,
+          // Amap terms do not clearly permit storing and replaying photo URLs in Journey messages.
+          imageUrl: null,
+        })),
+      },
+    });
+    await dependencies.persistMessage(message);
+    return response({ message }, 200);
   } catch (error) {
     const status = error instanceof TripNotFoundError || error instanceof TripStateNotFoundError
       ? 404
@@ -78,17 +107,22 @@ export async function POST(_request: Request, { params }: { readonly params: Pro
   if (!ownerGuestId || !uuidPattern.test(tripId)) {
     return response({ error: { code: "journey_not_found", message: "Journey not found." } }, 404);
   }
-  const [{ journeyService }, { tripMessageService }, { db }, { PostgresTripUserActionRepository }] = await Promise.all([
+  const [{ journeyService }, { tripMessageService }, { db }, { PostgresTripUserActionRepository }, { PostgresTripMessageRepository }] = await Promise.all([
     import("@/server/journey/journey-service-instance"),
     import("@/server/trip-message/trip-message-service-instance"),
     import("@/server/database/db"),
     import("@/infrastructure/persistence/postgres/postgres-trip-user-action-repository"),
+    import("@/infrastructure/persistence/postgres/postgres-trip-message-repository"),
   ]);
   const actionRepository = new PostgresTripUserActionRepository(db);
+  const messageRepository = new PostgresTripMessageRepository(db);
+  const enricher = new DestinationRecommendationEnricher();
   return handleDestinationRecommendationsPost(tripId, ownerGuestId, {
     loadJourney: (id, owner) => journeyService.loadJourney(id, owner),
     listMessages: (id, owner) => tripMessageService.listMessages(id, owner),
     persistAction: (action) => actionRepository.create(action),
     generate: generateDestinationRecommendations,
+    enrich: (recommendation) => enricher.enrich(recommendation),
+    persistMessage: (message) => messageRepository.createMessage(message),
   });
 }

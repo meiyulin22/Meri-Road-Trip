@@ -118,6 +118,7 @@ function toTripMessageInsert(message: TripMessage) {
     tripId: message.tripId,
     role: message.role,
     content: message.content,
+    presentation: message.presentation ?? null,
     createdAt: message.createdAt,
   };
 }
@@ -128,6 +129,7 @@ function toTripMessage(row: TripMessageRow): TripMessage {
     tripId: row.tripId,
     role: row.role,
     content: row.content,
+    ...(row.presentation === null ? {} : { presentation: row.presentation }),
     createdAt: row.createdAt,
   });
 }

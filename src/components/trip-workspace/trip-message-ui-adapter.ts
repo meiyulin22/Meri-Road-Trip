@@ -7,7 +7,14 @@ export function toWorkspaceUIMessages(messages: readonly TripMessage[]): UIMessa
     id: message.id,
     role: message.role,
     parts: [{ type: "text", text: message.content }],
+    ...(message.presentation ? { metadata: { presentation: message.presentation } } : {}),
   }));
+}
+
+export function recommendationPresentation(message: UIMessage): TripMessage["presentation"] {
+  const metadata = message.metadata;
+  if (typeof metadata !== "object" || metadata === null || !("presentation" in metadata)) return undefined;
+  return metadata.presentation as TripMessage["presentation"];
 }
 
 export function appendPersistedMessageIfAbsent(

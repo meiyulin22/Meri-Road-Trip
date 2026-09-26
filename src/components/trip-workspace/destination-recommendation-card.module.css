@@ -1,0 +1,14 @@
+.card { min-width: 0; overflow: hidden; border: 1px solid #d9ded1; border-radius: 18px; background: #faf9f3; box-shadow: 0 8px 24px rgba(64, 78, 59, .08); }
+.media { position: relative; height: 170px; overflow: hidden; background: #e4e9db; }
+.image { object-fit: cover; object-position: center; }
+.insetLabel { position: absolute; bottom: 0; left: 0; padding: 8px 14px 7px; border-radius: 0 15px 0 0; background: #faf9f3; color: #5c715d; font-size: 11px; letter-spacing: .08em; }
+.insetLabel::after { position: absolute; right: -13px; bottom: 0; width: 13px; height: 13px; border-radius: 0 0 0 13px; box-shadow: -5px 5px 0 5px #faf9f3; content: ""; }
+.content { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; padding: 14px; }
+.content h3 { margin: 0; color: #33483b; font-size: 19px; line-height: 1.25; }
+.region { color: #70816d; font-size: 12px; }
+.content p { flex: 1; margin: 3px 0 8px; color: #47584b; font-size: 13px; line-height: 1.65; }
+.content button { width: 100%; min-height: 42px; padding: 8px 12px; border: 1px solid #879c83; border-radius: 10px; background: #e6eee2; color: #385743; font: inherit; font-size: 13px; font-weight: 600; cursor: pointer; }
+.content button:hover:not(:disabled), .content button:focus-visible { background: #d4e5ce; outline-color: #446a51; }
+.content button:disabled { opacity: .65; cursor: not-allowed; }
+.error { color: #955a48; font-size: 11px; }
+@media (max-width: 640px) { .media { height: 190px; } }

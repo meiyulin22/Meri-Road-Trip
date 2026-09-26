@@ -28,3 +28,16 @@ test("rejects invalid roles and empty content", () => {
     InvalidTripMessageError,
   );
 });
+
+test("validates structured assistant presentation and keeps plain messages compatible", () => {
+  const presentation = { type: "destination_recommendations", destinations: [
+    { id: "a", name: "香格里拉", region: "云南", reason: "适合探索", imageUrl: null },
+    { id: "b", name: "阿尔山", region: "内蒙古", reason: "适合徒步", imageUrl: null },
+    { id: "c", name: "大理", region: "云南", reason: "节奏灵活", imageUrl: null },
+  ] };
+  assert.deepEqual(validateTripMessage({ ...message, presentation }).presentation, presentation);
+  assert.equal(validateTripMessage(message).presentation, undefined);
+  assert.throws(() => validateTripMessage({ ...message, role: "user", presentation }), InvalidTripMessageError);
+  assert.throws(() => validateTripMessage({ ...message, presentation: { ...presentation, destinations: presentation.destinations.slice(0, 2) } }), InvalidTripMessageError);
+  assert.throws(() => validateTripMessage({ ...message, presentation: { ...presentation, destinations: [presentation.destinations[0], presentation.destinations[0], presentation.destinations[2]] } }), InvalidTripMessageError);
+});

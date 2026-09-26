@@ -11,7 +11,11 @@ import { logger } from "@/server/observability/logger";
 import { serializeError } from "@/server/observability/serialize-error";
 
 type RouteContext = { params: Promise<{ id: string }> };
-const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+export function isValidJourneyId(value: string): boolean {
+  return uuidPattern.test(value);
+}
 
 function response(body: unknown, status: number): Response {
   return Response.json(body, { status, headers: { "Cache-Control": "no-store" } });
@@ -47,7 +51,7 @@ export async function handleDestinationMissingGuidancePost(
 export async function POST(_request: Request, context: RouteContext): Promise<Response> {
   const { id: tripId } = await context.params;
   const ownerGuestId = readGuestId(await cookies());
-  if (!ownerGuestId || !uuidPattern.test(tripId)) return notFound();
+  if (!ownerGuestId || !isValidJourneyId(tripId)) return notFound();
   const [{ journeyService }, { tripMessageService }] = await Promise.all([
     import("@/server/journey/journey-service-instance"),
     import("@/server/trip-message/trip-message-service-instance"),

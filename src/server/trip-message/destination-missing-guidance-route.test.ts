@@ -1,12 +1,17 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { handleDestinationMissingGuidancePost } from "@/app/api/trips/[id]/destination-missing-guidance/route";
+import { handleDestinationMissingGuidancePost, isValidJourneyId } from "@/app/api/trips/[id]/destination-missing-guidance/route";
 import type { TripMessage } from "@/domain/trip-message/trip-message";
 import type { TripState } from "@/domain/trip-state/trip-state";
 import { TripNotFoundError } from "@/domain/trip/trip-errors";
 
 const tripId = "3d17d2c7-fd9b-4748-b751-3a76a9a920be";
+
+test("guidance route accepts a standard Journey UUID", () => {
+  assert.equal(isValidJourneyId(tripId), true);
+  assert.equal(isValidJourneyId("not-a-uuid"), false);
+});
 const state: TripState = {
   name: { state: "missing" }, origin: { state: "missing" }, destination: { state: "missing" },
   startDate: { state: "missing" }, endDate: { state: "missing" },

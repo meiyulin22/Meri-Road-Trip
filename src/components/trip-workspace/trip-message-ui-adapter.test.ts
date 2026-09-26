@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { appendPersistedMessageIfAbsent, toWorkspaceUIMessages } from "./trip-message-ui-adapter";
+import { appendPersistedMessageIfAbsent, recommendationPresentation, toWorkspaceUIMessages } from "./trip-message-ui-adapter";
 
 test("maps persisted TripMessages to ordered UI messages without changing IDs, roles, or text", () => {
   const messages = [
@@ -14,6 +14,20 @@ test("maps persisted TripMessages to ordered UI messages without changing IDs, r
     { id: "assistant-1", role: "assistant", parts: [{ type: "text", text: "好，我们慢慢计划。" }] },
   ]);
   assert.equal(messages[0].id, "user-1");
+});
+
+test("restored recommendation presentation remains attached to its assistant message", () => {
+  const presentation = { type: "destination_recommendations" as const, destinations: [
+    { id: "a", name: "甲", region: null, reason: "一", imageUrl: null },
+    { id: "b", name: "乙", region: null, reason: "二", imageUrl: null },
+    { id: "c", name: "丙", region: null, reason: "三", imageUrl: null },
+  ] };
+  const restored = toWorkspaceUIMessages([{
+    id: "recommendation", tripId: "trip-1", role: "assistant", content: "看看这些地方。",
+    presentation, createdAt: "2026-09-26T00:00:00.000Z",
+  }]);
+  assert.deepEqual(recommendationPresentation(restored[0]), presentation);
+  assert.equal(restored[0].parts[0].type, "text");
 });
 
 test("appends persisted guidance once without turning it into a user message", () => {

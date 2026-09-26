@@ -30,6 +30,7 @@ const recommendations = {
 test("persists action before generation and uses the persisted record in dedicated context", async () => {
   const calls: string[] = [];
   let persisted: TripUserAction | null = null;
+  let persistedMessage: TripMessage | null = null;
   const receivedContexts: DestinationRecommendationContext[] = [];
   const result = await handleDestinationRecommendationsPost(tripId, "owner", {
     async loadJourney(id, owner) {
@@ -50,10 +51,18 @@ test("persists action before generation and uses the persisted record in dedicat
       receivedContexts.push(context);
       return recommendations;
     },
+    async enrich() { calls.push("enrich"); return { matched: true, imageUrl: "https://amap.example/photo.jpg" }; },
+    async persistMessage(message) { calls.push("message"); persistedMessage = message; },
   }, "request-1");
   assert.equal(result.status, 200);
-  assert.deepEqual(await result.json(), recommendations);
-  assert.deepEqual(calls, ["load", "persist", "history", "generate"]);
+  const body = await result.json();
+  assert.deepEqual(body.message, persistedMessage);
+  assert.equal(body.message.role, "assistant");
+  assert.equal(body.message.content, recommendations.reply);
+  assert.equal(body.message.presentation.destinations.length, 3);
+  assert.equal(new Set(body.message.presentation.destinations.map((item: { id: string }) => item.id)).size, 3);
+  assert.ok(body.message.presentation.destinations.every((item: { imageUrl: string | null }) => item.imageUrl === null));
+  assert.deepEqual(calls, ["load", "persist", "history", "generate", "enrich", "enrich", "enrich", "message"]);
   assert.deepEqual(receivedContexts[0].action, persisted);
   assert.equal(receivedContexts[0].tripState, state);
   assert.deepEqual(receivedContexts[0].conversationHistory, [{ role: "user", content: "我想旅行" }]);
@@ -67,6 +76,8 @@ test("missing or wrong owner cannot persist an action", async () => {
     async persistAction(action: TripUserAction) { writes += 1; return action; },
     async listMessages() { return messages; },
     async generate() { return recommendations; },
+    async enrich() { return { matched: false, imageUrl: null }; },
+    async persistMessage() { writes += 1; },
   };
   assert.equal((await handleDestinationRecommendationsPost(tripId, null, deps)).status, 404);
   assert.equal((await handleDestinationRecommendationsPost(tripId, "wrong", deps)).status, 404);
@@ -82,6 +93,8 @@ test("authoritative destination change prevents action and model call", async ()
     async persistAction(action) { calls += 1; return action; },
     async listMessages() { calls += 1; return messages; },
     async generate() { calls += 1; return recommendations; },
+    async enrich() { calls += 1; return { matched: false, imageUrl: null }; },
+    async persistMessage() { calls += 1; },
   });
   assert.equal(result.status, 409);
   assert.equal(calls, 0);
@@ -95,9 +108,30 @@ test("model failure returns error after action was persisted, with no fabricated
     async persistAction(action) { persisted = true; return action; },
     async listMessages() { historyReads += 1; return messages; },
     async generate() { throw new InvalidDestinationRecommendationOutputError("invalid output"); },
+    async enrich() { throw new Error("must not enrich"); },
+    async persistMessage() { throw new Error("must not persist"); },
   });
   assert.equal(result.status, 502);
   assert.equal(persisted, true);
   assert.equal(historyReads, 1);
   assert.equal(messages.length, 1);
+});
+
+test("provider failures do not prevent a persisted recommendation, but message write failures do", async () => {
+  let writes = 0;
+  const deps = {
+    async loadJourney() { return { tripState: state }; },
+    async persistAction(action: TripUserAction) { return action; },
+    async listMessages() { return messages; },
+    async generate() { return recommendations; },
+    async enrich() { throw new Error("provider unavailable"); },
+    async persistMessage() { writes += 1; },
+  };
+  const success = await handleDestinationRecommendationsPost(tripId, "owner", deps);
+  assert.equal(success.status, 200);
+  assert.equal(writes, 1);
+  const failure = await handleDestinationRecommendationsPost(tripId, "owner", {
+    ...deps, async persistMessage() { throw new Error("database unavailable"); },
+  });
+  assert.equal(failure.status, 500);
 });

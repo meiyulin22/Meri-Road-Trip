@@ -111,7 +111,9 @@ test("persists both sides of a completed turn in one insert", async () => {
   await repository.createTurn(userMessage, assistantMessage);
 
   assert.equal(inspection.insertedTable, tripMessages);
-  assert.deepEqual(inspection.insertedRows, [userMessage, assistantMessage]);
+  assert.deepEqual(inspection.insertedRows, [
+    { ...userMessage, presentation: null }, { ...assistantMessage, presentation: null },
+  ]);
 });
 
 test("persists an initial user message in the existing messages table", async () => {
@@ -121,13 +123,13 @@ test("persists an initial user message in the existing messages table", async ()
   await repository.createMessage(userMessage);
 
   assert.equal(inspection.insertedTable, tripMessages);
-  assert.deepEqual(inspection.insertedRows, userMessage);
+  assert.deepEqual(inspection.insertedRows, { ...userMessage, presentation: null });
 });
 
 test("restores messages in chronological database order", async () => {
   const rows: TripMessageRow[] = [
-    { ...userMessage, createdAt: "2026-09-22 08:00:00+00" },
-    { ...assistantMessage, createdAt: "2026-09-22 08:00:00.001+00" },
+    { ...userMessage, presentation: null, createdAt: "2026-09-22 08:00:00+00" },
+    { ...assistantMessage, presentation: null, createdAt: "2026-09-22 08:00:00.001+00" },
   ];
   const { database, inspection } = createDatabaseDouble({ rows });
   const repository = new PostgresTripMessageRepository(database);
@@ -154,6 +156,21 @@ test("preserves persistence failure causes", async () => {
       return true;
     },
   );
+});
+
+test("persists and hydrates a recommendation presentation in the existing messages table", async () => {
+  const presentation = { type: "destination_recommendations" as const, destinations: [
+    { id: "a", name: "甲", region: null, reason: "一", imageUrl: null },
+    { id: "b", name: "乙", region: null, reason: "二", imageUrl: null },
+    { id: "c", name: "丙", region: null, reason: "三", imageUrl: null },
+  ] };
+  const message: TripMessage = { ...assistantMessage, presentation };
+  const rows: TripMessageRow[] = [{ ...message, presentation }];
+  const { database, inspection } = createDatabaseDouble({ rows });
+  const repository = new PostgresTripMessageRepository(database);
+  await repository.createMessage(message);
+  assert.deepEqual(inspection.insertedRows, message);
+  assert.deepEqual(await repository.listByTripId(tripId), [message]);
 });
 
 test("preserves the initial message insert failure cause", async () => {
@@ -208,14 +225,14 @@ test("opening assistant insert uses the existing message ID primary key", async 
 
 test("opening assistant insert returns the persisted conflict winner", async () => {
   const proposed: TripMessage = { ...assistantMessage, content: "candidate" };
-  const persisted: TripMessageRow = { ...assistantMessage, content: "winner" };
+  const persisted: TripMessageRow = { ...assistantMessage, presentation: null, content: "winner" };
   const repository = new PostgresTripMessageRepository(openingDatabaseDouble(persisted));
 
-  assert.deepEqual(await repository.createAssistantIfAbsent(proposed), persisted);
+  assert.deepEqual(await repository.createAssistantIfAbsent(proposed), { ...assistantMessage, content: "winner" });
 });
 
 test("opening assistant insert rejects an unrelated ID conflict", async () => {
-  const conflicting: TripMessageRow = { ...assistantMessage, role: "user" };
+  const conflicting: TripMessageRow = { ...assistantMessage, presentation: null, role: "user" };
   const repository = new PostgresTripMessageRepository(openingDatabaseDouble(conflicting));
 
   await assert.rejects(
