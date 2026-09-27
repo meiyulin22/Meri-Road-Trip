@@ -179,6 +179,7 @@ export async function interpretWorkspaceConversation(
         event: logEvents.workspaceConversationInterpreted,
         requestId: input.requestId,
         intent: interpretation.intent,
+        presentationIntent: interpretation.presentationIntent,
         changedFields: interpretation.changes.map((change) => change.field),
       },
       "Workspace conversation interpreted",

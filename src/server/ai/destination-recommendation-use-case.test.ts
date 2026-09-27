@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import type { TripMessage } from "@/domain/trip-message/trip-message";
-import type { TripState } from "@/domain/trip-state/trip-state";
+import type { TripState, TripStatePatch } from "@/domain/trip-state/trip-state";
 import type { WorkspaceConversationInterpretation } from "@/domain/trip-state/workspace-conversation";
 import { InMemoryTripMessageRepository } from "@/infrastructure/persistence/in-memory/in-memory-trip-message-repository";
 import { TripMessageService } from "@/server/trip-message/trip-message-service";
@@ -36,6 +36,8 @@ test("presentation guard leaves normal text turns, direct destinations, and disa
     { ...state, destination: { state: "known", value: "青岛", source: "user" } }, null), false);
   assert.equal(shouldCreateConversationalRecommendations(interpretation, state,
     { destination: { state: "known", value: "青岛", source: "user" } }), false);
+  assert.equal(shouldCreateConversationalRecommendations(interpretation, state,
+    { destination: { state: "missing" } }), true);
   assert.equal(shouldCreateConversationalRecommendations({ ...interpretation,
     destinationDisambiguation: { state: "known", value: ["潮州", "汕头"] } }, state, null), false);
   assert.equal(shouldCreateConversationalRecommendations(interpretation, state, null), true);
@@ -120,4 +122,60 @@ test("zero-result conversational workflow persists one user and one assistant wi
   assert.ok(messages);
   assert.equal(messages[1].presentation, undefined);
   assert.equal((await service.listMessages(tripId, "owner")).length, 2);
+});
+
+test("meaningful preference turns invoke the shared workflow without optional Journey fields", async () => {
+  const examples = ["想要海边、轻松一点、适合周末", "我喜欢雪山、徒步、不想太商业化",
+    "想找好吃的，也想逛老城区", "国内，秋天，高山徒步，路线成熟一点"];
+  for (const currentUserText of examples) {
+    let workflowCalls = 0;
+    let persistenceCalls = 0;
+    const patch = currentUserText === examples[0]
+      ? { duration: { state: "known" as const, value: "周末", source: "user" as const } }
+      : currentUserText === examples[2] ? { destination: { state: "missing" as const } } : null;
+    const result = await persistConversationalRecommendationTurn({
+      tripId, ownerGuestId: "owner", tripState: state, interpretation, patch,
+      previousMessages: [], currentUserText, requestId: "trigger-test",
+    }, {
+      async runWorkflow(context) {
+        workflowCalls += 1;
+        assert.deepEqual(context.conversationHistory, [{ role: "user", content: currentUserText }]);
+        return recommendations;
+      },
+      async persistTurn(input) {
+        persistenceCalls += 1;
+        assert.equal(input.userContent, currentUserText);
+        assert.deepEqual(input.assistantPresentation, recommendations.presentation);
+        return [
+          { id: "user", tripId, role: "user", content: currentUserText, createdAt: "2026-09-27T00:00:00.000Z" },
+          { id: "assistant", tripId, role: "assistant", content: input.assistantContent,
+            presentation: input.assistantPresentation, createdAt: "2026-09-27T00:00:01.000Z" },
+        ] as const;
+      },
+    });
+    assert.ok(result);
+    assert.equal(workflowCalls, 1);
+    assert.equal(persistenceCalls, 1);
+  }
+});
+
+test("vague turns, factual questions, destination updates, and disambiguation do not invoke workflow", async () => {
+  const cases: { text: string; output: WorkspaceConversationInterpretation; patch: TripStatePatch | null }[] = [
+    ...["我想出去玩", "哪里好玩", "推荐个地方", "雪山徒步需要准备什么？"].map((text) =>
+      ({ text, output: { ...interpretation, presentationIntent: "none" as const }, patch: null })),
+    { text: "我想去青岛", output: interpretation,
+      patch: { destination: { state: "known", value: "青岛", source: "user" } } },
+    { text: "我想去潮汕", output: { ...interpretation,
+      destinationDisambiguation: { state: "known", value: ["潮州", "汕头"] } }, patch: null },
+  ];
+  for (const { text, output, patch } of cases) {
+    const result = await persistConversationalRecommendationTurn({
+      tripId, ownerGuestId: "owner", tripState: state, interpretation: output, patch,
+      previousMessages: [], currentUserText: text, requestId: "non-trigger-test",
+    }, {
+      async runWorkflow() { throw new Error("Workflow must not run"); },
+      async persistTurn() { throw new Error("Turn must not be persisted here"); },
+    });
+    assert.equal(result, null, text);
+  }
 });

@@ -108,3 +108,36 @@ test("ranking failure aborts before enrichment", async () => {
   }), /ranker unavailable/);
   assert.equal(calls.amap, 0);
 });
+
+test("eligible aliases are deduplicated before ranking; final provider duplicates retain the highest rank", async () => {
+  const { deps } = dependencies();
+  const pool = [
+    { ...candidates[0], name: "梅里雪山", region: "云南" },
+    { ...candidates[1], name: "梅 里 雪 山 景区", region: "云南省" },
+    { ...candidates[2], name: "大理", region: "云南" },
+    { ...candidates[3], name: "大理市", region: "云南" },
+    ...candidates.slice(4),
+  ];
+  const snapshot = structuredClone(pool);
+  const stateSnapshot = structuredClone(context.tripState);
+  const result = await runDestinationRecommendationWorkflow(context, "dedupe", {
+    ...deps,
+    async generateCandidates() { return pool; },
+    access: { async check() { return { status: "uncertain", reason: "Insufficient evidence" }; } },
+    async rank(_context, eligible) {
+      assert.deepEqual(eligible.map((item) => item.id), ["c1", "c3", "c4", "c5", "c6", "c7", "c8"]);
+      assert.equal(eligible[0], pool[0]);
+      return [eligible[1], eligible[0], eligible[2]].map((candidate) => ({ candidate, reason: `理由:${candidate.id}`, evidence: [] }));
+    },
+    enrich: (ranked) => enrichRankedTopThree(ranked, {
+      amap: { async enrich(item) { return { matched: true, imageUrl: "https://example.test/photo.jpg",
+        providerIdentity: item.name.startsWith("大理") ? "amap:dali" : "amap:meili" }; } },
+      images: { async search() { throw new Error("Amap photo should win"); } },
+    }),
+  });
+  assert.deepEqual(result.presentation?.destinations.map((item) => [item.id, item.name, item.reason]),
+    [["c3", "大理", "理由:c3"], ["c1", "梅里雪山", "理由:c1"]]);
+  assert.ok(result.presentation?.destinations.every((item) => !("providerIdentity" in item)));
+  assert.deepEqual(pool, snapshot);
+  assert.deepEqual(context.tripState, stateSnapshot);
+});

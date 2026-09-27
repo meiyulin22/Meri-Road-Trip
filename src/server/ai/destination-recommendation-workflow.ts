@@ -1,5 +1,6 @@
 import type { DestinationRecommendationPresentation } from "@/domain/trip-message/trip-message";
 import type { DestinationCandidate } from "@/domain/location/destination-candidates";
+import { deduplicateRecommendationDestinations } from "@/domain/location/recommendation-identity";
 import { createJustOneDiscoverySearchFromEnvironment } from "@/infrastructure/discovery/justone-discovery-search";
 import { generateDestinationCandidates } from "@/server/ai/destination-candidate-generator";
 import { rankDestinationCandidates, type RankedDestinationCandidate } from "@/server/ai/destination-candidate-ranker";
@@ -49,10 +50,12 @@ export async function runDestinationRecommendationWorkflow(
   const candidates = await dependencies.generateCandidates(
     discovery.length ? { ...context, discoveryResults: discovery } : context, requestId);
   const access = await filterDestinationCandidatesByAccess(candidates, dependencies.access);
-  const eligible = access.eligible.map((item) => item.candidate);
+  const eligible = deduplicateRecommendationDestinations(access.eligible.map((item) => item.candidate), (candidate) => candidate);
   const ranked = await dependencies.rank(context, eligible, requestId, discovery);
   const enriched = await dependencies.enrich(ranked);
-  const destinations = enriched.destinations.map(({ candidate, reason, imageUrl }) => ({
+  const distinct = deduplicateRecommendationDestinations(enriched.destinations,
+    (item) => ({ ...item.candidate, providerIdentity: item.providerIdentity }));
+  const destinations = distinct.map(({ candidate, reason, imageUrl }) => ({
     id: candidate.id, name: candidate.name, region: candidate.region, reason, imageUrl,
   }));
 

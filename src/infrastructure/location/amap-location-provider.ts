@@ -8,7 +8,7 @@ const AMAP_POI_SEARCH_URL = "https://restapi.amap.com/v5/place/text";
 const RESULT_LIMIT = 5;
 
 interface AmapPhoto {
-  readonly title: string;
+  readonly title?: string;
   readonly url: string;
 }
 
@@ -66,8 +66,10 @@ function toCandidate(value: unknown): LocationCandidate | null {
 
 function toPhotos(value: unknown): readonly AmapPhoto[] {
   if (!Array.isArray(value)) return [];
-  return value.filter((photo): photo is AmapPhoto =>
-    isRecord(photo) && typeof photo.title === "string" && typeof photo.url === "string");
+  return value.flatMap((photo): AmapPhoto[] =>
+    isRecord(photo) && typeof photo.url === "string"
+      ? [{ url: photo.url, ...(typeof photo.title === "string" ? { title: photo.title } : {}) }]
+      : []);
 }
 
 export class AmapLocationProvider implements LocationProvider {

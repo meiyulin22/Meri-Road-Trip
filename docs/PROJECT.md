@@ -96,6 +96,10 @@ research.
 
 ## 5. Product principles
 
+### Conversation UX
+
+**有偏好就推荐；没偏好就引导；有目的地就规划。** Preference → Recommend; No preference → Guide; Known destination → Plan. Recommendation cards help the user clarify a choice through conversation. The user can receive value before filling every Journey field; deeper feasibility verification belongs to later Research.
+
 **Reality before authority.** An LLM proposal is not proof that a place
 exists or that travel there is feasible. Validate destination identity
 before persistence. Location Validation and Travel Feasibility are

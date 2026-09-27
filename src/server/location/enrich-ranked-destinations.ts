@@ -8,7 +8,10 @@ const MIN_IMAGE_WIDTH = 320;
 const MIN_IMAGE_HEIGHT = 180;
 const OBVIOUS_NON_PHOTO = /(?:^|[\/._-])(?:favicon|logo|icon|avatar)(?:[\/._-]|$)/iu;
 
-export type EnrichedRankedDestination = RankedDestinationCandidate & { readonly imageUrl: string | null };
+export type EnrichedRankedDestination = RankedDestinationCandidate & {
+  readonly imageUrl: string | null;
+  readonly providerIdentity?: string;
+};
 export type TopThreeEnrichmentResult = { readonly destinations: readonly EnrichedRankedDestination[] };
 
 export type TopThreeEnrichmentDependencies = {
@@ -49,11 +52,13 @@ export async function enrichRankedTopThree(
   }
   const destinations = await Promise.all(ranked.map(async (item): Promise<EnrichedRankedDestination> => {
     let imageUrl: string | null = null;
+    let providerIdentity: string | undefined;
     try {
       const amap = await dependencies.amap.enrich({
         name: item.candidate.name, region: item.candidate.region, reason: item.reason,
       });
-      imageUrl = amap.imageUrl ? validUrl(amap.imageUrl, ["https:"])?.toString() ?? null : null;
+      if (amap.matched) providerIdentity = amap.providerIdentity;
+      imageUrl = amap.matched && amap.imageUrl ? validUrl(amap.imageUrl, ["https:"])?.toString() ?? null : null;
     } catch { /* Image enrichment cannot remove a ranked recommendation. */ }
     if (imageUrl === null) {
       try {
@@ -61,7 +66,8 @@ export async function enrichRankedTopThree(
         imageUrl = results.map(usableBochaImageUrl).find((url): url is string => url !== null) ?? null;
       } catch { /* The existing card falls back to its local image when imageUrl is null. */ }
     }
-    return { candidate: item.candidate, reason: item.reason, evidence: item.evidence, imageUrl };
+    return { candidate: item.candidate, reason: item.reason, evidence: item.evidence, imageUrl,
+      ...(providerIdentity ? { providerIdentity } : {}) };
   }));
   return { destinations };
 }

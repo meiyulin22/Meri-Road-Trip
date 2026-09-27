@@ -16,7 +16,7 @@ export function shouldCreateConversationalRecommendations(
 ): boolean {
   return interpretation.presentationIntent === "destination_recommendations" &&
     authoritativeState.destination.state === "missing" &&
-    !patch?.destination &&
+    (!patch?.destination || patch.destination.state === "missing") &&
     interpretation.destinationDisambiguation?.state !== "known";
 }
 

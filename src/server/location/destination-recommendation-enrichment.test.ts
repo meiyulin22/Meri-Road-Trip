@@ -32,7 +32,7 @@ test("matched POI uses its HTTPS Text Search photo without a Detail request", as
     ] });
   };
   const result = await new DestinationRecommendationEnricher(new AmapLocationProvider(fetcher)).enrich(recommendation);
-  assert.deepEqual(result, { matched: true, imageUrl: "https://example.com/photo.jpg" });
+  assert.deepEqual(result, { matched: true, providerIdentity: "amap:real", imageUrl: "https://example.com/photo.jpg" });
   assert.deepEqual(paths, ["/v5/place/text"]);
   assert.equal(JSON.stringify(result).includes("secret-test-key"), false);
 });
@@ -63,6 +63,52 @@ test("matched POI without a usable HTTPS photo keeps the default-image fallback"
       return Response.json({ status: "1", pois: [{ ...poi("real", "云南省"), ...(photos ? { photos } : {}) }] });
     };
     const enricher = new DestinationRecommendationEnricher(new AmapLocationProvider(fetcher));
-    assert.deepEqual(await enricher.enrich(recommendation), { matched: true, imageUrl: null });
+    assert.deepEqual(await enricher.enrich(recommendation), { matched: true, providerIdentity: "amap:real", imageUrl: null });
   }
+});
+
+test("a unique scenic suffix match selects the first valid HTTPS photo, even without a title", async () => {
+  process.env.AMAP_API_KEY = "fake-key";
+  const enricher = new DestinationRecommendationEnricher(new AmapLocationProvider(async () => Response.json({
+    status: "1", pois: [{ ...poi("meili", "云南省"), name: "梅里雪山风景区", photos: [
+      { url: "http://example.test/insecure.jpg" }, { url: "broken" },
+      { url: "https://example.test/first.jpg" }, { title: "Second", url: "https://example.test/second.jpg" },
+    ] }],
+  })));
+  assert.deepEqual(await enricher.enrich({ name: "梅里雪山", region: "云南省", reason: "偏好雪山" }),
+    { matched: true, providerIdentity: "amap:meili", imageUrl: "https://example.test/first.jpg" });
+});
+
+test("scenic matching cannot collapse a route, another peak, or a scenic area into a city", async () => {
+  process.env.AMAP_API_KEY = "fake-key";
+  for (const [name, providerName] of [["贡嘎环线", "贡嘎山风景区"], ["四姑娘山二峰", "四姑娘山景区"],
+    ["黄山风景区", "黄山市"]]) {
+    const enricher = new DestinationRecommendationEnricher(new AmapLocationProvider(async () => Response.json({
+      status: "1", pois: [{ ...poi("different", "四川省"), name: providerName,
+        photos: [{ url: "https://example.test/wrong.jpg" }] }],
+    })));
+    assert.deepEqual(await enricher.enrich({ name, region: null, reason: "Test" }), { matched: false, imageUrl: null });
+  }
+});
+
+test("multiple equally plausible scenic POIs remain ambiguous regardless of photos", async () => {
+  process.env.AMAP_API_KEY = "fake-key";
+  const enricher = new DestinationRecommendationEnricher(new AmapLocationProvider(async () => Response.json({
+    status: "1", pois: ["a", "b"].map((id) => ({ ...poi(id, "云南省"), name: "梅里雪山景区",
+      photos: [{ url: `https://example.test/${id}.jpg` }] })),
+  })));
+  assert.deepEqual(await enricher.enrich({ name: "梅里雪山", region: "云南", reason: "Test" }), { matched: false, imageUrl: null });
+});
+
+test("two expressions reliably resolving to one POI expose the same ephemeral identity", async () => {
+  process.env.AMAP_API_KEY = "fake-key";
+  const enricher = new DestinationRecommendationEnricher(new AmapLocationProvider(async () => Response.json({
+    status: "1", pois: [{ ...poi("dali", "云南省"), name: "大理市", photos: [] }],
+  })));
+  const first = await enricher.enrich({ name: "大理", region: "云南", reason: "First choice" });
+  const second = await enricher.enrich({ name: "大理市", region: "云南", reason: "Alias" });
+  assert.equal(first.matched, true);
+  assert.equal(second.matched, true);
+  assert.equal(first.providerIdentity, "amap:dali");
+  assert.equal(second.providerIdentity, first.providerIdentity);
 });

@@ -69,12 +69,11 @@ test("conversational candidate context includes the real current user text", asy
   assert.match(requests[0].systemPrompt, /No UI action occurred/);
 });
 
-test("rejects invalid counts, duplicate names, invalid fields, and model-supplied metadata", async () => {
+test("rejects invalid counts, invalid fields, and model-supplied metadata", async () => {
   const valid = pool(8);
   const cases: unknown[] = [
     pool(7),
     pool(11),
-    { candidates: [...valid.candidates.slice(0, 7), { ...valid.candidates[7], name: " 青 城 山 " }] },
     { candidates: [...valid.candidates.slice(0, 7), { ...valid.candidates[7], name: " " }] },
     { candidates: [...valid.candidates.slice(0, 7), { ...valid.candidates[7], region: " " }] },
     { candidates: [...valid.candidates.slice(0, 7), { ...valid.candidates[7], preferenceRationale: " " }] },
@@ -89,6 +88,19 @@ test("rejects invalid counts, duplicate names, invalid fields, and model-supplie
       generateDestinationCandidates(buildDestinationRecommendationContext(action, tripState, messages), "request-3", model(value)),
       InvalidDestinationCandidateOutputError);
   }
+});
+
+test("deduplicates equivalent proposals before assigning IDs without refilling the pool", async () => {
+  const valid = pool(8);
+  valid.candidates[6] = { ...valid.candidates[0], name: " 青 城 山 " };
+  valid.candidates[7] = { ...valid.candidates[0], name: "青城山风景区", region: "四川省" };
+  let ids = 0;
+  const result = await generateDestinationCandidates(
+    buildDestinationRecommendationContext(action, tripState, messages), "dedupe", model(valid), () => `id-${++ids}`);
+  assert.equal(result.length, 6);
+  assert.equal(ids, 6);
+  assert.equal(result[0].name, "青城山");
+  assert.equal(result[0].preferenceRationale, valid.candidates[0].preferenceRationale);
 });
 
 test("rejects truncated output and duplicate application-generated IDs", async () => {

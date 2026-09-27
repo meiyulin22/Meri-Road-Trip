@@ -14,43 +14,66 @@ const tripState: TripState = {
   transportPreference: { state: "missing" },
 };
 
-test("distinguishes destination mentions from explicit update intent", () => {
-  const prompt = buildWorkspaceConversationSystemPrompt({
-    tripState,
-    referenceDate: "2026-09-19",
-    timezone: "Asia/Shanghai",
-  });
+function prompt(mode: "conversation" | "opening" = "conversation") {
+  return buildWorkspaceConversationSystemPrompt({ tripState, referenceDate: "2026-09-27",
+    timezone: "Asia/Shanghai", mode });
+}
 
-  assert.match(prompt, /Current authoritative TripState/);
-  assert.match(prompt, /Previous conversation messages may clarify references/);
-  assert.match(prompt, /earlier assistant suggestion alone must not change TripState/);
-  assert.match(prompt, /"destination":\{"state":"known","value":"二世谷"/);
-  assert.match(prompt, /富良野雪怎么样？.*question/);
-  assert.match(prompt, /要不富良野？.*unclear_update_intent/);
-  assert.match(prompt, /Never return source/);
-  assert.match(prompt, /resolved result is a geographic match, not a user-confirmed TripState value/);
-  assert.match(prompt, /current task needs geographic identification or disambiguation/);
-  assert.match(prompt, /origin or destination in TripState alone is not a reason/);
-  assert.match(prompt, /casual conversation, meta questions about Meri/);
-  assert.match(prompt, /Do not call resolve_location for an explicit destination update/);
-  assert.match(prompt, /application validates the proposed destination before persistence/);
-  assert.match(prompt, /Geographic ambiguity does not make the user's update intent unclear/);
-  assert.match(prompt, /Choose "destination_recommendations"/);
-  assert.match(prompt, /authoritative destination is missing/);
-  assert.match(prompt, /do not generate cards, provider identities, media/);
+test("conversation principle and presentation decision appear before implementation details", () => {
+  const text = prompt();
+  assert.ok(text.indexOf("有偏好就推荐；没偏好就引导；有目的地就规划") < text.indexOf("Current authoritative TripState"));
+  assert.ok(text.indexOf("presentationIntent") < text.indexOf("resolve_location tool boundary"));
+  assert.match(text, /destination choices would naturally help/);
+  assert.match(text, /cards themselves clarify/);
+  assert.match(text, /Origin, exact dates, duration, budget, and province are optional/);
+  assert.match(text, /authoritative destination is known, presentationIntent is "none"/);
+  assert.match(text, /help with that Journey instead of suggesting alternatives/);
+  assert.match(text, /Factual questions and destination disambiguation also use "none"/);
+  assert.match(text, /brief acknowledgement only/);
 });
 
-test("opening prompt asks for one natural reply without state updates", () => {
-  const prompt = buildWorkspaceConversationSystemPrompt({
-    tripState,
-    referenceDate: "2026-09-19",
-    timezone: "Asia/Shanghai",
-    mode: "opening",
-  });
-  assert.match(prompt, /first user message/);
-  assert.match(prompt, /authoritative TripState/);
-  assert.match(prompt, /changes \[\]/);
-  assert.match(prompt, /presentationIntent "none"/);
-  assert.match(prompt, /one high-value missing detail/);
-  assert.match(prompt, /do not use a fixed greeting/);
+test("examples cover recommend, guide, destination update, factual question, and disambiguation", () => {
+  const text = prompt();
+  for (const example of ["我喜欢雪山、徒步、不想太商业化", "想要海边、轻松一点、适合周末",
+    "想吃美食、逛老城", "hi there", "今天天气不错", "我想出去玩",
+    "我想去青岛", "青岛九月天气怎么样？", "我想去潮汕"]) assert.ok(text.includes(example));
+  assert.match(text, /without preferences → intent question, changes \[\], presentationIntent none, then guide/);
+  assert.match(text, /with no destination → intent question, changes \[\], destination_recommendations/);
+  assert.match(text, /destination update and none/);
+  assert.match(text, /destination update, disambiguation, and none/);
+  assert.match(text, /If authoritative TripState\.destination is not missing, changes includes destination, or destinationDisambiguation is known, presentationIntent is "none"/);
+});
+
+test("authority, update, tool, and structured-output boundaries remain explicit", () => {
+  const text = prompt();
+  assert.match(text, /"destination":\{"state":"known","value":"二世谷"/);
+  assert.match(text, /Recent real conversation can clarify.*assistant suggestions are not user decisions/);
+  assert.match(text, /application validates and persists changes/);
+  assert.match(text, /retain the user's destination expression/);
+  assert.match(text, /Geographic ambiguity does not turn a clear update into unclear_update_intent/);
+  assert.match(text, /destinationDisambiguation to \{"state":"known","value":\["place 1","place 2"\]\}/);
+  assert.match(text, /Otherwise use \{"state":"missing","value":null\}/);
+  assert.match(text, /2–3 distinct, concise concrete place expressions/);
+  assert.match(text, /provider IDs, coordinates, or selection metadata/);
+  assert.match(text, /TripState\.destination\.value, using that exact value as query/);
+  assert.match(text, /Do not resolve origin, conversation mentions, or explicit destination updates/);
+  assert.match(text, /selected result preserves the user's chosen identity/);
+  assert.match(text, /provider_error or unavailable/);
+  assert.match(text, /real-world information beyond location lookup, say research is not connected yet/);
+  assert.match(text, /Return only JSON matching the supplied schema/);
+  assert.match(text, /Allowed fields: name, origin, destination, startDate, endDate, duration, transportPreference/);
+  assert.match(text, /Each change has only field, state, value/);
+  assert.match(text, /transportPreference must be a known value/);
+  assert.match(text, /approximate startDate/);
+});
+
+test("opening mode uses established TripState without conversation instructions", () => {
+  const text = prompt("opening");
+  assert.match(text, /first user message of a new Journey/);
+  assert.match(text, /Current authoritative TripState/);
+  assert.match(text, /intent "question", presentationIntent "none", changes \[\]/);
+  assert.match(text, /experience the user wants/);
+  assert.match(text, /Do not call tools/);
+  assert.doesNotMatch(text, /resolve_location tool boundary/);
+  assert.doesNotMatch(text, /destinationDisambiguation/);
 });
