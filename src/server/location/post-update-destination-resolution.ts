@@ -1,8 +1,33 @@
 import type { LocationCandidate } from "@/domain/location/location";
+import type { DestinationDisambiguation } from "@/domain/location/destination-disambiguation";
 import type { TripState, TripStatePatch } from "@/domain/trip-state/trip-state";
 import type { WorkspaceConversationInterpretation } from "@/domain/trip-state/workspace-conversation";
 
 import type { LocationResolveResult, LocationService } from "./location-service";
+import { verifyDestinationDisambiguation, type DestinationDisambiguationResult } from "./verify-destination-disambiguation";
+
+export async function persistWorkspacePatchWithDisambiguation(
+  previousState: TripState,
+  patch: TripStatePatch | null,
+  disambiguation: DestinationDisambiguation | null | undefined,
+  persistPatch: (patch: TripStatePatch) => Promise<TripState>,
+  locationService: LocationService,
+): Promise<{ tripState: TripState; resolution: LocationResolveResult | null;
+  persistedPatch: TripStatePatch | null; disambiguationResult: DestinationDisambiguationResult | null }> {
+  if (disambiguation?.state !== "known") {
+    return { ...await persistWorkspacePatchWithDestinationValidation(previousState, patch, persistPatch, locationService),
+      disambiguationResult: null };
+  }
+  const disambiguationResult = await verifyDestinationDisambiguation(disambiguation, locationService);
+  const otherFields = patch ? withoutDestination(patch) : null;
+  const result = await persistWorkspacePatchWithDestinationValidation(
+    previousState,
+    otherFields && Object.keys(otherFields).length > 0 ? otherFields : null,
+    persistPatch,
+    locationService,
+  );
+  return { ...result, disambiguationResult };
+}
 
 export async function persistWorkspacePatchWithDestinationValidation(
   previousState: TripState,

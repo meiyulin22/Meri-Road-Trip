@@ -22,6 +22,7 @@ export const logEvents = {
   llmRequestFailed: "llm.request.failed",
   llmRawOutput: "llm.raw_output",
   llmOutputInvalid: "llm.output.invalid",
+  llmAuxiliaryOutputInvalid: "llm.output.auxiliary_invalid",
   workspaceConversationRequested: "workspace.conversation.requested",
   workspaceConversationInterpreted: "workspace.conversation.interpreted",
   workspaceConversationFailed: "workspace.conversation.failed",

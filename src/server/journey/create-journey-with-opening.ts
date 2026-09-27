@@ -1,6 +1,8 @@
 import { validateTripDraftDomain, type TripDraft } from "@/domain/trip-draft/trip-draft";
 import type { TripMessagePresentation } from "@/domain/trip-message/trip-message";
 import type { LocationResolveResult } from "@/server/location/location-service";
+import type { DestinationDisambiguationResult } from "@/server/location/verify-destination-disambiguation";
+import { replyForDestinationDisambiguation } from "@/server/location/verify-destination-disambiguation";
 
 import type { Journey } from "./journey-service";
 
@@ -12,6 +14,7 @@ type CreateJourneyWithOpeningDependencies = {
     openingAssistant?: { readonly content: string; readonly presentation?: TripMessagePresentation },
   ) => Promise<Journey>;
   readonly resolveDestination: (expression: string) => Promise<LocationResolveResult>;
+  readonly verifyDisambiguation?: (expressions: readonly string[]) => Promise<DestinationDisambiguationResult>;
   readonly initializeOpening: (input: {
     readonly tripId: string;
     readonly ownerGuestId: string;
@@ -38,16 +41,25 @@ export async function createJourneyWithOpening(
 }> {
   const draft = validateTripDraftDomain(input.draft);
   const destinationExpression = draft.destination.state === "missing" ? null : draft.destination.value;
-  const resolution = destinationExpression === null
+  if (draft.destinationDisambiguation?.state === "known" && !dependencies.verifyDisambiguation) {
+    throw new Error("Destination disambiguation verification is not configured.");
+  }
+  const disambiguationResult = draft.destinationDisambiguation?.state === "known"
+    ? await dependencies.verifyDisambiguation!(draft.destinationDisambiguation.value)
+    : null;
+  const resolution = destinationExpression === null || disambiguationResult !== null
     ? null
     : await dependencies.resolveDestination(destinationExpression);
-  const rejected = resolution !== null && resolution.status !== "resolved";
+  const rejected = disambiguationResult !== null || (resolution !== null && resolution.status !== "resolved");
   const creationDraft: TripDraft = rejected
-    ? { ...draft, destination: { state: "missing" }, name: { state: "missing" } }
+    ? { ...draft, destination: { state: "missing" }, name: { state: "missing" },
+        destinationDisambiguation: { state: "missing", value: null } }
     : draft;
   const openingAssistant = input.initialUserMessage === undefined || !rejected || destinationExpression === null
     ? undefined
-    : openingAfterRejectedDestination(destinationExpression, resolution);
+    : disambiguationResult !== null
+      ? openingAfterDisambiguation(destinationExpression, disambiguationResult)
+      : openingAfterRejectedDestination(destinationExpression, resolution!);
   const journey = await dependencies.createJourney(
     creationDraft,
     input.ownerGuestId,
@@ -73,6 +85,18 @@ export async function createJourneyWithOpening(
   } catch (openingError) {
     return { journey, opening: "failed", openingError };
   }
+}
+
+function openingAfterDisambiguation(
+  expression: string,
+  result: DestinationDisambiguationResult,
+): { readonly content: string; readonly presentation?: TripMessagePresentation } {
+  return {
+    content: replyForDestinationDisambiguation(expression, result, false),
+    ...(result.status === "verified"
+      ? { presentation: { type: "location_candidates" as const, candidates: result.candidates } }
+      : {}),
+  };
 }
 
 function openingAfterRejectedDestination(

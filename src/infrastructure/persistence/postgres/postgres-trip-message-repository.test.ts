@@ -188,6 +188,18 @@ test("persists and hydrates ambiguous location candidates in existing presentati
   assert.deepEqual(await repository.listByTripId(tripId), [message]);
 });
 
+test("persists and hydrates a single location confirmation card", async () => {
+  const presentation = { type: "location_candidates" as const, candidates: [
+    { providerId: "poi-1", name: "潮州市", region: "广东省", address: null,
+      longitude: 116.62, latitude: 23.66, coordinateSystem: "GCJ-02" as const },
+  ] };
+  const message: TripMessage = { ...assistantMessage, presentation };
+  const { database } = createDatabaseDouble({ rows: [{ ...message, presentation }] });
+  const repository = new PostgresTripMessageRepository(database);
+  await repository.createMessage(message);
+  assert.deepEqual(await repository.listByTripId(tripId), [message]);
+});
+
 test("preserves the initial message insert failure cause", async () => {
   const databaseError = new Error("message insert failed");
   const { database } = createDatabaseDouble({ createError: databaseError });

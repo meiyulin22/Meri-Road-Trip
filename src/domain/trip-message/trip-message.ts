@@ -91,7 +91,7 @@ function validatePresentation(value: unknown, role: TripMessageRole): TripMessag
     throw new InvalidTripMessageError("TripMessage.presentation is invalid.");
   }
   if (value.type === "location_candidates") {
-    if (!Array.isArray(value.candidates) || value.candidates.length < 2) {
+    if (!Array.isArray(value.candidates) || value.candidates.length < 1) {
       throw new InvalidTripMessageError("TripMessage location candidates are invalid.");
     }
     const candidates = value.candidates.map(validateLocationCandidate);

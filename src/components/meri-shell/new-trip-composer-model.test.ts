@@ -118,6 +118,13 @@ test("does not navigate when Journey persistence fails", async () => {
   assert.deepEqual(navigations, []);
 });
 
+test("Home carries fuzzy destination expressions through draft review", async () => {
+  const fuzzyDraft: TripDraft = { ...draft, destination: { state: "known", value: "潮汕" },
+    destinationDisambiguation: { state: "known", value: ["潮州", "汕头"] } };
+  const fetcher: typeof fetch = async () => Response.json({ draft: fuzzyDraft });
+  assert.deepEqual(await requestTripDraft("我想去潮汕", fetcher), fuzzyDraft);
+});
+
 test("opening failure keeps the created Trip ID for explicit retry", async () => {
   const navigations: string[] = [];
   const failures: string[] = [];

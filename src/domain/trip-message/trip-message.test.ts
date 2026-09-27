@@ -48,7 +48,9 @@ test("validates provider-returned location candidate presentation without accept
   const presentation = { type: "location_candidates", candidates: [candidate, { ...candidate, providerId: "poi-2" }] };
   assert.deepEqual(validateTripMessage({ ...message, presentation }).presentation, presentation);
   assert.throws(() => validateTripMessage({ ...message, role: "user", presentation }), InvalidTripMessageError);
-  assert.throws(() => validateTripMessage({ ...message, presentation: { ...presentation, candidates: [candidate] } }), InvalidTripMessageError);
+  assert.deepEqual(validateTripMessage({ ...message, presentation: { ...presentation, candidates: [candidate] } }).presentation,
+    { ...presentation, candidates: [candidate] });
+  assert.throws(() => validateTripMessage({ ...message, presentation: { ...presentation, candidates: [] } }), InvalidTripMessageError);
   assert.throws(() => validateTripMessage({ ...message, presentation: { ...presentation, candidates: [candidate, candidate] } }), InvalidTripMessageError);
   assert.throws(() => validateTripMessage({ ...message, presentation: { ...presentation, candidates: [candidate, { ...candidate, providerId: "" }] } }), InvalidTripMessageError);
 });

@@ -15,6 +15,7 @@ import { AmapLocationProvider } from "@/infrastructure/location/amap-location-pr
 import { createJourneyWithOpening } from "@/server/journey/create-journey-with-opening";
 import { journeyService } from "@/server/journey/journey-service-instance";
 import { LocationService } from "@/server/location/location-service";
+import { verifyDestinationDisambiguation } from "@/server/location/verify-destination-disambiguation";
 import { logger, logEvents } from "@/server/observability/logger";
 import { serializeError } from "@/server/observability/serialize-error";
 import { openingConversationService } from "@/server/trip-message/opening-conversation-service-instance";
@@ -65,6 +66,8 @@ export async function POST(request: Request) {
         journeyService.createJourney(draft, ownerGuestId, message, openingAssistant),
       resolveDestination: (expression) =>
         new LocationService(new AmapLocationProvider()).resolveExpression(expression),
+      verifyDisambiguation: (candidateExpressions) =>
+        verifyDestinationDisambiguation({ state: "known", value: candidateExpressions }, new LocationService(new AmapLocationProvider())),
       initializeOpening: (input) => openingConversationService.initialize(input),
     });
     const { journey, opening } = result;

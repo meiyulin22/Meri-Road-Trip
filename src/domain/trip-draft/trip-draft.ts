@@ -1,3 +1,5 @@
+import { validateDestinationDisambiguation, type DestinationDisambiguation } from "@/domain/location/destination-disambiguation";
+
 export const transportPreferences = [
   "self_drive",
   "no_self_drive",
@@ -21,6 +23,7 @@ export interface TripDraft {
   readonly endDate: TripDraftField;
   readonly duration: TripDraftField;
   readonly transportPreference: TripDraftField<TransportPreference>;
+  readonly destinationDisambiguation?: DestinationDisambiguation | null;
 }
 
 export class InvalidTripDraftError extends Error {
@@ -147,7 +150,8 @@ export function validateTripDraft(value: unknown): TripDraft {
     throw new InvalidTripDraftError("TripDraft must be an object.");
   }
 
-  assertExactKeys(value, tripDraftKeys, "TripDraft");
+  assertExactKeys(value, Object.hasOwn(value, "destinationDisambiguation")
+    ? [...tripDraftKeys, "destinationDisambiguation"] : tripDraftKeys, "TripDraft");
 
   const draft: TripDraft = {
     name: toTripDraftField(value.name, "name"),
@@ -163,6 +167,8 @@ export function validateTripDraft(value: unknown): TripDraft {
     ),
   };
 
+  const destinationDisambiguation = parseDraftDisambiguation(value, draft.destination);
+
   if (
     draft.startDate.state === "known" &&
     draft.endDate.state === "known" &&
@@ -171,7 +177,7 @@ export function validateTripDraft(value: unknown): TripDraft {
     throw new InvalidTripDraftError("endDate cannot be before startDate.");
   }
 
-  return draft;
+  return { ...draft, ...(destinationDisambiguation !== undefined ? { destinationDisambiguation } : {}) };
 }
 
 export function validateTripDraftDomain(value: unknown): TripDraft {
@@ -179,7 +185,8 @@ export function validateTripDraftDomain(value: unknown): TripDraft {
     throw new InvalidTripDraftError("TripDraft must be an object.");
   }
 
-  assertExactKeys(value, tripDraftKeys, "TripDraft");
+  assertExactKeys(value, Object.hasOwn(value, "destinationDisambiguation")
+    ? [...tripDraftKeys, "destinationDisambiguation"] : tripDraftKeys, "TripDraft");
 
   const draft: TripDraft = {
     name: validateDomainField(value.name, "name"),
@@ -195,6 +202,8 @@ export function validateTripDraftDomain(value: unknown): TripDraft {
     ),
   };
 
+  const destinationDisambiguation = parseDraftDisambiguation(value, draft.destination);
+
   if (
     draft.startDate.state === "known" &&
     draft.endDate.state === "known" &&
@@ -203,7 +212,19 @@ export function validateTripDraftDomain(value: unknown): TripDraft {
     throw new InvalidTripDraftError("endDate cannot be before startDate.");
   }
 
-  return draft;
+  return { ...draft, ...(destinationDisambiguation !== undefined ? { destinationDisambiguation } : {}) };
+}
+
+function parseDraftDisambiguation(
+  value: Record<string, unknown>,
+  destination: TripDraftField,
+): DestinationDisambiguation | null | undefined {
+  if (!Object.hasOwn(value, "destinationDisambiguation")) return undefined;
+  try {
+    return validateDestinationDisambiguation(value.destinationDisambiguation, destination.state !== "missing");
+  } catch (error) {
+    throw new InvalidTripDraftError(error instanceof Error ? error.message : "destinationDisambiguation is invalid.");
+  }
 }
 
 function validateDomainField<T extends string = string>(

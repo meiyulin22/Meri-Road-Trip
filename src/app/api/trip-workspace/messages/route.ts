@@ -27,8 +27,9 @@ import { TripStateNotFoundError } from "@/server/journey/journey-errors";
 import { journeyService } from "@/server/journey/journey-service-instance";
 import { readGuestId } from "@/server/identity/guest-identity";
 import { LocationService } from "@/server/location/location-service";
+import { replyForDestinationDisambiguation } from "@/server/location/verify-destination-disambiguation";
 import {
-  persistWorkspacePatchWithDestinationValidation,
+  persistWorkspacePatchWithDisambiguation,
   replyAfterDestinationResolution,
 } from "@/server/location/post-update-destination-resolution";
 import { logger, logEvents } from "@/server/observability/logger";
@@ -158,16 +159,23 @@ export async function POST(request: Request) {
       ...getRequestContext(),
     });
     const patch = createTripStatePatchFromInterpretation(interpretation);
-    const { tripState: persistedTripState, resolution, persistedPatch } =
-      await persistWorkspacePatchWithDestinationValidation(
+    const locationService = new LocationService(new AmapLocationProvider());
+    const disambiguation = interpretation.destinationDisambiguation;
+    const { tripState: persistedTripState, resolution, persistedPatch, disambiguationResult } =
+      await persistWorkspacePatchWithDisambiguation(
         tripState,
         patch,
+        disambiguation,
         (committedPatch) => journeyService.updateTripState(tripId, ownerGuestId, committedPatch),
-        new LocationService(new AmapLocationProvider()),
+        locationService,
       );
+    const destinationExpression = patch?.destination?.state !== "missing"
+      ? patch?.destination?.value : null;
     const finalInterpretation = {
       ...interpretation,
-      reply: replyAfterDestinationResolution(interpretation, persistedTripState, resolution, persistedPatch),
+      reply: disambiguationResult && destinationExpression
+        ? replyForDestinationDisambiguation(destinationExpression, disambiguationResult, persistedPatch !== null)
+        : replyAfterDestinationResolution(interpretation, persistedTripState, resolution, persistedPatch),
     };
 
     if (persistedPatch !== null) {
@@ -187,8 +195,10 @@ export async function POST(request: Request) {
       ownerGuestId,
       userContent: body.message,
       assistantContent: finalInterpretation.reply,
-      ...(resolution?.status === "ambiguous"
-        ? { assistantPresentation: { type: "location_candidates" as const, candidates: resolution.candidates } }
+      ...(disambiguationResult?.status === "verified" || resolution?.status === "ambiguous"
+        ? { assistantPresentation: { type: "location_candidates" as const,
+            candidates: disambiguationResult?.status === "verified" ? disambiguationResult.candidates :
+              resolution?.status === "ambiguous" ? resolution.candidates : [] } }
         : {}),
     });
     logger.info(

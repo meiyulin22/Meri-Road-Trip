@@ -47,6 +47,25 @@ test("selection uses only a candidate from the owned persisted assistant present
   assert.equal(body.tripState.destination.selection.providerId, "poi-b");
 });
 
+test("one verified candidate still requires explicit selection and saves its provider identity", async () => {
+  const single: TripMessage = { ...message, presentation: {
+    type: "location_candidates", candidates: [message.presentation!.type === "location_candidates"
+      ? message.presentation!.candidates[0] : assert.fail("expected candidates")],
+  } };
+  const response = await handleLocationCandidateSelectionPost(tripId, "owner",
+    { messageId: single.id, candidateIndex: 0 }, {
+      async loadJourney() { return { tripState: state }; },
+      async listMessages() { return [single]; },
+      async updateTripState(_id, _owner, patch) {
+        return applyTripStatePatch(state, patch);
+      },
+    });
+  assert.equal(response.status, 200);
+  const body = await response.json();
+  assert.equal(body.tripState.destination.state, "known");
+  assert.equal(body.tripState.destination.selection.providerId, "poi-a");
+});
+
 test("missing or wrong owner cannot select a candidate", async () => {
   let writes = 0;
   const deps = {

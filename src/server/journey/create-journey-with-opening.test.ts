@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import type { TripDraft } from "@/domain/trip-draft/trip-draft";
+import { validateTripDraftDomain, type TripDraft } from "@/domain/trip-draft/trip-draft";
 import { applyTripStatePatch, initializeTripState } from "@/domain/trip-state/trip-state";
 import type { LocationCandidate } from "@/domain/location/location";
 import type { Journey } from "./journey-service";
@@ -138,13 +138,32 @@ test("resolved destination is validated exactly once before persistence without 
   assert.deepEqual(order, ["provider", "persist", "llm"]);
 });
 
+test("missing auxiliary signal follows direct Home destination validation", async () => {
+  const directDraft: TripDraft = { ...draft,
+    destinationDisambiguation: { state: "missing", value: null } };
+  let lookups = 0;
+  await createJourneyWithOpening({ ...input, draft: directDraft }, {
+    async resolveDestination(expression) {
+      lookups += 1;
+      assert.equal(expression, "调皮省开心市");
+      return { status: "resolved", candidate: candidateA };
+    },
+    async createJourney(received) {
+      assert.equal(validateTripDraftDomain(received).destination.state, "known");
+      return journey;
+    },
+    async initializeOpening() {},
+  });
+  assert.equal(lookups, 1);
+});
+
 test("ambiguous destination is removed, other fields survive, and persisted opening carries candidates", async () => {
   let openingModelCalls = 0;
   const presentation = { type: "location_candidates" as const, candidates: [candidateA, candidateB] };
   const result = await createJourneyWithOpening(input, {
     async resolveDestination() { return { status: "ambiguous", candidates: [candidateA, candidateB] }; },
     async createJourney(received, _owner, _message, assistant) {
-      const state = initializeTripState(received as TripDraft);
+      const state = initializeTripState(validateTripDraftDomain(received));
       assert.deepEqual(state.destination, { state: "missing" });
       assert.deepEqual(state.name, { state: "missing" });
       assert.deepEqual(state.startDate, { state: "approximate", value: "十月份", source: "user" });
@@ -189,4 +208,61 @@ test("unresolved and provider_error keep destination missing with distinct respe
     });
     assert.equal(result.opening, "completed");
   }
+});
+
+test("fuzzy Home creation skips raw lookup, keeps dates, and stores a single confirmation card", async () => {
+  const fuzzyDraft: TripDraft = { ...draft, destination: { state: "known", value: "潮汕" },
+    destinationDisambiguation: { state: "known", value: ["潮州", "汕头"] } };
+  const result = await createJourneyWithOpening({ ...input, draft: fuzzyDraft }, {
+    async resolveDestination() { throw new Error("raw fuzzy lookup must be skipped"); },
+    async verifyDisambiguation(expressions) {
+      assert.deepEqual(expressions, ["潮州", "汕头"]);
+      return { status: "verified", candidates: [candidateA] };
+    },
+    async createJourney(received, _owner, _message, assistant) {
+      const state = initializeTripState(validateTripDraftDomain(received));
+      assert.equal(state.destination.state, "missing");
+      assert.equal(state.startDate.state, "approximate");
+      assert.equal(state.duration.state, "known");
+      assert.deepEqual(assistant?.presentation, { type: "location_candidates", candidates: [candidateA] });
+      assert.match(assistant?.content ?? "", /潮汕.*一个更具体的地点/);
+      return { ...journey, tripState: state };
+    },
+    async initializeOpening() { throw new Error("no extra LLM call"); },
+  });
+  assert.equal(result.opening, "completed");
+});
+
+test("fuzzy Home provider failure creates a Journey without destination or cards", async () => {
+  const fuzzyDraft: TripDraft = { ...draft,
+    destinationDisambiguation: { state: "known", value: ["潮州", "汕头"] } };
+  const result = await createJourneyWithOpening({ ...input, draft: fuzzyDraft }, {
+    async resolveDestination() { throw new Error("raw lookup must be skipped"); },
+    async verifyDisambiguation() { return { status: "provider_error" }; },
+    async createJourney(received, _owner, _message, assistant) {
+      const state = initializeTripState(validateTripDraftDomain(received));
+      assert.equal(state.destination.state, "missing");
+      assert.equal(state.duration.state, "known");
+      assert.equal(assistant?.presentation, undefined);
+      assert.match(assistant?.content ?? "", /暂时无法验证/);
+      return { ...journey, tripState: state };
+    },
+    async initializeOpening() { throw new Error("no extra LLM call"); },
+  });
+  assert.equal(result.opening, "completed");
+});
+
+test("fuzzy Home creation presents multiple verified candidates", async () => {
+  const fuzzyDraft: TripDraft = { ...draft,
+    destinationDisambiguation: { state: "known", value: ["潮州", "汕头"] } };
+  await createJourneyWithOpening({ ...input, draft: fuzzyDraft }, {
+    async resolveDestination() { throw new Error("raw lookup must be skipped"); },
+    async verifyDisambiguation() { return { status: "verified", candidates: [candidateA, candidateB] }; },
+    async createJourney(received, _owner, _message, assistant) {
+      assert.equal(validateTripDraftDomain(received).destination.state, "missing");
+      assert.deepEqual(assistant?.presentation, { type: "location_candidates", candidates: [candidateA, candidateB] });
+      return journey;
+    },
+    async initializeOpening() { throw new Error("no extra LLM call"); },
+  });
 });

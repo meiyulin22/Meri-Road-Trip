@@ -71,6 +71,35 @@ test("clear destination update assigns user source and renames a system-named Jo
   assert.strictEqual(nextState?.startDate, state.startDate);
 });
 
+test("destination disambiguation accepts only a bounded plain expression list with a destination change", () => {
+  const base = { intent: "trip_state_update", reply: "好的。",
+    changes: [{ field: "destination", state: "known", value: "潮汕" }] };
+  const valid = validateWorkspaceConversationInterpretation({ ...base,
+    destinationDisambiguation: { state: "known", value: ["潮州", "汕头", "揭阳"] } });
+  assert.deepEqual(valid.destinationDisambiguation, { state: "known", value: ["潮州", "汕头", "揭阳"] });
+  for (const bad of [
+    { state: "known", value: [] },
+    { state: "known", value: ["潮州"] },
+    { state: "known", value: ["潮州", "汕头", "揭阳", "广州"] },
+    { state: "known", value: ["潮州", " "] },
+    { state: "known", value: ["潮州", "潮州"] },
+    { state: "known", value: ["潮州", "汕头"], providerId: "fabricated" },
+    { state: "known", value: [{ name: "潮州", longitude: 1 }, "汕头"] },
+    { state: "missing", value: ["潮州", "汕头"] },
+  ]) {
+    assert.throws(() => validateWorkspaceConversationInterpretation({ ...base,
+      destinationDisambiguation: bad }), InvalidWorkspaceConversationInterpretationError);
+  }
+  assert.throws(() => validateWorkspaceConversationInterpretation({
+    intent: "question", changes: [], reply: "好的。",
+    destinationDisambiguation: { state: "known", value: ["潮州", "汕头"] },
+  }), InvalidWorkspaceConversationInterpretationError);
+  assert.deepEqual(validateWorkspaceConversationInterpretation({
+    intent: "question", changes: [], reply: "好的。",
+    destinationDisambiguation: { state: "missing", value: null },
+  }).destinationDisambiguation, { state: "missing", value: null });
+});
+
 test("a conversational destination update drops the previous explicit selection", () => {
   const state = applyTripStatePatch(initializeTripState(draft), {
     destination: {

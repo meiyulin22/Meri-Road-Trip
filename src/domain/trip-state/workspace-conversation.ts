@@ -2,6 +2,7 @@ import {
   transportPreferences,
   type TransportPreference,
 } from "@/domain/trip-draft/trip-draft";
+import { validateDestinationDisambiguation, type DestinationDisambiguation } from "@/domain/location/destination-disambiguation";
 import type {
   TripState,
   TripStateField,
@@ -28,6 +29,7 @@ export interface WorkspaceConversationInterpretation {
   readonly intent: WorkspaceConversationIntent;
   readonly changes: readonly ProposedTripStateChange[];
   readonly reply: string;
+  readonly destinationDisambiguation?: DestinationDisambiguation | null;
 }
 
 export class InvalidWorkspaceConversationInterpretationError extends Error {
@@ -149,7 +151,9 @@ export function validateWorkspaceConversationInterpretation(
     );
   }
 
-  assertExactKeys(value, ["intent", "changes", "reply"], "interpretation");
+  assertExactKeys(value, Object.hasOwn(value, "destinationDisambiguation")
+    ? ["intent", "changes", "reply", "destinationDisambiguation"]
+    : ["intent", "changes", "reply"], "interpretation");
 
   if (!isWorkspaceConversationIntent(value.intent)) {
     throw new InvalidWorkspaceConversationInterpretationError(
@@ -189,7 +193,21 @@ export function validateWorkspaceConversationInterpretation(
     );
   }
 
-  return { intent: value.intent, changes, reply: value.reply };
+  let destinationDisambiguation: DestinationDisambiguation | null | undefined;
+  if (Object.hasOwn(value, "destinationDisambiguation")) {
+    try {
+      destinationDisambiguation = validateDestinationDisambiguation(
+        value.destinationDisambiguation,
+        value.intent === "trip_state_update" && changes.some((change) => change.field === "destination" && change.state !== "missing"),
+      );
+    } catch (error) {
+      throw new InvalidWorkspaceConversationInterpretationError(
+        error instanceof Error ? error.message : "destinationDisambiguation is invalid.",
+      );
+    }
+  }
+  return { intent: value.intent, changes, reply: value.reply,
+    ...(destinationDisambiguation !== undefined ? { destinationDisambiguation } : {}) };
 }
 
 function createUserField(

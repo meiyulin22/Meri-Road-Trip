@@ -3,6 +3,7 @@ import {
   type TripDraft,
   type TripDraftField,
 } from "@/domain/trip-draft/trip-draft";
+import { validateDestinationDisambiguation } from "@/domain/location/destination-disambiguation";
 import { validateTripMessage } from "@/domain/trip-message/trip-message";
 
 export type NewTripComposerPhase = "editing" | "submitting" | "review" | "error" | "opening_failed" | "retrying_opening";
@@ -137,11 +138,20 @@ function isTripDraft(value: unknown): value is TripDraft {
       "endDate",
       "duration",
       "transportPreference",
+      ...(Object.hasOwn(value, "destinationDisambiguation") ? ["destinationDisambiguation"] : []),
     ])
   ) {
     return false;
   }
 
+  if (Object.hasOwn(value, "destinationDisambiguation")) {
+    try {
+      validateDestinationDisambiguation(value.destinationDisambiguation,
+        isRecord(value.destination) && value.destination.state !== "missing");
+    } catch {
+      return false;
+    }
+  }
   return (
     isTripDraftField(value.name) &&
     isTripDraftField(value.origin) &&

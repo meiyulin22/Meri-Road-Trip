@@ -79,6 +79,14 @@ export const workspaceConversationJsonSchema: Record<string, unknown> = {
       items: changeSchema,
     },
     reply: { type: "string", minLength: 1 },
+    destinationDisambiguation: {
+      type: "object", additionalProperties: false, required: ["state", "value"],
+      properties: {
+        state: { type: "string", enum: ["missing", "known"] },
+        value: { type: ["array", "null"], minItems: 2, maxItems: 3,
+          items: { type: "string", minLength: 1, maxLength: 80 } },
+      },
+    },
   },
 };
 

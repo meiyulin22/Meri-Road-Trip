@@ -106,6 +106,37 @@ test("accepts a valid model draft in application-side validation", () => {
   assert.doesNotThrow(() => validateTripDraft(validModelDraft));
 });
 
+test("TripDraft extraction preserves a validated destination disambiguation signal", async () => {
+  const modelDraft = { ...validModelDraft,
+    destination: { state: "known", value: "潮汕" },
+    destinationDisambiguation: { state: "known", value: ["潮州", "汕头", "揭阳"] } };
+  const extracted = await extractTripDraft(validInput, createJsonClient(modelDraft));
+  assert.deepEqual(extracted.destinationDisambiguation,
+    { state: "known", value: ["潮州", "汕头", "揭阳"] });
+  for (const bad of [
+    { state: "known", value: [] }, { state: "known", value: ["潮州", "潮州"] },
+    { state: "known", value: ["潮州", "汕头", "揭阳", "广州"] },
+    { state: "known", value: ["潮州", "汕头"], coordinates: [1, 2] },
+    { state: "missing", value: ["潮州", "汕头"] },
+  ]) {
+    assert.throws(() => validateTripDraft({ ...modelDraft, destinationDisambiguation: bad }), InvalidTripDraftError);
+  }
+  assert.throws(() => validateTripDraft({ ...modelDraft,
+    destination: { state: "missing", value: null } }), InvalidTripDraftError);
+});
+
+test("malformed auxiliary output falls back to missing while preserving a valid TripDraft", async () => {
+  const modelDraft = { ...validModelDraft,
+    destination: { state: "known", value: "潮汕" },
+    destinationDisambiguation: { state: "known", value: ["潮州"] } };
+  const extracted = await extractTripDraft(validInput, createJsonClient(modelDraft));
+  assert.deepEqual(extracted.destinationDisambiguation, { state: "missing", value: null });
+  assert.deepEqual(extracted.destination, { state: "known", value: "潮汕" });
+  assert.deepEqual(extracted.duration, { state: "known", value: "两天" });
+  await assert.rejects(extractTripDraft(validInput, createJsonClient({ ...modelDraft,
+    startDate: { state: "known", value: "invalid date" } })), InvalidTripDraftError);
+});
+
 test("rejects an internally inconsistent model draft", () => {
   assert.throws(
     () =>
