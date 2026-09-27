@@ -9,6 +9,7 @@ import type { TripMessageRepository } from "@/repositories/trip-message-reposito
 import type { TripService } from "@/server/trip/trip-service";
 import { openingAssistantMessageId } from "./opening-assistant-id";
 import { destinationMissingGuidanceContent, destinationMissingGuidanceMessageId } from "./destination-missing-guidance";
+import { locationCandidateSelectionMessageId } from "./location-candidate-selection-id";
 
 type TripMessageServiceDependencies = {
   readonly tripService: Pick<TripService, "getTripById">;
@@ -84,6 +85,24 @@ export class TripMessageService {
       tripId: input.tripId,
       role: "assistant",
       content: destinationMissingGuidanceContent,
+      createdAt: this.now().toISOString(),
+    });
+    return this.dependencies.repository.createAssistantIfAbsent(message);
+  }
+
+  async persistLocationCandidateSelectionReply(input: {
+    readonly tripId: string;
+    readonly ownerGuestId: string;
+    readonly candidateMessageId: string;
+    readonly candidateIndex: number;
+    readonly content: string;
+  }): Promise<TripMessage> {
+    await this.dependencies.tripService.getTripById(input.tripId, input.ownerGuestId);
+    const message = validateTripMessage({
+      id: locationCandidateSelectionMessageId(input.tripId, input.candidateMessageId, input.candidateIndex),
+      tripId: input.tripId,
+      role: "assistant",
+      content: input.content,
       createdAt: this.now().toISOString(),
     });
     return this.dependencies.repository.createAssistantIfAbsent(message);

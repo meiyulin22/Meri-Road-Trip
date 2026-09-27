@@ -53,8 +53,10 @@ test("selection appears only after the server returns authoritative TripState", 
   assert.match(markup(candidates[1], false, true, true), /保存中…/);
   assert.doesNotMatch(markup(candidates[1], false, true, true), /已选择/);
 
-  const selectedState = await selectLocationCandidate("trip", "latest", 1, async () =>
-    Response.json({ tripState: { ...unresolved, destination: {
+  const { tripState: selectedState } = await selectLocationCandidate("trip", "latest", 1, async () =>
+    Response.json({ assistantMessage: { id: "follow-up", tripId: "trip", role: "assistant",
+      content: "目的地定好了。", createdAt: "2026-09-26T00:00:01.000Z" },
+      tripState: { ...unresolved, destination: {
       state: "known", value: "潮州市", source: "user",
       selection: { provider: "amap", providerId: "chaozhou" },
     } } }));

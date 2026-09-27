@@ -89,23 +89,46 @@ export async function requestWorkspaceConversation(
   }
 }
 
+export class LocationCandidateFollowUpError extends WorkspaceConversationRequestError {
+  constructor(readonly tripState: TripState) {
+    super("The destination was saved, but its assistant follow-up was unavailable.");
+    this.name = "LocationCandidateFollowUpError";
+  }
+}
+
 export async function selectLocationCandidate(
   tripId: string,
   messageId: string,
   candidateIndex: number,
   fetcher: Fetcher = (input, init) => globalThis.fetch(input, init),
-): Promise<TripState> {
+): Promise<{ readonly tripState: TripState; readonly assistantMessage: TripMessage }> {
   const response = await fetcher(`/api/trips/${encodeURIComponent(tripId)}/location-candidate-selection`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ messageId, candidateIndex }),
   });
-  if (!response.ok) throw new WorkspaceConversationRequestError("Location candidate selection failed.");
-  const body: unknown = await response.json();
-  if (typeof body !== "object" || body === null || !("tripState" in body)) {
+  let body: unknown;
+  try {
+    body = await response.json();
+  } catch {
     throw new WorkspaceConversationRequestError("Location candidate selection response is invalid.");
   }
-  return validateTripState(body.tripState);
+  if (!response.ok) {
+    if (typeof body === "object" && body !== null && "code" in body &&
+      body.code === "follow_up_unavailable" && "tripState" in body) {
+      throw new LocationCandidateFollowUpError(validateTripState(body.tripState));
+    }
+    throw new WorkspaceConversationRequestError("Location candidate selection failed.");
+  }
+  if (typeof body !== "object" || body === null || !("tripState" in body) || !("assistantMessage" in body)) {
+    throw new WorkspaceConversationRequestError("Location candidate selection response is invalid.");
+  }
+  const tripState = validateTripState(body.tripState);
+  const assistantMessage = validateTripMessage(body.assistantMessage);
+  if (assistantMessage.role !== "assistant" || assistantMessage.tripId !== tripId) {
+    throw new WorkspaceConversationRequestError("Location candidate selection follow-up is invalid.");
+  }
+  return { tripState, assistantMessage };
 }
 
 export function canSelectLocationCandidates(

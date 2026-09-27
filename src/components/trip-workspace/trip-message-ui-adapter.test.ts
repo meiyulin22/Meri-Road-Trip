@@ -74,3 +74,15 @@ test("appends persisted guidance once without turning it into a user message", (
   }]);
   assert.strictEqual(appendPersistedMessageIfAbsent(withGuidance, guidance), withGuidance);
 });
+
+test("candidate selection follow-up appears immediately and matches refreshed history", () => {
+  const candidateMessage = { id: "candidates", tripId: "trip-1", role: "assistant" as const,
+    content: "请选择具体地点。", createdAt: "2026-09-23T00:00:01.000Z" };
+  const followUp = { id: "selection-follow-up", tripId: "trip-1", role: "assistant" as const,
+    content: "好，目的地定好了。", createdAt: "2026-09-23T00:00:02.000Z" };
+  const immediate = appendPersistedMessageIfAbsent(toWorkspaceUIMessages([candidateMessage]), followUp);
+  assert.deepEqual(immediate, toWorkspaceUIMessages([candidateMessage, followUp]));
+  assert.deepEqual(toWorkspaceUIMessages([candidateMessage, followUp]), immediate);
+  assert.strictEqual(appendPersistedMessageIfAbsent(immediate, followUp), immediate);
+  assert.deepEqual(immediate.map((item) => item.role), ["assistant", "assistant"]);
+});

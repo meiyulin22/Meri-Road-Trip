@@ -8,6 +8,7 @@ import { TripNotFoundError } from "@/domain/trip/trip-errors";
 import { TripMessageService } from "./trip-message-service";
 import { destinationMissingGuidanceContent, destinationMissingGuidanceMessageId } from "./destination-missing-guidance";
 import { openingAssistantMessageId } from "./opening-assistant-id";
+import { locationCandidateSelectionMessageId } from "./location-candidate-selection-id";
 
 const tripId = "3d17d2c7-fd9b-4748-b751-3a76a9a920be";
 const guestA = "25ba5b26-8db0-4fe3-bfcc-b684dd7889cc";
@@ -176,6 +177,25 @@ test("destination guidance is a single persisted assistant message with a dedica
   assert.equal(first.content, destinationMissingGuidanceContent);
   assert.deepEqual(messageRepository.getMessages(), [first]);
   await assert.rejects(service.persistDestinationMissingGuidance({ tripId, ownerGuestId: guestB }), TripNotFoundError);
+});
+
+test("candidate selection persists one assistant message with a stable ID and no user message", async () => {
+  const messageRepository = createRepository();
+  const service = new TripMessageService({ tripService: createTripService(guestA),
+    repository: messageRepository.repository,
+    now: () => new Date("2026-09-26T00:00:02.000Z") });
+  const input = { tripId, ownerGuestId: guestA, candidateMessageId: "assistant-candidates",
+    candidateIndex: 1, content: "好，目的地定好了。" };
+  const first = await service.persistLocationCandidateSelectionReply(input);
+  const retry = await service.persistLocationCandidateSelectionReply({ ...input, content: "different reply" });
+  assert.strictEqual(retry, first);
+  assert.equal(first.id, locationCandidateSelectionMessageId(tripId, input.candidateMessageId, 1));
+  assert.notEqual(first.id, destinationMissingGuidanceMessageId(tripId));
+  assert.equal(first.role, "assistant");
+  assert.equal(messageRepository.getCreateTurnCalls(), 0);
+  assert.deepEqual(messageRepository.getMessages(), [first]);
+  assert.notEqual(first.id, locationCandidateSelectionMessageId(tripId, input.candidateMessageId, 0));
+  await assert.rejects(service.persistLocationCandidateSelectionReply({ ...input, ownerGuestId: guestB }), TripNotFoundError);
 });
 
 test("restores persisted conversation history", async () => {

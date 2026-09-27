@@ -16,7 +16,7 @@ import { DestinationRecommendationCard } from "./destination-recommendation-card
 import { formatMessageTimestamp } from "./message-timestamp";
 import { LocationCandidateCard } from "./location-candidate-card";
 import { appendPersistedMessageIfAbsent, locationCandidatePresentation, messageCreatedAt, recommendationPresentation, toWorkspaceUIMessages } from "./trip-message-ui-adapter";
-import { canSelectLocationCandidates, selectLocationCandidate } from "./workspace-conversation-model";
+import { canSelectLocationCandidates, LocationCandidateFollowUpError, selectLocationCandidate } from "./workspace-conversation-model";
 import {
   reconcileCommittedUserId,
   WorkspaceChatTransport,
@@ -59,7 +59,10 @@ export function ConversationPanel({
   const selectionInFlight = useRef(false);
   const candidateInFlight = useRef(false);
   const [candidatePending, setCandidatePending] = useState<string | null>(null);
-  const [candidateError, setCandidateError] = useState<string | null>(null);
+  const [candidateError, setCandidateError] = useState<{
+    readonly messageId: string;
+    readonly kind: "selection" | "follow_up";
+  } | null>(null);
   const [selectionPendingId, setSelectionPendingId] = useState<string | null>(null);
   const [selectionErrorId, setSelectionErrorId] = useState<string | null>(null);
   const [revealing, setRevealing] = useState<{
@@ -167,9 +170,17 @@ export function ConversationPanel({
     setCandidatePending(messageId);
     setCandidateError(null);
     try {
-      onTripStateChange(await selectLocationCandidate(tripId, messageId, candidateIndex));
-    } catch {
-      setCandidateError(messageId);
+      const { tripState: selectedState, assistantMessage } = await selectLocationCandidate(tripId, messageId, candidateIndex);
+      onTripStateChange(selectedState);
+      setMessages((current) => appendPersistedMessageIfAbsent(current, assistantMessage));
+      setRevealing({ id: assistantMessage.id, visibleCharacters: 0 });
+    } catch (error) {
+      if (error instanceof LocationCandidateFollowUpError) {
+        onTripStateChange(error.tripState);
+        setCandidateError({ messageId, kind: "follow_up" });
+      } else {
+        setCandidateError({ messageId, kind: "selection" });
+      }
     } finally {
       candidateInFlight.current = false;
       setCandidatePending(null);
@@ -293,7 +304,11 @@ export function ConversationPanel({
                           selected={isSelectedCandidate(candidate, tripState)}
                         />
                       ))}
-                      {candidateError === conversationMessage.id ? <p role="alert">目的地暂时没能保存，请重试选择。</p> : null}
+                      {candidateError?.messageId === conversationMessage.id ? <p role="alert">
+                        {candidateError.kind === "follow_up"
+                          ? "目的地已保存，但 Meri 的后续确认暂时没能完成。请刷新旅程核对。"
+                          : "目的地暂时没能保存，请重试选择。"}
+                      </p> : null}
                     </div>
                   ) : null}
                 </div>

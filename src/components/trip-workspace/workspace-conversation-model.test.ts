@@ -4,6 +4,7 @@ import test from "node:test";
 import type { TripState } from "@/domain/trip-state/trip-state";
 
 import {
+  LocationCandidateFollowUpError,
   requestWorkspaceConversation,
   selectLocationCandidate,
   WorkspaceConversationRequestError,
@@ -68,16 +69,28 @@ test("accepts a persisted workspace conversation response", async () => {
 });
 
 test("candidate selection posts only persisted message identity and index", async () => {
+  const assistantMessage = { id: "assistant-follow-up", tripId: "trip 1", role: "assistant" as const,
+    content: "目的地定好了。", createdAt: "2026-09-26T00:00:01.000Z" };
   const selected = await selectLocationCandidate("trip 1", "assistant-1", 1, async (input, init) => {
     assert.equal(input, "/api/trips/trip%201/location-candidate-selection");
     assert.equal(init?.method, "POST");
     assert.deepEqual(JSON.parse(init?.body as string), { messageId: "assistant-1", candidateIndex: 1 });
-    return Response.json({ tripState });
+    return Response.json({ tripState, assistantMessage });
   });
-  assert.deepEqual(selected, tripState);
+  assert.deepEqual(selected, { tripState, assistantMessage });
   await assert.rejects(selectLocationCandidate("trip", "assistant-1", 99,
     async () => Response.json({ error: "Candidate selection not found." }, { status: 404 })),
   WorkspaceConversationRequestError);
+});
+
+test("partial follow-up failure exposes the saved TripState without a fake reply", async () => {
+  await assert.rejects(selectLocationCandidate("trip 1", "assistant-1", 0, async () =>
+    Response.json({ code: "follow_up_unavailable", tripState }, { status: 500 })),
+  (error: unknown) => {
+    assert.ok(error instanceof LocationCandidateFollowUpError);
+    assert.deepEqual(error.tripState, tripState);
+    return true;
+  });
 });
 
 test("default conversation fetch uses the browser global receiver", async (t) => {
