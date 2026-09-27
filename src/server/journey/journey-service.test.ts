@@ -148,6 +148,54 @@ test("persists the exact Home message after TripState creation", async () => {
   assert.deepEqual(events, ["trip", "state", "message"]);
 });
 
+test("persists a deterministic opening assistant after the original user message", async () => {
+  const events: string[] = [];
+  const openingAssistant = { content: "请选择具体地点。", presentation: { type: "location_candidates" as const,
+    candidates: [
+      { providerId: "poi-a", name: "青岛市", region: "山东省", address: null,
+        longitude: 120.38, latitude: 36.07, coordinateSystem: "GCJ-02" as const },
+      { providerId: "poi-b", name: "青岛", region: "山东省", address: null,
+        longitude: 120.39, latitude: 36.08, coordinateSystem: "GCJ-02" as const },
+    ] } };
+  const service = new JourneyService({
+    tripService: {
+      async createTrip() { events.push("trip"); return trip; },
+      async getTripById() { return trip; },
+    },
+    createTripStateRepository: () => ({
+      ...createStateRepository().repository,
+      async create(state) { events.push("state"); return state; },
+    }),
+    async persistInitialUserMessage() { events.push("user"); },
+    async persistOpeningAssistant(request) {
+      events.push("assistant");
+      assert.deepEqual(request, { tripId: trip.id, ownerGuestId: guestA, ...openingAssistant });
+    },
+    async deleteTripById() { throw new Error("must not roll back"); },
+  });
+  await service.createJourney({ ...draft, name: { state: "missing" }, destination: { state: "missing" } },
+    guestA, "原始 Home 输入", openingAssistant);
+  assert.deepEqual(events, ["trip", "state", "user", "assistant"]);
+});
+
+test("opening assistant persistence failure rolls back the incomplete Journey", async () => {
+  const events: string[] = [];
+  const failure = new Error("assistant insert failed");
+  const service = new JourneyService({
+    tripService: {
+      async createTrip() { events.push("trip"); return trip; },
+      async getTripById() { return trip; },
+    },
+    createTripStateRepository: () => createStateRepository().repository,
+    async persistInitialUserMessage() { events.push("user"); },
+    async persistOpeningAssistant() { events.push("assistant"); throw failure; },
+    async deleteTripById() { events.push("rollback"); return true; },
+  });
+  await assert.rejects(service.createJourney(draft, guestA, "原始 Home 输入", { content: "请澄清目的地。" }),
+    (error) => error instanceof JourneyCreationError && error.cause === failure);
+  assert.deepEqual(events, ["trip", "user", "assistant", "rollback"]);
+});
+
 test("initial message failure cleans up the newly created Trip", async () => {
   const deleted: string[] = [];
   const messageError = new Error("message insert failed");

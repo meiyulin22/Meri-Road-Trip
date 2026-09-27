@@ -94,6 +94,24 @@ test("duplicate POST and revisit return the stored reply without another model c
   assert.equal(setup.messages.length, 2);
 });
 
+test("opening retry restores persisted ambiguous candidates without another model or Provider call", async () => {
+  const assistant: TripMessage = {
+    id: openingAssistantMessageId(tripId), tripId, role: "assistant",
+    content: "请选择具体地点。",
+    presentation: { type: "location_candidates", candidates: [
+      { providerId: "poi-a", name: "青岛市", region: "山东省", address: null,
+        longitude: 120.38, latitude: 36.07, coordinateSystem: "GCJ-02" },
+      { providerId: "poi-b", name: "青岛", region: "山东省", address: null,
+        longitude: 120.39, latitude: 36.08, coordinateSystem: "GCJ-02" },
+    ] },
+    createdAt: "2026-09-25T01:00:00.001Z",
+  };
+  const setup = fixture([user, assistant]);
+  assert.strictEqual(await setup.service.initialize(input), assistant);
+  assert.equal(setup.generations, 0);
+  assert.deepEqual(setup.messages, [user, assistant]);
+});
+
 test("concurrent initialization stores one assistant", async () => {
   const setup = fixture();
   const [left, right] = await Promise.all([

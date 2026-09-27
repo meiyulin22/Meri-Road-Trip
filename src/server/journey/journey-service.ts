@@ -1,7 +1,7 @@
 import {
   validateTripDraftDomain,
 } from "@/domain/trip-draft/trip-draft";
-import { InvalidTripMessageError } from "@/domain/trip-message/trip-message";
+import { InvalidTripMessageError, type TripMessagePresentation } from "@/domain/trip-message/trip-message";
 import {
   applyTripStatePatch,
   initializeTripState,
@@ -34,6 +34,12 @@ interface JourneyServiceDependencies {
     readonly ownerGuestId: string;
     readonly content: string;
   }) => Promise<unknown>;
+  readonly persistOpeningAssistant?: (input: {
+    readonly tripId: string;
+    readonly ownerGuestId: string;
+    readonly content: string;
+    readonly presentation?: TripMessagePresentation;
+  }) => Promise<unknown>;
 }
 
 export class JourneyService {
@@ -43,6 +49,7 @@ export class JourneyService {
     draftInput: unknown,
     ownerGuestId: string,
     initialUserMessage?: string,
+    openingAssistant?: { readonly content: string; readonly presentation?: TripMessagePresentation },
   ): Promise<Journey> {
     const draft = validateTripDraftDomain(draftInput);
     if (initialUserMessage !== undefined &&
@@ -50,8 +57,12 @@ export class JourneyService {
       throw new InvalidTripMessageError("initialUserMessage must be non-empty text.");
     }
     const persistInitialUserMessage = this.dependencies.persistInitialUserMessage;
+    const persistOpeningAssistant = this.dependencies.persistOpeningAssistant;
     if (initialUserMessage !== undefined && !persistInitialUserMessage) {
       throw new Error("Initial message persistence is not configured.");
+    }
+    if (openingAssistant && (!initialUserMessage || !persistOpeningAssistant)) {
+      throw new Error("Opening assistant persistence requires an initial user message.");
     }
     const tripState = initializeTripState(draft);
     const trip = await this.dependencies.tripService.createTrip({}, ownerGuestId);
@@ -65,6 +76,13 @@ export class JourneyService {
           tripId: trip.id,
           ownerGuestId,
           content: initialUserMessage,
+        });
+      }
+      if (openingAssistant && persistOpeningAssistant) {
+        await persistOpeningAssistant({
+          tripId: trip.id,
+          ownerGuestId,
+          ...openingAssistant,
         });
       }
     } catch (creationError) {

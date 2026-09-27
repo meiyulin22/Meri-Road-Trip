@@ -13,4 +13,6 @@ export const journeyService = new JourneyService({
     tripRepository.deleteById(tripId, ownerGuestId),
   persistInitialUserMessage: (input) =>
     tripMessageService.persistInitialUserMessage(input),
+  persistOpeningAssistant: (input) =>
+    tripMessageService.persistOpeningAssistant(input),
 });

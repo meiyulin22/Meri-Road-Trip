@@ -1,3 +1,7 @@
+import { validateTripDraftDomain, type TripDraft } from "@/domain/trip-draft/trip-draft";
+import type { TripMessagePresentation } from "@/domain/trip-message/trip-message";
+import type { LocationResolveResult } from "@/server/location/location-service";
+
 import type { Journey } from "./journey-service";
 
 type CreateJourneyWithOpeningDependencies = {
@@ -5,7 +9,9 @@ type CreateJourneyWithOpeningDependencies = {
     draft: unknown,
     ownerGuestId: string,
     initialUserMessage?: string,
+    openingAssistant?: { readonly content: string; readonly presentation?: TripMessagePresentation },
   ) => Promise<Journey>;
+  readonly resolveDestination: (expression: string) => Promise<LocationResolveResult>;
   readonly initializeOpening: (input: {
     readonly tripId: string;
     readonly ownerGuestId: string;
@@ -30,13 +36,29 @@ export async function createJourneyWithOpening(
   readonly opening: "completed" | "failed" | "not_requested";
   readonly openingError?: unknown;
 }> {
+  const draft = validateTripDraftDomain(input.draft);
+  const destinationExpression = draft.destination.state === "missing" ? null : draft.destination.value;
+  const resolution = destinationExpression === null
+    ? null
+    : await dependencies.resolveDestination(destinationExpression);
+  const rejected = resolution !== null && resolution.status !== "resolved";
+  const creationDraft: TripDraft = rejected
+    ? { ...draft, destination: { state: "missing" }, name: { state: "missing" } }
+    : draft;
+  const openingAssistant = input.initialUserMessage === undefined || !rejected || destinationExpression === null
+    ? undefined
+    : openingAfterRejectedDestination(destinationExpression, resolution);
   const journey = await dependencies.createJourney(
-    input.draft,
+    creationDraft,
     input.ownerGuestId,
     input.initialUserMessage,
+    openingAssistant,
   );
   if (input.initialUserMessage === undefined) {
     return { journey, opening: "not_requested" };
+  }
+  if (openingAssistant) {
+    return { journey, opening: "completed" };
   }
 
   try {
@@ -51,4 +73,21 @@ export async function createJourneyWithOpening(
   } catch (openingError) {
     return { journey, opening: "failed", openingError };
   }
+}
+
+function openingAfterRejectedDestination(
+  expression: string,
+  resolution: LocationResolveResult,
+): { readonly content: string; readonly presentation?: TripMessagePresentation } {
+  const waysForward = "你也可以告诉我更多地点信息，或在右侧 Journey Overview 中手动选择目的地。";
+  if (resolution.status === "ambiguous") {
+    return {
+      content: `「${expression}」可能对应下方几个地点，请选一个。${waysForward}`,
+      presentation: { type: "location_candidates", candidates: resolution.candidates },
+    };
+  }
+  if (resolution.status === "provider_error") {
+    return { content: `我暂时无法验证「${expression}」对应的地点，所以还没有记录目的地。请稍后再告诉我一次，或在右侧 Journey Overview 中手动选择目的地。` };
+  }
+  return { content: `我暂时没找到「${expression}」对应的地点，所以还没有记录目的地。${waysForward}` };
 }

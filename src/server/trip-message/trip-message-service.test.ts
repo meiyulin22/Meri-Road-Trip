@@ -112,6 +112,32 @@ test("persists ambiguous candidates with the assistant side of the real conversa
   assert.deepEqual(await service.listMessages(tripId, guestA), [user, assistant]);
 });
 
+test("opening candidates persist on the assistant message and survive a fresh read", async () => {
+  const messageRepository = createRepository();
+  const service = new TripMessageService({
+    tripService: createTripService(guestA), repository: messageRepository.repository,
+    generateId: () => "00000000-0000-4000-8000-000000000003",
+    now: () => new Date("2026-09-22T08:00:00.000Z"),
+  });
+  const presentation = { type: "location_candidates" as const, candidates: [
+    { providerId: "poi-a", name: "青岛市", region: "山东省", address: null,
+      longitude: 120.38, latitude: 36.07, coordinateSystem: "GCJ-02" as const },
+    { providerId: "poi-b", name: "青岛", region: "山东省", address: null,
+      longitude: 120.39, latitude: 36.08, coordinateSystem: "GCJ-02" as const },
+  ] };
+  const user = await service.persistInitialUserMessage({ tripId, ownerGuestId: guestA, content: "去青岛" });
+  const assistant = await service.persistOpeningAssistant({ tripId, ownerGuestId: guestA,
+    content: "请选择地点", presentation });
+  assert.equal(user.presentation, undefined);
+  assert.deepEqual(assistant.presentation, presentation);
+  assert.ok(user.createdAt < assistant.createdAt);
+  const reloaded = new TripMessageService({ tripService: createTripService(guestA),
+    repository: messageRepository.repository });
+  assert.deepEqual(await reloaded.listMessages(tripId, guestA), [user, assistant]);
+  assert.deepEqual(await reloaded.persistOpeningAssistant({ tripId, ownerGuestId: guestA,
+    content: "other" }), assistant);
+});
+
 test("persists one original user message with its exact content", async () => {
   const messageRepository = createRepository();
   const service = new TripMessageService({

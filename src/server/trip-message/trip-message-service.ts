@@ -59,6 +59,7 @@ export class TripMessageService {
     readonly tripId: string;
     readonly ownerGuestId: string;
     readonly content: string;
+    readonly presentation?: TripMessagePresentation;
   }): Promise<TripMessage> {
     await this.dependencies.tripService.getTripById(input.tripId, input.ownerGuestId);
     const message = validateTripMessage({
@@ -66,7 +67,9 @@ export class TripMessageService {
       tripId: input.tripId,
       role: "assistant",
       content: input.content,
-      createdAt: this.now().toISOString(),
+      ...(input.presentation ? { presentation: input.presentation } : {}),
+      // A deterministic opening can be saved in the same millisecond as the user message.
+      createdAt: new Date(this.now().getTime() + 1).toISOString(),
     });
     return this.dependencies.repository.createAssistantIfAbsent(message);
   }

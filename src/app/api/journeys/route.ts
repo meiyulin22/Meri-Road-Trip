@@ -11,8 +11,10 @@ import {
   guestIdCookieOptions,
 } from "@/server/identity/guest-identity";
 import { JourneyCreationError } from "@/server/journey/journey-errors";
+import { AmapLocationProvider } from "@/infrastructure/location/amap-location-provider";
 import { createJourneyWithOpening } from "@/server/journey/create-journey-with-opening";
 import { journeyService } from "@/server/journey/journey-service-instance";
+import { LocationService } from "@/server/location/location-service";
 import { logger, logEvents } from "@/server/observability/logger";
 import { serializeError } from "@/server/observability/serialize-error";
 import { openingConversationService } from "@/server/trip-message/opening-conversation-service-instance";
@@ -59,8 +61,10 @@ export async function POST(request: Request) {
       requestId,
       ...getRequestContext(),
     }, {
-      createJourney: (draft, ownerGuestId, message) =>
-        journeyService.createJourney(draft, ownerGuestId, message),
+      createJourney: (draft, ownerGuestId, message, openingAssistant) =>
+        journeyService.createJourney(draft, ownerGuestId, message, openingAssistant),
+      resolveDestination: (expression) =>
+        new LocationService(new AmapLocationProvider()).resolveExpression(expression),
       initializeOpening: (input) => openingConversationService.initialize(input),
     });
     const { journey, opening } = result;
