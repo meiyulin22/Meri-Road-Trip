@@ -14,8 +14,9 @@ import { nextRevealCharacterCount, visibleAssistantText } from "./conversation-r
 import { canSelectDestinationRecommendation, canUseDestinationGuidance, requestDestinationRecommendationsIfMissing, selectDestinationRecommendationAndApply } from "./destination-recommendation-model";
 import { DestinationRecommendationCard } from "./destination-recommendation-card";
 import { formatMessageTimestamp } from "./message-timestamp";
+import { LocationCandidateCard } from "./location-candidate-card";
 import { appendPersistedMessageIfAbsent, locationCandidatePresentation, messageCreatedAt, recommendationPresentation, toWorkspaceUIMessages } from "./trip-message-ui-adapter";
-import { selectLocationCandidate } from "./workspace-conversation-model";
+import { canSelectLocationCandidates, selectLocationCandidate } from "./workspace-conversation-model";
 import {
   reconcileCommittedUserId,
   WorkspaceChatTransport,
@@ -86,6 +87,7 @@ export function ConversationPanel({
   const localNow = useSyncExternalStore(subscribeToBrowser, browserSnapshot, serverSnapshot) ? new Date() : null;
   const guidanceAvailable = canUseDestinationGuidance(tripState);
   const recommendationSelectionAvailable = canSelectDestinationRecommendation(tripState);
+  const latestCandidateMessageId = messages.findLast((item) => locationCandidatePresentation(item) !== undefined)?.id;
 
   useEffect(() => {
     if (!guidanceMessage) return;
@@ -160,7 +162,7 @@ export function ConversationPanel({
   }
 
   async function handleCandidateSelection(messageId: string, candidateIndex: number): Promise<void> {
-    if (candidateInFlight.current) return;
+    if (candidateInFlight.current || !canSelectLocationCandidates(tripState, messageId, latestCandidateMessageId)) return;
     candidateInFlight.current = true;
     setCandidatePending(messageId);
     setCandidateError(null);
@@ -280,20 +282,16 @@ export function ConversationPanel({
                     </div>
                   ) : null}
                   {locationCandidatePresentation(conversationMessage)?.candidates ? (
-                    <div className={styles.destinationSuggestions} role="group" aria-label="选择具体目的地">
+                    <div className={styles.locationCandidateList} role="group" aria-label="具体目的地候选">
                       {locationCandidatePresentation(conversationMessage)?.candidates.map((candidate, candidateIndex) => (
-                        <button
-                          className={styles.destinationSuggestion}
-                          data-active={isSelectedCandidate(candidate, tripState) ? "true" : "false"}
-                          disabled={candidatePending !== null || locationCandidatePresentation(conversationMessage)?.candidates.some((item) => isSelectedCandidate(item, tripState))}
+                        <LocationCandidateCard
+                          candidate={candidate}
+                          disabled={candidatePending !== null || !canSelectLocationCandidates(tripState, conversationMessage.id, latestCandidateMessageId)}
                           key={`${candidate.providerId}-${candidateIndex}`}
-                          onClick={() => void handleCandidateSelection(conversationMessage.id, candidateIndex)}
-                          type="button"
-                        >
-                          <strong>{candidate.name}</strong>
-                          {candidate.region ? <span>{candidate.region}</span> : null}
-                          {candidate.address ? <small>{candidate.address}</small> : null}
-                        </button>
+                          onSelect={() => void handleCandidateSelection(conversationMessage.id, candidateIndex)}
+                          pending={candidatePending === conversationMessage.id}
+                          selected={isSelectedCandidate(candidate, tripState)}
+                        />
                       ))}
                       {candidateError === conversationMessage.id ? <p role="alert">目的地暂时没能保存，请重试选择。</p> : null}
                     </div>

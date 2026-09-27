@@ -1,4 +1,3 @@
-import type { LocationCandidate } from "@/domain/location/location";
 import type { DestinationDisambiguation } from "@/domain/location/destination-disambiguation";
 import type { TripState, TripStatePatch } from "@/domain/trip-state/trip-state";
 import type { WorkspaceConversationInterpretation } from "@/domain/trip-state/workspace-conversation";
@@ -65,11 +64,6 @@ function withoutDestination(patch: TripStatePatch): TripStatePatch {
   return otherFields;
 }
 
-function candidateLabel(candidate: LocationCandidate): string {
-  const context = candidate.region ?? candidate.address;
-  return context ? `${candidate.name}（${context}）` : candidate.name;
-}
-
 export function replyAfterDestinationResolution(
   interpretation: WorkspaceConversationInterpretation,
   tripState: TripState,
@@ -78,19 +72,40 @@ export function replyAfterDestinationResolution(
 ): string {
   if (resolution === null || resolution.status === "not_ready") return interpretation.reply;
   const otherChanges = persistedPatch && Object.keys(persistedPatch).some((field) => field !== "destination")
-    ? "其他旅程信息也已保存。"
+    ? "你提到的其他信息也记下了。"
     : "";
 
   switch (resolution.status) {
     case "selected":
       return interpretation.reply;
-    case "resolved":
-      return `已将目的地记为「${tripState.destination.state === "missing" ? resolution.candidate.name : tripState.destination.value}」。${otherChanges}匹配到地点：${candidateLabel(resolution.candidate)}。`;
+    case "resolved": {
+      if (tripState.destination.state !== "known") {
+        return `${otherChanges}我找到了与你描述相符的地点，但目的地还没有明确下来。想更具体时，可以告诉我你打算去哪里。`;
+      }
+      const destination = tripState.destination.value;
+      const hasDate = tripState.startDate.state !== "missing" || tripState.endDate.state !== "missing";
+      const hasDuration = tripState.duration.state !== "missing";
+      if (!hasDate && !hasDuration) {
+        return `好，目的地记下了：${destination}。想继续完善的话，可以告诉我大概什么时候去、准备玩几天。`;
+      }
+      if (!hasDate) {
+        const durationNote = tripState.duration.state === "known" ? "行程时长也已经记下。" : "";
+        return `好，目的地记下了：${destination}。${durationNote}想好什么时候出发时再告诉我就行。`;
+      }
+      if (!hasDuration) {
+        const dateNote = tripState.startDate.state === "known" || tripState.endDate.state === "known"
+          ? "时间也已经记下。" : "";
+        return `好，目的地记下了：${destination}。${dateNote}再告诉我大概玩几天，就更完整了。`;
+      }
+      const detailsNote = (tripState.startDate.state === "known" || tripState.endDate.state === "known") &&
+        tripState.duration.state === "known" ? "时间和行程时长也已经记下。" : "";
+      return `好，目的地记下了：${destination}。${detailsNote}之后有新想法，随时告诉我。`;
+    }
     case "ambiguous":
-      return `${otherChanges}找到多个可能的地点，请从下方选一个。`;
+      return `${otherChanges}我找到几个可能的地点。你想去下面哪一个？`;
     case "unresolved":
-      return `${otherChanges}目前无法识别这个地点。请补充地区或更具体的名称。`;
+      return `${otherChanges}我还没能确认这个地点，所以没有改动目的地。能告诉我更具体的地名或所在地区吗？`;
     case "provider_error":
-      return `${otherChanges}地点验证暂时不可用，未更改目的地。请稍后再试。`;
+      return `${otherChanges}地点查询暂时不可用，目的地还没有改动。稍后可以再试一次。`;
   }
 }

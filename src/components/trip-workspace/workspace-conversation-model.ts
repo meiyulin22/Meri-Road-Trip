@@ -107,3 +107,11 @@ export async function selectLocationCandidate(
   }
   return validateTripState(body.tripState);
 }
+
+export function canSelectLocationCandidates(
+  tripState: TripState,
+  messageId: string,
+  latestCandidateMessageId: string | undefined,
+): boolean {
+  return tripState.destination.state !== "known" && messageId === latestCandidateMessageId;
+}

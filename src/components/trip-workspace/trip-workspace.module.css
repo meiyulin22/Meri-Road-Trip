@@ -170,6 +170,20 @@
 .destinationSuggestion strong { font-size: 12px; font-weight: 650; }
 .destinationSuggestion span { color: #64756c; font-size: 11px; line-height: 1.4; overflow-wrap: anywhere; }
 .destinationSuggestion small { color: #94a095; font-size: 10px; line-height: 1.4; overflow-wrap: anywhere; }
+.locationCandidateList { display: grid; gap: 9px; width: min(100%, 420px); margin-top: 13px; }
+.locationCandidateCard { display: grid; gap: 4px; width: 100%; min-height: 72px; padding: 12px 14px; border: 1px solid #cfd9ca; border-radius: 11px; background: #fffdf8; color: var(--ink); font: inherit; text-align: left; cursor: pointer; transition: background-color 120ms ease, border-color 120ms ease, transform 120ms ease; }
+.locationCandidateCard:hover:not(:disabled) { border-color: #7fa58c; background: #f3f7ee; }
+.locationCandidateCard:active:not(:disabled) { transform: translateY(1px); background: #e8f0e5; }
+.locationCandidateCard:focus-visible { outline: 2px solid #385d4b; outline-offset: 2px; }
+.locationCandidateCard:disabled { cursor: default; }
+.locationCandidateCard:disabled:not([data-selected="true"]) { border-color: #e0e3da; background: #f9f8f3; color: #657570; }
+.locationCandidateCard[data-selected="true"] { border-color: #91af97; background: #edf3e8; }
+.locationCandidateHeading { display: flex; align-items: center; justify-content: space-between; gap: 14px; min-width: 0; }
+.locationCandidateHeading strong { min-width: 0; font-size: 14px; font-weight: 650; line-height: 1.35; overflow-wrap: anywhere; }
+.locationCandidateAffordance { display: inline-flex; align-items: center; gap: 3px; flex-shrink: 0; color: #47735c; font-size: 11px; font-weight: 600; }
+.locationCandidateCard:disabled:not([data-selected="true"]):not([data-pending="true"]) .locationCandidateAffordance { visibility: hidden; }
+.locationCandidateContext, .locationCandidateAddress { display: block; color: #60736a; font-size: 11px; line-height: 1.5; overflow-wrap: anywhere; }
+.locationCandidateAddress { color: #76867c; }
 .generatePlan { display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%; min-height: 45px; margin-top: 16px; padding: 10px; border: 1px solid #8fa48e; border-radius: 11px; background: #dce5d7; color: #385d4b; cursor: pointer; font-size: 13px; }
 .generatePlan:hover:not(:disabled) { background: #d0dfd0; }
 .generatePlan:active:not(:disabled) { background: #c3d5c2; }
