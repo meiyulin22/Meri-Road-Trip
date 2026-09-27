@@ -4,7 +4,7 @@ import { Chat } from "@ai-sdk/react";
 import type { ChatTransport, UIMessage, UIMessageChunk } from "ai";
 
 import type { TripState } from "@/domain/trip-state/trip-state";
-import { locationCandidatePresentation, messageCreatedAt } from "./trip-message-ui-adapter";
+import { locationCandidatePresentation, messageCreatedAt, recommendationPresentation } from "./trip-message-ui-adapter";
 
 import {
   reconcileCommittedUserId,
@@ -30,7 +30,7 @@ const user: UIMessage = {
 
 const responseBody = {
   interpretation: {
-    intent: "trip_state_update",
+    intent: "trip_state_update", presentationIntent: "none",
     changes: [{ field: "destination", state: "known", value: "富良野" }],
     reply: "好的，目的地改成富良野。",
   },
@@ -231,6 +231,31 @@ test("AI SDK Chat exposes persisted candidate options immediately after the comm
   });
   await chat.sendMessage({ text: "改成富良野" });
   assert.deepEqual(locationCandidatePresentation(chat.messages[1]), presentation);
+});
+
+test("AI SDK Chat exposes the final recommendation reply and cards immediately", async () => {
+  const content = "结合你的偏好，看看这三个方向。";
+  const presentation = { type: "destination_recommendations" as const, destinations: [
+    { id: "d1", name: "甲", region: null, reason: "徒步", imageUrl: null },
+    { id: "d2", name: "乙", region: null, reason: "高山", imageUrl: null },
+    { id: "d3", name: "丙", region: null, reason: "成熟路线", imageUrl: null },
+  ] };
+  const chat = new Chat<UIMessage>({
+    id: "trip-1",
+    transport: new WorkspaceChatTransport("trip-1", (turn) => {
+      chat.messages = reconcileCommittedUserId(chat.messages, turn.temporaryUserId, turn.persistedUser);
+    }, async () => Response.json({ ...responseBody,
+      interpretation: { ...responseBody.interpretation, presentationIntent: "destination_recommendations", reply: content },
+      messages: [responseBody.messages[0], { ...responseBody.messages[1], content, presentation }] })),
+  });
+  await chat.sendMessage({ text: "改成富良野" });
+  assert.equal(chat.messages.length, 2);
+  assert.deepEqual(recommendationPresentation(chat.messages[1]), presentation);
+  assert.equal(chat.messages[1].parts[0].type, "text");
+  if (chat.messages[1].parts[0].type === "text") {
+    assert.equal(chat.messages[1].parts[0].text, content);
+    assert.equal(chat.messages[1].parts[0].state, "done");
+  }
 });
 
 test("AI SDK Chat keeps an unconfirmed user message without fabricating an assistant", async () => {

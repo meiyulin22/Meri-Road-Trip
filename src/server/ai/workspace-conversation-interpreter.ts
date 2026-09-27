@@ -67,12 +67,13 @@ const changeSchema = {
 export const workspaceConversationJsonSchema: Record<string, unknown> = {
   type: "object",
   additionalProperties: false,
-  required: ["intent", "changes", "reply"],
+  required: ["intent", "presentationIntent", "changes", "reply"],
   properties: {
     intent: {
       type: "string",
       enum: ["trip_state_update", "question", "unclear_update_intent"],
     },
+    presentationIntent: { type: "string", enum: ["none", "destination_recommendations"] },
     changes: {
       type: "array",
       maxItems: 7,
@@ -167,7 +168,8 @@ export async function interpretWorkspaceConversation(
 
     const interpretation = validateWorkspaceConversationInterpretation(parsed);
     if (input.mode === "opening" &&
-      (interpretation.intent !== "question" || interpretation.changes.length !== 0)) {
+      (interpretation.intent !== "question" || interpretation.changes.length !== 0 ||
+        interpretation.presentationIntent !== "none")) {
       throw new InvalidWorkspaceConversationModelOutputError(
         "Opening response must not propose TripState changes.",
       );

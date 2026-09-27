@@ -29,7 +29,7 @@ test("accepts a persisted workspace conversation response", async () => {
       requestBody = init?.body as string;
       return Response.json({
         interpretation: {
-          intent: "trip_state_update",
+          intent: "trip_state_update", presentationIntent: "none",
           changes: [
             { field: "destination", state: "known", value: "富良野" },
           ],

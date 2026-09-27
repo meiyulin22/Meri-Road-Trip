@@ -161,7 +161,7 @@ test("Workspace tool loop passes history, current user, destination resolution, 
     }
     return createProviderResponse({
       content: JSON.stringify({
-        intent: "question",
+        intent: "question", presentationIntent: "none",
         changes: [],
         reply: "地点查询匹配到阿尔山市。",
       }),
@@ -228,7 +228,7 @@ test("meta question with a known destination completes without executing the loc
       ? createProviderResponse({ content: "NO_TOOL" })
       : createProviderResponse({
           content: JSON.stringify({
-            intent: "question",
+            intent: "question", presentationIntent: "none",
             changes: [],
             reply: "抱歉让你久等了。",
           }),
@@ -302,7 +302,7 @@ test("Workspace can complete after a location provider failure without leaking p
     }
     return createProviderResponse({
       content: JSON.stringify({
-        intent: "question",
+        intent: "question", presentationIntent: "none",
         changes: [],
         reply: "地点查询暂时不可用，稍后可以再确认具体位置。",
       }),
@@ -380,7 +380,7 @@ test("sends the current strict JSON Schema request with Kimi thinking disabled",
 
 test("legacy and AI SDK clients forward the same hardened Workspace schema", async () => {
   const responseContent = JSON.stringify({
-    intent: "trip_state_update",
+    intent: "trip_state_update", presentationIntent: "none",
     changes: [{ field: "destination", state: "known", value: "富良野" }],
     reply: "好的，目的地改成富良野。",
   });
@@ -454,7 +454,7 @@ test("AI SDK and legacy clients send historical roles before the current user", 
     );
     return createProviderResponse({
       content: JSON.stringify({
-        intent: "trip_state_update",
+        intent: "trip_state_update", presentationIntent: "none",
         changes: [{ field: "destination", state: "known", value: "富良野" }],
         reply: "好的，目的地改成富良野。",
       }),

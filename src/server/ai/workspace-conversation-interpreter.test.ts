@@ -51,7 +51,7 @@ test("returns a validated change proposal without source metadata", async () => 
     createClient(
       {
         content: JSON.stringify({
-          intent: "trip_state_update",
+          intent: "trip_state_update", presentationIntent: "none",
           changes: [
             { field: "destination", state: "known", value: "富良野" },
           ],
@@ -93,7 +93,7 @@ test("passes recent assistant context and current TripState for a confirmation",
     createClient(
       {
         content: JSON.stringify({
-          intent: "trip_state_update",
+          intent: "trip_state_update", presentationIntent: "none",
           changes: [{ field: "destination", state: "known", value: "富良野" }],
           reply: "好的，目的地改成富良野。",
         }),
@@ -138,7 +138,7 @@ test("opening mode uses the original message and authoritative TripState without
   const opening = await interpretWorkspaceConversation(
     { ...input, mode: "opening", message: "I want to ski in Japan in October." },
     createClient({
-      content: JSON.stringify({ intent: "question", changes: [], reply: "That sounds exciting. Which part of Japan interests you most?" }),
+      content: JSON.stringify({ intent: "question", presentationIntent: "none", changes: [], reply: "That sounds exciting. Which part of Japan interests you most?" }),
       model: "kimi-k2.6",
       finishReason: "stop",
     }, (request) => { capturedRequest = request; }),
@@ -157,12 +157,26 @@ test("opening mode rejects model-proposed TripState changes", async () => {
       { ...input, mode: "opening" },
       createClient({
         content: JSON.stringify({
-          intent: "trip_state_update",
+          intent: "trip_state_update", presentationIntent: "none",
           changes: [{ field: "destination", state: "known", value: "富良野" }],
           reply: "好的。",
         }),
         model: "kimi-k2.6",
         finishReason: "stop",
+      }),
+    ),
+    InvalidWorkspaceConversationModelOutputError,
+  );
+});
+
+test("opening mode rejects destination recommendation presentation intent", async () => {
+  await assert.rejects(
+    interpretWorkspaceConversation(
+      { ...input, mode: "opening" },
+      createClient({
+        content: JSON.stringify({ intent: "question", presentationIntent: "destination_recommendations",
+          changes: [], reply: "看看三个方向。" }),
+        model: "kimi-k2.6", finishReason: "stop",
       }),
     ),
     InvalidWorkspaceConversationModelOutputError,

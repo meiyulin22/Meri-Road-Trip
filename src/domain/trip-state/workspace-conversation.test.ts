@@ -31,7 +31,7 @@ function applyInterpretation(value: unknown) {
 
 test("accepts a normal non-empty reply", () => {
   const interpretation = validateWorkspaceConversationInterpretation({
-    intent: "question",
+    intent: "question", presentationIntent: "none",
     changes: [],
     reply: "这个问题需要接入 Research 后再查。",
   });
@@ -39,12 +39,21 @@ test("accepts a normal non-empty reply", () => {
   assert.equal(interpretation.reply, "这个问题需要接入 Research 后再查。");
 });
 
+test("presentation intent is a required, narrow output field", () => {
+  const base = { intent: "question", changes: [], reply: "先聊聊你的偏好。" };
+  assert.throws(() => validateWorkspaceConversationInterpretation(base), InvalidWorkspaceConversationInterpretationError);
+  assert.equal(validateWorkspaceConversationInterpretation({ ...base,
+    presentationIntent: "destination_recommendations" }).presentationIntent, "destination_recommendations");
+  assert.throws(() => validateWorkspaceConversationInterpretation({ ...base,
+    presentationIntent: "arbitrary_ui" }), InvalidWorkspaceConversationInterpretationError);
+});
+
 test("rejects empty and whitespace-only replies", () => {
   for (const reply of ["", "   "]) {
     assert.throws(
       () =>
         validateWorkspaceConversationInterpretation({
-          intent: "question",
+          intent: "question", presentationIntent: "none",
           changes: [],
           reply,
         }),
@@ -55,7 +64,7 @@ test("rejects empty and whitespace-only replies", () => {
 
 test("clear destination update assigns user source and renames a system-named Journey", () => {
   const { state, nextState } = applyInterpretation({
-    intent: "trip_state_update",
+    intent: "trip_state_update", presentationIntent: "none",
     changes: [{ field: "destination", state: "known", value: "富良野" }],
     reply: "好的，目的地改成富良野。",
   });
@@ -72,7 +81,7 @@ test("clear destination update assigns user source and renames a system-named Jo
 });
 
 test("destination disambiguation accepts only a bounded plain expression list with a destination change", () => {
-  const base = { intent: "trip_state_update", reply: "好的。",
+  const base = { intent: "trip_state_update", presentationIntent: "none", reply: "好的。",
     changes: [{ field: "destination", state: "known", value: "潮汕" }] };
   const valid = validateWorkspaceConversationInterpretation({ ...base,
     destinationDisambiguation: { state: "known", value: ["潮州", "汕头", "揭阳"] } });
@@ -91,11 +100,11 @@ test("destination disambiguation accepts only a bounded plain expression list wi
       destinationDisambiguation: bad }), InvalidWorkspaceConversationInterpretationError);
   }
   assert.throws(() => validateWorkspaceConversationInterpretation({
-    intent: "question", changes: [], reply: "好的。",
+    intent: "question", presentationIntent: "none", changes: [], reply: "好的。",
     destinationDisambiguation: { state: "known", value: ["潮州", "汕头"] },
   }), InvalidWorkspaceConversationInterpretationError);
   assert.deepEqual(validateWorkspaceConversationInterpretation({
-    intent: "question", changes: [], reply: "好的。",
+    intent: "question", presentationIntent: "none", changes: [], reply: "好的。",
     destinationDisambiguation: { state: "missing", value: null },
   }).destinationDisambiguation, { state: "missing", value: null });
 });
@@ -108,7 +117,7 @@ test("a conversational destination update drops the previous explicit selection"
     },
   });
   const interpretation = validateWorkspaceConversationInterpretation({
-    intent: "trip_state_update",
+    intent: "trip_state_update", presentationIntent: "none",
     changes: [{ field: "destination", state: "known", value: "富良野" }],
     reply: "好的。",
   });
@@ -127,7 +136,7 @@ test("a conversational origin update drops the previous explicit selection", () 
     },
   });
   const interpretation = validateWorkspaceConversationInterpretation({
-    intent: "trip_state_update",
+    intent: "trip_state_update", presentationIntent: "none",
     changes: [{ field: "origin", state: "known", value: "沈阳" }],
     reply: "好的。",
   });
@@ -140,7 +149,7 @@ test("a conversational origin update drops the previous explicit selection", () 
 
 test("clear origin update changes origin", () => {
   const { nextState } = applyInterpretation({
-    intent: "trip_state_update",
+    intent: "trip_state_update", presentationIntent: "none",
     changes: [{ field: "origin", state: "known", value: "大连" }],
     reply: "记下了，从大连出发。",
   });
@@ -154,7 +163,7 @@ test("clear origin update changes origin", () => {
 
 test("approximate date update preserves exact natural language", () => {
   const { nextState } = applyInterpretation({
-    intent: "trip_state_update",
+    intent: "trip_state_update", presentationIntent: "none",
     changes: [
       { field: "startDate", state: "approximate", value: "十一月底左右" },
     ],
@@ -170,7 +179,7 @@ test("approximate date update preserves exact natural language", () => {
 
 test("ambiguous destination update preserves both alternatives", () => {
   const { nextState } = applyInterpretation({
-    intent: "trip_state_update",
+    intent: "trip_state_update", presentationIntent: "none",
     changes: [
       {
         field: "destination",
@@ -190,7 +199,7 @@ test("ambiguous destination update preserves both alternatives", () => {
 
 test("question and destination mention produce no TripState patch", () => {
   const { patch } = applyInterpretation({
-    intent: "question",
+    intent: "question", presentationIntent: "none",
     changes: [],
     reply: "这个问题需要接入 Research 后再查。",
   });
@@ -200,7 +209,7 @@ test("question and destination mention produce no TripState patch", () => {
 
 test("unclear update intent produces no TripState patch", () => {
   const { patch } = applyInterpretation({
-    intent: "unclear_update_intent",
+    intent: "unclear_update_intent", presentationIntent: "none",
     changes: [],
     reply: "你是想改成富良野，还是先比较一下？",
   });
@@ -212,7 +221,7 @@ test("model output cannot control source", () => {
   assert.throws(
     () =>
       validateWorkspaceConversationInterpretation({
-        intent: "trip_state_update",
+        intent: "trip_state_update", presentationIntent: "none",
         changes: [
           {
             field: "destination",
@@ -231,7 +240,7 @@ test("invalid fields are rejected", () => {
   assert.throws(
     () =>
       validateWorkspaceConversationInterpretation({
-        intent: "trip_state_update",
+        intent: "trip_state_update", presentationIntent: "none",
         changes: [{ field: "weather", state: "known", value: "晴" }],
         reply: "已更新。",
       }),
@@ -243,7 +252,7 @@ test("transport preference remains constrained to the existing enum", () => {
   assert.throws(
     () =>
       validateWorkspaceConversationInterpretation({
-        intent: "trip_state_update",
+        intent: "trip_state_update", presentationIntent: "none",
         changes: [
           {
             field: "transportPreference",
@@ -257,7 +266,7 @@ test("transport preference remains constrained to the existing enum", () => {
   );
 
   const { nextState } = applyInterpretation({
-    intent: "trip_state_update",
+    intent: "trip_state_update", presentationIntent: "none",
     changes: [
       {
         field: "transportPreference",

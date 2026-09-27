@@ -35,6 +35,9 @@ test("distinguishes destination mentions from explicit update intent", () => {
   assert.match(prompt, /Do not call resolve_location for an explicit destination update/);
   assert.match(prompt, /application validates the proposed destination before persistence/);
   assert.match(prompt, /Geographic ambiguity does not make the user's update intent unclear/);
+  assert.match(prompt, /Choose "destination_recommendations"/);
+  assert.match(prompt, /authoritative destination is missing/);
+  assert.match(prompt, /do not generate cards, provider identities, media/);
 });
 
 test("opening prompt asks for one natural reply without state updates", () => {
@@ -47,6 +50,7 @@ test("opening prompt asks for one natural reply without state updates", () => {
   assert.match(prompt, /first user message/);
   assert.match(prompt, /authoritative TripState/);
   assert.match(prompt, /changes \[\]/);
+  assert.match(prompt, /presentationIntent "none"/);
   assert.match(prompt, /one high-value missing detail/);
   assert.match(prompt, /do not use a fixed greeting/);
 });

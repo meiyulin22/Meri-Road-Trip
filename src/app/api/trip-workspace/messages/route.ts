@@ -22,6 +22,8 @@ import {
   InvalidWorkspaceConversationRequestError,
 } from "@/server/ai/workspace-conversation-interpreter";
 import { selectRecentConversationMessages } from "@/server/ai/workspace-conversation-context";
+import { destinationRecommendationDependencies, persistConversationalRecommendationTurn } from "@/server/ai/destination-recommendation-use-case";
+import { InvalidDestinationRecommendationOutputError } from "@/server/ai/destination-recommendation-generator";
 import { AmapLocationProvider } from "@/infrastructure/location/amap-location-provider";
 import { TripStateNotFoundError } from "@/server/journey/journey-errors";
 import { journeyService } from "@/server/journey/journey-service-instance";
@@ -86,7 +88,8 @@ function mapError(error: unknown): ErrorResponse {
   if (
     error instanceof LlmProviderRequestError ||
     error instanceof InvalidWorkspaceConversationModelOutputError ||
-    error instanceof InvalidWorkspaceConversationInterpretationError
+    error instanceof InvalidWorkspaceConversationInterpretationError ||
+    error instanceof InvalidDestinationRecommendationOutputError
   ) {
     return { status: 502, message: "Workspace conversation failed." };
   }
@@ -171,11 +174,18 @@ export async function POST(request: Request) {
       );
     const destinationExpression = patch?.destination?.state !== "missing"
       ? patch?.destination?.value : null;
+    const recommendationMessages = await persistConversationalRecommendationTurn({
+      tripId, ownerGuestId, tripState: persistedTripState, interpretation, patch,
+      previousMessages, currentUserText: body.message, requestId,
+    }, {
+      ...destinationRecommendationDependencies(),
+      persistTurn: (input) => tripMessageService.persistSuccessfulTurn(input),
+    });
     const finalInterpretation = {
       ...interpretation,
-      reply: disambiguationResult && destinationExpression
+      reply: recommendationMessages?.[1].content ?? (disambiguationResult && destinationExpression
         ? replyForDestinationDisambiguation(destinationExpression, disambiguationResult, persistedPatch !== null)
-        : replyAfterDestinationResolution(interpretation, persistedTripState, resolution, persistedPatch),
+        : replyAfterDestinationResolution(interpretation, persistedTripState, resolution, persistedPatch)),
     };
 
     if (persistedPatch !== null) {
@@ -190,7 +200,7 @@ export async function POST(request: Request) {
       );
     }
 
-    const messages = await tripMessageService.persistSuccessfulTurn({
+    const messages = recommendationMessages ?? await tripMessageService.persistSuccessfulTurn({
       tripId,
       ownerGuestId,
       userContent: body.message,

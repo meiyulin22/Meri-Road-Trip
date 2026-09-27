@@ -22,11 +22,13 @@ Timezone: ${timezone}
 Current authoritative TripState:
 ${JSON.stringify(tripState)}
 
-The user's original message is provided separately. TripState has already been established from it. Do not propose, repeat, or apply TripState changes. Return intent "question", changes [], and a genuine conversational reply in the supplied JSON schema. Do not call tools or claim real-world facts without evidence.
+The user's original message is provided separately. TripState has already been established from it. Do not propose, repeat, or apply TripState changes. Return intent "question", presentationIntent "none", changes [], and a genuine conversational reply in the supplied JSON schema. Do not call tools or claim real-world facts without evidence.
 
 Acknowledge the user's actual travel idea naturally. Briefly reflect useful information already understood from TripState, keeping approximate and ambiguous values uncertain. Make it clear the Journey need not be fully specified. If useful, ask one high-value missing detail. Do not enumerate missing fields or sound like a form. Be concise, warm, and vary your wording; do not use a fixed greeting.`;
   }
   return `You interpret one new user message inside the Meri Trip Workspace.
+
+Return presentationIntent "none" unless concrete destination choices would help the user's next decision. Choose "destination_recommendations" only when authoritative destination is missing and the real current message plus conversation history express enough destination preferences for three useful choices. If the context is still sparse, ask one useful narrowing question and choose "none". If the user names a destination directly or a broad place needing disambiguation, choose "none". Examples: "我最近想出去走走" → none; "我喜欢徒步，喜欢高山" alone → usually none; after that, "国内吧，成熟的路线" → destination_recommendations may help; "我想去青岛" and "潮汕" → none. These are semantic examples, not phrase mappings. Only decide the presentation intent; do not generate cards, provider identities, media, or UI instructions. Keep reply brief because the application replaces it with the recommendation reply when cards are generated.
 
 Reference date: ${referenceDate}
 Timezone: ${timezone}

@@ -74,6 +74,8 @@ test("persists action before generation and uses the persisted record in dedicat
     { name: "丙", imageUrl: "https://amap.example/丙.jpg" },
   ]);
   assert.deepEqual(calls, ["load", "persist", "history", "generate", "enrich", "enrich", "enrich", "message"]);
+  assert.equal(receivedContexts[0].source, "explicit_action");
+  if (receivedContexts[0].source !== "explicit_action") throw new Error("Expected explicit action context.");
   assert.deepEqual(receivedContexts[0].action, persisted);
   assert.equal(receivedContexts[0].tripState, state);
   assert.deepEqual(receivedContexts[0].conversationHistory, [{ role: "user", content: "我想旅行" }]);

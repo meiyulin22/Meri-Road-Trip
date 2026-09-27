@@ -27,6 +27,7 @@ export interface ProposedTripStateChange {
 
 export interface WorkspaceConversationInterpretation {
   readonly intent: WorkspaceConversationIntent;
+  readonly presentationIntent: "none" | "destination_recommendations";
   readonly changes: readonly ProposedTripStateChange[];
   readonly reply: string;
   readonly destinationDisambiguation?: DestinationDisambiguation | null;
@@ -152,13 +153,16 @@ export function validateWorkspaceConversationInterpretation(
   }
 
   assertExactKeys(value, Object.hasOwn(value, "destinationDisambiguation")
-    ? ["intent", "changes", "reply", "destinationDisambiguation"]
-    : ["intent", "changes", "reply"], "interpretation");
+    ? ["intent", "presentationIntent", "changes", "reply", "destinationDisambiguation"]
+    : ["intent", "presentationIntent", "changes", "reply"], "interpretation");
 
   if (!isWorkspaceConversationIntent(value.intent)) {
     throw new InvalidWorkspaceConversationInterpretationError(
       "interpretation.intent is invalid.",
     );
+  }
+  if (value.presentationIntent !== "none" && value.presentationIntent !== "destination_recommendations") {
+    throw new InvalidWorkspaceConversationInterpretationError("interpretation.presentationIntent is invalid.");
   }
 
   if (!Array.isArray(value.changes)) {
@@ -206,7 +210,7 @@ export function validateWorkspaceConversationInterpretation(
       );
     }
   }
-  return { intent: value.intent, changes, reply: value.reply,
+  return { intent: value.intent, presentationIntent: value.presentationIntent, changes, reply: value.reply,
     ...(destinationDisambiguation !== undefined ? { destinationDisambiguation } : {}) };
 }
 

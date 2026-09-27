@@ -8,6 +8,7 @@ import { validateTripUserAction, type TripUserAction } from "@/domain/trip-user-
 import { TripNotFoundError } from "@/domain/trip/trip-errors";
 import { buildDestinationRecommendationContext, type DestinationRecommendationContext } from "@/server/ai/destination-recommendation-context";
 import { generateDestinationRecommendations, InvalidDestinationRecommendationOutputError, type DestinationRecommendations } from "@/server/ai/destination-recommendation-generator";
+import { createDestinationRecommendationReply } from "@/server/ai/destination-recommendation-use-case";
 import { LlmProviderRequestError, LlmProviderTimeoutError, MissingLlmConfigurationError } from "@/server/ai/kimi-client";
 import { readGuestId } from "@/server/identity/guest-identity";
 import { TripStateNotFoundError } from "@/server/journey/journey-errors";
@@ -53,30 +54,11 @@ export async function handleDestinationRecommendationsPost(
     if (action.tripId !== tripId) throw new Error("Persisted action belongs to another Journey.");
     const messages = await dependencies.listMessages(tripId, ownerGuestId);
     const context = buildDestinationRecommendationContext(action, tripState, messages);
-    const recommendations = await dependencies.generate(context, requestId);
-    const enrichments = await Promise.all(recommendations.destinations.map(async (recommendation) => {
-      try {
-        return await dependencies.enrich(recommendation);
-      } catch {
-        logger.warn({ requestId, tripId, event: "destination.recommendation.enrichment_failed" },
-          "Destination enrichment unavailable");
-        return { matched: false, imageUrl: null };
-      }
-    }));
-    logger.info({ requestId, tripId, event: "destination.recommendation.enriched",
-      matchedCount: enrichments.filter((item) => item.matched).length,
-      photoCount: enrichments.filter((item) => item.imageUrl !== null).length },
-    "Destination recommendation enrichment completed");
+    const recommendationReply = await createDestinationRecommendationReply(context, requestId, dependencies);
     const message = validateTripMessage({
-      id: randomUUID(), tripId, role: "assistant", content: recommendations.reply,
+      id: randomUUID(), tripId, role: "assistant", content: recommendationReply.content,
       createdAt: new Date().toISOString(),
-      presentation: {
-        type: "destination_recommendations",
-        destinations: recommendations.destinations.map((item, index) => ({
-          id: randomUUID(), name: item.name, region: item.region, reason: item.reason,
-          imageUrl: enrichments[index]?.imageUrl ?? null,
-        })),
-      },
+      presentation: recommendationReply.presentation,
     });
     await dependencies.persistMessage(message);
     return response({ message }, 200);

@@ -26,7 +26,7 @@ const province: LocationCandidate = {
   longitude: 125.32, latitude: 43.89, coordinateSystem: "GCJ-02",
 };
 const interpretation: WorkspaceConversationInterpretation = {
-  intent: "trip_state_update",
+  intent: "trip_state_update", presentationIntent: "none",
   changes: [
     { field: "destination", state: "known", value: "吉林" },
     { field: "duration", state: "known", value: "5天" },

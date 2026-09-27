@@ -36,6 +36,8 @@ const valid = {
 
 test("dedicated context contains persisted action, authoritative state, and only real history", () => {
   const context = buildDestinationRecommendationContext(action, tripState, history);
+  assert.equal(context.source, "explicit_action");
+  if (context.source !== "explicit_action") throw new Error("Expected explicit action context.");
   assert.equal(context.action, action);
   assert.equal(context.tripState, tripState);
   assert.deepEqual(context.conversationHistory, [
