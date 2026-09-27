@@ -28,10 +28,9 @@ Normal conversation does not run an Agent.
 
 ### Planned architecture
 
-The next recommendation phase adds a separate Safety / Access Check and
-ranking over a broader candidate pool. A later Generate Plan phase may
-use a Research Agent whose tool choices depend on observed results.
-Neither capability is implemented today.
+The recommendation workflow now includes candidate generation, an access
+check, and ranking. A later Generate Plan phase may use a Research Agent
+whose tool choices depend on observed results. That Agent is not implemented.
 
 ## 2. Core model and authority
 
@@ -77,7 +76,7 @@ action or another user message.
 | Journey services | Create and load owned Journeys; apply valid TripState updates. |
 | AI interpretation | Extract a TripDraft or interpret a Workspace turn with a constrained structured output. |
 | Location services | Normalize provider results, validate destination identity, verify disambiguation candidates, and enrich recommendation images. |
-| Recommendation use case | Generate three suggestions, enrich them, and build the supported card presentation. |
+| Recommendation use case | Discover context, generate candidates, interpret access evidence, rank eligible choices, enrich images, and build up to three cards. |
 | Message services | Persist opening and conversation turns and read history for refresh. |
 | UI and API | Submit user actions, show persisted state and conversation, render supported cards, and accept explicit selections. |
 | Persistence and provider adapters | Store domain records in PostgreSQL and keep Amap-specific behavior at the boundary. |
@@ -162,11 +161,11 @@ proposes no destination change, and it does not request destination
 disambiguation.
 
 When the signal is honored, the application passes the real current user
-text, prior real conversation, and TripState to the existing
-recommendation generator. It then enriches suggestions through Amap and
-persists one assistant TripMessage: the generator's short reply plus the
-existing three-card destination_recommendations presentation. The
-interpreter's provisional reply is not saved as a second assistant turn.
+text, prior real conversation, and TripState to the shared recommendation
+workflow. It persists one assistant TripMessage with a short reply and
+1–3 destination_recommendations cards, or a reply without a presentation
+when no candidates survive. The interpreter's provisional reply is not
+saved as a second assistant turn.
 
 The explicit [帮我推荐] button continues to persist a TripUserAction and
 uses that same generation, enrichment, and presentation core. A
@@ -177,28 +176,18 @@ The current UI renders only known presentation types from persisted
 messages. It does not execute model-generated UI code or use a generic
 Gen UI router.
 
-## 7. Next planned phase: Recommendation Workflow v0.1
+## 7. Recommendation Workflow v0.1
 
-This phase is planned, not implemented:
+Journey-local preferences → Discovery Search → 8–10 candidates → official
+access search and LLM evidence interpretation → remove blocked candidates
+→ rank eligible candidates → enrich the top 1–3 → cards → explicit user
+selection → validated authoritative TripState.destination.
 
-User preferences
-→ LLM proposes a broader pool of roughly 8–10 candidate destinations
-→ separate Safety / Access Check
-→ remove officially restricted, closed, or clearly unsuitable candidates
-→ LLM ranks surviving candidates against user preferences
-→ top three destination recommendation cards
-→ explicit user selection
-→ validated authoritative TripState.destination
-
-The Safety / Access Check must be a separate capability, tool, or
-service grounded in real evidence, not only prompt wording. Location
-identity and travel feasibility remain separate decisions. Geography
-mappings should not be hardcoded.
-
-Application code enforces the stages, filtering result, card count, and
-selection boundary. Recommendation v0.1 remains a deterministic
-workflow. If too few candidates survive, a future version may need an
-adaptive Agent loop; that loop is not part of this phase.
+The application validates model output and evidence references. Clear and
+uncertain candidates remain eligible; a failed access lookup becomes
+uncertain. Image lookup failure leaves imageUrl null for the UI fallback.
+The workflow does not assess broader safety or travel feasibility. It is
+deterministic and does not use an Agent.
 
 ## 8. Workflow and Agent boundary
 

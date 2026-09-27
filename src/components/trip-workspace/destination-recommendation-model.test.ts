@@ -78,7 +78,15 @@ test("client rejects failed and invalid recommendation responses", async () => {
   await assert.rejects(requestDestinationRecommendations("trip", async () =>
     Response.json({ error: "failed" }, { status: 502 })));
   await assert.rejects(requestDestinationRecommendations("trip", async () =>
-    Response.json({ message: { ...message, presentation: { ...message.presentation, destinations: message.presentation.destinations.slice(0, 2) } } })));
+    Response.json({ message: { ...message, presentation: { ...message.presentation, destinations: [] } } })));
+  const oneCard = await requestDestinationRecommendations("trip", async () =>
+    Response.json({ message: { ...message, presentation: { ...message.presentation,
+      destinations: message.presentation.destinations.slice(0, 1) } } }));
+  assert.equal(oneCard.presentation?.type === "destination_recommendations" &&
+    oneCard.presentation.destinations.length, 1);
+  const noCards = await requestDestinationRecommendations("trip", async () =>
+    Response.json({ message: { ...message, presentation: undefined } }));
+  assert.equal(noCards.presentation, undefined);
 });
 
 test("selection PATCH sends only a known user destination and returns authoritative state", async () => {

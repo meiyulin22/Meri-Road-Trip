@@ -38,7 +38,13 @@ test("validates structured assistant presentation and keeps plain messages compa
   assert.deepEqual(validateTripMessage({ ...message, presentation }).presentation, presentation);
   assert.equal(validateTripMessage(message).presentation, undefined);
   assert.throws(() => validateTripMessage({ ...message, role: "user", presentation }), InvalidTripMessageError);
-  assert.throws(() => validateTripMessage({ ...message, presentation: { ...presentation, destinations: presentation.destinations.slice(0, 2) } }), InvalidTripMessageError);
+  for (const count of [1, 2, 3]) {
+    assert.equal(validateTripMessage({ ...message, presentation: { ...presentation,
+      destinations: presentation.destinations.slice(0, count) } }).presentation?.type, "destination_recommendations");
+  }
+  assert.throws(() => validateTripMessage({ ...message, presentation: { ...presentation, destinations: [] } }), InvalidTripMessageError);
+  assert.throws(() => validateTripMessage({ ...message, presentation: { ...presentation,
+    destinations: [...presentation.destinations, { id: "d", name: "额外", region: null, reason: "额外", imageUrl: null }] } }), InvalidTripMessageError);
   assert.throws(() => validateTripMessage({ ...message, presentation: { ...presentation, destinations: [presentation.destinations[0], presentation.destinations[0], presentation.destinations[2]] } }), InvalidTripMessageError);
 });
 

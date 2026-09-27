@@ -103,7 +103,7 @@ function validatePresentation(value: unknown, role: TripMessageRole): TripMessag
     return { type: "location_candidates", candidates };
   }
   if (value.type !== "destination_recommendations" ||
-    !Array.isArray(value.destinations) || value.destinations.length !== 3) {
+    !Array.isArray(value.destinations) || value.destinations.length < 1 || value.destinations.length > 3) {
     throw new InvalidTripMessageError("TripMessage.presentation is invalid.");
   }
   const destinations = value.destinations.map((item: unknown) => {
@@ -116,7 +116,7 @@ function validatePresentation(value: unknown, role: TripMessageRole): TripMessag
     }
     return { id: item.id, name: item.name, region: item.region, reason: item.reason, imageUrl: item.imageUrl };
   });
-  if (new Set(destinations.map((item) => item.id)).size !== 3) {
+  if (new Set(destinations.map((item) => item.id)).size !== destinations.length) {
     throw new InvalidTripMessageError("TripMessage.presentation IDs must be distinct.");
   }
   return { type: "destination_recommendations", destinations };

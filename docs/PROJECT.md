@@ -75,7 +75,9 @@ The implemented destination flow includes:
   authoritative TripState.
 - Destination Disambiguation for a broad or fuzzy place, with
   provider-verified candidates and explicit selection.
-- An explicit **[帮我推荐]** action that generates three destination cards.
+- An explicit **[帮我推荐]** action that runs Discovery Search, candidate generation,
+  official access checking, ranking, and image enrichment before showing up to
+  three destination cards.
 - Conversational Gen UI: a narrow presentationIntent can trigger the
   same recommendation pipeline when the destination is missing and the
   conversation has useful preference context.
@@ -86,7 +88,8 @@ The implemented destination flow includes:
 
 Recommendation cards suggest possibilities; they do not establish a
 destination. Selecting a card passes through destination validation.
-Current recommendations do not perform a Safety / Access Check. Meri
+The recommendation access check evaluates search evidence for obvious access
+restrictions. It is not a full travel feasibility or safety assessment. Meri
 does not yet provide the planned Research Agent, full travel feasibility
 assessment, generated Plan, live weather intelligence, or route
 research.
@@ -120,13 +123,11 @@ appropriate only when the next action depends on observed results.
 
 ## 6. Near-term roadmap — planned
 
-**Recommendation Workflow v0.1:** use expressed preferences to propose a
-broader pool of roughly 8–10 destinations; run a separate Safety /
-Access Check; remove officially restricted, closed, or clearly
-unsuitable choices; rank the survivors against preferences; show the top
-three cards; require explicit selection. This remains a deterministic
-workflow. Do not hardcode geography mappings or present the check as
-prompt wording alone.
+**Recommendation Workflow v0.1:** the implemented deterministic workflow
+proposes 8–10 candidates, interprets official access search evidence,
+removes blocked candidates, ranks the rest, and shows 1–3 cards. Uncertain
+access remains eligible for recommendation, and explicit selection is still
+required. Deeper feasibility checks remain future work.
 
 **Generate Plan and Research:** after recommendation, a later Generate
 Plan action may start a Research Agent. It should inspect the Journey

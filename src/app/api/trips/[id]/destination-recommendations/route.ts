@@ -6,13 +6,13 @@ import { validateTripMessage, type TripMessage } from "@/domain/trip-message/tri
 import type { TripState } from "@/domain/trip-state/trip-state";
 import { validateTripUserAction, type TripUserAction } from "@/domain/trip-user-action/trip-user-action";
 import { TripNotFoundError } from "@/domain/trip/trip-errors";
-import { buildDestinationRecommendationContext, type DestinationRecommendationContext } from "@/server/ai/destination-recommendation-context";
-import { generateDestinationRecommendations, InvalidDestinationRecommendationOutputError, type DestinationRecommendations } from "@/server/ai/destination-recommendation-generator";
-import { createDestinationRecommendationReply } from "@/server/ai/destination-recommendation-use-case";
+import { buildDestinationRecommendationContext } from "@/server/ai/destination-recommendation-context";
+import { createDestinationRecommendationReply, destinationRecommendationDependencies, type DestinationRecommendationUseCaseDependencies } from "@/server/ai/destination-recommendation-use-case";
+import { InvalidDestinationCandidateOutputError } from "@/server/ai/destination-candidate-generator";
+import { InvalidDestinationRankingOutputError } from "@/server/ai/destination-candidate-ranker";
 import { LlmProviderRequestError, LlmProviderTimeoutError, MissingLlmConfigurationError } from "@/server/ai/kimi-client";
 import { readGuestId } from "@/server/identity/guest-identity";
 import { TripStateNotFoundError } from "@/server/journey/journey-errors";
-import { DestinationRecommendationEnricher, type RecommendationEnrichment } from "@/server/location/destination-recommendation-enrichment";
 import { logger } from "@/server/observability/logger";
 import { serializeError } from "@/server/observability/serialize-error";
 
@@ -20,8 +20,7 @@ type Dependencies = {
   readonly loadJourney: (tripId: string, ownerGuestId: string) => Promise<{ tripState: TripState }>;
   readonly listMessages: (tripId: string, ownerGuestId: string) => Promise<TripMessage[]>;
   readonly persistAction: (action: TripUserAction) => Promise<TripUserAction>;
-  readonly generate: (context: DestinationRecommendationContext, requestId: string) => Promise<DestinationRecommendations>;
-  readonly enrich: (recommendation: DestinationRecommendations["destinations"][number]) => Promise<RecommendationEnrichment>;
+  readonly runWorkflow: DestinationRecommendationUseCaseDependencies["runWorkflow"];
   readonly persistMessage: (message: TripMessage) => Promise<void>;
 };
 
@@ -58,7 +57,7 @@ export async function handleDestinationRecommendationsPost(
     const message = validateTripMessage({
       id: randomUUID(), tripId, role: "assistant", content: recommendationReply.content,
       createdAt: new Date().toISOString(),
-      presentation: recommendationReply.presentation,
+      ...(recommendationReply.presentation ? { presentation: recommendationReply.presentation } : {}),
     });
     await dependencies.persistMessage(message);
     return response({ message }, 200);
@@ -69,7 +68,8 @@ export async function handleDestinationRecommendationsPost(
         ? 503
         : error instanceof LlmProviderTimeoutError
           ? 504
-          : error instanceof LlmProviderRequestError || error instanceof InvalidDestinationRecommendationOutputError
+          : error instanceof LlmProviderRequestError || error instanceof InvalidDestinationCandidateOutputError ||
+            error instanceof InvalidDestinationRankingOutputError
             ? 502
             : 500;
     logger.error({ requestId, tripId, statusCode: status, error: serializeError(error) },
@@ -97,13 +97,11 @@ export async function POST(_request: Request, { params }: { readonly params: Pro
   ]);
   const actionRepository = new PostgresTripUserActionRepository(db);
   const messageRepository = new PostgresTripMessageRepository(db);
-  const enricher = new DestinationRecommendationEnricher();
   return handleDestinationRecommendationsPost(tripId, ownerGuestId, {
     loadJourney: (id, owner) => journeyService.loadJourney(id, owner),
     listMessages: (id, owner) => tripMessageService.listMessages(id, owner),
     persistAction: (action) => actionRepository.create(action),
-    generate: generateDestinationRecommendations,
-    enrich: (recommendation) => enricher.enrich(recommendation),
+    ...destinationRecommendationDependencies(),
     persistMessage: (message) => messageRepository.createMessage(message),
   });
 }

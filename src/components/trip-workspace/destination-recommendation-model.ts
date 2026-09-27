@@ -31,8 +31,9 @@ export async function requestDestinationRecommendations(
     throw new Error("Destination recommendation response is invalid.");
   }
   const message = validateTripMessage(body.message);
-  if (message.role !== "assistant" || message.presentation?.type !== "destination_recommendations") {
-    throw new Error("Destination recommendation response lacks its presentation.");
+  if (message.role !== "assistant" ||
+    (message.presentation !== undefined && message.presentation.type !== "destination_recommendations")) {
+    throw new Error("Destination recommendation response has an invalid presentation.");
   }
   return message;
 }

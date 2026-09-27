@@ -349,7 +349,7 @@ export class AiSdkKimiClient implements StructuredOutputModelClient {
   }
 }
 
-export function createAiSdkKimiClientFromEnvironment(): StructuredOutputModelClient {
+export function createAiSdkKimiClientFromEnvironment(options: { readonly debugRawOutput?: boolean } = {}): StructuredOutputModelClient {
   const apiKey = process.env.MOONSHOT_API_KEY?.trim();
 
   if (!apiKey) {
@@ -360,8 +360,9 @@ export function createAiSdkKimiClientFromEnvironment(): StructuredOutputModelCli
     apiKey,
     baseUrl: process.env.MOONSHOT_BASE_URL?.trim() || DEFAULT_BASE_URL,
     model: process.env.LLM_MODEL?.trim() || DEFAULT_MODEL,
-    debugRawOutput:
+    debugRawOutput: options.debugRawOutput ?? (
       process.env.NODE_ENV === "development" &&
-      process.env.LLM_DEBUG_OUTPUT === "true",
+      process.env.LLM_DEBUG_OUTPUT === "true"
+    ),
   });
 }

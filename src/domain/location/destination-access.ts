@@ -12,17 +12,17 @@ const accessEvidenceSchema = z.strictObject({
 
 const destinationAccessResultSchema = z.discriminatedUnion("status", [
   z.strictObject({
-    status: z.literal("allowed"),
+    status: z.literal("clear"),
     reason: z.string().trim().min(1),
     evidence: z.array(accessEvidenceSchema).min(1),
   }),
   z.strictObject({
-    status: z.literal("restricted"),
+    status: z.literal("blocked"),
     reason: z.string().trim().min(1),
     evidence: z.array(accessEvidenceSchema).min(1),
   }),
   z.strictObject({
-    status: z.literal("unknown"),
+    status: z.literal("uncertain"),
     reason: z.string().trim().min(1),
     evidence: z.array(accessEvidenceSchema).optional(),
   }),

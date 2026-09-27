@@ -12,31 +12,34 @@ type CheckedCandidate<Status extends DestinationAccessResult["status"]> = {
 };
 
 export type DestinationAccessFilterResult = {
-  readonly allowed: readonly CheckedCandidate<"allowed">[];
-  readonly restricted: readonly CheckedCandidate<"restricted">[];
-  readonly unknown: readonly CheckedCandidate<"unknown">[];
+  readonly eligible: readonly CheckedCandidate<"clear" | "uncertain">[];
+  readonly blocked: readonly CheckedCandidate<"blocked">[];
 };
 
 export async function filterDestinationCandidatesByAccess(
   candidates: readonly DestinationCandidate[],
   checker: DestinationAccessChecker,
 ): Promise<DestinationAccessFilterResult> {
-  const checks = await Promise.all(candidates.map(async (candidate) => {
-    try {
-      return { candidate, access: validateDestinationAccessResult(await checker.check(candidate)) };
-    } catch {
-      // Provider errors may contain credentials. Keep the failure distinct from an official restriction.
-      return { candidate, access: { status: "unknown" as const, reason: "Access lookup failed." } };
+  const checks: { candidate: DestinationCandidate; access: DestinationAccessResult }[] = new Array(candidates.length);
+  let nextIndex = 0;
+  await Promise.all(Array.from({ length: Math.min(3, candidates.length) }, async () => {
+    while (nextIndex < candidates.length) {
+      const index = nextIndex++;
+      const candidate = candidates[index];
+      try {
+        checks[index] = { candidate, access: validateDestinationAccessResult(await checker.check(candidate)) };
+      } catch {
+        // Lookup or validation failure cannot block an ordinary recommendation.
+        checks[index] = { candidate, access: { status: "uncertain", reason: "Access lookup failed." } };
+      }
     }
   }));
 
-  const allowed: CheckedCandidate<"allowed">[] = [];
-  const restricted: CheckedCandidate<"restricted">[] = [];
-  const unknown: CheckedCandidate<"unknown">[] = [];
+  const eligible: CheckedCandidate<"clear" | "uncertain">[] = [];
+  const blocked: CheckedCandidate<"blocked">[] = [];
   for (const check of checks) {
-    if (check.access.status === "allowed") allowed.push({ candidate: check.candidate, access: check.access });
-    else if (check.access.status === "restricted") restricted.push({ candidate: check.candidate, access: check.access });
-    else unknown.push({ candidate: check.candidate, access: check.access });
+    if (check.access.status === "blocked") blocked.push({ candidate: check.candidate, access: check.access });
+    else eligible.push({ candidate: check.candidate, access: check.access });
   }
-  return { allowed, restricted, unknown };
+  return { eligible, blocked };
 }

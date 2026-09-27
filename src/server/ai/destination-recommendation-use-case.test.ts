@@ -23,12 +23,11 @@ const interpretation: WorkspaceConversationInterpretation = {
   reply: "我可以推荐几个地方。",
 };
 const recommendations = {
-  reply: "结合你喜欢的徒步和高山，看看这三个方向。",
-  destinations: [
-    { name: "甲", region: null, reason: "高山徒步" },
-    { name: "乙", region: null, reason: "成熟路线" },
-    { name: "丙", region: null, reason: "国内选择" },
-  ],
+  content: "结合你喜欢的徒步和高山，看看这几个方向。",
+  presentation: { type: "destination_recommendations" as const, destinations: [
+    { id: "c1", name: "甲", region: null, reason: "高山徒步", imageUrl: null },
+    { id: "c2", name: "乙", region: null, reason: "成熟路线", imageUrl: null },
+  ] },
 };
 
 test("presentation guard leaves normal text turns, direct destinations, and disambiguation alone", () => {
@@ -49,8 +48,7 @@ test("a normal text turn does not call the recommendation pipeline or persist a 
     interpretation: { ...interpretation, presentationIntent: "none" }, patch: null,
     previousMessages: history, currentUserText: "我还在想", requestId: "request-1",
   }, {
-    async generate() { calls += 1; return recommendations; },
-    async enrich() { calls += 1; return { matched: false, imageUrl: null }; },
+    async runWorkflow() { calls += 1; return recommendations; },
     async persistTurn() { calls += 1; throw new Error("must not persist"); },
   });
   assert.equal(result, null);
@@ -63,14 +61,14 @@ test("conversational trigger uses real context and persists one assistant with c
   const service = new TripMessageService({
     tripService: { async getTripById() { return { id: tripId } as never; } }, repository,
   });
-  let generateCalls = 0;
+  let workflowCalls = 0;
   const currentUserText = "国内吧，成熟的路线";
   const messages = await persistConversationalRecommendationTurn({
     tripId, ownerGuestId: "owner", tripState: state, interpretation, patch: null,
     previousMessages: history, currentUserText, requestId: "request-1",
   }, {
-    async generate(context) {
-      generateCalls += 1;
+    async runWorkflow(context) {
+      workflowCalls += 1;
       assert.equal(context.source, "conversation");
       assert.equal("action" in context, false);
       assert.deepEqual(context.conversationHistory, [
@@ -80,14 +78,15 @@ test("conversational trigger uses real context and persists one assistant with c
       ]);
       return recommendations;
     },
-    async enrich() { return { matched: false, imageUrl: null }; },
     persistTurn: (input) => service.persistSuccessfulTurn(input),
   });
-  assert.equal(generateCalls, 1);
+  assert.equal(workflowCalls, 1);
   assert.ok(messages);
   assert.equal(messages[0].content, currentUserText);
-  assert.equal(messages[1].content, recommendations.reply);
+  assert.equal(messages[1].content, recommendations.content);
   assert.equal(messages[1].presentation?.type, "destination_recommendations");
+  assert.equal(messages[1].presentation?.type === "destination_recommendations" &&
+    messages[1].presentation.destinations.length, 2);
   const restored = await service.listMessages(tripId, "owner");
   assert.equal(restored.length, history.length + 2);
   assert.deepEqual(restored.slice(-2), messages);
@@ -100,9 +99,25 @@ test("failed recommendation generation does not persist a successful turn", asyn
     tripId, ownerGuestId: "owner", tripState: state, interpretation, patch: null,
     previousMessages: history, currentUserText: "国内吧，成熟的路线", requestId: "request-1",
   }, {
-    async generate() { throw new Error("model failed"); },
-    async enrich() { throw new Error("must not enrich"); },
+    async runWorkflow() { throw new Error("model failed"); },
     async persistTurn() { writes += 1; throw new Error("must not persist"); },
   }), /model failed/);
   assert.equal(writes, 0);
+});
+
+test("zero-result conversational workflow persists one user and one assistant without cards", async () => {
+  const repository = new InMemoryTripMessageRepository();
+  const service = new TripMessageService({
+    tripService: { async getTripById() { return { id: tripId } as never; } }, repository,
+  });
+  const messages = await persistConversationalRecommendationTurn({
+    tripId, ownerGuestId: "owner", tripState: state, interpretation, patch: null,
+    previousMessages: history, currentUserText: "国内吧，成熟的路线", requestId: "request-zero",
+  }, {
+    async runWorkflow() { return { content: "这次没有筛出合适的目的地。" }; },
+    persistTurn: (input) => service.persistSuccessfulTurn(input),
+  });
+  assert.ok(messages);
+  assert.equal(messages[1].presentation, undefined);
+  assert.equal((await service.listMessages(tripId, "owner")).length, 2);
 });
