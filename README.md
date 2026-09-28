@@ -32,12 +32,11 @@ Required:
 | `DATABASE_URL` | Neon Postgres connection string |
 | `AMAP_API_KEY` | Amap, which validates that a destination really exists |
 
-Optional. Recommendation degrades without these two rather than failing:
+Optional. Recommendation degrades without it rather than failing:
 
 | Variable | Missing means |
 | --- | --- |
-| `JUSTONEAPI_TOKEN` | Candidates are generated without recent discovery results |
-| `BOCHA_API_KEY` | Every access check returns `uncertain`, and cards fall back to their local image |
+| `BOCHA_API_KEY` | Candidates are generated without discovery results, every access check returns `uncertain`, and cards fall back to their local image |
 
 The remaining variables in `.env.example` override defaults:
 `LLM_MODEL`, `MOONSHOT_BASE_URL`, `MERI_TIMEZONE`, `LLM_DEBUG_OUTPUT`, and
@@ -99,7 +98,8 @@ src/capabilities/recommendation/  Turning a stated preference into ranked destin
 ```text
 src/platform/llm/                Structured-output port, Moonshot adapter
 src/platform/location-provider/  Location and suggestion ports, Amap adapters
-src/platform/search/             Search ports, Bocha and JustOne adapters
+src/platform/search/             Search ports, one shared Bocha Web Search
+                                 request and its three adapters
 src/platform/persistence/        Repository ports at the top, with the Postgres
                                  and in-memory adapters and the Drizzle schema
                                  beneath them

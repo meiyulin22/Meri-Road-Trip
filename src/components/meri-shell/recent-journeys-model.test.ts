@@ -4,6 +4,7 @@ import test from "node:test";
 import type { JourneySummary } from "@/platform/persistence/journey-summary-repository";
 
 import {
+  recentJourneysArrowState,
   recentJourneysForHome,
   shouldLoopRecentJourneys,
   shouldOpenJourneyCard,
@@ -48,4 +49,16 @@ test("hides only successfully deleted Journey IDs from the current Home cards", 
     journeys[2],
   ]);
   assert.deepEqual(visibleRecentJourneys(journeys.slice(0, 1), ["journey-0"]), []);
+});
+
+test("arrow state is decided from data both the server and the client already have", () => {
+  // Two slides do not loop, so the ends are real ends.
+  assert.deepEqual(recentJourneysArrowState(2, 0), { canScrollPrev: false, canScrollNext: true });
+  assert.deepEqual(recentJourneysArrowState(2, 1), { canScrollPrev: true, canScrollNext: false });
+  // A looping carousel has no end in either direction.
+  assert.deepEqual(recentJourneysArrowState(3, 0), { canScrollPrev: true, canScrollNext: true });
+  assert.deepEqual(recentJourneysArrowState(5, 4), { canScrollPrev: true, canScrollNext: true });
+  // The first render agrees on both sides, which is the whole point: selectedIndex
+  // starts at 0 on the server and on the client, and nothing here is measured.
+  assert.deepEqual(recentJourneysArrowState(2, 0), recentJourneysArrowState(2, 0));
 });

@@ -9,6 +9,7 @@ import {
 } from "./destination-access-evidence-interpreter";
 import type { DestinationAccessChecker } from "./destination-access-filter";
 import type { OfficialAccessSearch, OfficialAccessSearchResult } from "@/platform/search/official-access-search";
+import { logEvents, logger } from "@/platform/observability/logger";
 
 export function buildOfficialAccessQuery(candidate: DestinationCandidate): string {
   return [candidate.name, candidate.region, "进入 通行 穿越 开放 封闭 禁止 官方公告"]
@@ -37,6 +38,22 @@ function toEvidence(page: AccessEvidenceInput, now: Date): DestinationAccessEvid
   };
 }
 
+/**
+ * A candidate nobody could check is indistinguishable, downstream, from one that
+ * was checked and found fine: both stay eligible. That is the right call for a
+ * recommendation, and it is also how access checking stops happening at all
+ * without anyone noticing, so the three cases where no check took place say so.
+ * The reason is one of this module's own fixed strings, never the provider's
+ * message, which can carry the API key.
+ */
+function unchecked(candidate: DestinationCandidate, reason: string): DestinationAccessResult {
+  logger.warn({
+    event: logEvents.destinationAccessUncertain,
+    destination: candidate.name, region: candidate.region, reason,
+  }, "Destination access could not be checked");
+  return { status: "uncertain", reason };
+}
+
 export type OfficialAccessCheckerOptions = {
   readonly search: OfficialAccessSearch;
   readonly interpreter: DestinationAccessEvidenceInterpreter;
@@ -50,8 +67,8 @@ export class OfficialDestinationAccessChecker implements DestinationAccessChecke
   async check(candidate: DestinationCandidate): Promise<DestinationAccessResult> {
     let pages: readonly OfficialAccessSearchResult[];
     try { pages = await this.options.search.search(buildOfficialAccessQuery(candidate)); }
-    catch { return { status: "uncertain", reason: "Access search is unavailable." }; }
-    if (!pages.length) return { status: "uncertain", reason: "No access evidence found." };
+    catch { return unchecked(candidate, "Access search is unavailable."); }
+    if (!pages.length) return unchecked(candidate, "No access evidence found.");
 
     const now = this.options.now?.() ?? new Date();
     const evidence: AccessEvidenceInput[] = pages.slice(0, 8).map((page, index) => ({
@@ -64,7 +81,7 @@ export class OfficialDestinationAccessChecker implements DestinationAccessChecke
       interpretation = validateAccessInterpretation(
         await this.options.interpreter.interpret(candidate, evidence), evidence,
       );
-    } catch { return { status: "uncertain", reason: "Access evidence could not be interpreted." }; }
+    } catch { return unchecked(candidate, "Access evidence could not be interpreted."); }
 
     const cited = evidence.filter((item) => interpretation.evidenceIds.includes(item.id));
     const mapped = cited.map((item) => toEvidence(item, now));

@@ -1,7 +1,7 @@
 import type { DestinationRecommendationPresentation } from "@/domain/trip-message/trip-message";
 import type { DestinationCandidate } from "@/domain/location/destination-candidates";
 import { deduplicateRecommendationDestinations } from "@/domain/location/recommendation-identity";
-import { createJustOneDiscoverySearchFromEnvironment } from "@/platform/search/justone-discovery-search";
+import { createBochaDiscoverySearchFromEnvironment } from "@/platform/search/bocha-discovery-search";
 import { generateDestinationCandidates } from "./destination-candidate-generator";
 import { rankDestinationCandidates, type RankedDestinationCandidate } from "./destination-candidate-ranker";
 import type { DestinationRecommendationContext } from "./destination-recommendation-context";
@@ -29,7 +29,7 @@ export type DestinationRecommendationWorkflowDependencies = {
 
 export function destinationRecommendationWorkflowDependencies(): DestinationRecommendationWorkflowDependencies {
   return {
-    discovery: createJustOneDiscoverySearchFromEnvironment(),
+    discovery: createBochaDiscoverySearchFromEnvironment(),
     generateCandidates: generateDestinationCandidates,
     access: createOfficialDestinationAccessCheckerFromEnvironment(),
     rank: rankDestinationCandidates,

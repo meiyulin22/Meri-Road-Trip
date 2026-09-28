@@ -183,9 +183,20 @@ access search and LLM evidence interpretation → remove blocked candidates
 → rank eligible candidates → enrich the top 1–3 → cards → explicit user
 selection → validated authoritative TripState.destination.
 
+All three searches in that line — discovery, official access evidence,
+and card images — are one provider, Bocha's Web Search API, behind three
+ports. A single response carries both web pages and images, so the
+adapters differ only in which section they read. None of them narrows
+`freshness`: Bocha documents the unrestricted default as the better
+search and warns that naming a window often matches no pages at all,
+which would reach Meri as an absence of evidence rather than a badly
+asked question.
+
 The application validates model output and evidence references. Clear and
 uncertain candidates remain eligible; a failed access lookup becomes
-uncertain. Image lookup failure leaves imageUrl null for the UI fallback.
+uncertain and says so in the log, because a candidate nobody could check
+is otherwise indistinguishable from one that was checked and found fine.
+Image lookup failure leaves imageUrl null for the UI fallback.
 The workflow does not assess broader safety or travel feasibility. It is
 deterministic and does not use an Agent.
 

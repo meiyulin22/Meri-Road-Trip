@@ -2,6 +2,7 @@ import { createBochaDestinationImageSearchFromEnvironment } from "@/platform/sea
 import type { RankedDestinationCandidate } from "./destination-candidate-ranker";
 import type { DestinationImageSearch, DestinationImageSearchResult } from "@/platform/search/destination-image-search";
 import { DestinationRecommendationEnricher } from "./destination-recommendation-enrichment";
+import { logEvents, logger } from "@/platform/observability/logger";
 
 const MAX_RANKED_CANDIDATES = 3;
 const MIN_IMAGE_WIDTH = 320;
@@ -64,7 +65,15 @@ export async function enrichRankedTopThree(
       try {
         const results = await dependencies.images.search(buildDestinationImageQuery(item.candidate));
         imageUrl = results.map(usableBochaImageUrl).find((url): url is string => url !== null) ?? null;
-      } catch { /* The existing card falls back to its local image when imageUrl is null. */ }
+      } catch {
+        // The card falls back to its local image, which used to be the only sign
+        // that the image search had failed. Provider messages can carry the key,
+        // so only the destination is named.
+        logger.warn({
+          event: logEvents.destinationImageSearchFailed,
+          destination: item.candidate.name, region: item.candidate.region,
+        }, "Destination image search unavailable");
+      }
     }
     return { candidate: item.candidate, reason: item.reason, evidence: item.evidence, imageUrl,
       ...(providerIdentity ? { providerIdentity } : {}) };

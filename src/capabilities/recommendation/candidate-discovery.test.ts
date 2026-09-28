@@ -59,7 +59,7 @@ test("provider failure and empty results fall back to Journey context without lo
   for (const fail of [true, false]) {
     const logs: unknown[] = [];
     const results = await searchJourneyDiscovery(context, { async search() {
-      if (fail) throw new Error("https://api.justoneapi.com/api/search/v1?token=secret-value");
+      if (fail) throw new Error("https://api.bocha.cn/v1/web-search key=secret-value");
       return [];
     } }, {
       info(fields: unknown) { logs.push(fields); },

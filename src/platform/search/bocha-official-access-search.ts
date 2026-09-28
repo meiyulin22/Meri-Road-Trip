@@ -1,14 +1,7 @@
 import type { OfficialAccessSearch, OfficialAccessSearchResult } from "@/platform/search/official-access-search";
+import { bochaCrawlDate, bochaDate, bochaSearchValues, requestBochaWebSearch } from "./bocha-web-search";
 
-const ENDPOINT = "https://api.bocha.cn/v1/ai-search";
 const RESULT_COUNT = 8;
-const TIMEOUT_MS = 30_000;
-
-export class BochaAccessSearchError extends Error {
-  constructor(readonly kind: "configuration" | "network" | "http" | "api" | "invalid_response") {
-    super(`Bocha access search ${kind}`);
-  }
-}
 
 type Options = { readonly apiKey: string; readonly fetcher?: typeof fetch };
 
@@ -21,17 +14,10 @@ function text(value: unknown): string | null {
   return typeof value === "string" && value.trim() ? value.trim() : null;
 }
 
-function date(value: unknown): string | undefined {
-  const input = text(value);
-  if (!input) return undefined;
-  const parsed = new Date(input);
-  return Number.isNaN(parsed.getTime()) ? undefined : parsed.toISOString();
-}
-
 function normalizePage(value: unknown): OfficialAccessSearchResult | null {
   const page = record(value);
   if (!page) return null;
-  const title = text(page.name) ?? text(page.title);
+  const title = text(page.name);
   const urlText = text(page.url);
   if (!title || !urlText) return null;
   let url: URL;
@@ -39,8 +25,10 @@ function normalizePage(value: unknown): OfficialAccessSearchResult | null {
   if (url.protocol !== "https:" && url.protocol !== "http:") return null;
   const snippet = text(page.snippet) ?? text(page.summary) ?? "";
   const summary = text(page.summary);
-  const publishedAt = date(page.datePublished ?? page.publishedAt);
-  const lastCrawledAt = date(page.dateLastCrawled ?? page.lastCrawledAt);
+  // Bocha says dateLastCrawled is the publish time, so it is the better fallback
+  // than leaving the interpreter with no date for this page at all.
+  const lastCrawledAt = bochaCrawlDate(page.dateLastCrawled);
+  const publishedAt = bochaDate(page.datePublished) ?? lastCrawledAt;
   return {
     title: title.slice(0, 200), url: url.toString(),
     siteName: (text(page.siteName) ?? url.hostname).slice(0, 120),
@@ -52,29 +40,14 @@ function normalizePage(value: unknown): OfficialAccessSearchResult | null {
 }
 
 export function normalizeBochaAccessResponse(value: unknown): readonly OfficialAccessSearchResult[] {
-  const body = record(value);
-  if (!body) throw new BochaAccessSearchError("invalid_response");
-  if (body.code !== 200 && body.code !== 0) throw new BochaAccessSearchError("api");
-  const messages = body.messages ?? record(body.data)?.messages;
-  if (!Array.isArray(messages)) throw new BochaAccessSearchError("invalid_response");
   const results: OfficialAccessSearchResult[] = [];
   const urls = new Set<string>();
-  for (const rawMessage of messages) {
-    const message = record(rawMessage);
-    if (message?.type !== "source" || message.content_type !== "webpage") continue;
-    let content: unknown = message.content;
-    if (typeof content === "string") {
-      try { content = JSON.parse(content); } catch { throw new BochaAccessSearchError("invalid_response"); }
-    }
-    const pages = record(content)?.value;
-    if (!Array.isArray(pages)) throw new BochaAccessSearchError("invalid_response");
-    for (const rawPage of pages) {
-      const page = normalizePage(rawPage);
-      if (!page || urls.has(page.url)) continue;
-      urls.add(page.url);
-      results.push(page);
-      if (results.length >= RESULT_COUNT) return results;
-    }
+  for (const raw of bochaSearchValues(value, "webPages")) {
+    const page = normalizePage(raw);
+    if (!page || urls.has(page.url)) continue;
+    urls.add(page.url);
+    results.push(page);
+    if (results.length >= RESULT_COUNT) break;
   }
   return results;
 }
@@ -83,21 +56,12 @@ export class BochaOfficialAccessSearch implements OfficialAccessSearch {
   constructor(private readonly options: Options) {}
 
   async search(query: string): Promise<readonly OfficialAccessSearchResult[]> {
-    if (!this.options.apiKey.trim()) throw new BochaAccessSearchError("configuration");
-    let response: Response;
-    try {
-      response = await (this.options.fetcher ?? fetch)(ENDPOINT, {
-        method: "POST",
-        headers: { Authorization: `Bearer ${this.options.apiKey}`, "Content-Type": "application/json" },
-        body: JSON.stringify({ query, answer: false, stream: false, count: RESULT_COUNT, freshness: "oneYear" }),
-        redirect: "error",
-        signal: AbortSignal.timeout(TIMEOUT_MS),
-      });
-    } catch { throw new BochaAccessSearchError("network"); }
-    if (!response.ok) throw new BochaAccessSearchError("http");
-    let body: unknown;
-    try { body = await response.json(); } catch { throw new BochaAccessSearchError("invalid_response"); }
-    return normalizeBochaAccessResponse(body);
+    // An access notice is judged on what it says, so the fuller summary text is
+    // worth asking for rather than the short snippet alone.
+    return normalizeBochaAccessResponse(await requestBochaWebSearch({
+      apiKey: this.options.apiKey, query, count: RESULT_COUNT, summary: true,
+      ...(this.options.fetcher ? { fetcher: this.options.fetcher } : {}),
+    }));
   }
 }
 

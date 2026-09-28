@@ -8,7 +8,12 @@ import { useCallback, useEffect, useRef, useState, type MouseEvent, type Pointer
 
 import type { JourneySummary } from "@/platform/persistence/journey-summary-repository";
 
-import { shouldLoopRecentJourneys, shouldOpenJourneyCard, visibleRecentJourneys } from "./recent-journeys-model";
+import {
+  recentJourneysArrowState,
+  shouldLoopRecentJourneys,
+  shouldOpenJourneyCard,
+  visibleRecentJourneys,
+} from "./recent-journeys-model";
 import { RecentJourneyActions } from "./recent-journey-actions";
 import styles from "./recent-journeys.module.css";
 
@@ -56,16 +61,13 @@ function JourneyCarousel({
     slidesToScroll: 1,
   });
   const [selectedIndex, setSelectedIndex] = useState(0);
-  const [canScrollPrev, setCanScrollPrev] = useState(false);
-  const [canScrollNext, setCanScrollNext] = useState(true);
+  const { canScrollPrev, canScrollNext } = recentJourneysArrowState(journeys.length, selectedIndex);
   const pointerStart = useRef<{ x: number; y: number } | null>(null);
   const gestureWasDragged = useRef(false);
 
   const updateSelection = useCallback(() => {
     if (!emblaApi) return;
     setSelectedIndex(emblaApi.selectedScrollSnap());
-    setCanScrollPrev(emblaApi.canScrollPrev());
-    setCanScrollNext(emblaApi.canScrollNext());
   }, [emblaApi]);
 
   useEffect(() => {

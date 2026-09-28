@@ -36,6 +36,8 @@ export const logEvents = {
   locationToolExecuted: "location.tool.executed",
   locationToolCompleted: "location.tool.completed",
   recommendationIntentDeclined: "recommendation.intent.declined",
+  destinationAccessUncertain: "destination_access.uncertain",
+  destinationImageSearchFailed: "destination_image.search.failed",
 } as const;
 
 const isDevelopment = process.env.NODE_ENV === "development";
