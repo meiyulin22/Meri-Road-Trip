@@ -4,7 +4,8 @@ import test from "node:test";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 
-import { canSelectDestinationRecommendation, canUseDestinationGuidance, DEFAULT_DESTINATION_IMAGE, destinationImageUrl, requestDestinationRecommendations, requestDestinationRecommendationsIfMissing, selectDestinationRecommendation, selectDestinationRecommendationAndApply } from "./destination-recommendation-model";
+import { canSelectDestinationRecommendation, canUseDestinationGuidance, DEFAULT_DESTINATION_IMAGE, destinationImageUrl, requestDestinationRecommendations, requestDestinationRecommendationsIfMissing, selectDestinationRecommendation } from "./destination-recommendation-model";
+import { DestinationSelectionFollowUpError } from "./workspace-conversation-model";
 import { getWorkspaceTitle } from "./workspace-title";
 import { journeyFieldLabel } from "./workspace-presentation";
 import type { TripState } from "@/domain/trip-state/trip-state";
@@ -89,24 +90,48 @@ test("client rejects failed and invalid recommendation responses", async () => {
   assert.equal(noCards.presentation, undefined);
 });
 
-test("selection PATCH sends only a known user destination and returns authoritative state", async () => {
-  const state = {
-    name: { state: "missing" }, origin: { state: "missing" },
-    destination: { state: "known", value: "香格里拉", source: "user" },
-    startDate: { state: "missing" }, endDate: { state: "missing" },
-    duration: { state: "missing" }, transportPreference: { state: "missing" },
-  };
-  const received = await selectDestinationRecommendation("trip 1", "香格里拉", async (input, init) => {
-    assert.equal(input, "/api/trips/trip%201/state");
-    assert.equal(init?.method, "PATCH");
-    assert.deepEqual(JSON.parse(String(init?.body)), { patch: { destination: state.destination } });
-    return Response.json({ tripState: state });
-  });
-  assert.deepEqual(received, state);
-  assert.equal("selection" in received.destination, false);
+const selectedState: TripState = {
+  name: { state: "missing" }, origin: { state: "missing" },
+  destination: { state: "known", value: "香格里拉", source: "user" },
+  startDate: { state: "missing" }, endDate: { state: "missing" },
+  duration: { state: "missing" }, transportPreference: { state: "missing" },
+};
+
+const followUp = {
+  id: "00000000-0000-4000-8000-0000000000f1", tripId: "trip 1", role: "assistant",
+  content: "好，目的地定为香格里拉了。", createdAt: "2026-09-28T09:00:00.000Z",
+};
+
+test("selection names the card it was offered on and returns the state with Meri's reply", async () => {
+  const received = await selectDestinationRecommendation("trip 1", "assistant-cards", "candidate-2",
+    async (input, init) => {
+      assert.equal(input, "/api/trips/trip%201/destination-recommendation-selection");
+      assert.equal(init?.method, "POST");
+      // The name never leaves the client: the server reads it from the stored card.
+      assert.deepEqual(JSON.parse(String(init?.body)),
+        { messageId: "assistant-cards", destinationId: "candidate-2" });
+      return Response.json({ tripState: selectedState, assistantMessage: followUp });
+    });
+  assert.deepEqual(received.tripState, selectedState);
+  assert.equal(received.assistantMessage.content, "好，目的地定为香格里拉了。");
 });
 
-test("failed selection PATCH rejects without returning optimistic state", async () => {
+test("a saved destination whose follow-up failed still reaches the Workspace", async () => {
+  await assert.rejects(
+    () => selectDestinationRecommendation("trip 1", "assistant-cards", "candidate-2",
+      async () => Response.json({ error: "failed", code: "follow_up_unavailable", tripState: selectedState },
+        { status: 500 })),
+    (error: unknown) => error instanceof DestinationSelectionFollowUpError &&
+      error.tripState.destination.state === "known");
+});
+
+test("a reply for another Journey is refused rather than shown", async () => {
+  await assert.rejects(() => selectDestinationRecommendation("trip 1", "assistant-cards", "candidate-2",
+    async () => Response.json({ tripState: selectedState,
+      assistantMessage: { ...followUp, tripId: "other-trip" } })));
+});
+
+test("a failed selection leaves the Workspace showing what it had", async () => {
   const original: TripState = {
     name: { state: "known", value: "云南大理之旅", source: "system" },
     origin: { state: "missing" },
@@ -114,14 +139,9 @@ test("failed selection PATCH rejects without returning optimistic state", async 
     startDate: { state: "missing" }, endDate: { state: "missing" },
     duration: { state: "missing" }, transportPreference: { state: "missing" },
   };
-  let displayed = original;
-  await assert.rejects(selectDestinationRecommendationAndApply("trip", "香格里拉", () => {
-    displayed = { ...original, name: { state: "known", value: "香格里拉之旅", source: "system" } };
-  }, async () => Response.json({ error: "failed" }, { status: 500 })));
-  assert.strictEqual(displayed, original);
-  assert.equal(getWorkspaceTitle(displayed), "云南大理之旅");
-  await assert.rejects(selectDestinationRecommendation("trip", "香格里拉", async () =>
-    Response.json({ error: "failed" }, { status: 500 })));
+  await assert.rejects(() => selectDestinationRecommendation("trip", "assistant-cards", "candidate-2",
+    async () => Response.json({ error: "failed" }, { status: 500 })));
+  assert.equal(getWorkspaceTitle(original), "云南大理之旅");
 });
 
 test("successful selection applies the server name to Workspace title and Journey overview state", async () => {
@@ -132,11 +152,9 @@ test("successful selection applies the server name to Workspace title and Journe
     startDate: { state: "missing" }, endDate: { state: "missing" },
     duration: { state: "missing" }, transportPreference: { state: "missing" },
   };
-  const appliedStates: TripState[] = [];
-  await selectDestinationRecommendationAndApply("trip", "泉州", (state) => { appliedStates.push(state); },
-    async () => Response.json({ tripState: persisted }));
-  assert.equal(appliedStates.length, 1);
-  const displayed = appliedStates[0];
+  const { tripState: displayed } = await selectDestinationRecommendation("trip", "assistant-cards", "candidate-1",
+    async () => Response.json({ tripState: persisted,
+      assistantMessage: { ...followUp, tripId: "trip", content: "好，目的地定为泉州了。" } }));
   assert.deepEqual(displayed, persisted);
   assert.equal(getWorkspaceTitle(displayed), "泉州之旅");
   assert.equal(journeyFieldLabel(displayed.name, "旅程名称待定"), "泉州之旅");

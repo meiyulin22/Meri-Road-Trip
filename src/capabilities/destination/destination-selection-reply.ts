@@ -1,7 +1,8 @@
 import type { GeneratePlanReadiness } from "@/domain/trip-state/planning-readiness";
 import type { TripState } from "@/domain/trip-state/trip-state";
+import { capturedDetailsNote, missingDetailsInvitation } from "@/capabilities/conversation/turn-reply";
 
-export function locationCandidateSelectionReply(
+export function destinationSelectionReply(
   tripState: TripState,
   readiness: GeneratePlanReadiness,
 ): string {
@@ -23,16 +24,6 @@ export function locationCandidateSelectionReply(
     }
   }
 
-  const hasDate = tripState.startDate.state !== "missing" || tripState.endDate.state !== "missing";
-  const hasDuration = tripState.duration.state !== "missing";
-  const dateKnown = tripState.startDate.state === "known" || tripState.endDate.state === "known";
-  const durationKnown = tripState.duration.state === "known";
-  const captured = dateKnown && durationKnown ? "时间和行程时长也已经记下。" :
-    dateKnown ? "时间也已经有了。" :
-    durationKnown ? "行程时长也已经记下。" : "";
   const ready = "现在已经可以开始生成旅行计划。你可以直接告诉我开始生成，或者点击右侧的 Generate plan";
-  const refinement = !hasDate && !hasDuration ? "；如果愿意，也可以继续补充出发时间和行程天数。" :
-    !hasDate ? "；如果愿意，也可以继续补充出发时间。" :
-    !hasDuration ? "；如果愿意，也可以继续补充行程天数。" : "。";
-  return `${acknowledgement}${captured}${ready}${refinement}`;
+  return `${acknowledgement}${capturedDetailsNote(tripState)}${ready}${missingDetailsInvitation(tripState)}`;
 }

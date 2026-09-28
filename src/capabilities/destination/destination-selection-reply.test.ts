@@ -3,7 +3,7 @@ import test from "node:test";
 
 import type { TripState } from "@/domain/trip-state/trip-state";
 
-import { locationCandidateSelectionReply } from "./location-candidate-selection-reply";
+import { destinationSelectionReply } from "./destination-selection-reply";
 
 const selected: TripState = {
   name: { state: "missing" }, origin: { state: "missing" },
@@ -16,7 +16,7 @@ const selected: TripState = {
 const ready = { canProceed: true, destination: "selected" } as const;
 
 test("ready reply uses final destination and offers optional missing details", () => {
-  const reply = locationCandidateSelectionReply(selected, ready);
+  const reply = destinationSelectionReply(selected, ready);
   assert.match(reply, /目的地定为汕头老城了/);
   assert.match(reply, /现在已经可以开始生成旅行计划/);
   assert.match(reply, /告诉我开始生成/);
@@ -28,19 +28,19 @@ test("ready reply uses final destination and offers optional missing details", (
 test("known duration or dates are acknowledged and never requested again", () => {
   const withDuration: TripState = { ...selected,
     duration: { state: "known", value: "三天", source: "user" } };
-  const durationReply = locationCandidateSelectionReply(withDuration, ready);
+  const durationReply = destinationSelectionReply(withDuration, ready);
   assert.match(durationReply, /行程时长也已经记下/);
   assert.match(durationReply, /继续补充出发时间/);
   assert.doesNotMatch(durationReply, /继续补充行程天数/);
 
   const withDate: TripState = { ...selected,
     startDate: { state: "known", value: "十一月", source: "user" } };
-  const dateReply = locationCandidateSelectionReply(withDate, ready);
+  const dateReply = destinationSelectionReply(withDate, ready);
   assert.match(dateReply, /时间也已经有了/);
   assert.match(dateReply, /继续补充行程天数/);
   assert.doesNotMatch(dateReply, /继续补充出发时间/);
 
-  const complete = locationCandidateSelectionReply({ ...withDate, duration: withDuration.duration }, ready);
+  const complete = destinationSelectionReply({ ...withDate, duration: withDuration.duration }, ready);
   assert.match(complete, /时间和行程时长也已经记下/);
   assert.doesNotMatch(complete, /继续补充/);
 });
@@ -49,7 +49,7 @@ test("approximate details are not described as known or requested again", () => 
   const approximate: TripState = { ...selected,
     startDate: { state: "approximate", value: "十一月左右", source: "user" },
     duration: { state: "approximate", value: "三四天", source: "user" } };
-  const reply = locationCandidateSelectionReply(approximate, ready);
+  const reply = destinationSelectionReply(approximate, ready);
   assert.doesNotMatch(reply, /时间也已经有了|行程时长也已经记下|继续补充/);
 });
 
@@ -60,7 +60,7 @@ test("non-ready result guides the actual blocker and makes no readiness claim", 
     ["destination_unresolved", /更具体的地点/],
     ["provider_error", /稍后再试/],
   ] as const) {
-    const reply = locationCandidateSelectionReply(selected, { canProceed: false, reason });
+    const reply = destinationSelectionReply(selected, { canProceed: false, reason });
     assert.match(reply, expected);
     assert.doesNotMatch(reply, /可以开始生成|Generate plan/);
   }

@@ -91,7 +91,7 @@ place. It contains no React components.
 
 ```text
 src/capabilities/journey/         Creating, loading, and updating a Journey
-src/capabilities/conversation/    Interpreting a Workspace message and choosing the reply
+src/capabilities/conversation/    Interpreting a Workspace message and wording the reply
 src/capabilities/destination/     Confirming a destination names a real place
 src/capabilities/recommendation/  Turning a stated preference into ranked destination cards
 ```
@@ -133,9 +133,9 @@ is not supported yet: there is no service worker or offline cache.
 
 ## What's next
 
-- **Move Meri's reply wording into one place.** The text Meri says about dates
-  and trip length is currently built in several modules, with one decision tree
-  duplicated between two of them.
+- **Decide a turn's presentation in code, not in the prompt.** The model is
+  currently asked which cards a turn may show, and the same rule is then
+  implemented again in `destination-recommendation-use-case.ts`.
 - **Steer off-topic messages back to travel.** Meri should stay a travel
   companion instead of answering as a general chatbot.
 - **Generate Plan and the Research Agent.** Not implemented. See

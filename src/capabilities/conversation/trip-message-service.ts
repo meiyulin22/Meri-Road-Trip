@@ -9,7 +9,6 @@ import type { TripMessageRepository } from "@/platform/persistence/trip-message-
 import type { TripService } from "@/capabilities/journey/trip-service";
 import { openingAssistantMessageId } from "./opening-assistant-id";
 import { destinationMissingGuidanceContent, destinationMissingGuidanceMessageId } from "./destination-missing-guidance";
-import { locationCandidateSelectionMessageId } from "./location-candidate-selection-id";
 
 type TripMessageServiceDependencies = {
   readonly tripService: Pick<TripService, "getTripById">;
@@ -90,16 +89,20 @@ export class TripMessageService {
     return this.dependencies.repository.createAssistantIfAbsent(message);
   }
 
-  async persistLocationCandidateSelectionReply(input: {
+  /**
+   * Answers a destination the user picked from a card, whichever kind of card it
+   * was. The caller passes the deterministic follow-up id, so a second click on
+   * the same card returns the message already written instead of adding another.
+   */
+  async persistDestinationSelectionReply(input: {
     readonly tripId: string;
     readonly ownerGuestId: string;
-    readonly candidateMessageId: string;
-    readonly candidateIndex: number;
+    readonly messageId: string;
     readonly content: string;
   }): Promise<TripMessage> {
     await this.dependencies.tripService.getTripById(input.tripId, input.ownerGuestId);
     const message = validateTripMessage({
-      id: locationCandidateSelectionMessageId(input.tripId, input.candidateMessageId, input.candidateIndex),
+      id: input.messageId,
       tripId: input.tripId,
       role: "assistant",
       content: input.content,

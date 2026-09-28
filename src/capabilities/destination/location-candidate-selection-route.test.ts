@@ -8,7 +8,6 @@ import { TripNotFoundError } from "@/domain/trip/trip-errors";
 import { InMemoryTripMessageRepository } from "@/platform/persistence/in-memory/in-memory-trip-message-repository";
 import { checkGeneratePlanReadiness } from "./generate-plan-readiness";
 import { LocationService } from "./location-service";
-import { locationCandidateSelectionMessageId } from "@/capabilities/conversation/location-candidate-selection-id";
 
 import { handleLocationCandidateSelectionPost } from "@/app/api/trips/[id]/location-candidate-selection/route";
 
@@ -27,9 +26,8 @@ const message: TripMessage = {
   ] },
 };
 
-function followUp(input: { tripId: string; candidateMessageId: string; candidateIndex: number; content: string }): TripMessage {
-  return { id: locationCandidateSelectionMessageId(input.tripId, input.candidateMessageId, input.candidateIndex),
-    tripId: input.tripId, role: "assistant", content: input.content,
+function followUp(input: { tripId: string; messageId: string; content: string }): TripMessage {
+  return { id: input.messageId, tripId: input.tripId, role: "assistant", content: input.content,
     createdAt: "2026-09-26T00:00:01.000Z" };
 }
 

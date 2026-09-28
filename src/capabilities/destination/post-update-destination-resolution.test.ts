@@ -65,12 +65,11 @@ test("resolved destination is validated once before the single persistence write
   assert.equal(result.tripState.destination.state === "known" && "selection" in result.tripState.destination, false);
   assert.deepEqual(result.tripState.duration, patch.duration);
   const reply = replyAfterDestinationResolution(interpretation, result.tripState, result.resolution, result.persistedPatch);
-  assert.match(reply, /目的地记下了：吉林/);
-  assert.match(reply, /行程时长也已经记下/);
+  assert.equal(reply, interpretation.reply);
   assert.doesNotMatch(reply, /匹配到地点|吉林省|jilin-city|坐标/);
 });
 
-test("resolved reply asks for only missing dates and duration from final TripState", () => {
+test("a confirmed destination keeps the model's own reply", () => {
   const resolution = { status: "resolved" as const, candidate: city };
   const destination = { state: "known" as const, value: "吉林", source: "user" as const };
   const noDetails = { ...original, destination, duration: { state: "missing" as const } };
@@ -78,19 +77,21 @@ test("resolved reply asks for only missing dates and duration from final TripSta
   const datesKnown = { ...noDetails, startDate: { state: "known" as const, value: "十月", source: "user" as const } };
   const allKnown = { ...durationKnown, startDate: datesKnown.startDate };
 
-  const none = replyAfterDestinationResolution(interpretation, noDetails, resolution, { destination });
-  assert.equal(none, "好，目的地记下了：吉林。想继续完善的话，可以告诉我大概什么时候去、准备玩几天。");
-  const withDuration = replyAfterDestinationResolution(interpretation, durationKnown, resolution, { destination });
-  assert.match(withDuration, /行程时长也已经记下/);
-  assert.match(withDuration, /什么时候出发/);
-  assert.doesNotMatch(withDuration, /玩几天|匹配到地点|吉林省/);
-  const withDates = replyAfterDestinationResolution(interpretation, datesKnown, resolution, { destination });
-  assert.match(withDates, /时间也已经记下/);
-  assert.match(withDates, /玩几天/);
-  assert.doesNotMatch(withDates, /什么时候去|什么时候出发|匹配到地点|吉林省/);
-  const complete = replyAfterDestinationResolution(interpretation, allKnown, resolution, { destination });
-  assert.match(complete, /时间和行程时长也已经记下/);
-  assert.doesNotMatch(complete, /什么时候|玩几天|Generate plan|生成计划/);
+  // The model wrote its reply assuming the destination would land, and it did,
+  // so there is nothing to correct and no reason to replace its wording.
+  for (const state of [noDetails, durationKnown, datesKnown, allKnown]) {
+    const reply = replyAfterDestinationResolution(interpretation, state, resolution, { destination });
+    assert.equal(reply, interpretation.reply);
+  }
+});
+
+test("a resolved destination that did not settle says so instead of claiming it landed", () => {
+  const unsettled: TripState = { ...original,
+    destination: { state: "approximate", value: "吉林附近", source: "user" } };
+  const reply = replyAfterDestinationResolution(interpretation, unsettled,
+    { status: "resolved", candidate: city }, null);
+  assert.match(reply, /目的地还没有明确下来/);
+  assert.doesNotMatch(reply, /已更新目的地/);
 });
 
 test("approximate details are not called known or asked for again", () => {

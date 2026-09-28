@@ -4,7 +4,7 @@ import test from "node:test";
 import type { TripState } from "@/domain/trip-state/trip-state";
 
 import {
-  LocationCandidateFollowUpError,
+  DestinationSelectionFollowUpError,
   requestWorkspaceConversation,
   selectLocationCandidate,
   WorkspaceConversationRequestError,
@@ -87,7 +87,7 @@ test("partial follow-up failure exposes the saved TripState without a fake reply
   await assert.rejects(selectLocationCandidate("trip 1", "assistant-1", 0, async () =>
     Response.json({ code: "follow_up_unavailable", tripState }, { status: 500 })),
   (error: unknown) => {
-    assert.ok(error instanceof LocationCandidateFollowUpError);
+    assert.ok(error instanceof DestinationSelectionFollowUpError);
     assert.deepEqual(error.tripState, tripState);
     return true;
   });

@@ -10,7 +10,7 @@ import { TripStateNotFoundError } from "@/capabilities/journey/journey-errors";
 import { checkGeneratePlanReadiness } from "@/capabilities/destination/generate-plan-readiness";
 import { LocationService } from "@/capabilities/destination/location-service";
 import { destinationSelectionReply } from "@/capabilities/destination/destination-selection-reply";
-import { locationCandidateSelectionMessageId } from "@/capabilities/conversation/destination-selection-message-id";
+import { destinationRecommendationSelectionMessageId } from "@/capabilities/conversation/destination-selection-message-id";
 
 type Dependencies = {
   readonly loadJourney: (tripId: string, ownerGuestId: string) => Promise<{ tripState: TripState }>;
@@ -22,7 +22,7 @@ type Dependencies = {
   }) => Promise<TripMessage>;
 };
 
-export async function handleLocationCandidateSelectionPost(
+export async function handleDestinationRecommendationSelectionPost(
   tripId: string,
   ownerGuestId: string | null,
   body: unknown,
@@ -30,10 +30,9 @@ export async function handleLocationCandidateSelectionPost(
 ): Promise<Response> {
   if (!ownerGuestId) return Response.json({ error: "Journey not found." }, { status: 404 });
   if (typeof body !== "object" || body === null || !("messageId" in body) ||
-    typeof body.messageId !== "string" || !("candidateIndex" in body) ||
-    !Number.isSafeInteger(body.candidateIndex) || (body.candidateIndex as number) < 0 ||
-    Object.keys(body).length !== 2) {
-    return Response.json({ error: "Invalid candidate selection." }, { status: 400 });
+    typeof body.messageId !== "string" || !("destinationId" in body) ||
+    typeof body.destinationId !== "string" || Object.keys(body).length !== 2) {
+    return Response.json({ error: "Invalid recommendation selection." }, { status: 400 });
   }
 
   try {
@@ -41,41 +40,28 @@ export async function handleLocationCandidateSelectionPost(
     const messages = await dependencies.listMessages(tripId, ownerGuestId);
     const message = messages.find((item) => item.id === body.messageId && item.tripId === tripId && item.role === "assistant");
     const presentation = message?.presentation;
-    if (!message || presentation?.type !== "location_candidates") {
-      return Response.json({ error: "Candidate selection not found." }, { status: 404 });
+    if (!message || presentation?.type !== "destination_recommendations") {
+      return Response.json({ error: "Recommendation selection not found." }, { status: 404 });
     }
-    const candidate = presentation.candidates[body.candidateIndex as number];
-    if (!candidate) return Response.json({ error: "Candidate selection not found." }, { status: 404 });
-    const candidateIndex = body.candidateIndex as number;
-    const followUpId = locationCandidateSelectionMessageId(tripId, message.id, candidateIndex);
+    // Only a card Meri actually offered can be picked: the name comes from the
+    // persisted presentation, never from the request.
+    const destination = presentation.destinations.find((item) => item.id === body.destinationId);
+    if (!destination) return Response.json({ error: "Recommendation selection not found." }, { status: 404 });
+    const followUpId = destinationRecommendationSelectionMessageId(tripId, message.id, destination.id);
     const existingFollowUp = messages.find((item) => item.id === followUpId && item.role === "assistant");
     if (existingFollowUp) {
       const currentDestination = currentState.destination;
-      if (currentDestination.state !== "known" || currentDestination.value !== candidate.name ||
-        currentDestination.selection?.providerId !== candidate.providerId) {
-        return Response.json({ error: "Candidate selection is no longer current." }, { status: 409 });
+      if (currentDestination.state !== "known" || currentDestination.value !== destination.name) {
+        return Response.json({ error: "Recommendation selection is no longer current." }, { status: 409 });
       }
       return Response.json({ tripState: currentState, assistantMessage: existingFollowUp });
     }
     const tripState = await dependencies.updateTripState(tripId, ownerGuestId, {
-      destination: {
-        state: "known",
-        value: candidate.name,
-        source: "user",
-        selection: {
-          provider: "amap",
-          providerId: candidate.providerId,
-          ...(candidate.region !== null ? { region: candidate.region } : {}),
-          ...(candidate.address !== null ? { address: candidate.address } : {}),
-          coordinates: {
-            longitude: candidate.longitude,
-            latitude: candidate.latitude,
-            coordinateSystem: candidate.coordinateSystem,
-          },
-        },
-      },
+      destination: { state: "known", value: destination.name, source: "user" },
     });
     try {
+      // The readiness check resolves the name against the Location Provider, so
+      // the reply describes the destination Meri can really plan from.
       const readiness = await dependencies.checkReadiness(tripState);
       const assistantMessage = await dependencies.persistFollowUp({
         tripId, ownerGuestId, messageId: followUpId,
@@ -88,7 +74,7 @@ export async function handleLocationCandidateSelectionPost(
     }
   } catch (error) {
     const missing = error instanceof TripNotFoundError || error instanceof TripStateNotFoundError;
-    return Response.json({ error: missing ? "Journey not found." : "Candidate selection unavailable." },
+    return Response.json({ error: missing ? "Journey not found." : "Recommendation selection unavailable." },
       { status: missing ? 404 : 500 });
   }
 }
@@ -99,11 +85,11 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   try {
     body = await request.json();
   } catch {
-    return Response.json({ error: "Invalid candidate selection." }, { status: 400 });
+    return Response.json({ error: "Invalid recommendation selection." }, { status: 400 });
   }
   const { journeyService } = await import("@/capabilities/journey/journey-service-instance");
   const { tripMessageService } = await import("@/capabilities/conversation/trip-message-service-instance");
-  return handleLocationCandidateSelectionPost(id, readGuestId(await cookies()), body, {
+  return handleDestinationRecommendationSelectionPost(id, readGuestId(await cookies()), body, {
     loadJourney: (tripId, owner) => journeyService.loadJourney(tripId, owner),
     listMessages: (tripId, owner) => tripMessageService.listMessages(tripId, owner),
     updateTripState: (tripId, owner, patch) => journeyService.updateTripState(tripId, owner, patch),

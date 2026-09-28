@@ -89,10 +89,10 @@ export async function requestWorkspaceConversation(
   }
 }
 
-export class LocationCandidateFollowUpError extends WorkspaceConversationRequestError {
+export class DestinationSelectionFollowUpError extends WorkspaceConversationRequestError {
   constructor(readonly tripState: TripState) {
     super("The destination was saved, but its assistant follow-up was unavailable.");
-    this.name = "LocationCandidateFollowUpError";
+    this.name = "DestinationSelectionFollowUpError";
   }
 }
 
@@ -116,7 +116,7 @@ export async function selectLocationCandidate(
   if (!response.ok) {
     if (typeof body === "object" && body !== null && "code" in body &&
       body.code === "follow_up_unavailable" && "tripState" in body) {
-      throw new LocationCandidateFollowUpError(validateTripState(body.tripState));
+      throw new DestinationSelectionFollowUpError(validateTripState(body.tripState));
     }
     throw new WorkspaceConversationRequestError("Location candidate selection failed.");
   }

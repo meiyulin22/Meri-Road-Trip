@@ -1,5 +1,6 @@
 import type { LocationCandidate } from "@/domain/location/location";
 import type { DestinationDisambiguation } from "@/domain/location/destination-disambiguation";
+import { composeTurnReply, type DestinationTurnFact } from "@/capabilities/conversation/turn-reply";
 import type { LocationService } from "./location-service";
 
 export type DestinationDisambiguationResult =
@@ -37,14 +38,11 @@ export function replyForDestinationDisambiguation(
   result: DestinationDisambiguationResult,
   otherChangesSaved: boolean,
 ): string {
-  const otherChanges = otherChangesSaved ? "其他旅程信息也已保存。" : "";
-  if (result.status === "provider_error") {
-    return `${otherChanges}暂时无法验证「${expression}」的具体地点，目的地还没有更改。请稍后再试。`;
-  }
-  if (result.status === "unresolved") {
-    return `${otherChanges}请告诉我「${expression}」中更具体的地点，目的地还没有更改。`;
-  }
-  return result.candidates.length === 1
-    ? `${otherChanges}「${expression}」范围比较大，我找到一个更具体的地点。要把下方地点设为目的地吗？`
-    : `${otherChanges}「${expression}」范围比较大，我找到几个更具体的地点，你更想去哪个？`;
+  const fact: DestinationTurnFact = result.status === "provider_error"
+    ? { kind: "lookup_unavailable", expression }
+    : result.status === "unresolved"
+      ? { kind: "not_identified", expression }
+      : { kind: "narrowing_offered", expression, candidateCount: result.candidates.length };
+  // A disambiguation turn always has a fact worth stating, so no model reply is needed.
+  return composeTurnReply({ modelReply: "", destination: fact, otherFieldsSaved: otherChangesSaved });
 }

@@ -11,12 +11,12 @@ import type { LocationCandidate } from "@/domain/location/location";
 import type { TripState } from "@/domain/trip-state/trip-state";
 
 import { nextRevealCharacterCount, visibleAssistantText } from "./conversation-reveal";
-import { canSelectDestinationRecommendation, canUseDestinationGuidance, requestDestinationRecommendationsIfMissing, selectDestinationRecommendationAndApply } from "./destination-recommendation-model";
+import { canSelectDestinationRecommendation, canUseDestinationGuidance, requestDestinationRecommendationsIfMissing, selectDestinationRecommendation } from "./destination-recommendation-model";
 import { DestinationRecommendationCard } from "./destination-recommendation-card";
 import { formatMessageTimestamp } from "./message-timestamp";
 import { LocationCandidateCard } from "./location-candidate-card";
 import { appendPersistedMessageIfAbsent, locationCandidatePresentation, messageCreatedAt, recommendationPresentation, toWorkspaceUIMessages } from "./trip-message-ui-adapter";
-import { canSelectLocationCandidates, LocationCandidateFollowUpError, selectLocationCandidate } from "./workspace-conversation-model";
+import { canSelectLocationCandidates, DestinationSelectionFollowUpError, selectLocationCandidate } from "./workspace-conversation-model";
 import {
   reconcileCommittedUserId,
   WorkspaceChatTransport,
@@ -58,7 +58,10 @@ export function ConversationPanel({
   const recommendationInFlight = useRef(false);
   const selectionInFlight = useRef(false);
   const candidateInFlight = useRef(false);
-  const [candidatePending, setCandidatePending] = useState<string | null>(null);
+  const [candidatePending, setCandidatePending] = useState<{
+    readonly messageId: string;
+    readonly candidateIndex: number;
+  } | null>(null);
   const [candidateError, setCandidateError] = useState<{
     readonly messageId: string;
     readonly kind: "selection" | "follow_up";
@@ -149,15 +152,20 @@ export function ConversationPanel({
     }
   }
 
-  async function handleRecommendationSelection(id: string, name: string): Promise<void> {
+  async function handleRecommendationSelection(messageId: string, destinationId: string): Promise<void> {
     if (!recommendationSelectionAvailable || selectionInFlight.current) return;
     selectionInFlight.current = true;
-    setSelectionPendingId(id);
+    setSelectionPendingId(destinationId);
     setSelectionErrorId(null);
     try {
-      await selectDestinationRecommendationAndApply(tripId, name, onTripStateChange);
-    } catch {
-      setSelectionErrorId(id);
+      const { tripState: selectedState, assistantMessage } =
+        await selectDestinationRecommendation(tripId, messageId, destinationId);
+      onTripStateChange(selectedState);
+      setMessages((current) => appendPersistedMessageIfAbsent(current, assistantMessage));
+      setRevealing({ id: assistantMessage.id, visibleCharacters: 0 });
+    } catch (error) {
+      if (error instanceof DestinationSelectionFollowUpError) onTripStateChange(error.tripState);
+      setSelectionErrorId(destinationId);
     } finally {
       selectionInFlight.current = false;
       setSelectionPendingId(null);
@@ -167,7 +175,7 @@ export function ConversationPanel({
   async function handleCandidateSelection(messageId: string, candidateIndex: number): Promise<void> {
     if (candidateInFlight.current || !canSelectLocationCandidates(tripState, messageId, latestCandidateMessageId)) return;
     candidateInFlight.current = true;
-    setCandidatePending(messageId);
+    setCandidatePending({ messageId, candidateIndex });
     setCandidateError(null);
     try {
       const { tripState: selectedState, assistantMessage } = await selectLocationCandidate(tripId, messageId, candidateIndex);
@@ -175,7 +183,7 @@ export function ConversationPanel({
       setMessages((current) => appendPersistedMessageIfAbsent(current, assistantMessage));
       setRevealing({ id: assistantMessage.id, visibleCharacters: 0 });
     } catch (error) {
-      if (error instanceof LocationCandidateFollowUpError) {
+      if (error instanceof DestinationSelectionFollowUpError) {
         onTripStateChange(error.tripState);
         setCandidateError({ messageId, kind: "follow_up" });
       } else {
@@ -285,7 +293,7 @@ export function ConversationPanel({
                           disabled={!recommendationSelectionAvailable || selectionPendingId !== null}
                           error={selectionErrorId === destination.id}
                           key={destination.id}
-                          onSelect={() => void handleRecommendationSelection(destination.id, destination.name)}
+                          onSelect={() => void handleRecommendationSelection(conversationMessage.id, destination.id)}
                           pending={selectionPendingId === destination.id}
                           selected={tripState.destination.state === "known" && tripState.destination.value === destination.name}
                         />
@@ -300,7 +308,8 @@ export function ConversationPanel({
                           disabled={candidatePending !== null || !canSelectLocationCandidates(tripState, conversationMessage.id, latestCandidateMessageId)}
                           key={`${candidate.providerId}-${candidateIndex}`}
                           onSelect={() => void handleCandidateSelection(conversationMessage.id, candidateIndex)}
-                          pending={candidatePending === conversationMessage.id}
+                          pending={candidatePending?.messageId === conversationMessage.id &&
+                            candidatePending.candidateIndex === candidateIndex}
                           selected={isSelectedCandidate(candidate, tripState)}
                         />
                       ))}
