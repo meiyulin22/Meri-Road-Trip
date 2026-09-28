@@ -1,0 +1,36 @@
+import type { LocationSuggestion } from "@/domain/location/location-suggestion";
+import type {
+  LocationSuggestionFailureReason,
+  LocationSuggestionProvider,
+} from "@/platform/location-provider/location-suggestion-provider";
+
+export class InvalidLocationSuggestionQueryError extends Error {
+  constructor() {
+    super("Query must contain 1 to 80 characters after trimming.");
+    this.name = "InvalidLocationSuggestionQueryError";
+  }
+}
+
+export class LocationSuggestionProviderError extends Error {
+  constructor(readonly reason: LocationSuggestionFailureReason) {
+    super(`Location suggestions unavailable: ${reason}.`);
+    this.name = "LocationSuggestionProviderError";
+  }
+}
+
+export class LocationSuggestionService {
+  constructor(private readonly provider: LocationSuggestionProvider) {}
+
+  async suggest(rawQuery: string): Promise<readonly LocationSuggestion[]> {
+    const query = rawQuery.trim();
+    if (query.length === 0 || query.length > 80) {
+      throw new InvalidLocationSuggestionQueryError();
+    }
+
+    const result = await this.provider.suggest(query);
+    if (result.status === "failure") {
+      throw new LocationSuggestionProviderError(result.reason);
+    }
+    return result.suggestions;
+  }
+}

@@ -14,11 +14,11 @@ import { JourneyCreationError } from "@/server/journey/journey-errors";
 import { AmapLocationProvider } from "@/platform/location-provider/amap-location-provider";
 import { createJourneyWithOpening } from "@/server/journey/create-journey-with-opening";
 import { journeyService } from "@/server/journey/journey-service-instance";
-import { LocationService } from "@/server/location/location-service";
-import { verifyDestinationDisambiguation } from "@/server/location/verify-destination-disambiguation";
+import { LocationService } from "@/server/destination/location-service";
+import { verifyDestinationDisambiguation } from "@/server/destination/verify-destination-disambiguation";
 import { logger, logEvents } from "@/platform/observability/logger";
 import { serializeError } from "@/platform/observability/serialize-error";
-import { openingConversationService } from "@/server/trip-message/opening-conversation-service-instance";
+import { openingConversationService } from "@/server/conversation/opening-conversation-service-instance";
 
 function getRequestContext(): { referenceDate: string; timezone: string } {
   const timezone = process.env.MERI_TIMEZONE?.trim() ||

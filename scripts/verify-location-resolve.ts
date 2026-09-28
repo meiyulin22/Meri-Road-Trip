@@ -1,5 +1,5 @@
 import { AmapLocationProvider } from "../src/platform/location-provider/amap-location-provider";
-import { LocationService } from "../src/server/location/location-service";
+import { LocationService } from "@/server/destination/location-service";
 import type { TripState } from "../src/domain/trip-state/trip-state";
 
 async function main(): Promise<void> {

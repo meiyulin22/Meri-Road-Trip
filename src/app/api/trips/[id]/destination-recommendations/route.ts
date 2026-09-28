@@ -6,10 +6,10 @@ import { validateTripMessage, type TripMessage } from "@/domain/trip-message/tri
 import type { TripState } from "@/domain/trip-state/trip-state";
 import { validateTripUserAction, type TripUserAction } from "@/domain/trip-user-action/trip-user-action";
 import { TripNotFoundError } from "@/domain/trip/trip-errors";
-import { buildDestinationRecommendationContext } from "@/server/ai/destination-recommendation-context";
-import { createDestinationRecommendationReply, destinationRecommendationDependencies, type DestinationRecommendationUseCaseDependencies } from "@/server/ai/destination-recommendation-use-case";
-import { InvalidDestinationCandidateOutputError } from "@/server/ai/destination-candidate-generator";
-import { InvalidDestinationRankingOutputError } from "@/server/ai/destination-candidate-ranker";
+import { buildDestinationRecommendationContext } from "@/server/recommendation/destination-recommendation-context";
+import { createDestinationRecommendationReply, destinationRecommendationDependencies, type DestinationRecommendationUseCaseDependencies } from "@/server/recommendation/destination-recommendation-use-case";
+import { InvalidDestinationCandidateOutputError } from "@/server/recommendation/destination-candidate-generator";
+import { InvalidDestinationRankingOutputError } from "@/server/recommendation/destination-candidate-ranker";
 import { LlmProviderRequestError, LlmProviderTimeoutError, MissingLlmConfigurationError } from "@/platform/llm/kimi-client";
 import { readGuestId } from "@/platform/identity/guest-identity";
 import { TripStateNotFoundError } from "@/server/journey/journey-errors";
@@ -90,7 +90,7 @@ export async function POST(_request: Request, { params }: { readonly params: Pro
   }
   const [{ journeyService }, { tripMessageService }, { db }, { PostgresTripUserActionRepository }, { PostgresTripMessageRepository }] = await Promise.all([
     import("@/server/journey/journey-service-instance"),
-    import("@/server/trip-message/trip-message-service-instance"),
+    import("@/server/conversation/trip-message-service-instance"),
     import("@/platform/persistence/database/db"),
     import("@/platform/persistence/postgres/postgres-trip-user-action-repository"),
     import("@/platform/persistence/postgres/postgres-trip-message-repository"),

@@ -20,22 +20,22 @@ import {
   interpretWorkspaceConversation,
   InvalidWorkspaceConversationModelOutputError,
   InvalidWorkspaceConversationRequestError,
-} from "@/server/ai/workspace-conversation-interpreter";
-import { selectRecentConversationMessages } from "@/server/ai/workspace-conversation-context";
-import { destinationRecommendationDependencies, persistConversationalRecommendationTurn } from "@/server/ai/destination-recommendation-use-case";
-import { InvalidDestinationRecommendationOutputError } from "@/server/ai/destination-recommendation-generator";
+} from "@/server/conversation/workspace-conversation-interpreter";
+import { selectRecentConversationMessages } from "@/server/conversation/workspace-conversation-context";
+import { destinationRecommendationDependencies, persistConversationalRecommendationTurn } from "@/server/recommendation/destination-recommendation-use-case";
+import { InvalidDestinationRecommendationOutputError } from "@/server/recommendation/destination-recommendation-generator";
 import { AmapLocationProvider } from "@/platform/location-provider/amap-location-provider";
 import { TripStateNotFoundError } from "@/server/journey/journey-errors";
 import { journeyService } from "@/server/journey/journey-service-instance";
 import { readGuestId } from "@/platform/identity/guest-identity";
-import { LocationService } from "@/server/location/location-service";
-import { replyForDestinationDisambiguation } from "@/server/location/verify-destination-disambiguation";
+import { LocationService } from "@/server/destination/location-service";
+import { replyForDestinationDisambiguation } from "@/server/destination/verify-destination-disambiguation";
 import {
   persistWorkspacePatchWithDisambiguation,
   replyAfterDestinationResolution,
-} from "@/server/location/post-update-destination-resolution";
+} from "@/server/destination/post-update-destination-resolution";
 import { logger, logEvents } from "@/platform/observability/logger";
-import { tripMessageService } from "@/server/trip-message/trip-message-service-instance";
+import { tripMessageService } from "@/server/conversation/trip-message-service-instance";
 import { serializeError } from "@/platform/observability/serialize-error";
 
 type ErrorResponse = {

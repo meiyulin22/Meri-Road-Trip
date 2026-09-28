@@ -2,7 +2,7 @@ import type { LocationCandidate } from "@/domain/location/location";
 import type {
   LocationProvider,
   LocationSearchResult,
-} from "@/server/location/location-service";
+} from "@/platform/location-provider/location-provider";
 
 const AMAP_POI_SEARCH_URL = "https://restapi.amap.com/v5/place/text";
 const RESULT_LIMIT = 5;

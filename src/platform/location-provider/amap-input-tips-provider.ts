@@ -2,7 +2,7 @@ import type { LocationSuggestion } from "@/domain/location/location-suggestion";
 import type {
   LocationSuggestionProvider,
   LocationSuggestionProviderResult,
-} from "@/server/location/location-suggestion-service";
+} from "@/platform/location-provider/location-suggestion-provider";
 
 const AMAP_INPUT_TIPS_URL = "https://restapi.amap.com/v3/assistant/inputtips";
 

@@ -10,7 +10,7 @@ import {
 } from "@/domain/trip-state/trip-state";
 import type { Trip } from "@/domain/trip/trip";
 import type { TripStateRepository } from "@/platform/persistence/trip-state-repository";
-import type { TripService } from "@/server/trip/trip-service";
+import type { TripService } from "./trip-service";
 
 import {
   JourneyCreationError,

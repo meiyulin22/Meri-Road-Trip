@@ -1,0 +1,200 @@
+import type { TripState } from "@/domain/trip-state/trip-state";
+import { AmapLocationProvider } from "@/platform/location-provider/amap-location-provider";
+import {
+  validateWorkspaceConversationInterpretation,
+  type WorkspaceConversationInterpretation,
+} from "@/domain/trip-state/workspace-conversation";
+import { createAiSdkKimiClientFromEnvironment } from "@/platform/llm/ai-sdk-kimi-client";
+import type {
+  StructuredOutputConversationMessage,
+  StructuredOutputModelClient,
+} from "@/platform/llm/kimi-client";
+import { buildWorkspaceConversationSystemPrompt } from "@/server/conversation/prompts/workspace-conversation-prompt";
+import { createResolveLocationTool } from "@/server/conversation/tools/resolve-location";
+import { LocationService } from "@/server/destination/location-service";
+import { logger, logEvents } from "@/platform/observability/logger";
+import { serializeError } from "@/platform/observability/serialize-error";
+
+export interface InterpretWorkspaceConversationInput {
+  readonly message: string;
+  readonly tripState: TripState;
+  readonly requestId: string;
+  readonly referenceDate: string;
+  readonly timezone: string;
+  readonly conversationHistory?: readonly StructuredOutputConversationMessage[];
+  readonly mode?: "conversation" | "opening";
+}
+
+export class InvalidWorkspaceConversationRequestError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "InvalidWorkspaceConversationRequestError";
+  }
+}
+
+export class InvalidWorkspaceConversationModelOutputError extends Error {
+  constructor(message: string, cause?: unknown) {
+    super(message, cause === undefined ? undefined : { cause });
+    this.name = "InvalidWorkspaceConversationModelOutputError";
+  }
+}
+
+const changeSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["field", "state", "value"],
+  properties: {
+    field: {
+      type: "string",
+      enum: [
+        "name",
+        "origin",
+        "destination",
+        "startDate",
+        "endDate",
+        "duration",
+        "transportPreference",
+      ],
+    },
+    state: {
+      type: "string",
+      enum: ["known", "approximate", "ambiguous", "missing"],
+    },
+    value: { type: ["string", "null"] },
+  },
+};
+
+export const workspaceConversationJsonSchema: Record<string, unknown> = {
+  type: "object",
+  additionalProperties: false,
+  required: ["intent", "presentationIntent", "changes", "reply"],
+  properties: {
+    intent: {
+      type: "string",
+      enum: ["trip_state_update", "question", "unclear_update_intent"],
+    },
+    presentationIntent: { type: "string", enum: ["none", "destination_recommendations"] },
+    changes: {
+      type: "array",
+      maxItems: 7,
+      items: changeSchema,
+    },
+    reply: { type: "string", minLength: 1 },
+    destinationDisambiguation: {
+      type: "object", additionalProperties: false, required: ["state", "value"],
+      properties: {
+        state: { type: "string", enum: ["missing", "known"] },
+        value: { type: ["array", "null"], minItems: 2, maxItems: 3,
+          items: { type: "string", minLength: 1, maxLength: 80 } },
+      },
+    },
+  },
+};
+
+function validateInput(input: InterpretWorkspaceConversationInput): void {
+  if (input.message.trim() === "") {
+    throw new InvalidWorkspaceConversationRequestError(
+      "message must be a non-empty string.",
+    );
+  }
+
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(input.referenceDate)) {
+    throw new InvalidWorkspaceConversationRequestError(
+      "referenceDate must use the YYYY-MM-DD format.",
+    );
+  }
+
+  try {
+    new Intl.DateTimeFormat("en-US", { timeZone: input.timezone });
+  } catch {
+    throw new InvalidWorkspaceConversationRequestError(
+      "timezone must be a valid IANA timezone.",
+    );
+  }
+}
+
+export async function interpretWorkspaceConversation(
+  input: InterpretWorkspaceConversationInput,
+  client?: StructuredOutputModelClient,
+  locationService?: LocationService,
+): Promise<WorkspaceConversationInterpretation> {
+  validateInput(input);
+  const modelClient = client ?? createAiSdkKimiClientFromEnvironment();
+
+  try {
+    const response = await modelClient.generateStructuredOutput({
+      requestId: input.requestId,
+      operation: "workspace_conversation_interpretation",
+      schemaName: "workspace_conversation_interpretation",
+      systemPrompt: buildWorkspaceConversationSystemPrompt({
+        tripState: input.tripState,
+        referenceDate: input.referenceDate,
+        timezone: input.timezone,
+        mode: input.mode,
+      }),
+      userMessage: input.message,
+      conversationHistory: input.conversationHistory,
+      jsonSchema: workspaceConversationJsonSchema,
+      tools: input.mode === "opening" ? undefined : {
+        resolve_location: createResolveLocationTool({
+          tripState: input.tripState,
+          requestId: input.requestId,
+          locationService: locationService ?? new LocationService(new AmapLocationProvider()),
+        }),
+      },
+    });
+
+    if (response.content === null || response.content.trim() === "") {
+      throw new InvalidWorkspaceConversationModelOutputError(
+        "The model returned no structured output.",
+      );
+    }
+
+    if (response.finishReason === "length") {
+      throw new InvalidWorkspaceConversationModelOutputError(
+        "The model output was truncated.",
+      );
+    }
+
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(response.content);
+    } catch (error) {
+      throw new InvalidWorkspaceConversationModelOutputError(
+        "The model returned invalid JSON.",
+        error,
+      );
+    }
+
+    const interpretation = validateWorkspaceConversationInterpretation(parsed);
+    if (input.mode === "opening" &&
+      (interpretation.intent !== "question" || interpretation.changes.length !== 0 ||
+        interpretation.presentationIntent !== "none")) {
+      throw new InvalidWorkspaceConversationModelOutputError(
+        "Opening response must not propose TripState changes.",
+      );
+    }
+    logger.info(
+      {
+        event: logEvents.workspaceConversationInterpreted,
+        requestId: input.requestId,
+        intent: interpretation.intent,
+        presentationIntent: interpretation.presentationIntent,
+        changedFields: interpretation.changes.map((change) => change.field),
+      },
+      "Workspace conversation interpreted",
+    );
+
+    return interpretation;
+  } catch (error) {
+    logger.warn(
+      {
+        event: logEvents.workspaceConversationFailed,
+        requestId: input.requestId,
+        error: serializeError(error),
+      },
+      "Workspace conversation interpretation failed",
+    );
+    throw error;
+  }
+}

@@ -8,8 +8,8 @@ import { TripNotFoundError } from "@/domain/trip/trip-errors";
 import { AmapLocationProvider } from "@/platform/location-provider/amap-location-provider";
 import { readGuestId } from "@/platform/identity/guest-identity";
 import { TripStateNotFoundError } from "@/server/journey/journey-errors";
-import { checkGeneratePlanReadiness } from "@/server/location/generate-plan-readiness";
-import { LocationService } from "@/server/location/location-service";
+import { checkGeneratePlanReadiness } from "@/server/destination/generate-plan-readiness";
+import { LocationService } from "@/server/destination/location-service";
 import { logger } from "@/platform/observability/logger";
 import { serializeError } from "@/platform/observability/serialize-error";
 

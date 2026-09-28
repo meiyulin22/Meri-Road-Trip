@@ -85,9 +85,19 @@ Two rules hold the layers apart:
   depends on a port declared there, never on a provider SDK. Swapping Amap or
   Moonshot means writing one new adapter, not editing application logic.
 
+`src/server/` holds one directory per capability, so a whole flow reads top to
+bottom in one place instead of being spread across technology-named folders.
+
+```text
+src/server/journey/         Creating, loading, and updating a Journey
+src/server/conversation/    Interpreting a Workspace message and choosing the reply
+src/server/destination/     Confirming a destination names a real place
+src/server/recommendation/  Turning a stated preference into ranked destination cards
+```
+
 ```text
 src/platform/llm/                Structured-output port, Moonshot adapter
-src/platform/location-provider/  Amap adapters
+src/platform/location-provider/  Location and suggestion ports, Amap adapters
 src/platform/search/             Search ports, Bocha and JustOne adapters
 src/platform/persistence/        Repository ports at the top, with the Postgres
                                  and in-memory adapters and the Drizzle schema
@@ -122,12 +132,6 @@ is not supported yet: there is no service worker or offline cache.
 
 ## What's next
 
-- **Restructure `src/server/` by capability.** `src/platform/` is done. The
-  directories under `src/server/` are still named after technology (`ai/`,
-  `location/`, `discovery/`), which scatters one capability across many of
-  them — reading the recommendation flow currently means jumping between
-  directories. These are being consolidated into one directory per capability:
-  journey, conversation, destination, recommendation.
 - **Move Meri's reply wording into one place.** The text Meri says about dates
   and trip length is currently built in several modules, with one decision tree
   duplicated between two of them.

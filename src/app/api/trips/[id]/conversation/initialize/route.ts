@@ -6,7 +6,7 @@ import { NextResponse } from "next/server";
 import { TripNotFoundError } from "@/domain/trip/trip-errors";
 import {
   InvalidWorkspaceConversationModelOutputError,
-} from "@/server/ai/workspace-conversation-interpreter";
+} from "@/server/conversation/workspace-conversation-interpreter";
 import {
   LlmProviderRequestError,
   LlmProviderTimeoutError,
@@ -16,8 +16,8 @@ import { readGuestId } from "@/platform/identity/guest-identity";
 import { TripStateNotFoundError } from "@/server/journey/journey-errors";
 import { logger, logEvents } from "@/platform/observability/logger";
 import { serializeError } from "@/platform/observability/serialize-error";
-import { OpeningConversationNotEligibleError } from "@/server/trip-message/opening-conversation-service";
-import { openingConversationService } from "@/server/trip-message/opening-conversation-service-instance";
+import { OpeningConversationNotEligibleError } from "@/server/conversation/opening-conversation-service";
+import { openingConversationService } from "@/server/conversation/opening-conversation-service-instance";
 
 function getRequestContext(): { referenceDate: string; timezone: string } {
   const timezone = process.env.MERI_TIMEZONE?.trim() ||

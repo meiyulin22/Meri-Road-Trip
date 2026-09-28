@@ -5,7 +5,7 @@ import {
   InvalidLocationSuggestionQueryError,
   LocationSuggestionProviderError,
   LocationSuggestionService,
-} from "@/server/location/location-suggestion-service";
+} from "@/server/destination/location-suggestion-service";
 import { logger, logEvents } from "@/platform/observability/logger";
 
 function errorResponse(status: number, code: string, message: string): Response {

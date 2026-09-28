@@ -54,7 +54,7 @@ export async function POST(_request: Request, context: RouteContext): Promise<Re
   if (!ownerGuestId || !isValidJourneyId(tripId)) return notFound();
   const [{ journeyService }, { tripMessageService }] = await Promise.all([
     import("@/server/journey/journey-service-instance"),
-    import("@/server/trip-message/trip-message-service-instance"),
+    import("@/server/conversation/trip-message-service-instance"),
   ]);
   return handleDestinationMissingGuidancePost(
     tripId,
