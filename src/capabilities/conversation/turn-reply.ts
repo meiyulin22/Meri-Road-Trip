@@ -79,11 +79,15 @@ export function capturedDetailsNote(tripState: TripState): string {
   return "";
 }
 
+/**
+ * Origin belongs on this list: a plan has to know where the user leaves from, and
+ * settling the destination is the moment that becomes the next useful question.
+ */
 export function missingDetailsInvitation(tripState: TripState): string {
-  const hasDate = tripState.startDate.state !== "missing" || tripState.endDate.state !== "missing";
-  const hasDuration = tripState.duration.state !== "missing";
-  if (!hasDate && !hasDuration) return "；如果愿意，也可以继续补充出发时间和行程天数。";
-  if (!hasDate) return "；如果愿意，也可以继续补充出发时间。";
-  if (!hasDuration) return "；如果愿意，也可以继续补充行程天数。";
-  return "。";
+  const missing = [
+    tripState.origin.state === "missing" ? "出发地" : null,
+    tripState.startDate.state === "missing" && tripState.endDate.state === "missing" ? "出发时间" : null,
+    tripState.duration.state === "missing" ? "行程天数" : null,
+  ].filter((detail): detail is string => detail !== null);
+  return missing.length === 0 ? "。" : `；如果愿意，也可以继续补充${missing.join("、")}。`;
 }

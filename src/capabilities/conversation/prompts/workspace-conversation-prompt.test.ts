@@ -2,6 +2,10 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import type { TripState } from "@/domain/trip-state/trip-state";
+import {
+  certaintyStateGuidance,
+  tripStateFieldGuidance,
+} from "@/capabilities/journey/prompts/trip-state-field-guidance";
 import { buildWorkspaceConversationSystemPrompt } from "./workspace-conversation-prompt";
 
 const tripState: TripState = {
@@ -21,11 +25,10 @@ function prompt(mode: "conversation" | "opening" = "conversation") {
 
 test("conversation principle and presentation decision appear before implementation details", () => {
   const text = prompt();
-  assert.ok(text.indexOf("有偏好就推荐；没偏好就引导；有目的地就规划") < text.indexOf("Current authoritative TripState"));
+  assert.ok(text.indexOf("有偏好就推荐；没偏好就引导；有目的地就补齐信息") < text.indexOf("Current authoritative TripState"));
   assert.ok(text.indexOf("presentationIntent") < text.indexOf("resolve_location tool boundary"));
   assert.match(text, /destination choices would naturally help/);
   assert.match(text, /cards themselves clarify/);
-  assert.match(text, /Origin, exact dates, duration, budget, and province are optional/);
   assert.match(text, /authoritative destination is known, presentationIntent is "none"/);
   assert.match(text, /help with that Journey instead of suggesting alternatives/);
   assert.match(text, /Factual questions and destination disambiguation also use "none"/);
@@ -63,8 +66,29 @@ test("authority, update, tool, and structured-output boundaries remain explicit"
   assert.match(text, /Return only JSON matching the supplied schema/);
   assert.match(text, /Allowed fields: name, origin, destination, startDate, endDate, duration, transportPreference/);
   assert.match(text, /Each change has only field, state, value/);
-  assert.match(text, /transportPreference must be a known value/);
+  assert.match(text, /transportPreference may be known only as one of/);
   assert.match(text, /approximate startDate/);
+});
+
+test("the plan itself is left to Generate plan and the details it runs on are asked for", () => {
+  const text = prompt();
+  assert.match(text, /Generate plan produces the plan, not this conversation/);
+  assert.match(text, /Never write an itinerary, a day-by-day schedule, a route, or a daily pace/);
+  assert.match(text, /Origin, dates, and duration are what a plan runs on rather than optional refinements/);
+  assert.match(text, /origin first while it is missing/);
+  assert.match(text, /say the Journey is ready for Generate plan/);
+  assert.doesNotMatch(text, /optional refinements\./);
+});
+
+test("field semantics are the same text the first-message extractor states", () => {
+  // The two prompts drifted once, and only the extractor resolved a relative
+  // date. Sharing the text is the fix, so both must carry it verbatim.
+  const text = prompt();
+  assert.ok(text.includes(certaintyStateGuidance));
+  assert.ok(text.includes(tripStateFieldGuidance));
+  assert.match(text, /startDate and endDate use YYYY-MM-DD only when known/);
+  assert.match(text, /Resolve sufficiently definite relative dates, such as "明天"/);
+  assert.match(text, /"我想明天出发" → known startDate holding the date the reference date resolves to/);
 });
 
 test("opening mode uses established TripState without conversation instructions", () => {

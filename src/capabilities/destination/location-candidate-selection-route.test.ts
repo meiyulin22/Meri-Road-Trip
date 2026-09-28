@@ -147,7 +147,7 @@ test("successful selection persists one follow-up, returns it, and restores it o
   assert.equal(firstBody.assistantMessage.role, "assistant");
   assert.match(firstBody.assistantMessage.content, /现在已经可以开始生成旅行计划/);
   assert.match(firstBody.assistantMessage.content, /Generate plan/);
-  assert.match(firstBody.assistantMessage.content, /出发时间和行程天数/);
+  assert.match(firstBody.assistantMessage.content, /继续补充出发地、出发时间、行程天数/);
   assert.doesNotMatch(firstBody.assistantMessage.content, /poi-a|吉林省|126\.55|匹配到地点/);
   assert.deepEqual(await repository.listByTripId(tripId), [message, firstBody.assistantMessage]);
 

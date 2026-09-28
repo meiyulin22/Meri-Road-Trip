@@ -1,4 +1,4 @@
-import { transportPreferences } from "@/domain/trip-draft/trip-draft";
+import { certaintyStateGuidance, tripStateFieldGuidance } from "./trip-state-field-guidance";
 
 export interface TripDraftPromptContext {
   readonly referenceDate: string;
@@ -15,11 +15,7 @@ Reference date: ${referenceDate}
 Timezone: ${timezone}
 
 Return only data that conforms to the supplied JSON schema. Do not invent facts.
-Every field must use exactly one certainty state:
-- known: the information is sufficiently definite.
-- approximate: the user's intent is clear, but the value is intentionally broad, coarse, approximate, or expressed as a natural-language range.
-- missing: the user did not provide the information; value must be null.
-- ambiguous: the user provided multiple reasonable interpretations and choosing one would require an assumption.
+${certaintyStateGuidance}
 
 Preserve the user's meaning, not your explanation of it.
 - Values contain only useful, concise, user-facing trip information.
@@ -28,13 +24,7 @@ Preserve the user's meaning, not your explanation of it.
 - Do not invent precision. For example, do not turn "今年冬天" into "2026-12-01".
 - When alternatives are supplied, preserve the alternatives and mark them ambiguous; do not silently choose one.
 
-Field guidance:
-- origin is where the user will depart from. destination is where the user wants to go.
-- startDate and endDate use YYYY-MM-DD only when known. Approximate date expressions remain in the user's natural language.
-- Resolve sufficiently definite relative dates, such as "明天", using the reference date and timezone.
-- duration preserves expressions such as "一周" or "大概一周".
-- transportPreference may be known only as one of: ${transportPreferences.join(", ")}.
-- A concise trip name may be inferred only from clearly supplied trip details.
+${tripStateFieldGuidance}
 
 destinationDisambiguation is an auxiliary signal, not a TripState field. Return exactly {"state":"known","value":["place 1","place 2"]} for a destination naming a broad or fuzzy real-world area, using 2–3 distinct concise concrete place expressions appropriate to the user's idea. Preserve the user's original destination value. Otherwise return exactly {"state":"missing","value":null}. 青岛 and 大理 are direct; 潮汕, 川西, 江南, and 阿尔卑斯 may need concrete choices; do not invent alternatives for nonsense such as 导弹市. These are examples, not fixed mappings. Expressions contain only place names and optional geographic qualification; never include provider IDs, coordinates, or selection metadata. The application verifies every proposed candidate before showing it.
 
