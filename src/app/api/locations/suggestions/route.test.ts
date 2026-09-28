@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import type { LocationSuggestionProvider } from "@/platform/location-provider/location-suggestion-provider";
-import { LocationSuggestionService } from "@/server/destination/location-suggestion-service";
+import { LocationSuggestionService } from "@/capabilities/destination/location-suggestion-service";
 
 import { handleLocationSuggestionsGet } from "./route";
 

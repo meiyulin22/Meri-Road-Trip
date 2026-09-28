@@ -1,7 +1,7 @@
 import { z } from "zod";
 
 import type { DestinationCandidate } from "@/domain/location/destination-candidates";
-import { buildDestinationRankerSystemPrompt } from "@/server/recommendation/prompts/destination-ranker-prompt";
+import { buildDestinationRankerSystemPrompt } from "@/capabilities/recommendation/prompts/destination-ranker-prompt";
 import type { DiscoverySearchResult } from "@/platform/search/discovery-search";
 import type { DestinationRecommendationContext } from "./destination-recommendation-context";
 import { createAiSdkKimiClientFromEnvironment } from "@/platform/llm/ai-sdk-kimi-client";

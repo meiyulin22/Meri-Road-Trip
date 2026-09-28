@@ -1,4 +1,4 @@
-import type { DestinationRecommendationContext } from "@/server/recommendation/destination-recommendation-context";
+import type { DestinationRecommendationContext } from "@/capabilities/recommendation/destination-recommendation-context";
 import type { DiscoverySearchResult } from "@/platform/search/discovery-search";
 
 export function buildDestinationCandidateSystemPrompt(

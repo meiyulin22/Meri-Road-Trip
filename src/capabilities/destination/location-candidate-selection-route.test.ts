@@ -8,7 +8,7 @@ import { TripNotFoundError } from "@/domain/trip/trip-errors";
 import { InMemoryTripMessageRepository } from "@/platform/persistence/in-memory/in-memory-trip-message-repository";
 import { checkGeneratePlanReadiness } from "./generate-plan-readiness";
 import { LocationService } from "./location-service";
-import { locationCandidateSelectionMessageId } from "@/server/conversation/location-candidate-selection-id";
+import { locationCandidateSelectionMessageId } from "@/capabilities/conversation/location-candidate-selection-id";
 
 import { handleLocationCandidateSelectionPost } from "@/app/api/trips/[id]/location-candidate-selection/route";
 

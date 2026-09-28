@@ -6,11 +6,11 @@ import type { TripState, TripStatePatch } from "@/domain/trip-state/trip-state";
 import { TripNotFoundError } from "@/domain/trip/trip-errors";
 import { AmapLocationProvider } from "@/platform/location-provider/amap-location-provider";
 import { readGuestId } from "@/platform/identity/guest-identity";
-import { TripStateNotFoundError } from "@/server/journey/journey-errors";
-import { checkGeneratePlanReadiness } from "@/server/destination/generate-plan-readiness";
-import { LocationService } from "@/server/destination/location-service";
-import { locationCandidateSelectionReply } from "@/server/destination/location-candidate-selection-reply";
-import { locationCandidateSelectionMessageId } from "@/server/conversation/location-candidate-selection-id";
+import { TripStateNotFoundError } from "@/capabilities/journey/journey-errors";
+import { checkGeneratePlanReadiness } from "@/capabilities/destination/generate-plan-readiness";
+import { LocationService } from "@/capabilities/destination/location-service";
+import { locationCandidateSelectionReply } from "@/capabilities/destination/location-candidate-selection-reply";
+import { locationCandidateSelectionMessageId } from "@/capabilities/conversation/location-candidate-selection-id";
 
 type Dependencies = {
   readonly loadJourney: (tripId: string, ownerGuestId: string) => Promise<{ tripState: TripState }>;
@@ -101,8 +101,8 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   } catch {
     return Response.json({ error: "Invalid candidate selection." }, { status: 400 });
   }
-  const { journeyService } = await import("@/server/journey/journey-service-instance");
-  const { tripMessageService } = await import("@/server/conversation/trip-message-service-instance");
+  const { journeyService } = await import("@/capabilities/journey/journey-service-instance");
+  const { tripMessageService } = await import("@/capabilities/conversation/trip-message-service-instance");
   return handleLocationCandidateSelectionPost(id, readGuestId(await cookies()), body, {
     loadJourney: (tripId, owner) => journeyService.loadJourney(tripId, owner),
     listMessages: (tripId, owner) => tripMessageService.listMessages(tripId, owner),

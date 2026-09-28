@@ -7,10 +7,10 @@ import { notFound } from "next/navigation";
 import { TripWorkspace } from "@/components/trip-workspace/trip-workspace";
 import { TripNotFoundError } from "@/domain/trip/trip-errors";
 import { readGuestId } from "@/platform/identity/guest-identity";
-import { TripStateNotFoundError } from "@/server/journey/journey-errors";
-import { journeyService } from "@/server/journey/journey-service-instance";
-import { tripMessageService } from "@/server/conversation/trip-message-service-instance";
-import { destinationMissingGuidanceMessageId } from "@/server/conversation/destination-missing-guidance";
+import { TripStateNotFoundError } from "@/capabilities/journey/journey-errors";
+import { journeyService } from "@/capabilities/journey/journey-service-instance";
+import { tripMessageService } from "@/capabilities/conversation/trip-message-service-instance";
+import { destinationMissingGuidanceMessageId } from "@/capabilities/conversation/destination-missing-guidance";
 
 import styles from "@/components/trip-workspace/trip-workspace.module.css";
 

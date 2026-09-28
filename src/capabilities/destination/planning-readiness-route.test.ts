@@ -3,7 +3,7 @@ import test from "node:test";
 
 import type { TripState } from "@/domain/trip-state/trip-state";
 import { TripNotFoundError } from "@/domain/trip/trip-errors";
-import { TripStateNotFoundError } from "@/server/journey/journey-errors";
+import { TripStateNotFoundError } from "@/capabilities/journey/journey-errors";
 
 import { handlePlanningReadinessGet } from "@/app/api/trips/[id]/planning-readiness/route";
 

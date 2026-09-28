@@ -20,22 +20,22 @@ import {
   interpretWorkspaceConversation,
   InvalidWorkspaceConversationModelOutputError,
   InvalidWorkspaceConversationRequestError,
-} from "@/server/conversation/workspace-conversation-interpreter";
-import { selectRecentConversationMessages } from "@/server/conversation/workspace-conversation-context";
-import { destinationRecommendationDependencies, persistConversationalRecommendationTurn } from "@/server/recommendation/destination-recommendation-use-case";
-import { InvalidDestinationRecommendationOutputError } from "@/server/recommendation/destination-recommendation-generator";
+} from "@/capabilities/conversation/workspace-conversation-interpreter";
+import { selectRecentConversationMessages } from "@/capabilities/conversation/workspace-conversation-context";
+import { destinationRecommendationDependencies, persistConversationalRecommendationTurn } from "@/capabilities/recommendation/destination-recommendation-use-case";
+import { InvalidDestinationRecommendationOutputError } from "@/capabilities/recommendation/destination-recommendation-generator";
 import { AmapLocationProvider } from "@/platform/location-provider/amap-location-provider";
-import { TripStateNotFoundError } from "@/server/journey/journey-errors";
-import { journeyService } from "@/server/journey/journey-service-instance";
+import { TripStateNotFoundError } from "@/capabilities/journey/journey-errors";
+import { journeyService } from "@/capabilities/journey/journey-service-instance";
 import { readGuestId } from "@/platform/identity/guest-identity";
-import { LocationService } from "@/server/destination/location-service";
-import { replyForDestinationDisambiguation } from "@/server/destination/verify-destination-disambiguation";
+import { LocationService } from "@/capabilities/destination/location-service";
+import { replyForDestinationDisambiguation } from "@/capabilities/destination/verify-destination-disambiguation";
 import {
   persistWorkspacePatchWithDisambiguation,
   replyAfterDestinationResolution,
-} from "@/server/destination/post-update-destination-resolution";
+} from "@/capabilities/destination/post-update-destination-resolution";
 import { logger, logEvents } from "@/platform/observability/logger";
-import { tripMessageService } from "@/server/conversation/trip-message-service-instance";
+import { tripMessageService } from "@/capabilities/conversation/trip-message-service-instance";
 import { serializeError } from "@/platform/observability/serialize-error";
 
 type ErrorResponse = {

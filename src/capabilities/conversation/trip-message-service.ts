@@ -6,7 +6,7 @@ import {
   type TripMessagePresentation,
 } from "@/domain/trip-message/trip-message";
 import type { TripMessageRepository } from "@/platform/persistence/trip-message-repository";
-import type { TripService } from "@/server/journey/trip-service";
+import type { TripService } from "@/capabilities/journey/trip-service";
 import { openingAssistantMessageId } from "./opening-assistant-id";
 import { destinationMissingGuidanceContent, destinationMissingGuidanceMessageId } from "./destination-missing-guidance";
 import { locationCandidateSelectionMessageId } from "./location-candidate-selection-id";

@@ -10,15 +10,15 @@ import {
   guestIdCookieName,
   guestIdCookieOptions,
 } from "@/platform/identity/guest-identity";
-import { JourneyCreationError } from "@/server/journey/journey-errors";
+import { JourneyCreationError } from "@/capabilities/journey/journey-errors";
 import { AmapLocationProvider } from "@/platform/location-provider/amap-location-provider";
-import { createJourneyWithOpening } from "@/server/journey/create-journey-with-opening";
-import { journeyService } from "@/server/journey/journey-service-instance";
-import { LocationService } from "@/server/destination/location-service";
-import { verifyDestinationDisambiguation } from "@/server/destination/verify-destination-disambiguation";
+import { createJourneyWithOpening } from "@/capabilities/journey/create-journey-with-opening";
+import { journeyService } from "@/capabilities/journey/journey-service-instance";
+import { LocationService } from "@/capabilities/destination/location-service";
+import { verifyDestinationDisambiguation } from "@/capabilities/destination/verify-destination-disambiguation";
 import { logger, logEvents } from "@/platform/observability/logger";
 import { serializeError } from "@/platform/observability/serialize-error";
-import { openingConversationService } from "@/server/conversation/opening-conversation-service-instance";
+import { openingConversationService } from "@/capabilities/conversation/opening-conversation-service-instance";
 
 function getRequestContext(): { referenceDate: string; timezone: string } {
   const timezone = process.env.MERI_TIMEZONE?.trim() ||

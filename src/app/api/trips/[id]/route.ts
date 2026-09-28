@@ -3,7 +3,7 @@ import { randomUUID } from "node:crypto";
 import { cookies } from "next/headers";
 
 import { readGuestId } from "@/platform/identity/guest-identity";
-import { journeyService } from "@/server/journey/journey-service-instance";
+import { journeyService } from "@/capabilities/journey/journey-service-instance";
 import { logger, logEvents } from "@/platform/observability/logger";
 import { serializeError } from "@/platform/observability/serialize-error";
 

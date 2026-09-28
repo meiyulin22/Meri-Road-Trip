@@ -3,7 +3,7 @@ import test from "node:test";
 
 import type { TripState } from "@/domain/trip-state/trip-state";
 import type { LocationProvider } from "@/platform/location-provider/location-provider";
-import { LocationService } from "@/server/destination/location-service";
+import { LocationService } from "@/capabilities/destination/location-service";
 
 import { createResolveLocationTool } from "./resolve-location";
 

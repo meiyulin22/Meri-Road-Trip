@@ -1,4 +1,4 @@
-import type { DestinationRecommendationContext } from "@/server/recommendation/destination-recommendation-context";
+import type { DestinationRecommendationContext } from "@/capabilities/recommendation/destination-recommendation-context";
 
 export function buildDestinationRankerSystemPrompt(context: DestinationRecommendationContext): string {
   const trigger = context.source === "explicit_action"

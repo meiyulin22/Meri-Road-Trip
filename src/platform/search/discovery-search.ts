@@ -1,4 +1,4 @@
-import type { DestinationRecommendationContext } from "@/server/recommendation/destination-recommendation-context";
+import type { DestinationRecommendationContext } from "@/capabilities/recommendation/destination-recommendation-context";
 import { logger } from "@/platform/observability/logger";
 
 export type DiscoverySearchResult = {

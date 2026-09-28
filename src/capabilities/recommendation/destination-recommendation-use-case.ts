@@ -1,7 +1,7 @@
 import type { TripMessage } from "@/domain/trip-message/trip-message";
 import type { TripState, TripStatePatch } from "@/domain/trip-state/trip-state";
 import type { WorkspaceConversationInterpretation } from "@/domain/trip-state/workspace-conversation";
-import type { TripMessageService } from "@/server/conversation/trip-message-service";
+import type { TripMessageService } from "@/capabilities/conversation/trip-message-service";
 import { buildConversationalDestinationRecommendationContext, type DestinationRecommendationContext } from "./destination-recommendation-context";
 import { runDestinationRecommendationWorkflow, type DestinationRecommendationWorkflowResult } from "./destination-recommendation-workflow";
 

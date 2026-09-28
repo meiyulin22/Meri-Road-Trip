@@ -2,8 +2,8 @@ import { UserRound } from "lucide-react";
 import Image from "next/image";
 import { cookies } from "next/headers";
 
-import { journeySummaryRepository } from "@/server/journey/journey-summary-repository-instance";
-import { loadMyJourneys } from "@/server/journey/my-journeys";
+import { journeySummaryRepository } from "@/capabilities/journey/journey-summary-repository-instance";
+import { loadMyJourneys } from "@/capabilities/journey/my-journeys";
 
 import { PixelHeading } from "../ui/pixel-heading-character";
 import { HomeEntrance } from "./home-entrance";

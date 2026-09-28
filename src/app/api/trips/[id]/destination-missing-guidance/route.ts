@@ -6,7 +6,7 @@ import type { TripMessage } from "@/domain/trip-message/trip-message";
 import type { TripState } from "@/domain/trip-state/trip-state";
 import { TripNotFoundError } from "@/domain/trip/trip-errors";
 import { readGuestId } from "@/platform/identity/guest-identity";
-import { TripStateNotFoundError } from "@/server/journey/journey-errors";
+import { TripStateNotFoundError } from "@/capabilities/journey/journey-errors";
 import { logger } from "@/platform/observability/logger";
 import { serializeError } from "@/platform/observability/serialize-error";
 
@@ -53,8 +53,8 @@ export async function POST(_request: Request, context: RouteContext): Promise<Re
   const ownerGuestId = readGuestId(await cookies());
   if (!ownerGuestId || !isValidJourneyId(tripId)) return notFound();
   const [{ journeyService }, { tripMessageService }] = await Promise.all([
-    import("@/server/journey/journey-service-instance"),
-    import("@/server/conversation/trip-message-service-instance"),
+    import("@/capabilities/journey/journey-service-instance"),
+    import("@/capabilities/conversation/trip-message-service-instance"),
   ]);
   return handleDestinationMissingGuidancePost(
     tripId,

@@ -2,7 +2,7 @@ import { tool } from "ai";
 import { z } from "zod";
 
 import type { TripState } from "@/domain/trip-state/trip-state";
-import type { LocationService } from "@/server/destination/location-service";
+import type { LocationService } from "@/capabilities/destination/location-service";
 import { logger, logEvents } from "@/platform/observability/logger";
 
 interface ResolveLocationToolContext {

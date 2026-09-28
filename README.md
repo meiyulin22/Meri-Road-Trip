@@ -71,7 +71,7 @@ docs/             Product and architecture documents
 src/app/          What the URLs are: App Router pages and route handlers
 src/components/   What the screen looks like: React components
 src/domain/       What Meri's concepts are: pure types and validation, no IO
-src/server/       What Meri can do: application logic
+src/capabilities/ What Meri can do: one directory per capability
 src/platform/     How Meri talks to the outside world: ports and adapters
 ```
 
@@ -85,14 +85,15 @@ Two rules hold the layers apart:
   depends on a port declared there, never on a provider SDK. Swapping Amap or
   Moonshot means writing one new adapter, not editing application logic.
 
-`src/server/` holds one directory per capability, so a whole flow reads top to
-bottom in one place instead of being spread across technology-named folders.
+`src/capabilities/` is named after what the code does, not where it runs, and
+holds one directory per capability, so a whole flow reads top to bottom in one
+place. It contains no React components.
 
 ```text
-src/server/journey/         Creating, loading, and updating a Journey
-src/server/conversation/    Interpreting a Workspace message and choosing the reply
-src/server/destination/     Confirming a destination names a real place
-src/server/recommendation/  Turning a stated preference into ranked destination cards
+src/capabilities/journey/         Creating, loading, and updating a Journey
+src/capabilities/conversation/    Interpreting a Workspace message and choosing the reply
+src/capabilities/destination/     Confirming a destination names a real place
+src/capabilities/recommendation/  Turning a stated preference into ranked destination cards
 ```
 
 ```text

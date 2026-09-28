@@ -12,7 +12,7 @@ import {
   extractTripDraft,
   InvalidModelOutputError,
   InvalidTripDraftRequestError,
-} from "@/server/journey/trip-draft-extractor";
+} from "@/capabilities/journey/trip-draft-extractor";
 import { logger, logEvents } from "@/platform/observability/logger";
 import { serializeError } from "@/platform/observability/serialize-error";
 

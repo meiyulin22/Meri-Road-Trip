@@ -5,7 +5,7 @@ import type { TripMessage } from "@/domain/trip-message/trip-message";
 import type { TripState, TripStatePatch } from "@/domain/trip-state/trip-state";
 import type { WorkspaceConversationInterpretation } from "@/domain/trip-state/workspace-conversation";
 import { InMemoryTripMessageRepository } from "@/platform/persistence/in-memory/in-memory-trip-message-repository";
-import { TripMessageService } from "@/server/conversation/trip-message-service";
+import { TripMessageService } from "@/capabilities/conversation/trip-message-service";
 import { persistConversationalRecommendationTurn, shouldCreateConversationalRecommendations } from "./destination-recommendation-use-case";
 
 const tripId = "3d17d2c7-fd9b-4748-b751-3a76a9a920be";

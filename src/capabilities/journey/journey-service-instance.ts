@@ -1,7 +1,7 @@
 import { PostgresTripStateRepository } from "@/platform/persistence/postgres/postgres-trip-state-repository";
 import { db } from "@/platform/persistence/database/db";
 import { tripRepository, tripService } from "./trip-service-instance";
-import { tripMessageService } from "@/server/conversation/trip-message-service-instance";
+import { tripMessageService } from "@/capabilities/conversation/trip-message-service-instance";
 
 import { JourneyService } from "./journey-service";
 

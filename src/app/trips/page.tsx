@@ -5,8 +5,8 @@ import Link from "next/link";
 import { cookies } from "next/headers";
 
 import type { JourneySummary } from "@/platform/persistence/journey-summary-repository";
-import { journeySummaryRepository } from "@/server/journey/journey-summary-repository-instance";
-import { loadMyJourneys } from "@/server/journey/my-journeys";
+import { journeySummaryRepository } from "@/capabilities/journey/journey-summary-repository-instance";
+import { loadMyJourneys } from "@/capabilities/journey/my-journeys";
 
 import { JourneyDeleteAction } from "./journey-delete-action";
 import styles from "./trips.module.css";

@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 
 import type { TripState } from "../src/domain/trip-state/trip-state";
-import { interpretWorkspaceConversation } from "@/server/conversation/workspace-conversation-interpreter";
+import { interpretWorkspaceConversation } from "@/capabilities/conversation/workspace-conversation-interpreter";
 
 const cases = {
   A: {

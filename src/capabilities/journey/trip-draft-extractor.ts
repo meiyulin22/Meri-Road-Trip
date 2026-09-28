@@ -5,7 +5,7 @@ import {
 import { validateDestinationDisambiguation } from "@/domain/location/destination-disambiguation";
 import { createAiSdkKimiClientFromEnvironment } from "@/platform/llm/ai-sdk-kimi-client";
 import type { StructuredOutputModelClient } from "@/platform/llm/kimi-client";
-import { buildTripDraftSystemPrompt } from "@/server/journey/prompts/trip-draft-prompt";
+import { buildTripDraftSystemPrompt } from "@/capabilities/journey/prompts/trip-draft-prompt";
 import { logger, logEvents } from "@/platform/observability/logger";
 import { serializeError } from "@/platform/observability/serialize-error";
 

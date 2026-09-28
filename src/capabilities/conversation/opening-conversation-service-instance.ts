@@ -1,5 +1,5 @@
 import { interpretWorkspaceConversation } from "./workspace-conversation-interpreter";
-import { journeyService } from "@/server/journey/journey-service-instance";
+import { journeyService } from "@/capabilities/journey/journey-service-instance";
 import { tripMessageService } from "./trip-message-service-instance";
 import { OpeningConversationService } from "./opening-conversation-service";
 

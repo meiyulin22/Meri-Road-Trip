@@ -1,12 +1,12 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { tripDraftJsonSchema } from "@/server/journey/trip-draft-extractor";
-import { workspaceConversationJsonSchema } from "@/server/conversation/workspace-conversation-interpreter";
-import { interpretWorkspaceConversation } from "@/server/conversation/workspace-conversation-interpreter";
+import { tripDraftJsonSchema } from "@/capabilities/journey/trip-draft-extractor";
+import { workspaceConversationJsonSchema } from "@/capabilities/conversation/workspace-conversation-interpreter";
+import { interpretWorkspaceConversation } from "@/capabilities/conversation/workspace-conversation-interpreter";
 import type { TripState } from "@/domain/trip-state/trip-state";
 import type { LocationProvider } from "@/platform/location-provider/location-provider";
-import { LocationService } from "@/server/destination/location-service";
+import { LocationService } from "@/capabilities/destination/location-service";
 import {
   AiSdkKimiClient,
   createAiSdkKimiClientFromEnvironment,

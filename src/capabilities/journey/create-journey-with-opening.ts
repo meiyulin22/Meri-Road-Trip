@@ -1,8 +1,8 @@
 import { validateTripDraftDomain, type TripDraft } from "@/domain/trip-draft/trip-draft";
 import type { TripMessagePresentation } from "@/domain/trip-message/trip-message";
-import type { LocationResolveResult } from "@/server/destination/location-service";
-import type { DestinationDisambiguationResult } from "@/server/destination/verify-destination-disambiguation";
-import { replyForDestinationDisambiguation } from "@/server/destination/verify-destination-disambiguation";
+import type { LocationResolveResult } from "@/capabilities/destination/location-service";
+import type { DestinationDisambiguationResult } from "@/capabilities/destination/verify-destination-disambiguation";
+import { replyForDestinationDisambiguation } from "@/capabilities/destination/verify-destination-disambiguation";
 
 import type { Journey } from "./journey-service";
 

@@ -9,9 +9,9 @@ import type {
   StructuredOutputConversationMessage,
   StructuredOutputModelClient,
 } from "@/platform/llm/kimi-client";
-import { buildWorkspaceConversationSystemPrompt } from "@/server/conversation/prompts/workspace-conversation-prompt";
-import { createResolveLocationTool } from "@/server/conversation/tools/resolve-location";
-import { LocationService } from "@/server/destination/location-service";
+import { buildWorkspaceConversationSystemPrompt } from "@/capabilities/conversation/prompts/workspace-conversation-prompt";
+import { createResolveLocationTool } from "@/capabilities/conversation/tools/resolve-location";
+import { LocationService } from "@/capabilities/destination/location-service";
 import { logger, logEvents } from "@/platform/observability/logger";
 import { serializeError } from "@/platform/observability/serialize-error";
 
