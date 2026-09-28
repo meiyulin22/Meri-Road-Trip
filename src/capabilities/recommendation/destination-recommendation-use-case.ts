@@ -2,6 +2,7 @@ import type { TripMessage } from "@/domain/trip-message/trip-message";
 import type { TripState, TripStatePatch } from "@/domain/trip-state/trip-state";
 import type { WorkspaceConversationInterpretation } from "@/domain/trip-state/workspace-conversation";
 import type { TripMessageService } from "@/capabilities/conversation/trip-message-service";
+import { logEvents, logger } from "@/platform/observability/logger";
 import { buildConversationalDestinationRecommendationContext, type DestinationRecommendationContext } from "./destination-recommendation-context";
 import { runDestinationRecommendationWorkflow, type DestinationRecommendationWorkflowResult } from "./destination-recommendation-workflow";
 
@@ -32,6 +33,19 @@ export function destinationRecommendationDependencies(): DestinationRecommendati
   return { runWorkflow: runDestinationRecommendationWorkflow };
 }
 
+/**
+ * The model writes its reply before the workflow runs, so it assumed cards would
+ * follow. When they do, its reply is the one written about what the user actually
+ * said and it stands. When the workflow found nothing, that assumption failed and
+ * only the workflow can say so.
+ */
+function recommendationTurnContent(
+  modelReply: string,
+  result: DestinationRecommendationWorkflowResult,
+): string {
+  return result.presentation ? modelReply : result.content;
+}
+
 export async function persistConversationalRecommendationTurn(input: {
   readonly tripId: string;
   readonly ownerGuestId: string;
@@ -45,6 +59,19 @@ export async function persistConversationalRecommendationTurn(input: {
   readonly persistTurn: Pick<TripMessageService, "persistSuccessfulTurn">["persistSuccessfulTurn"];
 }): Promise<readonly [TripMessage, TripMessage] | null> {
   if (!shouldCreateConversationalRecommendations(input.interpretation, input.tripState, input.patch)) {
+    // The model asked for cards on a turn that cannot offer them, so its reply is
+    // the whole turn. That is legitimate, but it is also how a weak reply reaches
+    // the user, and it is invisible without this line.
+    if (input.interpretation.presentationIntent === "destination_recommendations") {
+      logger.warn({
+        event: logEvents.recommendationIntentDeclined,
+        requestId: input.requestId,
+        tripId: input.tripId,
+        destinationState: input.tripState.destination.state,
+        patchDestinationState: input.patch?.destination?.state ?? null,
+        disambiguationState: input.interpretation.destinationDisambiguation?.state ?? null,
+      }, "Destination recommendations were requested on a turn that cannot offer them");
+    }
     return null;
   }
   const context = buildConversationalDestinationRecommendationContext(
@@ -54,7 +81,7 @@ export async function persistConversationalRecommendationTurn(input: {
     tripId: input.tripId,
     ownerGuestId: input.ownerGuestId,
     userContent: input.currentUserText,
-    assistantContent: reply.content,
+    assistantContent: recommendationTurnContent(input.interpretation.reply, reply),
     ...(reply.presentation ? { assistantPresentation: reply.presentation } : {}),
   });
 }

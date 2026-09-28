@@ -29,11 +29,8 @@ import { TripStateNotFoundError } from "@/capabilities/journey/journey-errors";
 import { journeyService } from "@/capabilities/journey/journey-service-instance";
 import { readGuestId } from "@/platform/identity/guest-identity";
 import { LocationService } from "@/capabilities/destination/location-service";
-import { replyForDestinationDisambiguation } from "@/capabilities/destination/verify-destination-disambiguation";
-import {
-  persistWorkspacePatchWithDisambiguation,
-  replyAfterDestinationResolution,
-} from "@/capabilities/destination/post-update-destination-resolution";
+import { persistWorkspacePatchWithDisambiguation } from "@/capabilities/destination/post-update-destination-resolution";
+import { resolveWorkspaceTurn } from "@/capabilities/conversation/workspace-turn-branch";
 import { logger, logEvents } from "@/platform/observability/logger";
 import { tripMessageService } from "@/capabilities/conversation/trip-message-service-instance";
 import { serializeError } from "@/platform/observability/serialize-error";
@@ -181,12 +178,16 @@ export async function POST(request: Request) {
       ...destinationRecommendationDependencies(),
       persistTurn: (input) => tripMessageService.persistSuccessfulTurn(input),
     });
-    const finalInterpretation = {
-      ...interpretation,
-      reply: recommendationMessages?.[1].content ?? (disambiguationResult && destinationExpression
-        ? replyForDestinationDisambiguation(destinationExpression, disambiguationResult, persistedPatch !== null)
-        : replyAfterDestinationResolution(interpretation, persistedTripState, resolution, persistedPatch)),
-    };
+    const turn = resolveWorkspaceTurn({
+      interpretation,
+      recommendationReply: recommendationMessages?.[1].content ?? null,
+      disambiguationResult,
+      destinationExpression: destinationExpression ?? null,
+      tripState: persistedTripState,
+      resolution,
+      persistedPatch,
+    });
+    const finalInterpretation = { ...interpretation, reply: turn.reply };
 
     if (persistedPatch !== null) {
       logger.info(
@@ -216,6 +217,7 @@ export async function POST(request: Request) {
         event: logEvents.tripMessageTurnPersisted,
         ...context,
         tripId,
+        branch: turn.branch,
         messageIds: messages.map((message) => message.id),
       },
       "Trip conversation turn persisted",

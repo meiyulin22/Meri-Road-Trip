@@ -85,7 +85,9 @@ test("conversational trigger uses real context and persists one assistant with c
   assert.equal(workflowCalls, 1);
   assert.ok(messages);
   assert.equal(messages[0].content, currentUserText);
-  assert.equal(messages[1].content, recommendations.content);
+  // The cards came out, so the model's own sentence about what the user just said
+  // is the text above them. The workflow's fixed sentence is only the fallback.
+  assert.equal(messages[1].content, interpretation.reply);
   assert.equal(messages[1].presentation?.type, "destination_recommendations");
   assert.equal(messages[1].presentation?.type === "destination_recommendations" &&
     messages[1].presentation.destinations.length, 2);
@@ -121,6 +123,9 @@ test("zero-result conversational workflow persists one user and one assistant wi
   });
   assert.ok(messages);
   assert.equal(messages[1].presentation, undefined);
+  // Nothing was found, so the model's reply promised cards that never came and the
+  // workflow is the only thing that can say so.
+  assert.equal(messages[1].content, "这次没有筛出合适的目的地。");
   assert.equal((await service.listMessages(tripId, "owner")).length, 2);
 });
 
@@ -145,6 +150,7 @@ test("meaningful preference turns invoke the shared workflow without optional Jo
       async persistTurn(input) {
         persistenceCalls += 1;
         assert.equal(input.userContent, currentUserText);
+        assert.equal(input.assistantContent, interpretation.reply);
         assert.deepEqual(input.assistantPresentation, recommendations.presentation);
         return [
           { id: "user", tripId, role: "user", content: currentUserText, createdAt: "2026-09-27T00:00:00.000Z" },

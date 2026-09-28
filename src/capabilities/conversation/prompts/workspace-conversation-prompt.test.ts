@@ -32,7 +32,11 @@ test("conversation principle and presentation decision appear before implementat
   assert.match(text, /authoritative destination is known, presentationIntent is "none"/);
   assert.match(text, /help with that Journey instead of suggesting alternatives/);
   assert.match(text, /Factual questions and destination disambiguation also use "none"/);
-  assert.match(text, /brief acknowledgement only/);
+  assert.match(text, /A message that is not about travel gets one short, warm reply and one question that leads back to the trip/);
+  assert.match(text, /never refuse to engage, lecture the user, or answer an unrelated subject at length/);
+  assert.match(text, /write a full reply to what the user just said that leads into the choices/);
+  assert.match(text, /your reply is the one the user reads/);
+  assert.doesNotMatch(text, /brief acknowledgement only/);
 });
 
 test("examples cover recommend, guide, destination update, factual question, and disambiguation", () => {
