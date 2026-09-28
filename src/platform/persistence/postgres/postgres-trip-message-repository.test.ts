@@ -175,10 +175,10 @@ test("persists and hydrates a recommendation presentation in the existing messag
 
 test("persists and hydrates ambiguous location candidates in existing presentation JSONB", async () => {
   const presentation = { type: "location_candidates" as const, candidates: [
-    { providerId: "poi-1", name: "吉林市", region: "吉林省", address: null,
-      longitude: 126.55, latitude: 43.84, coordinateSystem: "GCJ-02" as const },
-    { providerId: "poi-2", name: "吉林", region: "中国东北", address: null,
-      longitude: 125.32, latitude: 43.89, coordinateSystem: "GCJ-02" as const },
+    { providerId: "poi-1", name: "吉林市", province: "吉林省", city: "吉林市", district: null,
+      region: "吉林省", address: null, longitude: 126.55, latitude: 43.84, coordinateSystem: "GCJ-02" as const },
+    { providerId: "poi-2", name: "吉林", province: null, city: null, district: null,
+      region: "中国东北", address: null, longitude: 125.32, latitude: 43.89, coordinateSystem: "GCJ-02" as const },
   ] };
   const message: TripMessage = { ...assistantMessage, presentation };
   const { database, inspection } = createDatabaseDouble({ rows: [{ ...message, presentation }] });
@@ -190,8 +190,8 @@ test("persists and hydrates ambiguous location candidates in existing presentati
 
 test("persists and hydrates a single location confirmation card", async () => {
   const presentation = { type: "location_candidates" as const, candidates: [
-    { providerId: "poi-1", name: "潮州市", region: "广东省", address: null,
-      longitude: 116.62, latitude: 23.66, coordinateSystem: "GCJ-02" as const },
+    { providerId: "poi-1", name: "潮州市", province: "广东省", city: "潮州市", district: null,
+      region: "广东省", address: null, longitude: 116.62, latitude: 23.66, coordinateSystem: "GCJ-02" as const },
   ] };
   const message: TripMessage = { ...assistantMessage, presentation };
   const { database } = createDatabaseDouble({ rows: [{ ...message, presentation }] });

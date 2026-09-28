@@ -21,8 +21,10 @@ const message: TripMessage = {
   id: "assistant-1", tripId, role: "assistant", content: "请选择具体地点。",
   createdAt: "2026-09-26T00:00:00.000Z",
   presentation: { type: "location_candidates", candidates: [
-    { providerId: "poi-a", name: "吉林市", region: "吉林省", address: "市中心", longitude: 126.55, latitude: 43.84, coordinateSystem: "GCJ-02" },
-    { providerId: "poi-b", name: "吉林", region: "中国东北", address: null, longitude: 125.32, latitude: 43.89, coordinateSystem: "GCJ-02" },
+    { providerId: "poi-a", name: "吉林市", province: "吉林省", city: "吉林市", district: null,
+      region: "吉林省", address: "市中心", longitude: 126.55, latitude: 43.84, coordinateSystem: "GCJ-02" },
+    { providerId: "poi-b", name: "吉林", province: null, city: null, district: null,
+      region: "中国东北", address: null, longitude: 125.32, latitude: 43.89, coordinateSystem: "GCJ-02" },
   ] },
 };
 

@@ -101,10 +101,10 @@ test("persists ambiguous candidates with the assistant side of the real conversa
   const messageRepository = createRepository();
   const service = new TripMessageService({ tripService: createTripService(guestA), repository: messageRepository.repository });
   const assistantPresentation = { type: "location_candidates" as const, candidates: [
-    { providerId: "poi-1", name: "吉林市", region: "吉林省", address: null,
-      longitude: 126.55, latitude: 43.84, coordinateSystem: "GCJ-02" as const },
-    { providerId: "poi-2", name: "吉林", region: "中国东北", address: null,
-      longitude: 125.32, latitude: 43.89, coordinateSystem: "GCJ-02" as const },
+    { providerId: "poi-1", name: "吉林市", province: "吉林省", city: "吉林市", district: null,
+      region: "吉林省", address: null, longitude: 126.55, latitude: 43.84, coordinateSystem: "GCJ-02" as const },
+    { providerId: "poi-2", name: "吉林", province: null, city: null, district: null,
+      region: "中国东北", address: null, longitude: 125.32, latitude: 43.89, coordinateSystem: "GCJ-02" as const },
   ] };
   const [user, assistant] = await service.persistSuccessfulTurn({ tripId, ownerGuestId: guestA,
     userContent: "去吉林", assistantContent: "请选择具体地点", assistantPresentation });
@@ -121,10 +121,10 @@ test("opening candidates persist on the assistant message and survive a fresh re
     now: () => new Date("2026-09-22T08:00:00.000Z"),
   });
   const presentation = { type: "location_candidates" as const, candidates: [
-    { providerId: "poi-a", name: "青岛市", region: "山东省", address: null,
-      longitude: 120.38, latitude: 36.07, coordinateSystem: "GCJ-02" as const },
-    { providerId: "poi-b", name: "青岛", region: "山东省", address: null,
-      longitude: 120.39, latitude: 36.08, coordinateSystem: "GCJ-02" as const },
+    { providerId: "poi-a", name: "青岛市", province: "山东省", city: "青岛市", district: null,
+      region: "山东省", address: null, longitude: 120.38, latitude: 36.07, coordinateSystem: "GCJ-02" as const },
+    { providerId: "poi-b", name: "青岛", province: "山东省", city: "青岛市", district: null,
+      region: "山东省", address: null, longitude: 120.39, latitude: 36.08, coordinateSystem: "GCJ-02" as const },
   ] };
   const user = await service.persistInitialUserMessage({ tripId, ownerGuestId: guestA, content: "去青岛" });
   const assistant = await service.persistOpeningAssistant({ tripId, ownerGuestId: guestA,

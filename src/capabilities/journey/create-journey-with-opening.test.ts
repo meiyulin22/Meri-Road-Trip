@@ -91,7 +91,8 @@ test("creation failure does not call AI and absent initial message does not need
 });
 
 const candidateA: LocationCandidate = {
-  providerId: "poi-a", name: "青岛市", region: "山东省", address: null,
+  providerId: "poi-a", name: "青岛市", province: "山东省", city: "青岛市", district: null,
+  region: "山东省", address: null,
   longitude: 120.38, latitude: 36.07, coordinateSystem: "GCJ-02",
 };
 const candidateB: LocationCandidate = {

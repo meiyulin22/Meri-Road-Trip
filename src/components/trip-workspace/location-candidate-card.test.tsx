@@ -19,9 +19,12 @@ test.before(async () => {
 });
 
 const candidates: LocationCandidate[] = [
-  { providerId: "shantou", name: "汕头市", region: "广东省 · 汕头市", address: "金平区", longitude: 116.68, latitude: 23.35, coordinateSystem: "GCJ-02" },
-  { providerId: "chaozhou", name: "潮州市", region: "广东省 · 潮州市", address: "湘桥区", longitude: 116.62, latitude: 23.65, coordinateSystem: "GCJ-02" },
-  { providerId: "jieyang", name: "揭阳市", region: "广东省 · 揭阳市", address: "榕城区", longitude: 116.37, latitude: 23.55, coordinateSystem: "GCJ-02" },
+  { providerId: "shantou", name: "汕头市", province: "广东省", city: "汕头市", district: "金平区",
+    region: "广东省 · 汕头市", address: "金平区", longitude: 116.68, latitude: 23.35, coordinateSystem: "GCJ-02" },
+  { providerId: "chaozhou", name: "潮州市", province: "广东省", city: "潮州市", district: "湘桥区",
+    region: "广东省 · 潮州市", address: "湘桥区", longitude: 116.62, latitude: 23.65, coordinateSystem: "GCJ-02" },
+  { providerId: "jieyang", name: "揭阳市", province: "广东省", city: "揭阳市", district: "榕城区",
+    region: "广东省 · 揭阳市", address: "榕城区", longitude: 116.37, latitude: 23.55, coordinateSystem: "GCJ-02" },
 ];
 
 const unresolved: TripState = {

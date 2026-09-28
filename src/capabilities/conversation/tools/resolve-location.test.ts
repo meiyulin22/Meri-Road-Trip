@@ -25,8 +25,10 @@ test("stored Journey destination returns ambiguous candidates without changing T
       return {
         status: "success",
         candidates: [
-          { providerId: "city", name: "朝阳市", region: "辽宁省", address: null, longitude: 119.94, latitude: 47.18, coordinateSystem: "GCJ-02" },
-          { providerId: "district", name: "朝阳区", region: "北京市", address: null, longitude: 116.4, latitude: 39.9, coordinateSystem: "GCJ-02" },
+          { providerId: "city", name: "朝阳市", province: "辽宁省", city: "朝阳市", district: null,
+            region: "辽宁省", address: null, longitude: 119.94, latitude: 47.18, coordinateSystem: "GCJ-02" },
+          { providerId: "district", name: "朝阳区", province: "北京市", city: "北京市", district: "朝阳区",
+            region: "北京市", address: null, longitude: 116.4, latitude: 39.9, coordinateSystem: "GCJ-02" },
         ],
       };
     },

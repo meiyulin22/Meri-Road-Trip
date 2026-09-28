@@ -15,7 +15,8 @@ const interpretation: WorkspaceConversationInterpretation = {
   intent: "question", presentationIntent: "none", changes: [], reply: "模型自己那句话。",
 };
 const candidate: LocationCandidate = {
-  providerId: "amap:1", name: "潮州", region: "广东省", address: "广东省潮州市",
+  providerId: "amap:1", name: "潮州", province: "广东省", city: "潮州市", district: null,
+  region: "广东省", address: "广东省潮州市",
   longitude: 116.6, latitude: 23.66, coordinateSystem: "GCJ-02",
 };
 

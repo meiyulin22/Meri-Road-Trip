@@ -49,7 +49,8 @@ test("validates structured assistant presentation and keeps plain messages compa
 });
 
 test("validates provider-returned location candidate presentation without accepting arbitrary shapes", () => {
-  const candidate = { providerId: "poi-1", name: "吉林市", region: "吉林省", address: null,
+  const candidate = { providerId: "poi-1", name: "吉林市",
+    province: "吉林省", city: "吉林市", district: null, region: "吉林省", address: null,
     longitude: 126.55, latitude: 43.84, coordinateSystem: "GCJ-02" };
   const presentation = { type: "location_candidates", candidates: [candidate, { ...candidate, providerId: "poi-2" }] };
   assert.deepEqual(validateTripMessage({ ...message, presentation }).presentation, presentation);
@@ -59,4 +60,21 @@ test("validates provider-returned location candidate presentation without accept
   assert.throws(() => validateTripMessage({ ...message, presentation: { ...presentation, candidates: [] } }), InvalidTripMessageError);
   assert.throws(() => validateTripMessage({ ...message, presentation: { ...presentation, candidates: [candidate, candidate] } }), InvalidTripMessageError);
   assert.throws(() => validateTripMessage({ ...message, presentation: { ...presentation, candidates: [candidate, { ...candidate, providerId: "" }] } }), InvalidTripMessageError);
+});
+
+test("a candidate stored before the administrative levels existed still opens", () => {
+  // A Journey saved then has no such keys, and it still has to open, so an absent
+  // level reads as an unknown one rather than as a corrupt message.
+  const stored = { providerId: "poi-1", name: "吉林市", region: "吉林省", address: null,
+    longitude: 126.55, latitude: 43.84, coordinateSystem: "GCJ-02" };
+  assert.deepEqual(validateTripMessage({ ...message,
+    presentation: { type: "location_candidates", candidates: [stored] } }).presentation, {
+    type: "location_candidates",
+    candidates: [{ ...stored, province: null, city: null, district: null }],
+  });
+  // Present but blank is a corrupt level, not an absent one.
+  assert.throws(() => validateTripMessage({ ...message, presentation: { type: "location_candidates",
+    candidates: [{ ...stored, province: "  " }] } }), InvalidTripMessageError);
+  assert.throws(() => validateTripMessage({ ...message, presentation: { type: "location_candidates",
+    candidates: [{ ...stored, prov: "吉林省" }] } }), InvalidTripMessageError);
 });

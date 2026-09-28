@@ -49,10 +49,10 @@ test("restored recommendation presentation remains attached to its assistant mes
 
 test("refresh-loaded ambiguous candidates remain attached to their assistant message", () => {
   const presentation = { type: "location_candidates" as const, candidates: [
-    { providerId: "poi-1", name: "吉林市", region: "吉林省", address: null,
-      longitude: 126.55, latitude: 43.84, coordinateSystem: "GCJ-02" as const },
-    { providerId: "poi-2", name: "吉林", region: "中国东北", address: null,
-      longitude: 125.32, latitude: 43.89, coordinateSystem: "GCJ-02" as const },
+    { providerId: "poi-1", name: "吉林市", province: "吉林省", city: "吉林市", district: null,
+      region: "吉林省", address: null, longitude: 126.55, latitude: 43.84, coordinateSystem: "GCJ-02" as const },
+    { providerId: "poi-2", name: "吉林", province: null, city: null, district: null,
+      region: "中国东北", address: null, longitude: 125.32, latitude: 43.89, coordinateSystem: "GCJ-02" as const },
   ] };
   const [restored] = toWorkspaceUIMessages([{ id: "assistant", tripId: "trip-1", role: "assistant",
     content: "请选择具体地点", presentation, createdAt: "2026-09-26T00:00:00.000Z" }]);

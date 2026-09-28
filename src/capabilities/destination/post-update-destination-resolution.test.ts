@@ -19,11 +19,13 @@ const original: TripState = {
   transportPreference: { state: "missing" },
 };
 const city: LocationCandidate = {
-  providerId: "jilin-city", name: "吉林市", region: "吉林省", address: null,
+  providerId: "jilin-city", name: "吉林市", province: "吉林省", city: "吉林市", district: null,
+  region: "吉林省", address: null,
   longitude: 126.55, latitude: 43.84, coordinateSystem: "GCJ-02",
 };
 const province: LocationCandidate = {
-  providerId: "jilin-province", name: "吉林", region: "中国东北", address: null,
+  providerId: "jilin-province", name: "吉林", province: null, city: null, district: null,
+  region: "中国东北", address: null,
   longitude: 125.32, latitude: 43.89, coordinateSystem: "GCJ-02",
 };
 const interpretation: WorkspaceConversationInterpretation = {

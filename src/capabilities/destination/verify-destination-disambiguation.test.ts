@@ -8,7 +8,8 @@ import { persistWorkspacePatchWithDisambiguation } from "./post-update-destinati
 import { replyForDestinationDisambiguation, verifyDestinationDisambiguation } from "./verify-destination-disambiguation";
 
 const candidate: LocationCandidate = {
-  providerId: "chaozhou", name: "潮州市", region: "广东省", address: null,
+  providerId: "chaozhou", name: "潮州市", province: "广东省", city: "潮州市", district: null,
+  region: "广东省", address: null,
   longitude: 116.62, latitude: 23.66, coordinateSystem: "GCJ-02",
 };
 const state: TripState = {

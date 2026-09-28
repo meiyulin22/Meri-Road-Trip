@@ -74,7 +74,8 @@ test("a name from the request, an unknown card, and a candidate message cannot u
     async loadJourney() { return { tripState: state }; },
     async listMessages() { return [message, { ...message, id: "assistant-candidates",
       presentation: { type: "location_candidates" as const, candidates: [
-        { providerId: "poi-a", name: "汕头市", region: "广东", address: null,
+        { providerId: "poi-a", name: "汕头市", province: "广东省", city: "汕头市", district: null,
+          region: "广东", address: null,
           longitude: 116.68, latitude: 23.35, coordinateSystem: "GCJ-02" as const },
       ] } }]; },
     async updateTripState() { writes += 1; return state; },

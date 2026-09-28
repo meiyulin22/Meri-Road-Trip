@@ -122,21 +122,54 @@ function validatePresentation(value: unknown, role: TripMessageRole): TripMessag
   return { type: "destination_recommendations", destinations };
 }
 
+const locationCandidateKeys = [
+  "providerId", "name", "region", "address", "longitude", "latitude", "coordinateSystem",
+] as const;
+
+/**
+ * Messages stored before the provider's administrative levels were kept have no
+ * such keys, and a Journey saved then still has to open, so an absent level reads
+ * as an unknown one rather than as a corrupt message.
+ */
+const locationCandidateAreaKeys = ["province", "city", "district"] as const;
+
 function validateLocationCandidate(value: unknown): LocationCandidate {
-  if (!isRecord(value) || !hasExactKeys(value, ["providerId", "name", "region", "address", "longitude", "latitude", "coordinateSystem"]) ||
+  if (!isRecord(value) || !hasKnownKeys(value, locationCandidateKeys, locationCandidateAreaKeys) ||
     !isPresentText(value.providerId) || !isPresentText(value.name) ||
     !(value.region === null || isPresentText(value.region)) ||
     !(value.address === null || isPresentText(value.address)) ||
+    locationCandidateAreaKeys.some((key) =>
+      Object.hasOwn(value, key) && !(value[key] === null || isPresentText(value[key]))) ||
     typeof value.longitude !== "number" || !Number.isFinite(value.longitude) || Math.abs(value.longitude) > 180 ||
     typeof value.latitude !== "number" || !Number.isFinite(value.latitude) || Math.abs(value.latitude) > 90 ||
     value.coordinateSystem !== "GCJ-02") {
     throw new InvalidTripMessageError("TripMessage location candidate is invalid.");
   }
-  return value as unknown as LocationCandidate;
+  return {
+    providerId: value.providerId,
+    name: value.name,
+    province: storedAreaLevel(value.province),
+    city: storedAreaLevel(value.city),
+    district: storedAreaLevel(value.district),
+    region: value.region as string | null,
+    address: value.address as string | null,
+    longitude: value.longitude,
+    latitude: value.latitude,
+    coordinateSystem: "GCJ-02",
+  };
 }
 
-function hasExactKeys(value: Record<string, unknown>, keys: readonly string[]): boolean {
-  return Object.keys(value).length === keys.length && keys.every((key) => Object.hasOwn(value, key));
+function storedAreaLevel(value: unknown): string | null {
+  return isPresentText(value) ? value : null;
+}
+
+function hasKnownKeys(
+  value: Record<string, unknown>,
+  required: readonly string[],
+  optional: readonly string[],
+): boolean {
+  return required.every((key) => Object.hasOwn(value, key)) &&
+    Object.keys(value).every((key) => required.includes(key) || optional.includes(key));
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

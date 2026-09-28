@@ -128,8 +128,10 @@ test("Workspace tool loop passes history, current user, destination resolution, 
       return {
         status: "success",
         candidates: [
-          { providerId: "city", name: "阿尔山市", region: "内蒙古自治区", address: null, longitude: 119.94, latitude: 47.18, coordinateSystem: "GCJ-02" },
-          { providerId: "park", name: "阿尔山国家森林公园", region: "内蒙古自治区", address: null, longitude: 120.42, latitude: 47.28, coordinateSystem: "GCJ-02" },
+          { providerId: "city", name: "阿尔山市", province: "内蒙古自治区", city: "兴安盟", district: "阿尔山市",
+            region: "内蒙古自治区", address: null, longitude: 119.94, latitude: 47.18, coordinateSystem: "GCJ-02" },
+          { providerId: "park", name: "阿尔山国家森林公园", province: "内蒙古自治区", city: "兴安盟", district: "阿尔山市",
+            region: "内蒙古自治区", address: null, longitude: 120.42, latitude: 47.28, coordinateSystem: "GCJ-02" },
         ],
       };
     },

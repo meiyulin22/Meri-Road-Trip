@@ -152,10 +152,10 @@ test("persists a deterministic opening assistant after the original user message
   const events: string[] = [];
   const openingAssistant = { content: "请选择具体地点。", presentation: { type: "location_candidates" as const,
     candidates: [
-      { providerId: "poi-a", name: "青岛市", region: "山东省", address: null,
-        longitude: 120.38, latitude: 36.07, coordinateSystem: "GCJ-02" as const },
-      { providerId: "poi-b", name: "青岛", region: "山东省", address: null,
-        longitude: 120.39, latitude: 36.08, coordinateSystem: "GCJ-02" as const },
+      { providerId: "poi-a", name: "青岛市", province: "山东省", city: "青岛市", district: null,
+        region: "山东省", address: null, longitude: 120.38, latitude: 36.07, coordinateSystem: "GCJ-02" as const },
+      { providerId: "poi-b", name: "青岛", province: "山东省", city: "青岛市", district: null,
+        region: "山东省", address: null, longitude: 120.39, latitude: 36.08, coordinateSystem: "GCJ-02" as const },
     ] } };
   const service = new JourneyService({
     tripService: {

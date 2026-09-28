@@ -23,7 +23,7 @@ function state(destination: TripState["destination"]): TripState {
 
 function candidate(providerId: string, region: string) {
   return {
-    providerId, name: "香格里拉", region, address: null,
+    providerId, name: "香格里拉", province: "云南省", city: "迪庆藏族自治州", district: "香格里拉市", region, address: null,
     longitude: 99.1, latitude: 28.2, coordinateSystem: "GCJ-02" as const,
   };
 }

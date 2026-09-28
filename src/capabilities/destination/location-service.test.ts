@@ -47,6 +47,9 @@ for (const destination of [
           candidates: [{
             providerId: "poi-1",
             name: "阿尔山",
+            province: "内蒙古自治区",
+            city: "兴安盟",
+            district: "阿尔山市",
             region: "内蒙古自治区 兴安盟 阿尔山市",
             address: null,
             longitude: 119.94,

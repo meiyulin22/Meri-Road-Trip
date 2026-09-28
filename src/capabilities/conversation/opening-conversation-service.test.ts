@@ -99,10 +99,10 @@ test("opening retry restores persisted ambiguous candidates without another mode
     id: openingAssistantMessageId(tripId), tripId, role: "assistant",
     content: "请选择具体地点。",
     presentation: { type: "location_candidates", candidates: [
-      { providerId: "poi-a", name: "青岛市", region: "山东省", address: null,
-        longitude: 120.38, latitude: 36.07, coordinateSystem: "GCJ-02" },
-      { providerId: "poi-b", name: "青岛", region: "山东省", address: null,
-        longitude: 120.39, latitude: 36.08, coordinateSystem: "GCJ-02" },
+      { providerId: "poi-a", name: "青岛市", province: "山东省", city: "青岛市", district: null,
+        region: "山东省", address: null, longitude: 120.38, latitude: 36.07, coordinateSystem: "GCJ-02" },
+      { providerId: "poi-b", name: "青岛", province: "山东省", city: "青岛市", district: null,
+        region: "山东省", address: null, longitude: 120.39, latitude: 36.08, coordinateSystem: "GCJ-02" },
     ] },
     createdAt: "2026-09-25T01:00:00.001Z",
   };

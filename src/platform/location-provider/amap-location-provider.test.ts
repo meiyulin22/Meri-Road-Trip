@@ -42,6 +42,9 @@ test("maps Amap POIs into Meri candidates and encodes the keyword", async () => 
     candidates: [{
       providerId: "B0123",
       name: "西湖风景名胜区",
+      province: "浙江省",
+      city: "杭州市",
+      district: "西湖区",
       region: "浙江省 杭州市 西湖区",
       address: "龙井路1号",
       longitude: 120.148629,
@@ -50,6 +53,31 @@ test("maps Amap POIs into Meri candidates and encodes the keyword", async () => 
     }],
   });
   assert.equal(JSON.stringify(result).includes("test-secret-key"), false);
+});
+
+test("administrative levels stay apart, and the joined region does not repeat one", async () => {
+  process.env.AMAP_API_KEY = "test-secret-key";
+  const fetcher: typeof fetch = async () => Response.json({ status: "1", pois: [
+    // A municipality is its own city, and Amap repeats the name at both levels.
+    { id: "bj", name: "故宫博物院", pname: "北京市", cityname: "北京市", adname: "东城区",
+      location: "116.397,39.918" },
+    // 甘孜州 is one 市-level area of 四川省; grouping by province needs both apart.
+    { id: "dc", name: "稻城亚丁风景区", pname: "四川省", cityname: "甘孜藏族自治州", adname: "稻城县",
+      location: "100.33,28.43" },
+    // A POI the provider filed without any administrative area at all.
+    { id: "none", name: "无名湖", location: "119.94,47.18" },
+  ] });
+
+  const result = await new AmapLocationProvider(fetcher).searchByKeyword("故宫");
+  assert.equal(result.status, "success");
+  if (result.status !== "success") return;
+  assert.deepEqual(result.candidates.map(({ province, city, district, region }) =>
+    ({ province, city, district, region })), [
+    { province: "北京市", city: "北京市", district: "东城区", region: "北京市 东城区" },
+    { province: "四川省", city: "甘孜藏族自治州", district: "稻城县",
+      region: "四川省 甘孜藏族自治州 稻城县" },
+    { province: null, city: null, district: null, region: null },
+  ]);
 });
 
 test("an empty successful search returns no candidates", async () => {

@@ -5,7 +5,8 @@ import type { LocationCandidate } from "./location";
 import { resolveDestinationCandidates } from "./destination-resolution-policy";
 
 function candidate(name: string, providerId: string, region: string | null = null): LocationCandidate {
-  return { providerId, name, region, address: null, longitude: 116.4, latitude: 39.9, coordinateSystem: "GCJ-02" };
+  return { providerId, name, province: null, city: null, district: null, region, address: null,
+    longitude: 116.4, latitude: 39.9, coordinateSystem: "GCJ-02" };
 }
 
 test("clear city resolves by name even when unrelated POIs precede it", () => {
@@ -51,4 +52,46 @@ test("zero valid matching candidates is unresolved, even if search returned unre
     status: "unresolved",
   });
   assert.deepEqual(resolveDestinationCandidates("开心市", []), { status: "unresolved" });
+});
+
+test("a fuller official name is the same place, so scenic destinations resolve", () => {
+  for (const [expression, name] of [
+    ["稻城亚丁", "稻城亚丁风景区"],
+    ["四姑娘山", "四姑娘山风景名胜区"],
+    ["贡嘎山", "贡嘎山国家级自然保护区"],
+    ["西湖", "西湖风景名胜区"],
+    ["普达措", "普达措国家公园"],
+  ] as const) {
+    const place = candidate(name, name);
+    assert.deepEqual(resolveDestinationCandidates(expression, [place]), {
+      status: "resolved", candidate: place,
+    });
+  }
+});
+
+test("a way to reach a place is not the place, so transport never resolves it", () => {
+  // 稻城亚丁机场 is 200km from the valley; a plan on its coordinates is the wrong plan.
+  for (const name of ["稻城亚丁机场", "稻城亚丁火车站", "稻城亚丁游客中心", "稻城亚丁酒店"]) {
+    assert.deepEqual(resolveDestinationCandidates("稻城亚丁", [candidate(name, name)]), {
+      status: "unresolved",
+    });
+  }
+});
+
+test("a province stays unresolved, because a plan cannot run on one", () => {
+  // Accepting 云南省 would settle the destination as a whole province and close the
+  // recommendation path, which is the opposite of what asking about a region means.
+  for (const [expression, name] of [["云南", "云南省"], ["西藏", "西藏自治区"]] as const) {
+    assert.deepEqual(resolveDestinationCandidates(expression, [candidate(name, name)]), {
+      status: "unresolved",
+    });
+  }
+});
+
+test("a scenic area and its city are genuinely different places, so they stay a choice", () => {
+  const scenic = candidate("黄山风景区", "scenic", "安徽省");
+  const city = candidate("黄山市", "city", "安徽省");
+  assert.deepEqual(resolveDestinationCandidates("黄山", [scenic, city]), {
+    status: "ambiguous", candidates: [scenic, city],
+  });
 });

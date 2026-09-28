@@ -50,13 +50,19 @@ function toCandidate(value: unknown): LocationCandidate | null {
   const point = coordinates(value.location);
   if (providerId === null || name === null || point === null) return null;
 
-  const regionParts = [value.pname, value.cityname, value.adname]
-    .map(optionalText)
-    .filter((part): part is string => part !== null);
+  // Amap repeats a level when it coincides with the one above (a municipality is
+  // its own city), so the joined form drops duplicates while the levels keep them.
+  const province = optionalText(value.pname);
+  const city = optionalText(value.cityname);
+  const district = optionalText(value.adname);
+  const regionParts = [province, city, district].filter((part): part is string => part !== null);
 
   return {
     providerId,
     name,
+    province,
+    city,
+    district,
     region: [...new Set(regionParts)].join(" ") || null,
     address: optionalText(value.address),
     ...point,
