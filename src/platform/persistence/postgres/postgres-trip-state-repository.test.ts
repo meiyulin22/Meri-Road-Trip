@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import type { TripState } from "@/domain/trip-state/trip-state";
-import { tripStates } from "@/server/database/schema/trip-states";
+import { tripStates } from "@/platform/persistence/database/schema/trip-states";
 
 import { PostgresTripStateRepository } from "./postgres-trip-state-repository";
 

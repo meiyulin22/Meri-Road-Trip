@@ -19,7 +19,7 @@ function getDatabaseUrl(): string {
 
 export default defineConfig({
   dialect: "postgresql",
-  schema: "./src/server/database/schema",
+  schema: "./src/platform/persistence/database/schema",
   out: "./drizzle",
   dbCredentials: {
     url: getDatabaseUrl(),

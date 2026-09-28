@@ -1,4 +1,4 @@
-import type { JourneySummary } from "@/repositories/journey-summary-repository";
+import type { JourneySummary } from "@/platform/persistence/journey-summary-repository";
 
 export function recentJourneysForHome(journeys: readonly JourneySummary[]): JourneySummary[] {
   return journeys.slice(0, 5);

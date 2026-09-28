@@ -9,13 +9,13 @@ import { LocationService, type LocationProvider } from "@/server/location/locati
 import {
   AiSdkKimiClient,
   createAiSdkKimiClientFromEnvironment,
-} from "@/server/ai/ai-sdk-kimi-client";
+} from "@/platform/llm/ai-sdk-kimi-client";
 import {
   LlmProviderRequestError,
   LlmProviderTimeoutError,
   MissingLlmConfigurationError,
   createKimiClientFromEnvironment,
-} from "@/server/ai/kimi-client";
+} from "@/platform/llm/kimi-client";
 
 const originalMoonshotApiKey = process.env.MOONSHOT_API_KEY;
 const originalMoonshotBaseUrl = process.env.MOONSHOT_BASE_URL;

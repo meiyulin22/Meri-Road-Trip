@@ -1,19 +1,19 @@
 import type { TripState } from "@/domain/trip-state/trip-state";
-import { AmapLocationProvider } from "@/infrastructure/location/amap-location-provider";
+import { AmapLocationProvider } from "@/platform/location-provider/amap-location-provider";
 import {
   validateWorkspaceConversationInterpretation,
   type WorkspaceConversationInterpretation,
 } from "@/domain/trip-state/workspace-conversation";
-import { createAiSdkKimiClientFromEnvironment } from "@/server/ai/ai-sdk-kimi-client";
+import { createAiSdkKimiClientFromEnvironment } from "@/platform/llm/ai-sdk-kimi-client";
 import type {
   StructuredOutputConversationMessage,
   StructuredOutputModelClient,
-} from "@/server/ai/kimi-client";
+} from "@/platform/llm/kimi-client";
 import { buildWorkspaceConversationSystemPrompt } from "@/server/ai/prompts/workspace-conversation-prompt";
 import { createResolveLocationTool } from "@/server/ai/tools/resolve-location";
 import { LocationService } from "@/server/location/location-service";
-import { logger, logEvents } from "@/server/observability/logger";
-import { serializeError } from "@/server/observability/serialize-error";
+import { logger, logEvents } from "@/platform/observability/logger";
+import { serializeError } from "@/platform/observability/serialize-error";
 
 export interface InterpretWorkspaceConversationInput {
   readonly message: string;

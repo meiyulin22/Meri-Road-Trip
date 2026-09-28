@@ -11,11 +11,11 @@ import {
   LlmProviderRequestError,
   LlmProviderTimeoutError,
   MissingLlmConfigurationError,
-} from "@/server/ai/kimi-client";
-import { readGuestId } from "@/server/identity/guest-identity";
+} from "@/platform/llm/kimi-client";
+import { readGuestId } from "@/platform/identity/guest-identity";
 import { TripStateNotFoundError } from "@/server/journey/journey-errors";
-import { logger, logEvents } from "@/server/observability/logger";
-import { serializeError } from "@/server/observability/serialize-error";
+import { logger, logEvents } from "@/platform/observability/logger";
+import { serializeError } from "@/platform/observability/serialize-error";
 import { OpeningConversationNotEligibleError } from "@/server/trip-message/opening-conversation-service";
 import { openingConversationService } from "@/server/trip-message/opening-conversation-service-instance";
 

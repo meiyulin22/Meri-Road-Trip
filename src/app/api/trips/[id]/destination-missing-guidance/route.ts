@@ -5,10 +5,10 @@ import { cookies } from "next/headers";
 import type { TripMessage } from "@/domain/trip-message/trip-message";
 import type { TripState } from "@/domain/trip-state/trip-state";
 import { TripNotFoundError } from "@/domain/trip/trip-errors";
-import { readGuestId } from "@/server/identity/guest-identity";
+import { readGuestId } from "@/platform/identity/guest-identity";
 import { TripStateNotFoundError } from "@/server/journey/journey-errors";
-import { logger } from "@/server/observability/logger";
-import { serializeError } from "@/server/observability/serialize-error";
+import { logger } from "@/platform/observability/logger";
+import { serializeError } from "@/platform/observability/serialize-error";
 
 type RouteContext = { params: Promise<{ id: string }> };
 const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;

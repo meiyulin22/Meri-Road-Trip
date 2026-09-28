@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import type { RankedDestinationCandidate } from "@/server/ai/destination-candidate-ranker";
-import { AmapLocationProvider } from "@/infrastructure/location/amap-location-provider";
+import { AmapLocationProvider } from "@/platform/location-provider/amap-location-provider";
 import { DestinationRecommendationEnricher } from "./destination-recommendation-enrichment";
 import { buildDestinationImageQuery, enrichRankedTopThree, usableBochaImageUrl } from "./enrich-ranked-destinations";
 

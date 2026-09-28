@@ -6,7 +6,7 @@ import { useReducedMotion } from "motion/react";
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState, type MouseEvent, type PointerEvent } from "react";
 
-import type { JourneySummary } from "@/repositories/journey-summary-repository";
+import type { JourneySummary } from "@/platform/persistence/journey-summary-repository";
 
 import { shouldLoopRecentJourneys, shouldOpenJourneyCard, visibleRecentJourneys } from "./recent-journeys-model";
 import { RecentJourneyActions } from "./recent-journey-actions";

@@ -1,4 +1,4 @@
-import { AmapLocationProvider } from "../src/infrastructure/location/amap-location-provider";
+import { AmapLocationProvider } from "../src/platform/location-provider/amap-location-provider";
 import { LocationService } from "../src/server/location/location-service";
 import type { TripState } from "../src/domain/trip-state/trip-state";
 

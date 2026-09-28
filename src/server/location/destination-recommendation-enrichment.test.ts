@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { AmapLocationProvider } from "@/infrastructure/location/amap-location-provider";
+import { AmapLocationProvider } from "@/platform/location-provider/amap-location-provider";
 import { DestinationRecommendationEnricher } from "./destination-recommendation-enrichment";
 
 const originalKey = process.env.AMAP_API_KEY;

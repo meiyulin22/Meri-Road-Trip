@@ -2,10 +2,10 @@ import { randomUUID } from "node:crypto";
 
 import { cookies } from "next/headers";
 
-import { readGuestId } from "@/server/identity/guest-identity";
+import { readGuestId } from "@/platform/identity/guest-identity";
 import { journeyService } from "@/server/journey/journey-service-instance";
-import { logger, logEvents } from "@/server/observability/logger";
-import { serializeError } from "@/server/observability/serialize-error";
+import { logger, logEvents } from "@/platform/observability/logger";
+import { serializeError } from "@/platform/observability/serialize-error";
 
 type TripRouteContext = {
   params: Promise<{ id: string }>;

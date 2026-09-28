@@ -1,8 +1,8 @@
 import { validateTripUserAction, type TripUserAction } from "@/domain/trip-user-action/trip-user-action";
-import type { TripUserActionRepository } from "@/repositories/trip-user-action-repository";
-import { tripUserActions } from "@/server/database/schema/trip-user-actions";
+import type { TripUserActionRepository } from "@/platform/persistence/trip-user-action-repository";
+import { tripUserActions } from "@/platform/persistence/database/schema/trip-user-actions";
 
-type Database = typeof import("@/server/database/db").db;
+type Database = typeof import("@/platform/persistence/database/db").db;
 
 export class PostgresTripUserActionRepository implements TripUserActionRepository {
   constructor(private readonly database: Database) {}

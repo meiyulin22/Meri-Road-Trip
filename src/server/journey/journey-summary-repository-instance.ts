@@ -1,4 +1,4 @@
-import { PostgresJourneySummaryRepository } from "@/infrastructure/persistence/postgres/postgres-journey-summary-repository";
-import { db } from "@/server/database/db";
+import { PostgresJourneySummaryRepository } from "@/platform/persistence/postgres/postgres-journey-summary-repository";
+import { db } from "@/platform/persistence/database/db";
 
 export const journeySummaryRepository = new PostgresJourneySummaryRepository(db);

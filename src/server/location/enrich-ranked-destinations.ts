@@ -1,6 +1,6 @@
-import { createBochaDestinationImageSearchFromEnvironment } from "@/infrastructure/location/bocha-destination-image-search";
+import { createBochaDestinationImageSearchFromEnvironment } from "@/platform/search/bocha-destination-image-search";
 import type { RankedDestinationCandidate } from "@/server/ai/destination-candidate-ranker";
-import type { DestinationImageSearch, DestinationImageSearchResult } from "./destination-image-search";
+import type { DestinationImageSearch, DestinationImageSearchResult } from "@/platform/search/destination-image-search";
 import { DestinationRecommendationEnricher } from "./destination-recommendation-enrichment";
 
 const MAX_RANKED_CANDIDATES = 3;

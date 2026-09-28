@@ -2,7 +2,7 @@ import type { LocationCandidate } from "@/domain/location/location";
 import { resolveDestinationCandidates, type DestinationResolution } from "@/domain/location/destination-resolution-policy";
 import { evaluatePlanningReadiness } from "@/domain/trip-state/planning-readiness";
 import type { LocationSelection, TripState } from "@/domain/trip-state/trip-state";
-import { logger, logEvents } from "@/server/observability/logger";
+import { logger, logEvents } from "@/platform/observability/logger";
 
 export type LocationSearchResult =
   | { readonly status: "success"; readonly candidates: readonly LocationCandidate[] }

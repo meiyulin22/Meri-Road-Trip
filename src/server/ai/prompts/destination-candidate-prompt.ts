@@ -1,5 +1,5 @@
 import type { DestinationRecommendationContext } from "@/server/ai/destination-recommendation-context";
-import type { DiscoverySearchResult } from "@/server/discovery/discovery-search";
+import type { DiscoverySearchResult } from "@/platform/search/discovery-search";
 
 export function buildDestinationCandidateSystemPrompt(
   context: DestinationRecommendationContext & { readonly discoveryResults?: readonly DiscoverySearchResult[] },

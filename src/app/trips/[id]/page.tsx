@@ -6,7 +6,7 @@ import { notFound } from "next/navigation";
 
 import { TripWorkspace } from "@/components/trip-workspace/trip-workspace";
 import { TripNotFoundError } from "@/domain/trip/trip-errors";
-import { readGuestId } from "@/server/identity/guest-identity";
+import { readGuestId } from "@/platform/identity/guest-identity";
 import { TripStateNotFoundError } from "@/server/journey/journey-errors";
 import { journeyService } from "@/server/journey/journey-service-instance";
 import { tripMessageService } from "@/server/trip-message/trip-message-service-instance";

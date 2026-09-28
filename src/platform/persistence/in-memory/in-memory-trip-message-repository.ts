@@ -1,5 +1,5 @@
 import type { TripMessage } from "@/domain/trip-message/trip-message";
-import type { TripMessageRepository } from "@/repositories/trip-message-repository";
+import type { TripMessageRepository } from "@/platform/persistence/trip-message-repository";
 
 export class InMemoryTripMessageRepository
   implements TripMessageRepository

@@ -1,5 +1,5 @@
 import type { Trip } from "@/domain/trip/trip";
-import type { TripRepository } from "@/repositories/trip-repository";
+import type { TripRepository } from "@/platform/persistence/trip-repository";
 
 export class InMemoryTripRepository implements TripRepository {
   private readonly trips = new Map<

@@ -3,11 +3,11 @@ import {
   type TripDraft,
 } from "@/domain/trip-draft/trip-draft";
 import { validateDestinationDisambiguation } from "@/domain/location/destination-disambiguation";
-import { createAiSdkKimiClientFromEnvironment } from "@/server/ai/ai-sdk-kimi-client";
-import type { StructuredOutputModelClient } from "@/server/ai/kimi-client";
+import { createAiSdkKimiClientFromEnvironment } from "@/platform/llm/ai-sdk-kimi-client";
+import type { StructuredOutputModelClient } from "@/platform/llm/kimi-client";
 import { buildTripDraftSystemPrompt } from "@/server/ai/prompts/trip-draft-prompt";
-import { logger, logEvents } from "@/server/observability/logger";
-import { serializeError } from "@/server/observability/serialize-error";
+import { logger, logEvents } from "@/platform/observability/logger";
+import { serializeError } from "@/platform/observability/serialize-error";
 
 export interface ExtractTripDraftInput {
   readonly message: string;

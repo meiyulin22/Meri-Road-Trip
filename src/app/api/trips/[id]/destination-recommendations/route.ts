@@ -10,11 +10,11 @@ import { buildDestinationRecommendationContext } from "@/server/ai/destination-r
 import { createDestinationRecommendationReply, destinationRecommendationDependencies, type DestinationRecommendationUseCaseDependencies } from "@/server/ai/destination-recommendation-use-case";
 import { InvalidDestinationCandidateOutputError } from "@/server/ai/destination-candidate-generator";
 import { InvalidDestinationRankingOutputError } from "@/server/ai/destination-candidate-ranker";
-import { LlmProviderRequestError, LlmProviderTimeoutError, MissingLlmConfigurationError } from "@/server/ai/kimi-client";
-import { readGuestId } from "@/server/identity/guest-identity";
+import { LlmProviderRequestError, LlmProviderTimeoutError, MissingLlmConfigurationError } from "@/platform/llm/kimi-client";
+import { readGuestId } from "@/platform/identity/guest-identity";
 import { TripStateNotFoundError } from "@/server/journey/journey-errors";
-import { logger } from "@/server/observability/logger";
-import { serializeError } from "@/server/observability/serialize-error";
+import { logger } from "@/platform/observability/logger";
+import { serializeError } from "@/platform/observability/serialize-error";
 
 type Dependencies = {
   readonly loadJourney: (tripId: string, ownerGuestId: string) => Promise<{ tripState: TripState }>;
@@ -91,9 +91,9 @@ export async function POST(_request: Request, { params }: { readonly params: Pro
   const [{ journeyService }, { tripMessageService }, { db }, { PostgresTripUserActionRepository }, { PostgresTripMessageRepository }] = await Promise.all([
     import("@/server/journey/journey-service-instance"),
     import("@/server/trip-message/trip-message-service-instance"),
-    import("@/server/database/db"),
-    import("@/infrastructure/persistence/postgres/postgres-trip-user-action-repository"),
-    import("@/infrastructure/persistence/postgres/postgres-trip-message-repository"),
+    import("@/platform/persistence/database/db"),
+    import("@/platform/persistence/postgres/postgres-trip-user-action-repository"),
+    import("@/platform/persistence/postgres/postgres-trip-message-repository"),
   ]);
   const actionRepository = new PostgresTripUserActionRepository(db);
   const messageRepository = new PostgresTripMessageRepository(db);

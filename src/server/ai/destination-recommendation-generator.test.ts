@@ -4,7 +4,7 @@ import test from "node:test";
 import type { TripMessage } from "@/domain/trip-message/trip-message";
 import type { TripState } from "@/domain/trip-state/trip-state";
 import type { TripUserAction } from "@/domain/trip-user-action/trip-user-action";
-import type { StructuredOutputModelClient, StructuredOutputModelRequest } from "./kimi-client";
+import type { StructuredOutputModelClient, StructuredOutputModelRequest } from "@/platform/llm/kimi-client";
 import { buildDestinationRecommendationContext } from "./destination-recommendation-context";
 import { generateDestinationRecommendations, InvalidDestinationRecommendationOutputError } from "./destination-recommendation-generator";
 

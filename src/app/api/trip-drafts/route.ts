@@ -7,14 +7,14 @@ import {
   LlmProviderRequestError,
   LlmProviderTimeoutError,
   MissingLlmConfigurationError,
-} from "@/server/ai/kimi-client";
+} from "@/platform/llm/kimi-client";
 import {
   extractTripDraft,
   InvalidModelOutputError,
   InvalidTripDraftRequestError,
 } from "@/server/ai/trip-draft-extractor";
-import { logger, logEvents } from "@/server/observability/logger";
-import { serializeError } from "@/server/observability/serialize-error";
+import { logger, logEvents } from "@/platform/observability/logger";
+import { serializeError } from "@/platform/observability/serialize-error";
 
 type ErrorResponse = {
   status: number;

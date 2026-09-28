@@ -6,7 +6,7 @@ import type { TripState } from "@/domain/trip-state/trip-state";
 import type { TripUserAction } from "@/domain/trip-user-action/trip-user-action";
 import { buildConversationalDestinationRecommendationContext, buildDestinationRecommendationContext } from "./destination-recommendation-context";
 import { generateDestinationCandidates, InvalidDestinationCandidateOutputError } from "./destination-candidate-generator";
-import type { StructuredOutputModelClient, StructuredOutputModelRequest } from "./kimi-client";
+import type { StructuredOutputModelClient, StructuredOutputModelRequest } from "@/platform/llm/kimi-client";
 
 const tripId = "3d17d2c7-fd9b-4748-b751-3a76a9a920be";
 const tripState: TripState = {

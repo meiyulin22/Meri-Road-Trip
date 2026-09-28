@@ -3,7 +3,7 @@ import { createRequire } from "node:module";
 import test from "node:test";
 import { renderToStaticMarkup } from "react-dom/server";
 
-import type { JourneySummary } from "@/repositories/journey-summary-repository";
+import type { JourneySummary } from "@/platform/persistence/journey-summary-repository";
 
 const nodeRequire = createRequire(import.meta.url);
 nodeRequire.extensions[".css"] = (module) => {

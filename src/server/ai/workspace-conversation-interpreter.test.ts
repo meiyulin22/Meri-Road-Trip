@@ -5,7 +5,7 @@ import type { TripState } from "@/domain/trip-state/trip-state";
 import type {
   StructuredOutputModelClient,
   StructuredOutputModelResponse,
-} from "@/server/ai/kimi-client";
+} from "@/platform/llm/kimi-client";
 import {
   interpretWorkspaceConversation,
   InvalidWorkspaceConversationModelOutputError,

@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 
-import { logger, logEvents } from "@/server/observability/logger";
-import { serializeError } from "@/server/observability/serialize-error";
+import { logger, logEvents } from "@/platform/observability/logger";
+import { serializeError } from "@/platform/observability/serialize-error";
 
 export function GET(request: Request) {
   const requestId = randomUUID();

@@ -1,4 +1,4 @@
-import type { DestinationImageSearch, DestinationImageSearchResult } from "@/server/location/destination-image-search";
+import type { DestinationImageSearch, DestinationImageSearchResult } from "@/platform/search/destination-image-search";
 
 const ENDPOINT = "https://api.bocha.cn/v1/ai-search";
 const RESULT_COUNT = 8;

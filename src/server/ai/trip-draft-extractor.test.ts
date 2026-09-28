@@ -9,7 +9,7 @@ import {
   LlmProviderRequestError,
   type StructuredOutputModelClient,
   type StructuredOutputModelResponse,
-} from "@/server/ai/kimi-client";
+} from "@/platform/llm/kimi-client";
 import {
   extractTripDraft,
   InvalidModelOutputError,

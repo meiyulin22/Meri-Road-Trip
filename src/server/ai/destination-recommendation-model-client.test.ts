@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { AiSdkKimiClient } from "./ai-sdk-kimi-client";
+import { AiSdkKimiClient } from "@/platform/llm/ai-sdk-kimi-client";
 import { destinationRecommendationJsonSchema } from "./destination-recommendation-generator";
 
 test("action-driven AI SDK call sends no synthetic user role and makes one provider request", async () => {

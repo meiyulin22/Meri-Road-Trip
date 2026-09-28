@@ -1,15 +1,15 @@
 import type { DestinationRecommendationPresentation } from "@/domain/trip-message/trip-message";
 import type { DestinationCandidate } from "@/domain/location/destination-candidates";
 import { deduplicateRecommendationDestinations } from "@/domain/location/recommendation-identity";
-import { createJustOneDiscoverySearchFromEnvironment } from "@/infrastructure/discovery/justone-discovery-search";
+import { createJustOneDiscoverySearchFromEnvironment } from "@/platform/search/justone-discovery-search";
 import { generateDestinationCandidates } from "@/server/ai/destination-candidate-generator";
 import { rankDestinationCandidates, type RankedDestinationCandidate } from "@/server/ai/destination-candidate-ranker";
 import type { DestinationRecommendationContext } from "@/server/ai/destination-recommendation-context";
-import { searchJourneyDiscovery, type DiscoverySearch, type DiscoverySearchResult } from "@/server/discovery/discovery-search";
+import { searchJourneyDiscovery, type DiscoverySearch, type DiscoverySearchResult } from "@/platform/search/discovery-search";
 import { filterDestinationCandidatesByAccess, type DestinationAccessChecker } from "@/server/location/destination-access-filter";
 import { enrichRankedTopThree, type TopThreeEnrichmentResult } from "@/server/location/enrich-ranked-destinations";
 import { createOfficialDestinationAccessCheckerFromEnvironment } from "@/server/location/official-destination-access-checker";
-import { logger } from "@/server/observability/logger";
+import { logger } from "@/platform/observability/logger";
 
 export type DestinationRecommendationWorkflowResult = {
   readonly content: string;

@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import type { DestinationCandidate } from "@/domain/location/destination-candidates";
-import type { StructuredOutputModelClient } from "./kimi-client";
+import type { StructuredOutputModelClient } from "@/platform/llm/kimi-client";
 import { LlmDestinationAccessEvidenceInterpreter, validateAccessInterpretation, type AccessEvidenceInput } from "./destination-access-evidence-interpreter";
 
 const candidate: DestinationCandidate = { id: "id-1", name: "示例线", region: "示例省", preferenceRationale: "Matches preferences." };

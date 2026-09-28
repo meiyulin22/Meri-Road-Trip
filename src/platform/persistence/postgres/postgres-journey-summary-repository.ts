@@ -1,11 +1,11 @@
 import { desc, eq, sql } from "drizzle-orm";
 
 import { validateTripState, type TripState, type TripStateField } from "@/domain/trip-state/trip-state";
-import type { JourneySummary, JourneySummaryRepository } from "@/repositories/journey-summary-repository";
-import { tripStates } from "@/server/database/schema/trip-states";
-import { trips } from "@/server/database/schema/trips";
+import type { JourneySummary, JourneySummaryRepository } from "@/platform/persistence/journey-summary-repository";
+import { tripStates } from "@/platform/persistence/database/schema/trip-states";
+import { trips } from "@/platform/persistence/database/schema/trips";
 
-type JourneySummaryDatabase = typeof import("@/server/database/db").db;
+type JourneySummaryDatabase = typeof import("@/platform/persistence/database/db").db;
 
 export class PostgresJourneySummaryRepository implements JourneySummaryRepository {
   constructor(private readonly database: JourneySummaryDatabase) {}

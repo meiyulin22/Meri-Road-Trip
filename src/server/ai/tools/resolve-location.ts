@@ -3,7 +3,7 @@ import { z } from "zod";
 
 import type { TripState } from "@/domain/trip-state/trip-state";
 import type { LocationService } from "@/server/location/location-service";
-import { logger, logEvents } from "@/server/observability/logger";
+import { logger, logEvents } from "@/platform/observability/logger";
 
 interface ResolveLocationToolContext {
   readonly tripState: TripState;

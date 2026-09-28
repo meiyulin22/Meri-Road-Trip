@@ -1,8 +1,8 @@
 import type { DestinationRecommendations } from "@/domain/location/destination-recommendations";
 import { resolveDestinationCandidates } from "@/domain/location/destination-resolution-policy";
 import { normalizeRecommendationName, normalizeRecommendationRegion } from "@/domain/location/recommendation-identity";
-import { AmapLocationProvider } from "@/infrastructure/location/amap-location-provider";
-import { logger } from "@/server/observability/logger";
+import { AmapLocationProvider } from "@/platform/location-provider/amap-location-provider";
+import { logger } from "@/platform/observability/logger";
 
 type Recommendation = DestinationRecommendations["destinations"][number];
 

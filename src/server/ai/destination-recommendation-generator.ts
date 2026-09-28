@@ -1,8 +1,8 @@
 import { validateDestinationRecommendations, type DestinationRecommendations } from "@/domain/location/destination-recommendations";
 import { buildDestinationRecommendationSystemPrompt } from "@/server/ai/prompts/destination-recommendation-prompt";
 import type { DestinationRecommendationContext } from "./destination-recommendation-context";
-import { createAiSdkKimiClientFromEnvironment } from "./ai-sdk-kimi-client";
-import type { StructuredOutputModelClient } from "./kimi-client";
+import { createAiSdkKimiClientFromEnvironment } from "@/platform/llm/ai-sdk-kimi-client";
+import type { StructuredOutputModelClient } from "@/platform/llm/kimi-client";
 
 export type { DestinationRecommendations } from "@/domain/location/destination-recommendations";
 

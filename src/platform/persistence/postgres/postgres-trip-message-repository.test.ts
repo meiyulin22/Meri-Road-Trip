@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import type { TripMessage } from "@/domain/trip-message/trip-message";
-import { tripMessages } from "@/server/database/schema/trip-messages";
+import { tripMessages } from "@/platform/persistence/database/schema/trip-messages";
 
 import {
   PostgresTripMessageRepository,

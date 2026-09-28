@@ -4,7 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { cookies } from "next/headers";
 
-import type { JourneySummary } from "@/repositories/journey-summary-repository";
+import type { JourneySummary } from "@/platform/persistence/journey-summary-repository";
 import { journeySummaryRepository } from "@/server/journey/journey-summary-repository-instance";
 import { loadMyJourneys } from "@/server/journey/my-journeys";
 

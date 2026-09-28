@@ -3,10 +3,10 @@ import test from "node:test";
 
 import type { DestinationCandidate } from "@/domain/location/destination-candidates";
 import type { TripState } from "@/domain/trip-state/trip-state";
-import type { DiscoverySearchResult } from "@/server/discovery/discovery-search";
+import type { DiscoverySearchResult } from "@/platform/search/discovery-search";
 import type { DestinationRecommendationContext } from "./destination-recommendation-context";
 import { rankDestinationCandidates, InvalidDestinationRankingOutputError } from "./destination-candidate-ranker";
-import type { StructuredOutputModelClient, StructuredOutputModelRequest } from "./kimi-client";
+import type { StructuredOutputModelClient, StructuredOutputModelRequest } from "@/platform/llm/kimi-client";
 
 const tripState: TripState = {
   name: { state: "missing" }, origin: { state: "known", value: "成都", source: "user" },

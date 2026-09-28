@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import type { TripUserAction } from "@/domain/trip-user-action/trip-user-action";
-import { tripUserActions } from "@/server/database/schema/trip-user-actions";
+import { tripUserActions } from "@/platform/persistence/database/schema/trip-user-actions";
 import { PostgresTripUserActionRepository } from "./postgres-trip-user-action-repository";
 
 const action: TripUserAction = {

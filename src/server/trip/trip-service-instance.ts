@@ -1,5 +1,5 @@
-import { db } from "@/server/database/db";
-import { PostgresTripRepository } from "@/infrastructure/persistence/postgres/postgres-trip-repository";
+import { db } from "@/platform/persistence/database/db";
+import { PostgresTripRepository } from "@/platform/persistence/postgres/postgres-trip-repository";
 import { TripService } from "./trip-service";
 
 export const tripRepository = new PostgresTripRepository(db);

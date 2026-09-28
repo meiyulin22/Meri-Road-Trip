@@ -1,9 +1,9 @@
 import { z } from "zod";
 
 import type { DestinationCandidate } from "@/domain/location/destination-candidates";
-import type { OfficialAccessSearchResult } from "@/server/location/official-access-search";
-import { createAiSdkKimiClientFromEnvironment } from "./ai-sdk-kimi-client";
-import type { StructuredOutputModelClient } from "./kimi-client";
+import type { OfficialAccessSearchResult } from "@/platform/search/official-access-search";
+import { createAiSdkKimiClientFromEnvironment } from "@/platform/llm/ai-sdk-kimi-client";
+import type { StructuredOutputModelClient } from "@/platform/llm/kimi-client";
 
 export type AccessEvidenceInput = OfficialAccessSearchResult & {
   readonly id: string;

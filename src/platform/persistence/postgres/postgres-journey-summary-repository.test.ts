@@ -3,8 +3,8 @@ import test from "node:test";
 import { PgDialect } from "drizzle-orm/pg-core";
 
 import type { TripState } from "@/domain/trip-state/trip-state";
-import { tripStates } from "@/server/database/schema/trip-states";
-import { trips } from "@/server/database/schema/trips";
+import { tripStates } from "@/platform/persistence/database/schema/trip-states";
+import { trips } from "@/platform/persistence/database/schema/trips";
 
 import { PostgresJourneySummaryRepository } from "./postgres-journey-summary-repository";
 

@@ -7,11 +7,11 @@ import {
   validateTripStatePatch,
 } from "@/domain/trip-state/trip-state";
 import { TripNotFoundError } from "@/domain/trip/trip-errors";
-import { readGuestId } from "@/server/identity/guest-identity";
+import { readGuestId } from "@/platform/identity/guest-identity";
 import { TripStateNotFoundError } from "@/server/journey/journey-errors";
 import { journeyService } from "@/server/journey/journey-service-instance";
-import { logger, logEvents } from "@/server/observability/logger";
-import { serializeError } from "@/server/observability/serialize-error";
+import { logger, logEvents } from "@/platform/observability/logger";
+import { serializeError } from "@/platform/observability/serialize-error";
 
 type TripStateRouteContext = {
   params: Promise<{ id: string }>;

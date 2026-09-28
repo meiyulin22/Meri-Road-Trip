@@ -1,12 +1,12 @@
 import { randomUUID } from "node:crypto";
 
-import { AmapInputTipsProvider } from "@/infrastructure/location/amap-input-tips-provider";
+import { AmapInputTipsProvider } from "@/platform/location-provider/amap-input-tips-provider";
 import {
   InvalidLocationSuggestionQueryError,
   LocationSuggestionProviderError,
   LocationSuggestionService,
 } from "@/server/location/location-suggestion-service";
-import { logger, logEvents } from "@/server/observability/logger";
+import { logger, logEvents } from "@/platform/observability/logger";
 
 function errorResponse(status: number, code: string, message: string): Response {
   return Response.json({ error: { code, message } }, { status });

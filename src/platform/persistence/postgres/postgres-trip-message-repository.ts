@@ -4,10 +4,10 @@ import {
   validateTripMessage,
   type TripMessage,
 } from "@/domain/trip-message/trip-message";
-import type { TripMessageRepository } from "@/repositories/trip-message-repository";
-import { tripMessages } from "@/server/database/schema/trip-messages";
+import type { TripMessageRepository } from "@/platform/persistence/trip-message-repository";
+import { tripMessages } from "@/platform/persistence/database/schema/trip-messages";
 
-type TripMessageDatabase = typeof import("@/server/database/db").db;
+type TripMessageDatabase = typeof import("@/platform/persistence/database/db").db;
 type TripMessageRow = typeof tripMessages.$inferSelect;
 
 type PostgresTripMessageOperation = "createMessage" | "createAssistantIfAbsent" | "createTurn" | "listByTripId";

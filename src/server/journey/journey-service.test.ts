@@ -5,7 +5,7 @@ import type { TripDraft } from "@/domain/trip-draft/trip-draft";
 import type { TripState } from "@/domain/trip-state/trip-state";
 import type { Trip } from "@/domain/trip/trip";
 import { TripNotFoundError } from "@/domain/trip/trip-errors";
-import type { TripStateRepository } from "@/repositories/trip-state-repository";
+import type { TripStateRepository } from "@/platform/persistence/trip-state-repository";
 
 import { JourneyCreationError, TripStateNotFoundError } from "./journey-errors";
 import { JourneyService } from "./journey-service";

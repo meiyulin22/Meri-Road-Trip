@@ -1,4 +1,4 @@
-import { DiscoverySearchError, type DiscoverySearch, type DiscoverySearchResult } from "@/server/discovery/discovery-search";
+import { DiscoverySearchError, type DiscoverySearch, type DiscoverySearchResult } from "@/platform/search/discovery-search";
 
 const ENDPOINT = "https://api.justoneapi.com/api/search/v1";
 const TIMEOUT_MS = 120_000;

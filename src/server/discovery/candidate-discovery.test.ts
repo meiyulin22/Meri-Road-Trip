@@ -4,9 +4,9 @@ import test from "node:test";
 import type { TripState } from "@/domain/trip-state/trip-state";
 import { buildConversationalDestinationRecommendationContext } from "@/server/ai/destination-recommendation-context";
 import { generateDestinationCandidates } from "@/server/ai/destination-candidate-generator";
-import type { StructuredOutputModelClient, StructuredOutputModelRequest } from "@/server/ai/kimi-client";
+import type { StructuredOutputModelClient, StructuredOutputModelRequest } from "@/platform/llm/kimi-client";
 import { generateCandidatesWithDiscovery } from "./candidate-discovery";
-import { buildDiscoveryQuery, searchJourneyDiscovery, type DiscoverySearchResult } from "./discovery-search";
+import { buildDiscoveryQuery, searchJourneyDiscovery, type DiscoverySearchResult } from "@/platform/search/discovery-search";
 
 const tripState: TripState = {
   name: { state: "missing" }, origin: { state: "known", value: "成都", source: "user" },

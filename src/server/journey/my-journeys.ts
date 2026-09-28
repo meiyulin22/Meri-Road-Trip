@@ -1,5 +1,5 @@
-import type { JourneySummary, JourneySummaryRepository } from "@/repositories/journey-summary-repository";
-import { readGuestId } from "@/server/identity/guest-identity";
+import type { JourneySummary, JourneySummaryRepository } from "@/platform/persistence/journey-summary-repository";
+import { readGuestId } from "@/platform/identity/guest-identity";
 
 type CookieReader = Parameters<typeof readGuestId>[0];
 

@@ -1,6 +1,6 @@
 import type { DestinationAccessEvidence, DestinationAccessResult } from "@/domain/location/destination-access";
 import type { DestinationCandidate } from "@/domain/location/destination-candidates";
-import { createBochaOfficialAccessSearchFromEnvironment } from "@/infrastructure/location/bocha-official-access-search";
+import { createBochaOfficialAccessSearchFromEnvironment } from "@/platform/search/bocha-official-access-search";
 import {
   createDestinationAccessEvidenceInterpreterFromEnvironment,
   validateAccessInterpretation,
@@ -8,7 +8,7 @@ import {
   type DestinationAccessEvidenceInterpreter,
 } from "@/server/ai/destination-access-evidence-interpreter";
 import type { DestinationAccessChecker } from "./destination-access-filter";
-import type { OfficialAccessSearch, OfficialAccessSearchResult } from "./official-access-search";
+import type { OfficialAccessSearch, OfficialAccessSearchResult } from "@/platform/search/official-access-search";
 
 export function buildOfficialAccessQuery(candidate: DestinationCandidate): string {
   return [candidate.name, candidate.region, "进入 通行 穿越 开放 封闭 禁止 官方公告"]

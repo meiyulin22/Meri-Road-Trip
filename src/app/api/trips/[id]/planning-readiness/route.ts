@@ -5,13 +5,13 @@ import { cookies } from "next/headers";
 import type { GeneratePlanReadiness } from "@/domain/trip-state/planning-readiness";
 import type { TripState } from "@/domain/trip-state/trip-state";
 import { TripNotFoundError } from "@/domain/trip/trip-errors";
-import { AmapLocationProvider } from "@/infrastructure/location/amap-location-provider";
-import { readGuestId } from "@/server/identity/guest-identity";
+import { AmapLocationProvider } from "@/platform/location-provider/amap-location-provider";
+import { readGuestId } from "@/platform/identity/guest-identity";
 import { TripStateNotFoundError } from "@/server/journey/journey-errors";
 import { checkGeneratePlanReadiness } from "@/server/location/generate-plan-readiness";
 import { LocationService } from "@/server/location/location-service";
-import { logger } from "@/server/observability/logger";
-import { serializeError } from "@/server/observability/serialize-error";
+import { logger } from "@/platform/observability/logger";
+import { serializeError } from "@/platform/observability/serialize-error";
 
 type RouteContext = { params: Promise<{ id: string }> };
 const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;

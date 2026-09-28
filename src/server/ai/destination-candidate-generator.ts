@@ -2,10 +2,10 @@ import { randomUUID } from "node:crypto";
 
 import { validateDestinationCandidatePool, type DestinationCandidate } from "@/domain/location/destination-candidates";
 import { buildDestinationCandidateSystemPrompt } from "@/server/ai/prompts/destination-candidate-prompt";
-import type { DiscoverySearchResult } from "@/server/discovery/discovery-search";
+import type { DiscoverySearchResult } from "@/platform/search/discovery-search";
 import type { DestinationRecommendationContext } from "./destination-recommendation-context";
-import { createAiSdkKimiClientFromEnvironment } from "./ai-sdk-kimi-client";
-import type { StructuredOutputModelClient } from "./kimi-client";
+import { createAiSdkKimiClientFromEnvironment } from "@/platform/llm/ai-sdk-kimi-client";
+import type { StructuredOutputModelClient } from "@/platform/llm/kimi-client";
 
 export const destinationCandidateJsonSchema: Record<string, unknown> = {
   type: "object",

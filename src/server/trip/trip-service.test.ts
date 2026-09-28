@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { InvalidTripInputError, TripNotFoundError } from "@/domain/trip/trip-errors";
-import { InMemoryTripRepository } from "@/infrastructure/persistence/in-memory/in-memory-trip-repository";
+import { InMemoryTripRepository } from "@/platform/persistence/in-memory/in-memory-trip-repository";
 import { TripService } from "./trip-service";
 
 const guestA = "25ba5b26-8db0-4fe3-bfcc-b684dd7889cc";

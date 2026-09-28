@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import type { JourneySummary } from "@/repositories/journey-summary-repository";
+import type { JourneySummary } from "@/platform/persistence/journey-summary-repository";
 
 import {
   recentJourneysForHome,

@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { DiscoverySearchError } from "@/server/discovery/discovery-search";
+import { DiscoverySearchError } from "@/platform/search/discovery-search";
 import { JustOneDiscoverySearch, normalizeJustOneSearchResponse } from "./justone-discovery-search";
 
 const token = "test-secret-token";

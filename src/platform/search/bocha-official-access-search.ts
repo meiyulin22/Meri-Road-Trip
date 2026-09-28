@@ -1,4 +1,4 @@
-import type { OfficialAccessSearch, OfficialAccessSearchResult } from "@/server/location/official-access-search";
+import type { OfficialAccessSearch, OfficialAccessSearchResult } from "@/platform/search/official-access-search";
 
 const ENDPOINT = "https://api.bocha.cn/v1/ai-search";
 const RESULT_COUNT = 8;

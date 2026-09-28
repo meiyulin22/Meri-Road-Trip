@@ -15,7 +15,7 @@ import {
   LlmProviderRequestError,
   LlmProviderTimeoutError,
   MissingLlmConfigurationError,
-} from "@/server/ai/kimi-client";
+} from "@/platform/llm/kimi-client";
 import {
   interpretWorkspaceConversation,
   InvalidWorkspaceConversationModelOutputError,
@@ -24,19 +24,19 @@ import {
 import { selectRecentConversationMessages } from "@/server/ai/workspace-conversation-context";
 import { destinationRecommendationDependencies, persistConversationalRecommendationTurn } from "@/server/ai/destination-recommendation-use-case";
 import { InvalidDestinationRecommendationOutputError } from "@/server/ai/destination-recommendation-generator";
-import { AmapLocationProvider } from "@/infrastructure/location/amap-location-provider";
+import { AmapLocationProvider } from "@/platform/location-provider/amap-location-provider";
 import { TripStateNotFoundError } from "@/server/journey/journey-errors";
 import { journeyService } from "@/server/journey/journey-service-instance";
-import { readGuestId } from "@/server/identity/guest-identity";
+import { readGuestId } from "@/platform/identity/guest-identity";
 import { LocationService } from "@/server/location/location-service";
 import { replyForDestinationDisambiguation } from "@/server/location/verify-destination-disambiguation";
 import {
   persistWorkspacePatchWithDisambiguation,
   replyAfterDestinationResolution,
 } from "@/server/location/post-update-destination-resolution";
-import { logger, logEvents } from "@/server/observability/logger";
+import { logger, logEvents } from "@/platform/observability/logger";
 import { tripMessageService } from "@/server/trip-message/trip-message-service-instance";
-import { serializeError } from "@/server/observability/serialize-error";
+import { serializeError } from "@/platform/observability/serialize-error";
 
 type ErrorResponse = {
   status: number;

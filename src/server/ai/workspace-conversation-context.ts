@@ -1,5 +1,5 @@
 import type { TripMessage } from "@/domain/trip-message/trip-message";
-import type { StructuredOutputConversationMessage } from "@/server/ai/kimi-client";
+import type { StructuredOutputConversationMessage } from "@/platform/llm/kimi-client";
 
 const MAX_RECENT_TURNS = 5;
 const MAX_HISTORY_CHARACTERS = 6_000;

@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import type { TripMessage } from "@/domain/trip-message/trip-message";
-import type { TripMessageRepository } from "@/repositories/trip-message-repository";
+import type { TripMessageRepository } from "@/platform/persistence/trip-message-repository";
 import { TripNotFoundError } from "@/domain/trip/trip-errors";
 
 import { TripMessageService } from "./trip-message-service";

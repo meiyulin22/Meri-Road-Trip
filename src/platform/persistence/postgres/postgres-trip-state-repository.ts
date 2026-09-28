@@ -4,10 +4,10 @@ import {
   validateTripState,
   type TripState,
 } from "@/domain/trip-state/trip-state";
-import type { TripStateRepository } from "@/repositories/trip-state-repository";
-import { tripStates } from "@/server/database/schema/trip-states";
+import type { TripStateRepository } from "@/platform/persistence/trip-state-repository";
+import { tripStates } from "@/platform/persistence/database/schema/trip-states";
 
-type TripStateDatabase = typeof import("@/server/database/db").db;
+type TripStateDatabase = typeof import("@/platform/persistence/database/db").db;
 type TripStateRow = typeof tripStates.$inferSelect;
 
 type PostgresTripStateOperation = "create" | "findByTripId" | "update";

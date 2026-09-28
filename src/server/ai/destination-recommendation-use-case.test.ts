@@ -4,7 +4,7 @@ import test from "node:test";
 import type { TripMessage } from "@/domain/trip-message/trip-message";
 import type { TripState, TripStatePatch } from "@/domain/trip-state/trip-state";
 import type { WorkspaceConversationInterpretation } from "@/domain/trip-state/workspace-conversation";
-import { InMemoryTripMessageRepository } from "@/infrastructure/persistence/in-memory/in-memory-trip-message-repository";
+import { InMemoryTripMessageRepository } from "@/platform/persistence/in-memory/in-memory-trip-message-repository";
 import { TripMessageService } from "@/server/trip-message/trip-message-service";
 import { persistConversationalRecommendationTurn, shouldCreateConversationalRecommendations } from "./destination-recommendation-use-case";
 

@@ -5,7 +5,7 @@ import type { TripMessage } from "@/domain/trip-message/trip-message";
 import type { TripState, TripStatePatch } from "@/domain/trip-state/trip-state";
 import { applyTripStatePatch } from "@/domain/trip-state/trip-state";
 import { TripNotFoundError } from "@/domain/trip/trip-errors";
-import { InMemoryTripMessageRepository } from "@/infrastructure/persistence/in-memory/in-memory-trip-message-repository";
+import { InMemoryTripMessageRepository } from "@/platform/persistence/in-memory/in-memory-trip-message-repository";
 import { checkGeneratePlanReadiness } from "@/server/location/generate-plan-readiness";
 import { LocationService } from "@/server/location/location-service";
 import { locationCandidateSelectionMessageId } from "@/server/trip-message/location-candidate-selection-id";

@@ -11,9 +11,9 @@ import {
   type StructuredOutputModelClient,
   type StructuredOutputModelRequest,
   type StructuredOutputModelResponse,
-} from "@/server/ai/kimi-client";
-import { logger, logEvents } from "@/server/observability/logger";
-import { serializeError } from "@/server/observability/serialize-error";
+} from "@/platform/llm/kimi-client";
+import { logger, logEvents } from "@/platform/observability/logger";
+import { serializeError } from "@/platform/observability/serialize-error";
 
 const DEFAULT_MODEL = "kimi-k2.6";
 const DEFAULT_BASE_URL = "https://api.moonshot.cn/v1";

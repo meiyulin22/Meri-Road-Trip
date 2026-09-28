@@ -5,7 +5,7 @@ import {
   type Trip,
   validateTripCreationInput,
 } from "@/domain/trip/trip";
-import type { TripRepository } from "@/repositories/trip-repository";
+import type { TripRepository } from "@/platform/persistence/trip-repository";
 
 type TripServiceDependencies = {
   repository: TripRepository;

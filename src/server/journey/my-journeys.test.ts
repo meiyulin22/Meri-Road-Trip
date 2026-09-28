@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import type { JourneySummary } from "@/repositories/journey-summary-repository";
-import { guestIdCookieName } from "@/server/identity/guest-identity";
+import type { JourneySummary } from "@/platform/persistence/journey-summary-repository";
+import { guestIdCookieName } from "@/platform/identity/guest-identity";
 
 import { loadMyJourneys } from "./my-journeys";
 

@@ -1,7 +1,7 @@
 import type { TripMessage } from "@/domain/trip-message/trip-message";
 import type { TripState } from "@/domain/trip-state/trip-state";
 import type { TripUserAction } from "@/domain/trip-user-action/trip-user-action";
-import type { StructuredOutputConversationMessage } from "./kimi-client";
+import type { StructuredOutputConversationMessage } from "@/platform/llm/kimi-client";
 
 const MAX_MESSAGES = 10;
 const MAX_CHARACTERS = 6_000;

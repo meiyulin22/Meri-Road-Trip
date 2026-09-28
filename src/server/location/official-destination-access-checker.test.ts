@@ -2,9 +2,9 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import type { DestinationCandidate } from "@/domain/location/destination-candidates";
-import { BochaOfficialAccessSearch } from "@/infrastructure/location/bocha-official-access-search";
+import { BochaOfficialAccessSearch } from "@/platform/search/bocha-official-access-search";
 import type { AccessInterpretation, DestinationAccessEvidenceInterpreter } from "@/server/ai/destination-access-evidence-interpreter";
-import type { OfficialAccessSearchResult } from "./official-access-search";
+import type { OfficialAccessSearchResult } from "@/platform/search/official-access-search";
 import { buildOfficialAccessQuery, OfficialDestinationAccessChecker, officialAuthorityForUrl } from "./official-destination-access-checker";
 
 const candidate: DestinationCandidate = { id: "candidate-1", name: "示例线", region: "示例省", preferenceRationale: "Matches preferences." };

@@ -1,5 +1,5 @@
 import type { DestinationRecommendationContext } from "@/server/ai/destination-recommendation-context";
-import { logger } from "@/server/observability/logger";
+import { logger } from "@/platform/observability/logger";
 
 export type DiscoverySearchResult = {
   readonly source: string;
