@@ -78,14 +78,33 @@ test("a way to reach a place is not the place, so transport never resolves it", 
   }
 });
 
-test("a province stays unresolved, because a plan cannot run on one", () => {
-  // Accepting 云南省 would settle the destination as a whole province and close the
-  // recommendation path, which is the opposite of what asking about a region means.
-  for (const [expression, name] of [["云南", "云南省"], ["西藏", "西藏自治区"]] as const) {
+test("a province is an area, not a failure, because the region is what the user gave", () => {
+  // Dropping it answered 「我想去海南」 with "I could not verify that地点", which threw
+  // away the only thing the user had said.
+  for (const [expression, name] of [
+    ["云南", "云南省"],
+    ["西藏", "西藏自治区"],
+    ["海南省", "海南省"],
+    ["广西", "广西壮族自治区"],
+  ] as const) {
     assert.deepEqual(resolveDestinationCandidates(expression, [candidate(name, name)]), {
-      status: "unresolved",
+      status: "area", province: name,
     });
   }
+});
+
+test("the province label names the area, and a point-shaped destination still wins", () => {
+  const yunnan = { ...candidate("云南省", "yunnan"), province: "云南省" };
+  assert.deepEqual(resolveDestinationCandidates("云南", [candidate("云南大学", "university"), yunnan]),
+    { status: "area", province: "云南省" });
+
+  // 北京市 is province-level, yet a plan can run on a municipality, so it resolves.
+  const beijing = { ...candidate("北京市", "beijing", "北京市 东城区"), province: "北京市", city: "北京市" };
+  assert.deepEqual(resolveDestinationCandidates("北京", [beijing]), { status: "resolved", candidate: beijing });
+
+  // A province that happens to be in the results is not what was asked for.
+  assert.deepEqual(resolveDestinationCandidates("丽江", [yunnan]), { status: "unresolved" });
+  assert.deepEqual(resolveDestinationCandidates("云", [yunnan]), { status: "unresolved" });
 });
 
 test("a scenic area and its city are genuinely different places, so they stay a choice", () => {

@@ -16,11 +16,12 @@ const state: TripState = {
   duration: { state: "missing" }, transportPreference: { state: "missing" },
 };
 const message: TripMessage = {
-  id: "assistant-cards", tripId, role: "assistant", content: "你可以看看更想去哪一个。",
+  id: "assistant-cards", tripId, role: "assistant", content: "你想去哪些都可以选上。",
   createdAt: "2026-09-28T09:00:00.000Z",
   presentation: { type: "destination_recommendations", destinations: [
-    { id: "rec-a", name: "花鸟岛", region: "浙江", reason: "东海小岛，安静", imageUrl: null },
-    { id: "rec-b", name: "涠洲岛", region: "广西", reason: "火山岛海岸线", imageUrl: null },
+    { id: "rec-a", name: "舟山市", province: "浙江省", reason: "东海小岛，安静" },
+    { id: "rec-b", name: "台州市", province: "浙江省", reason: "海岸线和括苍山" },
+    { id: "rec-c", name: "北海市", province: "广西壮族自治区", reason: "火山岛海岸线" },
   ] },
 };
 
@@ -34,12 +35,13 @@ const readySelected = { canProceed: true, destination: "selected" } as const;
 test("only a card Meri offered can be picked, and its stored name is what gets saved", async () => {
   let writes = 0;
   const response = await handleDestinationRecommendationSelectionPost(tripId, "owner",
-    { messageId: message.id, destinationId: "rec-b" }, {
+    { messageId: message.id, destinationIds: ["rec-c"] }, {
       async loadJourney(id, owner) { assert.equal(id, tripId); assert.equal(owner, "owner"); return { tripState: state }; },
       async listMessages() { return [message]; },
       async updateTripState(_id, _owner, patch: TripStatePatch) {
         writes += 1;
-        assert.deepEqual(patch.destination, { state: "known", value: "涠洲岛", source: "user" });
+        assert.deepEqual(patch.destination, { state: "known", value: "广西壮族自治区 北海市", source: "user",
+          areas: [{ province: "广西壮族自治区", places: ["北海市"] }] });
         return applyTripStatePatch(state, patch);
       },
       async checkReadiness() { return readySelected; },
@@ -48,9 +50,30 @@ test("only a card Meri offered can be picked, and its stored name is what gets s
   assert.equal(response.status, 200);
   assert.equal(writes, 1);
   const body = await response.json();
-  assert.equal(body.tripState.destination.value, "涠洲岛");
-  assert.match(body.assistantMessage.content, /目的地定为涠洲岛了/);
-  assert.match(body.assistantMessage.content, /现在已经可以开始生成旅行计划/);
+  assert.equal(body.tripState.destination.value, "广西壮族自治区 北海市");
+  assert.match(body.assistantMessage.content, /目的地定为广西壮族自治区 北海市了/u);
+  assert.match(body.assistantMessage.content, /现在已经可以开始生成旅行计划/u);
+});
+
+test("several picks become one destination, grouped back under the provinces they were offered under", async () => {
+  const response = await handleDestinationRecommendationSelectionPost(tripId, "owner",
+    { messageId: message.id, destinationIds: ["rec-c", "rec-a", "rec-b"] }, {
+      async loadJourney() { return { tripState: state }; },
+      async listMessages() { return [message]; },
+      async updateTripState(_id, _owner, patch: TripStatePatch) {
+        assert.deepEqual(patch.destination, { state: "known",
+          value: "广西壮族自治区 北海市 · 浙江省 舟山市、台州市", source: "user",
+          areas: [{ province: "广西壮族自治区", places: ["北海市"] },
+            { province: "浙江省", places: ["舟山市", "台州市"] }] });
+        return applyTripStatePatch(state, patch);
+      },
+      async checkReadiness() { return readySelected; },
+      async persistFollowUp(input) { return followUp(input); },
+    });
+  assert.equal(response.status, 200);
+  const body = await response.json();
+  assert.deepEqual(body.tripState.destination.areas,
+    [{ province: "广西壮族自治区", places: ["北海市"] }, { province: "浙江省", places: ["舟山市", "台州市"] }]);
 });
 
 test("missing or wrong owner cannot pick a recommendation", async () => {
@@ -62,13 +85,13 @@ test("missing or wrong owner cannot pick a recommendation", async () => {
     async checkReadiness() { return readySelected; },
     async persistFollowUp(input: Parameters<typeof followUp>[0]) { return followUp(input); },
   };
-  const body = { messageId: message.id, destinationId: "rec-a" };
+  const body = { messageId: message.id, destinationIds: ["rec-a"] };
   assert.equal((await handleDestinationRecommendationSelectionPost(tripId, null, body, dependencies)).status, 404);
   assert.equal((await handleDestinationRecommendationSelectionPost(tripId, "wrong", body, dependencies)).status, 404);
   assert.equal(writes, 0);
 });
 
-test("a name from the request, an unknown card, and a candidate message cannot update TripState", async () => {
+test("a name from the request, an unknown card, a repeated pick, and a candidate message cannot update TripState", async () => {
   let writes = 0;
   const dependencies = {
     async loadJourney() { return { tripState: state }; },
@@ -83,11 +106,15 @@ test("a name from the request, an unknown card, and a candidate message cannot u
     async persistFollowUp(input: Parameters<typeof followUp>[0]) { return followUp(input); },
   };
   const attempts = [
-    { messageId: message.id, destinationId: "rec-a", name: "伪造地点" },
-    { messageId: message.id, destinationId: "rec-z" },
-    { messageId: "missing", destinationId: "rec-a" },
-    { messageId: "assistant-candidates", destinationId: "rec-a" },
-    { messageId: message.id, destinationId: "" },
+    { messageId: message.id, destinationIds: ["rec-a"], name: "伪造地点" },
+    { messageId: message.id, destinationIds: ["rec-z"] },
+    { messageId: message.id, destinationIds: ["rec-a", "rec-z"] },
+    { messageId: message.id, destinationIds: ["rec-a", "rec-a"] },
+    { messageId: message.id, destinationIds: [] },
+    { messageId: message.id, destinationIds: "rec-a" },
+    { messageId: "missing", destinationIds: ["rec-a"] },
+    { messageId: "assistant-candidates", destinationIds: ["rec-a"] },
+    { messageId: message.id, destinationIds: [""] },
   ];
   for (const body of attempts) {
     assert.notEqual((await handleDestinationRecommendationSelectionPost(tripId, "owner", body, dependencies)).status, 200);
@@ -95,7 +122,22 @@ test("a name from the request, an unknown card, and a candidate message cannot u
   assert.equal(writes, 0);
 });
 
-test("a second click on the same card returns the reply already written", async () => {
+test("a card offered before places carried provinces is refused as a stale offer", async () => {
+  let writes = 0;
+  const response = await handleDestinationRecommendationSelectionPost(tripId, "owner",
+    { messageId: message.id, destinationIds: ["rec-a"] }, {
+      async loadJourney() { return { tripState: state }; },
+      async listMessages() { return [{ ...message, presentation: { type: "destination_recommendations" as const,
+        destinations: [{ id: "rec-a", name: "花鸟岛", province: null, reason: "东海小岛，安静" }] } }]; },
+      async updateTripState() { writes += 1; return state; },
+      async checkReadiness() { return readySelected; },
+      async persistFollowUp(input) { return followUp(input); },
+    });
+  assert.equal(response.status, 409);
+  assert.equal(writes, 0);
+});
+
+test("a second click on the same cards returns the reply already written, in any order", async () => {
   const repository = new InMemoryTripMessageRepository();
   await repository.createMessage(message);
   let current = state;
@@ -113,19 +155,20 @@ test("a second click on the same card returns the reply already written", async 
       return repository.createAssistantIfAbsent(followUp(input));
     },
   };
-  const selection = { messageId: message.id, destinationId: "rec-a" };
+  const selection = { messageId: message.id, destinationIds: ["rec-a", "rec-b"] };
   const first = await handleDestinationRecommendationSelectionPost(tripId, "owner", selection, dependencies);
   assert.equal(first.status, 200);
   const firstBody = await first.json();
   assert.deepEqual(await repository.listByTripId(tripId), [message, firstBody.assistantMessage]);
 
-  const retry = await handleDestinationRecommendationSelectionPost(tripId, "owner", selection, dependencies);
+  const retry = await handleDestinationRecommendationSelectionPost(tripId, "owner",
+    { messageId: message.id, destinationIds: ["rec-b", "rec-a"] }, dependencies);
   assert.equal(retry.status, 200);
   assert.deepEqual((await retry.json()).assistantMessage, firstBody.assistantMessage);
   assert.equal(writes, 1);
   assert.equal((await repository.listByTripId(tripId)).length, 2);
 
-  // A different destination now holds the Journey, so the old card is stale.
+  // A different destination now holds the Journey, so the old cards are stale.
   const otherDestination = await handleDestinationRecommendationSelectionPost(tripId, "owner",
     selection, { ...dependencies, async loadJourney() {
       return { tripState: applyTripStatePatch(state,
@@ -134,9 +177,9 @@ test("a second click on the same card returns the reply already written", async 
   assert.equal(otherDestination.status, 409);
 });
 
-test("the reply describes what the Location Provider could confirm, not the card", async () => {
+test("the reply describes what readiness could confirm, not the card", async () => {
   const response = await handleDestinationRecommendationSelectionPost(tripId, "owner",
-    { messageId: message.id, destinationId: "rec-a" }, {
+    { messageId: message.id, destinationIds: ["rec-a"] }, {
       async loadJourney() { return { tripState: state }; },
       async listMessages() { return [message]; },
       async updateTripState(_id, _owner, patch: TripStatePatch) { return applyTripStatePatch(state, patch); },
@@ -145,15 +188,15 @@ test("the reply describes what the Location Provider could confirm, not the card
     });
   assert.equal(response.status, 200);
   const body = await response.json();
-  assert.match(body.assistantMessage.content, /目的地定为花鸟岛了/);
-  assert.match(body.assistantMessage.content, /还需要确定具体地点/);
-  assert.doesNotMatch(body.assistantMessage.content, /现在已经可以开始生成旅行计划/);
+  assert.match(body.assistantMessage.content, /目的地定为浙江省 舟山市了/u);
+  assert.match(body.assistantMessage.content, /还需要确定具体地点/u);
+  assert.doesNotMatch(body.assistantMessage.content, /现在已经可以开始生成旅行计划/u);
 });
 
 test("a failed state update writes no reply, and a failed reply still reports the saved state", async () => {
   let followUps = 0;
   const failedWrite = await handleDestinationRecommendationSelectionPost(tripId, "owner",
-    { messageId: message.id, destinationId: "rec-a" }, {
+    { messageId: message.id, destinationIds: ["rec-a"] }, {
       async loadJourney() { return { tripState: state }; },
       async listMessages() { return [message]; },
       async updateTripState() { throw new Error("write failed"); },
@@ -165,7 +208,7 @@ test("a failed state update writes no reply, and a failed reply still reports th
   assert.equal((await failedWrite.json()).tripState, undefined);
 
   const failedReply = await handleDestinationRecommendationSelectionPost(tripId, "owner",
-    { messageId: message.id, destinationId: "rec-a" }, {
+    { messageId: message.id, destinationIds: ["rec-a"] }, {
       async loadJourney() { return { tripState: state }; },
       async listMessages() { return [message]; },
       async updateTripState(_id, _owner, patch: TripStatePatch) { return applyTripStatePatch(state, patch); },
@@ -175,5 +218,5 @@ test("a failed state update writes no reply, and a failed reply still reports th
   assert.equal(failedReply.status, 500);
   const body = await failedReply.json();
   assert.equal(body.code, "follow_up_unavailable");
-  assert.equal(body.tripState.destination.value, "花鸟岛");
+  assert.equal(body.tripState.destination.value, "浙江省 舟山市");
 });

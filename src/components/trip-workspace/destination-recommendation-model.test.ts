@@ -4,7 +4,7 @@ import test from "node:test";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 
-import { canSelectDestinationRecommendation, canUseDestinationGuidance, DEFAULT_DESTINATION_IMAGE, destinationImageUrl, requestDestinationRecommendations, requestDestinationRecommendationsIfMissing, selectDestinationRecommendation } from "./destination-recommendation-model";
+import { canSelectDestinationRecommendation, canUseDestinationGuidance, chosenDestinationPlaces, groupRecommendationsByProvince, requestDestinationRecommendations, requestDestinationRecommendationsIfMissing, selectDestinationRecommendation } from "./destination-recommendation-model";
 import { DestinationSelectionFollowUpError } from "./workspace-conversation-model";
 import { getWorkspaceTitle } from "./workspace-title";
 import { journeyFieldLabel } from "./workspace-presentation";
@@ -14,9 +14,9 @@ const message = {
   id: "message-1", tripId: "trip 1", role: "assistant", content: "先看看这三个方向。",
   createdAt: "2026-09-26T00:00:00.000Z",
   presentation: { type: "destination_recommendations", destinations: [
-    { id: "a", name: "甲", region: null, reason: "方向一", imageUrl: null },
-    { id: "b", name: "乙", region: "四川", reason: "方向二", imageUrl: null },
-    { id: "c", name: "丙", region: null, reason: "方向三", imageUrl: null },
+    { id: "a", name: "丽江市", province: "云南省", reason: "古城和雪山都在一天路程里" },
+    { id: "b", name: "迪庆藏族自治州", province: "云南省", reason: "适合看高原草甸" },
+    { id: "c", name: "甘孜藏族自治州", province: "四川省", reason: "川西环线的主要一段" },
   ] },
 };
 
@@ -36,9 +36,29 @@ test("guidance and recommendation selection are available while destination is m
   assert.equal(canSelectDestinationRecommendation(missingDestination), true);
 });
 
+test("a region the user named still gets recommendations, because 「去哪」 is still open", () => {
+  const area: TripState = { ...missingDestination, destination: { state: "approximate", value: "海南省",
+    source: "user", areas: [{ province: "海南省", places: [] }] } };
+  assert.equal(canUseDestinationGuidance(area), true);
+  assert.equal(canSelectDestinationRecommendation(area), true);
+  const chosen: TripState = { ...missingDestination, destination: { state: "known", value: "海南省 三亚市",
+    source: "user", areas: [{ province: "海南省", places: ["三亚市"] }] } };
+  assert.equal(canUseDestinationGuidance(chosen), false);
+  assert.deepEqual(chosenDestinationPlaces(chosen), ["三亚市"]);
+  assert.deepEqual(chosenDestinationPlaces(area), []);
+});
+
+test("the offered places keep their provinces and their order when they are grouped", () => {
+  assert.deepEqual(groupRecommendationsByProvince(message.presentation.destinations), [
+    { province: "云南省", destinations: message.presentation.destinations.slice(0, 2) },
+    { province: "四川省", destinations: message.presentation.destinations.slice(2) },
+  ]);
+  assert.deepEqual(groupRecommendationsByProvince([]), []);
+});
+
 test("a selected destination disables historical guidance and all recommendation actions", async () => {
   const selected = { ...missingDestination,
-    destination: { state: "known", value: "乙", source: "user" } as const };
+    destination: { state: "known", value: "迪庆藏族自治州", source: "user" } as const };
   assert.equal(canUseDestinationGuidance(selected), false);
   assert.equal(canSelectDestinationRecommendation(selected), false);
   assert.equal(selected.destination.value === message.presentation.destinations[1].name, true);
@@ -51,18 +71,29 @@ test("a selected destination disables historical guidance and all recommendation
   assert.equal(calls, 0);
 });
 
-test("selected recommendation stays marked while every card button is disabled", async () => {
-  const { DestinationRecommendationCard } = await import("./destination-recommendation-card");
-  const markup = message.presentation.destinations.map((destination) =>
-    renderToStaticMarkup(createElement(DestinationRecommendationCard, {
-      destination, onSelect: () => {}, pending: false, error: false,
-      selected: destination.name === "乙", disabled: true,
-    })));
-  assert.equal(markup.length, 3);
-  assert.ok(markup.every((card) => /<button[^>]*disabled=""/.test(card)));
-  assert.match(markup[1], /data-selected="true"/);
-  assert.match(markup[1], /已选择/);
-  assert.match(markup[0], /data-selected="false"/);
+test("the picker groups the places under their provinces and offers one commit", async () => {
+  const { DestinationRecommendationPicker } = await import("./destination-recommendation-picker");
+  const markup = renderToStaticMarkup(createElement(DestinationRecommendationPicker, {
+    chosen: [], destinations: message.presentation.destinations, disabled: false,
+    error: false, onCommit: () => {}, pending: false,
+  }));
+  assert.deepEqual(markup.match(/<h3>[^<]+<\/h3>/gu), ["<h3>云南省</h3>", "<h3>四川省</h3>"]);
+  assert.equal(markup.match(/type="checkbox"/gu)?.length, 3);
+  assert.match(markup, /就去这些/u);
+  // Nothing is picked yet, so there is nothing to commit.
+  assert.equal(markup.match(/<button[^>]*disabled=""/gu)?.length, 1);
+});
+
+test("places already settled come back ticked, and the list stops taking changes", async () => {
+  const { DestinationRecommendationPicker } = await import("./destination-recommendation-picker");
+  const markup = renderToStaticMarkup(createElement(DestinationRecommendationPicker, {
+    chosen: ["丽江市", "甘孜藏族自治州"], destinations: message.presentation.destinations,
+    disabled: true, error: false, onCommit: () => {}, pending: false,
+  }));
+  assert.equal(markup.match(/checked=""/gu)?.length, 2);
+  assert.equal(markup.match(/<input[^>]*disabled=""/gu)?.length, 3);
+  assert.match(markup, /已选 2 个/u);
+  assert.match(markup, /已选好/u);
 });
 
 test("button client posts without a synthetic user message and validates result", async () => {
@@ -103,13 +134,13 @@ const followUp = {
 };
 
 test("selection names the card it was offered on and returns the state with Meri's reply", async () => {
-  const received = await selectDestinationRecommendation("trip 1", "assistant-cards", "candidate-2",
+  const received = await selectDestinationRecommendation("trip 1", "assistant-cards", ["candidate-2", "candidate-4"],
     async (input, init) => {
       assert.equal(input, "/api/trips/trip%201/destination-recommendation-selection");
       assert.equal(init?.method, "POST");
-      // The name never leaves the client: the server reads it from the stored card.
+      // No name leaves the client: the server reads them from the stored list.
       assert.deepEqual(JSON.parse(String(init?.body)),
-        { messageId: "assistant-cards", destinationId: "candidate-2" });
+        { messageId: "assistant-cards", destinationIds: ["candidate-2", "candidate-4"] });
       return Response.json({ tripState: selectedState, assistantMessage: followUp });
     });
   assert.deepEqual(received.tripState, selectedState);
@@ -118,7 +149,7 @@ test("selection names the card it was offered on and returns the state with Meri
 
 test("a saved destination whose follow-up failed still reaches the Workspace", async () => {
   await assert.rejects(
-    () => selectDestinationRecommendation("trip 1", "assistant-cards", "candidate-2",
+    () => selectDestinationRecommendation("trip 1", "assistant-cards", ["candidate-2"],
       async () => Response.json({ error: "failed", code: "follow_up_unavailable", tripState: selectedState },
         { status: 500 })),
     (error: unknown) => error instanceof DestinationSelectionFollowUpError &&
@@ -126,7 +157,7 @@ test("a saved destination whose follow-up failed still reaches the Workspace", a
 });
 
 test("a reply for another Journey is refused rather than shown", async () => {
-  await assert.rejects(() => selectDestinationRecommendation("trip 1", "assistant-cards", "candidate-2",
+  await assert.rejects(() => selectDestinationRecommendation("trip 1", "assistant-cards", ["candidate-2"],
     async () => Response.json({ tripState: selectedState,
       assistantMessage: { ...followUp, tripId: "other-trip" } })));
 });
@@ -139,7 +170,7 @@ test("a failed selection leaves the Workspace showing what it had", async () => 
     startDate: { state: "missing" }, endDate: { state: "missing" },
     duration: { state: "missing" }, transportPreference: { state: "missing" },
   };
-  await assert.rejects(() => selectDestinationRecommendation("trip", "assistant-cards", "candidate-2",
+  await assert.rejects(() => selectDestinationRecommendation("trip", "assistant-cards", ["candidate-2"],
     async () => Response.json({ error: "failed" }, { status: 500 })));
   assert.equal(getWorkspaceTitle(original), "云南大理之旅");
 });
@@ -152,16 +183,10 @@ test("successful selection applies the server name to Workspace title and Journe
     startDate: { state: "missing" }, endDate: { state: "missing" },
     duration: { state: "missing" }, transportPreference: { state: "missing" },
   };
-  const { tripState: displayed } = await selectDestinationRecommendation("trip", "assistant-cards", "candidate-1",
+  const { tripState: displayed } = await selectDestinationRecommendation("trip", "assistant-cards", ["candidate-1"],
     async () => Response.json({ tripState: persisted,
       assistantMessage: { ...followUp, tripId: "trip", content: "好，目的地定为泉州了。" } }));
   assert.deepEqual(displayed, persisted);
   assert.equal(getWorkspaceTitle(displayed), "泉州之旅");
   assert.equal(journeyFieldLabel(displayed.name, "旅程名称待定"), "泉州之旅");
-});
-
-test("unavailable or broken provider image uses the same local destination image", () => {
-  assert.equal(destinationImageUrl(null, false), DEFAULT_DESTINATION_IMAGE);
-  assert.equal(destinationImageUrl("https://example.com/photo.jpg", true), DEFAULT_DESTINATION_IMAGE);
-  assert.equal(destinationImageUrl("https://example.com/photo.jpg", false), "https://example.com/photo.jpg");
 });

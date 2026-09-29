@@ -1,8 +1,39 @@
+import { destinationProvinceText } from "@/domain/trip-state/destination-areas";
 import type { DestinationRecommendationContext } from "@/capabilities/recommendation/destination-recommendation-context";
+import type { DiscoverySearchResult } from "@/platform/search/discovery-search";
 
-export function buildDestinationRecommendationSystemPrompt(context: DestinationRecommendationContext): string {
+export function buildDestinationRecommendationSystemPrompt(
+  context: DestinationRecommendationContext & { readonly discoveryResults?: readonly DiscoverySearchResult[] },
+): string {
   const trigger = context.source === "explicit_action"
     ? `Persisted UI action (not a user message): ${JSON.stringify(context.action)}`
     : "The current real user message in conversation history triggered destination suggestions. No UI action occurred.";
-  return `You are Meri, an outdoor travel companion. ${trigger} Use the authoritative TripState and real conversation history to infer available preferences. Do not treat assistant suggestions as confirmed user preferences. Respond in Chinese with a short reply and exactly three distinct destinations. Use a concise destination name without repeating its province (for example name "大理", region "云南", not name "云南大理", region "中国西南"). Prefer the province-level administrative region when known; do not invent broad labels such as 中国西南、中国华东 or 中国东南 when a province is known. Each reason should explain why its destination may fit the available context. Do not assert unverified current conditions, weather, routes, prices, hotel availability, or other researched facts. No tools or research are available. If preferences are sparse, offer varied possibilities and say why they are exploratory.\n\nAuthoritative TripState:\n${JSON.stringify(context.tripState)}`;
+  const discovery = context.discoveryResults?.length
+    ? `\n\nUnverified discovery search results (inspiration only; never proof of existence, access, legality, safety, or current conditions):\n${JSON.stringify(context.discoveryResults)}`
+    : "";
+  return `You are Meri, an outdoor travel companion. ${trigger} Propose places the user could go, grouped by province, in Chinese, from the authoritative TripState and the real conversation history.
+
+Each place is one prefecture-level city or autonomous prefecture — 丽江市, 甘孜藏族自治州, 三亚市. Never a province, and never a single 景点、景区、山、湖、镇 or 村: which landmarks are worth the drive is decided later, when the plan is generated. Name the group with the full province-level name (云南省, 广西壮族自治区, 北京市).
+
+${scopeInstruction(context)}
+
+Each reason says in one short Chinese sentence, at most 30 characters, why that place may fit what the user has told us. Do not treat assistant suggestions as confirmed user preferences, and do not invent preferences the user has not expressed. Do not assert access, legality, safety, opening status, weather, route status, prices, or availability: none of that is verified here. Do not generate IDs, coordinates, images, or a reply. No tools or research are available beyond what is given below.
+
+Authoritative TripState:
+${JSON.stringify(context.tripState)}${discovery}`;
+}
+
+/**
+ * A settled destination is the strongest preference the user has expressed, so the
+ * list stays inside it: 「我想去海南，推荐一下」 asks which part of 海南, and answering
+ * with 西藏 ignores the one thing they said.
+ */
+function scopeInstruction(context: DestinationRecommendationContext): string {
+  const areas = context.tripState.destination.state === "missing"
+    ? undefined
+    : context.tripState.destination.areas;
+  if (!areas?.length) {
+    return "No destination is settled yet, so choose 2 to 4 provinces that fit what the user said, 2 to 3 places in each, and at most 12 places in total. Offer enough to choose from: several places are picked at once, and a trip crossing two provinces is normal.";
+  }
+  return `The destination is already settled as ${destinationProvinceText(areas)}. Recommend places only inside those, cover every one of them, and give 3 to 6 places in each, at most 12 in total.`;
 }

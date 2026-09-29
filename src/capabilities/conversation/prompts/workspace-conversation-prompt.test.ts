@@ -29,8 +29,13 @@ test("conversation principle and presentation decision appear before implementat
   assert.ok(text.indexOf("presentationIntent") < text.indexOf("resolve_location tool boundary"));
   assert.match(text, /destination choices would naturally help/);
   assert.match(text, /cards themselves clarify/);
-  assert.match(text, /authoritative destination is known, presentationIntent is "none"/);
+  assert.match(text, /While 「去哪」 is still open — no destination at all, or provinces with no place chosen inside them/);
+  assert.match(text, /A province the user named does not close that question, it narrows it/);
+  assert.match(text, /Once a place inside the destination is settled, presentationIntent is "none"/);
   assert.match(text, /help with that Journey instead of suggesting alternatives/);
+  // A named province used to close recommendations here, which is the whole trap
+  // step 3 opened in the code; the prompt must not reinstate it.
+  assert.doesNotMatch(text, /authoritative destination is known, presentationIntent is "none"/);
   assert.match(text, /Factual questions and destination disambiguation also use "none"/);
   assert.match(text, /A message that is not about travel gets one short, warm reply and one question that leads back to the trip/);
   assert.match(text, /never refuse to engage, lecture the user, or answer an unrelated subject at length/);
@@ -43,12 +48,21 @@ test("examples cover recommend, guide, destination update, factual question, and
   const text = prompt();
   for (const example of ["我喜欢雪山、徒步、不想太商业化", "想要海边、轻松一点、适合周末",
     "想吃美食、逛老城", "hi there", "今天天气不错", "我想出去玩",
-    "我想去青岛", "青岛九月天气怎么样？", "我想去潮汕"]) assert.ok(text.includes(example));
+    "我想去青岛", "青岛九月天气怎么样？", "我想去潮汕",
+    "我想去海南", "想看海边小城"]) assert.ok(text.includes(example));
   assert.match(text, /without preferences → intent question, changes \[\], presentationIntent none, then guide/);
   assert.match(text, /with no destination → intent question, changes \[\], destination_recommendations/);
   assert.match(text, /destination update and none/);
   assert.match(text, /destination update, disambiguation, and none/);
-  assert.match(text, /If authoritative TripState\.destination is not missing, changes includes destination, or destinationDisambiguation is known, presentationIntent is "none"/);
+  assert.match(text, /Open means TripState\.destination is missing, or its areas name provinces whose places are all empty/);
+  assert.match(text, /If any area already names a place, or destinationDisambiguation is known, presentationIntent is "none"/);
+  // The rule used to forbid cards whenever the turn changed the destination, which
+  // contradicted the code: 「我想去云南，想爬山」 is one turn, not two. What actually
+  // decides is whether the message carries a preference the cards can act on.
+  assert.match(text, /only when the message carries something the cards can act on/);
+  assert.match(text, /Naming a province is not itself a preference/);
+  assert.doesNotMatch(text, /changes includes destination, or destinationDisambiguation is known/);
+  assert.match(text, /the cards stay inside 海南省/);
 });
 
 test("authority, update, tool, and structured-output boundaries remain explicit", () => {
@@ -67,6 +81,13 @@ test("authority, update, tool, and structured-output boundaries remain explicit"
   assert.match(text, /selected result preserves the user's chosen identity/);
   assert.match(text, /provider_error or unavailable/);
   assert.match(text, /real-world information beyond location lookup, say research is not connected yet/);
+  // Stated abstractly, the model read climate averages as general knowledge and
+  // answered 「一般在 22-28℃」. The category is named and the loophole is named.
+  assert.match(text, /weather, temperature, climate and seasonal conditions, prices, opening hours, crowd levels/);
+  assert.match(text, /A typical, average or seasonal answer is still a guess/);
+  // A no-op change is a change that could clear a field that did have a value.
+  assert.match(text, /never propose missing for a field TripState already has as missing/);
+  assert.match(text, /never restate untouched fields as changes/);
   assert.match(text, /Return only JSON matching the supplied schema/);
   assert.match(text, /Allowed fields: name, origin, destination, startDate, endDate, duration, transportPreference/);
   assert.match(text, /Each change has only field, state, value/);
@@ -80,8 +101,16 @@ test("the plan itself is left to Generate plan and the details it runs on are as
   assert.match(text, /Never write an itinerary, a day-by-day schedule, a route, or a daily pace/);
   assert.match(text, /Origin, dates, and duration are what a plan runs on rather than optional refinements/);
   assert.match(text, /origin first while it is missing/);
-  assert.match(text, /say the Journey is ready for Generate plan/);
+  assert.match(text, /Never say whether the Journey is ready to generate, or what is still blocking it/);
+  assert.match(text, /the application owns that sentence and adds it itself/);
+  // Asked outright, the model answered with a blocker and a promise. The rule needed
+  // the case spelled out, not only stated.
+  assert.match(text, /When the user asks outright whether a plan can be generated/);
+  assert.match(text, /without naming a missing field as the condition/);
   assert.doesNotMatch(text, /optional refinements\./);
+  // The model claiming readiness would double up with the sentence composeTurnReply
+  // appends, and would sometimes contradict it.
+  assert.doesNotMatch(text, /say the Journey is ready for Generate plan/);
 });
 
 test("field semantics are the same text the first-message extractor states", () => {

@@ -240,9 +240,9 @@ test("AI SDK Chat exposes persisted candidate options immediately after the comm
 test("AI SDK Chat exposes the final recommendation reply and cards immediately", async () => {
   const content = "结合你的偏好，看看这三个方向。";
   const presentation = { type: "destination_recommendations" as const, destinations: [
-    { id: "d1", name: "甲", region: null, reason: "徒步", imageUrl: null },
-    { id: "d2", name: "乙", region: null, reason: "高山", imageUrl: null },
-    { id: "d3", name: "丙", region: null, reason: "成熟路线", imageUrl: null },
+    { id: "d1", name: "甘孜藏族自治州", province: "四川省", reason: "徒步" },
+    { id: "d2", name: "迪庆藏族自治州", province: "云南省", reason: "高山" },
+    { id: "d3", name: "丽江市", province: "云南省", reason: "成熟路线" },
   ] };
   const chat = new Chat<UIMessage>({
     id: "trip-1",

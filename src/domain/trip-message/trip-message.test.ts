@@ -31,9 +31,9 @@ test("rejects invalid roles and empty content", () => {
 
 test("validates structured assistant presentation and keeps plain messages compatible", () => {
   const presentation = { type: "destination_recommendations", destinations: [
-    { id: "a", name: "香格里拉", region: "云南", reason: "适合探索", imageUrl: null },
-    { id: "b", name: "阿尔山", region: "内蒙古", reason: "适合徒步", imageUrl: null },
-    { id: "c", name: "大理", region: "云南", reason: "节奏灵活", imageUrl: null },
+    { id: "a", name: "丽江市", province: "云南省", reason: "适合探索" },
+    { id: "b", name: "阿拉善盟", province: "内蒙古自治区", reason: "适合徒步" },
+    { id: "c", name: "大理白族自治州", province: "云南省", reason: "节奏灵活" },
   ] };
   assert.deepEqual(validateTripMessage({ ...message, presentation }).presentation, presentation);
   assert.equal(validateTripMessage(message).presentation, undefined);
@@ -42,10 +42,27 @@ test("validates structured assistant presentation and keeps plain messages compa
     assert.equal(validateTripMessage({ ...message, presentation: { ...presentation,
       destinations: presentation.destinations.slice(0, count) } }).presentation?.type, "destination_recommendations");
   }
+  const twelve = Array.from({ length: 12 }, (_, index) =>
+    ({ id: `p${index}`, name: `第${index}市`, province: "云南省", reason: "适合探索" }));
+  assert.equal(validateTripMessage({ ...message,
+    presentation: { ...presentation, destinations: twelve } }).presentation?.type, "destination_recommendations");
   assert.throws(() => validateTripMessage({ ...message, presentation: { ...presentation, destinations: [] } }), InvalidTripMessageError);
   assert.throws(() => validateTripMessage({ ...message, presentation: { ...presentation,
-    destinations: [...presentation.destinations, { id: "d", name: "额外", region: null, reason: "额外", imageUrl: null }] } }), InvalidTripMessageError);
+    destinations: [...twelve, { id: "p12", name: "第十三市", province: "云南省", reason: "额外" }] } }), InvalidTripMessageError);
   assert.throws(() => validateTripMessage({ ...message, presentation: { ...presentation, destinations: [presentation.destinations[0], presentation.destinations[0], presentation.destinations[2]] } }), InvalidTripMessageError);
+});
+
+test("cards stored before places were grouped read as what they were, without their image", () => {
+  // The old cards named the province `region` and carried the photo shown on the card.
+  const stored = { type: "destination_recommendations", destinations: [
+    { id: "a", name: "香格里拉", region: "云南", reason: "适合探索", imageUrl: "https://example.test/p.jpg" },
+    { id: "b", name: "阿尔山", region: null, reason: "适合徒步", imageUrl: null },
+  ] };
+  assert.deepEqual(validateTripMessage({ ...message, presentation: stored }).presentation, {
+    type: "destination_recommendations", destinations: [
+      { id: "a", name: "香格里拉", province: "云南", reason: "适合探索" },
+      { id: "b", name: "阿尔山", province: null, reason: "适合徒步" },
+    ] });
 });
 
 test("validates provider-returned location candidate presentation without accepting arbitrary shapes", () => {

@@ -15,6 +15,8 @@ export type GeneratePlanReadiness =
       readonly reason:
         | "destination_missing"
         | "destination_ambiguous"
+        /** A region is settled, but which places inside it are wanted is not. */
+        | "destination_area_only"
         | "destination_unresolved"
         | "provider_error";
     };

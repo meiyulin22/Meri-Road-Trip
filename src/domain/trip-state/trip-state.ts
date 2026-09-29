@@ -5,6 +5,11 @@ import {
   type TransportPreference,
 } from "@/domain/trip-draft/trip-draft";
 import type { LocationSuggestion } from "@/domain/location/location-suggestion";
+import {
+  destinationAreasTitle,
+  parseDestinationAreas,
+  type DestinationArea,
+} from "./destination-areas";
 
 export type TripFieldSource = "user" | "system";
 
@@ -44,10 +49,47 @@ export type LocationField =
   | { readonly state: "approximate" | "ambiguous"; readonly value: string; readonly source: TripFieldSource }
   | { readonly state: "missing" };
 
+/**
+ * The destination is the one location that can name several places at once, so it
+ * carries `areas` where an origin cannot. `value` is the text of those areas: it
+ * stays the single field every reader already uses — the title, the prompts, the
+ * Journey list — while `areas` is there for the readers that need the structure.
+ * Both are written together by whoever settles the destination, and validation
+ * deliberately does not require them to still agree, because a stored Journey has
+ * to keep opening after the text form changes.
+ */
+export type DestinationField =
+  | {
+      readonly state: "known";
+      readonly value: string;
+      readonly source: TripFieldSource;
+      readonly selection?: LocationSelection;
+      readonly areas?: readonly DestinationArea[];
+    }
+  | {
+      readonly state: "approximate" | "ambiguous";
+      readonly value: string;
+      readonly source: TripFieldSource;
+      readonly areas?: readonly DestinationArea[];
+    }
+  | { readonly state: "missing" };
+
+/**
+ * Recommendations answer 「去哪」, so they are offered while that question is open: no
+ * destination at all, or regions nobody has chosen a place inside yet. Once a place
+ * is settled the question has an answer, and offering a list against it would be
+ * arguing with the user instead of helping them.
+ */
+export function isDestinationOpenToRecommendations(destination: DestinationField): boolean {
+  if (destination.state === "missing") return true;
+  if (destination.state === "known") return false;
+  return (destination.areas ?? []).every((area) => area.places.length === 0);
+}
+
 export interface TripState {
   readonly name: TripStateField;
   readonly origin: LocationField;
-  readonly destination: LocationField;
+  readonly destination: DestinationField;
   readonly startDate: TripStateField;
   readonly endDate: TripStateField;
   readonly duration: TripStateField;
@@ -176,6 +218,25 @@ function validateLocationField(value: unknown, label: "origin" | "destination"):
   return { ...base, selection: validateLocationSelection(value.selection, label) };
 }
 
+function validateDestinationField(value: unknown): DestinationField {
+  if (!isRecord(value) || !Object.hasOwn(value, "areas")) {
+    return validateLocationField(value, "destination");
+  }
+
+  const areas = parseDestinationAreas(value.areas);
+  if (areas === null) {
+    throw new InvalidTripStateError("destination.areas is invalid.");
+  }
+
+  const withoutAreas = { ...value };
+  delete withoutAreas.areas;
+  const base = validateLocationField(withoutAreas, "destination");
+  if (base.state === "missing") {
+    throw new InvalidTripStateError("destination.areas requires a destination.");
+  }
+  return { ...base, areas };
+}
+
 export function validateTripState(value: unknown): TripState {
   const fieldNames: TripStateFieldName[] = [
     "name",
@@ -194,7 +255,7 @@ export function validateTripState(value: unknown): TripState {
   return {
     name: validateStateField(value.name, "name"),
     origin: validateLocationField(value.origin, "origin"),
-    destination: validateLocationField(value.destination, "destination"),
+    destination: validateDestinationField(value.destination),
     startDate: validateStateField(value.startDate, "startDate"),
     endDate: validateStateField(value.endDate, "endDate"),
     duration: validateStateField(value.duration, "duration"),
@@ -232,8 +293,12 @@ export function validateTripStatePatch(value: unknown): TripStatePatch {
 
   const patch: { -readonly [K in keyof TripState]?: TripState[K] } = {};
   for (const key of keys as TripStateFieldName[]) {
-    if (key === "origin" || key === "destination") {
-      Object.assign(patch, { [key]: validateLocationField(value[key], key) });
+    if (key === "destination") {
+      Object.assign(patch, { destination: validateDestinationField(value.destination) });
+      continue;
+    }
+    if (key === "origin") {
+      Object.assign(patch, { origin: validateLocationField(value.origin, "origin") });
       continue;
     }
     const field = validateStateField(
@@ -294,7 +359,7 @@ export function applyTripStatePatch(
     (state.destination.state !== "known" || state.destination.value !== patch.destination.value)) {
     return {
       ...nextState,
-      name: { state: "known", value: `${patch.destination.value}之旅`, source: "system" },
+      name: { state: "known", value: `${destinationTitle(patch.destination)}之旅`, source: "system" },
     };
   }
 
@@ -306,7 +371,7 @@ export function applyTripStatePatch(
 
 function withDefaultName(
   name: TripStateField,
-  destination: TripStateField,
+  destination: DestinationField,
 ): TripStateField {
   if (name.state !== "missing" || destination.state !== "known") {
     return name;
@@ -314,7 +379,16 @@ function withDefaultName(
 
   return {
     state: "known",
-    value: `${destination.value}之旅`,
+    value: `${destinationTitle(destination)}之旅`,
     source: "system",
   };
+}
+
+/**
+ * A destination spanning several provinces would make an unreadable title if every
+ * place went into it, so the structure names the trip when it is there.
+ */
+function destinationTitle(destination: DestinationField): string {
+  if (destination.state === "missing") return "";
+  return destination.areas?.length ? destinationAreasTitle(destination.areas) : destination.value;
 }

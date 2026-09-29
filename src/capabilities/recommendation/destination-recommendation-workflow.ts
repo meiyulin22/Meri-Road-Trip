@@ -1,15 +1,14 @@
+import { randomUUID } from "node:crypto";
+
+import type { DestinationRecommendationGroup } from "@/domain/location/destination-recommendations";
+import { normalizeRecommendationRegion } from "@/domain/location/recommendation-identity";
+import type { DestinationArea } from "@/domain/trip-state/destination-areas";
 import type { DestinationRecommendationPresentation } from "@/domain/trip-message/trip-message";
-import type { DestinationCandidate } from "@/domain/location/destination-candidates";
-import { deduplicateRecommendationDestinations } from "@/domain/location/recommendation-identity";
 import { createBochaDiscoverySearchFromEnvironment } from "@/platform/search/bocha-discovery-search";
-import { generateDestinationCandidates } from "./destination-candidate-generator";
-import { rankDestinationCandidates, type RankedDestinationCandidate } from "./destination-candidate-ranker";
-import type { DestinationRecommendationContext } from "./destination-recommendation-context";
 import { searchJourneyDiscovery, type DiscoverySearch, type DiscoverySearchResult } from "@/platform/search/discovery-search";
-import { filterDestinationCandidatesByAccess, type DestinationAccessChecker } from "./destination-access-filter";
-import { enrichRankedTopThree, type TopThreeEnrichmentResult } from "./enrich-ranked-destinations";
-import { createOfficialDestinationAccessCheckerFromEnvironment } from "./official-destination-access-checker";
 import { logger } from "@/platform/observability/logger";
+import { generateDestinationRecommendations } from "./destination-recommendation-generator";
+import type { DestinationRecommendationContext } from "./destination-recommendation-context";
 
 export type DestinationRecommendationWorkflowResult = {
   readonly content: string;
@@ -18,22 +17,17 @@ export type DestinationRecommendationWorkflowResult = {
 
 export type DestinationRecommendationWorkflowDependencies = {
   readonly discovery: DiscoverySearch;
-  readonly generateCandidates: (context: DestinationRecommendationContext & {
+  readonly generate: (context: DestinationRecommendationContext & {
     readonly discoveryResults?: readonly DiscoverySearchResult[];
-  }, requestId: string) => Promise<readonly DestinationCandidate[]>;
-  readonly access: DestinationAccessChecker;
-  readonly rank: (context: DestinationRecommendationContext, eligible: readonly DestinationCandidate[],
-    requestId: string, discovery: readonly DiscoverySearchResult[]) => Promise<readonly RankedDestinationCandidate[]>;
-  readonly enrich: (ranked: readonly RankedDestinationCandidate[]) => Promise<TopThreeEnrichmentResult>;
+  }, requestId: string) => Promise<readonly DestinationRecommendationGroup[]>;
+  readonly generateId: () => string;
 };
 
 export function destinationRecommendationWorkflowDependencies(): DestinationRecommendationWorkflowDependencies {
   return {
     discovery: createBochaDiscoverySearchFromEnvironment(),
-    generateCandidates: generateDestinationCandidates,
-    access: createOfficialDestinationAccessCheckerFromEnvironment(),
-    rank: rankDestinationCandidates,
-    enrich: enrichRankedTopThree,
+    generate: generateDestinationRecommendations,
+    generateId: randomUUID,
   };
 }
 
@@ -47,30 +41,46 @@ export async function runDestinationRecommendationWorkflow(
     "Destination recommendation workflow started");
 
   const discovery = await searchJourneyDiscovery(context, dependencies.discovery);
-  const candidates = await dependencies.generateCandidates(
+  const proposed = await dependencies.generate(
     discovery.length ? { ...context, discoveryResults: discovery } : context, requestId);
-  const access = await filterDestinationCandidatesByAccess(candidates, dependencies.access);
-  const eligible = deduplicateRecommendationDestinations(access.eligible.map((item) => item.candidate), (candidate) => candidate);
-  const ranked = await dependencies.rank(context, eligible, requestId, discovery);
-  const enriched = await dependencies.enrich(ranked);
-  const distinct = deduplicateRecommendationDestinations(enriched.destinations,
-    (item) => ({ ...item.candidate, providerIdentity: item.providerIdentity }));
-  const destinations = distinct.map(({ candidate, reason, imageUrl }) => ({
-    id: candidate.id, name: candidate.name, region: candidate.region, reason, imageUrl,
-  }));
+  const groups = withinSettledProvinces(proposed, settledAreas(context));
+  const destinations = groups.flatMap((group) => group.places.map((place) => ({
+    id: dependencies.generateId(), name: place.name, province: group.province, reason: place.reason,
+  })));
 
   logger.info({ event: "recommendation.workflow.completed", requestId,
-    discoveryCount: discovery.length, candidateCount: candidates.length, blockedCount: access.blocked.length,
-    clearCount: access.eligible.filter((item) => item.access.status === "clear").length,
-    uncertainCount: access.eligible.filter((item) => item.access.status === "uncertain").length,
-    rankedCount: ranked.length, enrichedCount: enriched.destinations.length, cardCount: destinations.length,
+    discoveryCount: discovery.length, proposedProvinceCount: proposed.length,
+    provinceCount: groups.length, placeCount: destinations.length,
     durationMs: Math.round(performance.now() - startedAt) }, "Destination recommendation workflow completed");
 
   if (!destinations.length) {
     return { content: "这次没有筛出合适的目的地。你可以调整一下偏好，我们再找找其他方向。" };
   }
   return {
-    content: "我结合你刚才的偏好筛了几个方向，你可以看看更想去哪一个。",
+    content: "我按省份列了几个可以去的地方，你想去哪些都可以选上，选好之后我们再往下定。",
     presentation: { type: "destination_recommendations", destinations },
   };
+}
+
+function settledAreas(context: DestinationRecommendationContext): readonly DestinationArea[] | undefined {
+  return context.tripState.destination.state === "missing" ? undefined : context.tripState.destination.areas;
+}
+
+/**
+ * The provinces the user has already settled are the strongest thing they have said,
+ * so a place outside them is not a recommendation but a change of subject: 「我想去海南」
+ * followed by a 西藏 card ignores the one answer we were given. The settled spelling
+ * wins over the model's, so that picking a place adds it to the area the destination
+ * already carries instead of opening a second province beside it.
+ */
+function withinSettledProvinces(
+  groups: readonly DestinationRecommendationGroup[],
+  settled: readonly DestinationArea[] | undefined,
+): readonly DestinationRecommendationGroup[] {
+  if (!settled?.length) return groups;
+  const provinces = new Map(settled.map((area) => [normalizeRecommendationRegion(area.province), area.province]));
+  return groups.flatMap((group) => {
+    const province = provinces.get(normalizeRecommendationRegion(group.province));
+    return province === undefined ? [] : [{ ...group, province }];
+  });
 }

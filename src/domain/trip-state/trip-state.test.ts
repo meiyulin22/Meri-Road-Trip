@@ -7,6 +7,7 @@ import {
   applyTripStatePatch,
   initializeTripState,
   InvalidTripStateError,
+  isDestinationOpenToRecommendations,
   validateTripState,
   validateTripStatePatch,
   type TripStatePatch,
@@ -327,4 +328,78 @@ test("a conversational destination replacement removes stale selection", () => {
     destination: { state: "known", value: "富良野", source: "user" },
   });
   assert.deepEqual(replaced.destination, { state: "known", value: "富良野", source: "user" });
+});
+
+test("a destination carries the provinces and places it covers, and they survive storage", () => {
+  const destination = {
+    state: "approximate", value: "四川省 稻城亚丁 · 云南省 梅里雪山", source: "user",
+    areas: [
+      { province: "四川省", places: ["稻城亚丁"] },
+      { province: "云南省", places: ["梅里雪山"] },
+    ],
+  } as const;
+  assert.deepEqual(validateTripStatePatch({ destination }).destination, destination);
+
+  const state = applyTripStatePatch(initializeTripState(draft), { destination });
+  assert.deepEqual(validateTripState(JSON.parse(JSON.stringify(state))), state);
+  assert.deepEqual(validateTripStatePatch({
+    destination: { state: "known", value: "海南省", source: "user",
+      selection: { provider: "amap", region: "海南省" }, areas: [{ province: "海南省", places: [] }] },
+  }).destination?.state, "known");
+});
+
+test("a Journey without areas keeps validating, because most of them have none", () => {
+  const state = initializeTripState({ ...draft, destination: { state: "known", value: "香格里拉" } });
+  assert.deepEqual(validateTripState(JSON.parse(JSON.stringify(state))), state);
+  assert.equal(Object.hasOwn(validateTripStatePatch({
+    destination: { state: "known", value: "香格里拉", source: "user" },
+  }).destination ?? {}, "areas"), false);
+});
+
+test("a malformed area is a corrupt destination, and an origin can never carry one", () => {
+  for (const destination of [
+    { state: "approximate", value: "四川省", source: "user", areas: [] },
+    { state: "approximate", value: "四川省", source: "user", areas: "四川省" },
+    { state: "approximate", value: "四川省", source: "user", areas: [{ province: "", places: [] }] },
+    { state: "missing", areas: [{ province: "四川省", places: [] }] },
+  ]) {
+    assert.throws(() => validateTripStatePatch({ destination }), InvalidTripStateError);
+  }
+  assert.throws(() => validateTripStatePatch({
+    origin: { state: "approximate", value: "四川省", source: "user", areas: [{ province: "四川省", places: [] }] },
+  }), InvalidTripStateError);
+});
+
+test("the Journey is named after the destination's own structure, not its whole text", () => {
+  const areas = [
+    { province: "四川省", places: ["稻城亚丁", "四姑娘山"] },
+    { province: "云南省", places: ["梅里雪山"] },
+  ];
+  const unnamed: TripStatePatch = { destination: { state: "known", value: "川滇线", source: "user", areas } };
+  const state = applyTripStatePatch(
+    initializeTripState({ ...draft, name: { state: "missing" }, destination: { state: "missing" } }), unnamed);
+  assert.deepEqual(state.name, { state: "known", value: "四川省、云南省之旅", source: "system" });
+
+  const single = applyTripStatePatch(state, {
+    destination: { state: "known", value: "云南省 梅里雪山", source: "user",
+      areas: [{ province: "云南省", places: ["梅里雪山"] }] },
+  });
+  assert.deepEqual(single.name, { state: "known", value: "梅里雪山之旅", source: "system" });
+});
+
+test("「去哪」 stays open until a place is chosen, and closes once one is", () => {
+  assert.equal(isDestinationOpenToRecommendations({ state: "missing" }), true);
+  assert.equal(isDestinationOpenToRecommendations({ state: "approximate", value: "海南省",
+    source: "user", areas: [{ province: "海南省", places: [] }] }), true);
+  assert.equal(isDestinationOpenToRecommendations({ state: "ambiguous", value: "海南或者广西",
+    source: "user" }), true);
+  assert.equal(isDestinationOpenToRecommendations({ state: "known", value: "海南省 三亚市",
+    source: "user", areas: [{ province: "海南省", places: ["三亚市"] }] }), false);
+  // A place in one of two provinces still answers the question that was asked.
+  assert.equal(isDestinationOpenToRecommendations({ state: "approximate", value: "海南省 · 广西壮族自治区 北海市",
+    source: "user", areas: [{ province: "海南省", places: [] },
+      { province: "广西壮族自治区", places: ["北海市"] }] }), false);
+  // Destinations saved before places were grouped carry no areas; a named one is an answer.
+  assert.equal(isDestinationOpenToRecommendations({ state: "known", value: "三亚", source: "user" }), false);
+  assert.equal(isDestinationOpenToRecommendations({ state: "approximate", value: "海南", source: "user" }), true);
 });

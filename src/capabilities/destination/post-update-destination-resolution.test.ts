@@ -2,9 +2,10 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import type { LocationCandidate } from "@/domain/location/location";
-import { applyTripStatePatch, type TripState, type TripStatePatch } from "@/domain/trip-state/trip-state";
+import { applyTripStatePatch, validateTripState, type TripState, type TripStatePatch } from "@/domain/trip-state/trip-state";
 import type { WorkspaceConversationInterpretation } from "@/domain/trip-state/workspace-conversation";
 
+import { planReadyNote } from "@/capabilities/conversation/turn-reply";
 import type { LocationProvider } from "@/platform/location-provider/location-provider";
 import { LocationService } from "./location-service";
 import { persistWorkspacePatchWithDestinationValidation, replyAfterDestinationResolution } from "./post-update-destination-resolution";
@@ -67,11 +68,11 @@ test("resolved destination is validated once before the single persistence write
   assert.equal(result.tripState.destination.state === "known" && "selection" in result.tripState.destination, false);
   assert.deepEqual(result.tripState.duration, patch.duration);
   const reply = replyAfterDestinationResolution(interpretation, result.tripState, result.resolution, result.persistedPatch);
-  assert.equal(reply, interpretation.reply);
+  assert.equal(reply, `${interpretation.reply}${planReadyNote}。`);
   assert.doesNotMatch(reply, /匹配到地点|吉林省|jilin-city|坐标/);
 });
 
-test("a confirmed destination keeps the model's own reply", () => {
+test("a confirmed destination keeps the model's reply and adds the one sentence only the application can say", () => {
   const resolution = { status: "resolved" as const, candidate: city };
   const destination = { state: "known" as const, value: "吉林", source: "user" as const };
   const noDetails = { ...original, destination, duration: { state: "missing" as const } };
@@ -79,11 +80,14 @@ test("a confirmed destination keeps the model's own reply", () => {
   const datesKnown = { ...noDetails, startDate: { state: "known" as const, value: "十月", source: "user" as const } };
   const allKnown = { ...durationKnown, startDate: datesKnown.startDate };
 
-  // The model wrote its reply assuming the destination would land, and it did,
-  // so there is nothing to correct and no reason to replace its wording.
+  // The model wrote its reply assuming the destination would land, and it did, so
+  // there is nothing to correct and no reason to replace its wording. Readiness is
+  // the one thing it may not say — the prompt forbids it — so the application adds
+  // that sentence after the model's, whatever details are still missing.
   for (const state of [noDetails, durationKnown, datesKnown, allKnown]) {
     const reply = replyAfterDestinationResolution(interpretation, state, resolution, { destination });
-    assert.equal(reply, interpretation.reply);
+    assert.equal(reply, `${interpretation.reply}${planReadyNote}。`);
+    assert.ok(reply.startsWith(interpretation.reply));
   }
 });
 
@@ -94,6 +98,7 @@ test("a resolved destination that did not settle says so instead of claiming it 
     { status: "resolved", candidate: city }, null);
   assert.match(reply, /目的地还没有明确下来/);
   assert.doesNotMatch(reply, /已更新目的地/);
+  assert.ok(!reply.includes(planReadyNote));
 });
 
 test("approximate details are not called known or asked for again", () => {
@@ -135,6 +140,9 @@ for (const { status, candidates, replyPattern } of [
     const reply = replyAfterDestinationResolution(interpretation, result.tripState, result.resolution, result.persistedPatch);
     assert.match(reply, replyPattern);
     assert.doesNotMatch(reply, /目的地记下了：|已更新目的地|匹配到地点/);
+    // Only a destination that actually landed makes a plan possible, so only that
+    // one gets the readiness sentence.
+    assert.ok(!reply.includes(planReadyNote));
   });
 }
 
@@ -186,4 +194,29 @@ test("persistence failure occurs after, not before, validation", async () => {
     new LocationService({ async searchByKeyword() { searches += 1; return { status: "success", candidates: [city] }; } })),
   /write failed/);
   assert.equal(searches, 1);
+});
+
+test("a region the user named is saved as an area instead of being thrown away", async () => {
+  // 「我想去海南」 used to come back as 「暂时无法验证」 with nothing saved at all, which
+  // dropped the one thing the user had told us.
+  const hainan: LocationCandidate = {
+    providerId: "hainan", name: "海南省", province: "海南省", city: null, district: null,
+    region: "海南省", address: null, longitude: 110.33, latitude: 20.03, coordinateSystem: "GCJ-02",
+  };
+  let stored = original;
+  const result = await persistWorkspacePatchWithDestinationValidation(original,
+    { destination: { state: "known", value: "海南", source: "user" }, duration: patch.duration },
+    async (committedPatch) => { stored = applyTripStatePatch(stored, committedPatch); return stored; },
+    new LocationService({ async searchByKeyword() { return { status: "success", candidates: [hainan] }; } }));
+
+  assert.equal(result.resolution?.status, "area");
+  assert.deepEqual(stored.destination, {
+    state: "approximate", value: "海南省", source: "user", areas: [{ province: "海南省", places: [] }],
+  });
+  assert.deepEqual(stored.duration, patch.duration);
+  // The Journey has to keep opening, so the stored shape goes through the validator.
+  assert.deepEqual(validateTripState(JSON.parse(JSON.stringify(stored))), stored);
+  // The model's reply assumed the region landed, and it did.
+  assert.equal(replyAfterDestinationResolution(interpretation, result.tripState, result.resolution,
+    result.persistedPatch), interpretation.reply);
 });

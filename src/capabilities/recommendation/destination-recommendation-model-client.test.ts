@@ -14,12 +14,7 @@ test("action-driven AI SDK call sends no synthetic user role and makes one provi
       return Response.json({
         id: "test", object: "chat.completion", created: 1, model: "kimi-k2.6",
         choices: [{ index: 0, message: { role: "assistant", content: JSON.stringify({
-          reply: "三个方向",
-          destinations: [
-            { name: "甲", region: null, reason: "方向一" },
-            { name: "乙", region: null, reason: "方向二" },
-            { name: "丙", region: null, reason: "方向三" },
-          ],
+          provinces: [{ province: "云南省", places: [{ name: "丽江市", reason: "方向一" }] }],
         }) }, finish_reason: "stop" }],
         usage: { prompt_tokens: 1, completion_tokens: 1, total_tokens: 2 },
       });

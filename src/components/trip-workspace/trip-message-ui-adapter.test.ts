@@ -34,9 +34,9 @@ test("maps persisted TripMessages to ordered UI messages without changing IDs, r
 
 test("restored recommendation presentation remains attached to its assistant message", () => {
   const presentation = { type: "destination_recommendations" as const, destinations: [
-    { id: "a", name: "甲", region: null, reason: "一", imageUrl: "https://amap.example/photo.jpg" },
-    { id: "b", name: "乙", region: null, reason: "二", imageUrl: null },
-    { id: "c", name: "丙", region: null, reason: "三", imageUrl: null },
+    { id: "a", name: "丽江市", province: "云南省", reason: "古城和雪山都在一天路程里" },
+    { id: "b", name: "迪庆藏族自治州", province: "云南省", reason: "适合看高原草甸" },
+    { id: "c", name: "甘孜藏族自治州", province: "四川省", reason: "川西环线的主要一段" },
   ] };
   const restored = toWorkspaceUIMessages([{
     id: "recommendation", tripId: "trip-1", role: "assistant", content: "看看这些地方。",

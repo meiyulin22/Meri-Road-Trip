@@ -1,5 +1,6 @@
 import type { DestinationDisambiguation } from "@/domain/location/destination-disambiguation";
-import type { TripState, TripStatePatch } from "@/domain/trip-state/trip-state";
+import { destinationAreasText } from "@/domain/trip-state/destination-areas";
+import type { DestinationField, TripFieldSource, TripState, TripStatePatch } from "@/domain/trip-state/trip-state";
 import type { WorkspaceConversationInterpretation } from "@/domain/trip-state/workspace-conversation";
 import { composeTurnReply, type DestinationTurnFact } from "@/capabilities/conversation/turn-reply";
 
@@ -47,7 +48,9 @@ export async function persistWorkspacePatchWithDestinationValidation(
   let persistedPatch: TripStatePatch = patch;
   if (destinationChanged && current?.state !== "missing" && current !== undefined) {
     resolution = await locationService.resolveExpression(current.value);
-    if (resolution.status !== "resolved") {
+    if (resolution.status === "area") {
+      persistedPatch = { ...patch, destination: destinationForProvince(resolution.province, current.source) };
+    } else if (resolution.status !== "resolved") {
       persistedPatch = withoutDestination(patch);
     }
   } else if (!destinationChanged && current !== undefined) {
@@ -57,6 +60,18 @@ export async function persistWorkspacePatchWithDestinationValidation(
     return { tripState: previousState, resolution, persistedPatch: null };
   }
   return { tripState: await persistPatch(persistedPatch), resolution, persistedPatch };
+}
+
+/**
+ * A province is not a point, so it cannot be "known" — but it is what the user
+ * said, and dropping it threw away the one thing they had told us: 「我想去海南」
+ * came back as "I could not verify that". It is stored as the approximate
+ * destination it is, carrying the province as its only area. Which places inside
+ * it are wanted is a later question, and the answer goes into the same area.
+ */
+function destinationForProvince(province: string, source: TripFieldSource): DestinationField {
+  const areas = [{ province, places: [] }] as const;
+  return { state: "approximate", value: destinationAreasText(areas), source, areas };
 }
 
 function withoutDestination(patch: TripStatePatch): TripStatePatch {
@@ -82,6 +97,8 @@ function destinationFactFromResolution(
       return tripState.destination.state === "known" ? { kind: "confirmed" } : { kind: "unsettled" };
     case "ambiguous":
       return { kind: "choice_pending" };
+    case "area":
+      return { kind: "area_recorded" };
     case "unresolved":
       return { kind: "not_identified", expression: null };
     case "provider_error":

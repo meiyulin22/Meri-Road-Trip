@@ -6,12 +6,18 @@ export type TripMessageRole = (typeof tripMessageRoles)[number];
 
 export interface DestinationRecommendationPresentation {
   readonly type: "destination_recommendations";
+  /**
+   * Places to pick from, a 市 at the finest: 「云南省 丽江市」 is something a plan can
+   * be built for, 「云南」 is not, and which 景点 inside 丽江 is Generate plan's
+   * question rather than this one. Several are picked at once, so the list is
+   * longer than the three cards that used to be offered, and the province is what
+   * groups it on screen.
+   */
   readonly destinations: readonly {
     readonly id: string;
     readonly name: string;
-    readonly region: string | null;
+    readonly province: string | null;
     readonly reason: string;
-    readonly imageUrl: string | null;
   }[];
 }
 
@@ -103,24 +109,41 @@ function validatePresentation(value: unknown, role: TripMessageRole): TripMessag
     return { type: "location_candidates", candidates };
   }
   if (value.type !== "destination_recommendations" ||
-    !Array.isArray(value.destinations) || value.destinations.length < 1 || value.destinations.length > 3) {
+    !Array.isArray(value.destinations) || value.destinations.length < 1 ||
+    value.destinations.length > maxDestinationRecommendations) {
     throw new InvalidTripMessageError("TripMessage.presentation is invalid.");
   }
   const destinations = value.destinations.map((item: unknown) => {
-    if (!isRecord(item) || Object.keys(item).length !== 5 ||
-      !["id", "name", "region", "reason", "imageUrl"].every((key) => Object.hasOwn(item, key)) ||
+    if (!isRecord(item) || !hasKnownKeys(item, recommendationKeys, legacyRecommendationKeys) ||
       !isPresentText(item.id) || !isPresentText(item.name) || !isPresentText(item.reason) ||
-      !(item.region === null || isPresentText(item.region)) ||
-      !(item.imageUrl === null || (typeof item.imageUrl === "string" && /^https:\/\//.test(item.imageUrl)))) {
+      [item.province, item.region].some((level) =>
+        !(level === undefined || level === null || isPresentText(level)))) {
       throw new InvalidTripMessageError("TripMessage.presentation destination is invalid.");
     }
-    return { id: item.id, name: item.name, region: item.region, reason: item.reason, imageUrl: item.imageUrl };
+    return { id: item.id, name: item.name, reason: item.reason,
+      province: storedAreaLevel(item.province) ?? storedAreaLevel(item.region) };
   });
   if (new Set(destinations.map((item) => item.id)).size !== destinations.length) {
     throw new InvalidTripMessageError("TripMessage.presentation IDs must be distinct.");
   }
   return { type: "destination_recommendations", destinations };
 }
+
+/**
+ * Picking several places at once is what makes a regional trip expressible, so the
+ * list is no longer three cards long. Twelve is where a grouped list stops being
+ * readable in one screen.
+ */
+const maxDestinationRecommendations = 12;
+
+const recommendationKeys = ["id", "name", "reason"] as const;
+
+/**
+ * Cards stored before places were picked in groups named the province `region` and
+ * carried an `imageUrl` for the photo on the card. Both are read as what they were:
+ * the region is the province, and the image is gone.
+ */
+const legacyRecommendationKeys = ["province", "region", "imageUrl"] as const;
 
 const locationCandidateKeys = [
   "providerId", "name", "region", "address", "longitude", "latitude", "coordinateSystem",

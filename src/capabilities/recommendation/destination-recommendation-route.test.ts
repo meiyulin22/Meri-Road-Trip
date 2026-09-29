@@ -7,7 +7,7 @@ import type { TripState } from "@/domain/trip-state/trip-state";
 import type { TripUserAction } from "@/domain/trip-user-action/trip-user-action";
 import { TripNotFoundError } from "@/domain/trip/trip-errors";
 import type { DestinationRecommendationContext } from "./destination-recommendation-context";
-import { InvalidDestinationRankingOutputError } from "./destination-candidate-ranker";
+import { InvalidDestinationRecommendationOutputError } from "./destination-recommendation-generator";
 import type { DestinationRecommendationWorkflowResult } from "./destination-recommendation-workflow";
 
 const tripId = "3d17d2c7-fd9b-4748-b751-3a76a9a920be";
@@ -22,8 +22,8 @@ const history: TripMessage[] = [
 const workflowResult: DestinationRecommendationWorkflowResult = {
   content: "我结合你的偏好筛了几个方向。",
   presentation: { type: "destination_recommendations", destinations: [
-    { id: "c1", name: "甲", region: "四川", reason: "适合徒步", imageUrl: null },
-    { id: "c2", name: "乙", region: null, reason: "适合登山", imageUrl: "https://example.test/photo.jpg" },
+    { id: "c1", name: "甘孜藏族自治州", province: "四川省", reason: "适合徒步" },
+    { id: "c2", name: "迪庆藏族自治州", province: "云南省", reason: "适合登山" },
   ] },
 };
 
@@ -77,7 +77,17 @@ test("missing owner and established destination never start workflow", async () 
   assert.deepEqual(fixture.calls, []);
 });
 
-test("wrong owner and ranking failure do not persist a recommendation message", async () => {
+test("a province with no place chosen inside it is still open, so the cards are built", async () => {
+  const fixture = dependencies();
+  const response = await handleDestinationRecommendationsPost(tripId, "owner", { ...fixture.deps,
+    async loadJourney() { fixture.calls.push("load"); return { tripState: { ...state,
+      destination: { state: "approximate" as const, value: "四川省", source: "user" as const,
+        areas: [{ province: "四川省", places: [] }] } } }; } });
+  assert.equal(response.status, 200);
+  assert.deepEqual(fixture.calls, ["load", "action", "history", "workflow", "message"]);
+});
+
+test("wrong owner and an unusable model answer do not persist a recommendation message", async () => {
   const missing = dependencies();
   assert.equal((await handleDestinationRecommendationsPost(tripId, "wrong", {
     ...missing.deps, async loadJourney() { throw new TripNotFoundError(tripId); },
@@ -85,7 +95,7 @@ test("wrong owner and ranking failure do not persist a recommendation message", 
   assert.equal(missing.saved.length, 0);
   const failed = dependencies();
   const response = await handleDestinationRecommendationsPost(tripId, "owner", {
-    ...failed.deps, async runWorkflow() { throw new InvalidDestinationRankingOutputError("invalid ranking"); },
+    ...failed.deps, async runWorkflow() { throw new InvalidDestinationRecommendationOutputError("invalid recommendations"); },
   });
   assert.equal(response.status, 502);
   assert.equal(failed.saved.length, 0);

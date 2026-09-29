@@ -1,6 +1,7 @@
 import { cookies } from "next/headers";
 
-import type { TripMessage } from "@/domain/trip-message/trip-message";
+import type { DestinationRecommendationPresentation, TripMessage } from "@/domain/trip-message/trip-message";
+import { destinationAreasText, groupDestinationAreas, sameDestinationAreas, type DestinationArea } from "@/domain/trip-state/destination-areas";
 import type { GeneratePlanReadiness } from "@/domain/trip-state/planning-readiness";
 import type { TripState, TripStatePatch } from "@/domain/trip-state/trip-state";
 import { TripNotFoundError } from "@/domain/trip/trip-errors";
@@ -29,11 +30,15 @@ export async function handleDestinationRecommendationSelectionPost(
   dependencies: Dependencies,
 ): Promise<Response> {
   if (!ownerGuestId) return Response.json({ error: "Journey not found." }, { status: 404 });
-  if (typeof body !== "object" || body === null || !("messageId" in body) ||
-    typeof body.messageId !== "string" || !("destinationId" in body) ||
-    typeof body.destinationId !== "string" || Object.keys(body).length !== 2) {
+  if (typeof body !== "object" || body === null || Object.keys(body).length !== 2 ||
+    !("messageId" in body) || typeof body.messageId !== "string" ||
+    !("destinationIds" in body) || !Array.isArray(body.destinationIds) ||
+    body.destinationIds.length === 0 ||
+    body.destinationIds.some((id) => typeof id !== "string") ||
+    new Set(body.destinationIds).size !== body.destinationIds.length) {
     return Response.json({ error: "Invalid recommendation selection." }, { status: 400 });
   }
+  const destinationIds: readonly string[] = body.destinationIds;
 
   try {
     const { tripState: currentState } = await dependencies.loadJourney(tripId, ownerGuestId);
@@ -43,21 +48,27 @@ export async function handleDestinationRecommendationSelectionPost(
     if (!message || presentation?.type !== "destination_recommendations") {
       return Response.json({ error: "Recommendation selection not found." }, { status: 404 });
     }
-    // Only a card Meri actually offered can be picked: the name comes from the
-    // persisted presentation, never from the request.
-    const destination = presentation.destinations.find((item) => item.id === body.destinationId);
-    if (!destination) return Response.json({ error: "Recommendation selection not found." }, { status: 404 });
-    const followUpId = destinationRecommendationSelectionMessageId(tripId, message.id, destination.id);
+    // Only the cards Meri actually offered can be picked: every name and province
+    // comes from the persisted presentation, never from the request.
+    const chosen = destinationIds.map((id) => presentation.destinations.find((item) => item.id === id));
+    if (chosen.some((item) => item === undefined)) {
+      return Response.json({ error: "Recommendation selection not found." }, { status: 404 });
+    }
+    const areas = chosenAreas(chosen as OfferedDestinations);
+    if (areas === null) {
+      return Response.json({ error: "Recommendation selection is no longer current." }, { status: 409 });
+    }
+    const value = destinationAreasText(areas);
+    const followUpId = destinationRecommendationSelectionMessageId(tripId, message.id, destinationIds);
     const existingFollowUp = messages.find((item) => item.id === followUpId && item.role === "assistant");
     if (existingFollowUp) {
-      const currentDestination = currentState.destination;
-      if (currentDestination.state !== "known" || currentDestination.value !== destination.name) {
+      if (!stillHolds(currentState.destination, areas, value)) {
         return Response.json({ error: "Recommendation selection is no longer current." }, { status: 409 });
       }
       return Response.json({ tripState: currentState, assistantMessage: existingFollowUp });
     }
     const tripState = await dependencies.updateTripState(tripId, ownerGuestId, {
-      destination: { state: "known", value: destination.name, source: "user" },
+      destination: { state: "known", value, source: "user", areas },
     });
     try {
       // The readiness check resolves the name against the Location Provider, so
@@ -77,6 +88,40 @@ export async function handleDestinationRecommendationSelectionPost(
     return Response.json({ error: missing ? "Journey not found." : "Recommendation selection unavailable." },
       { status: missing ? 404 : 500 });
   }
+}
+
+type OfferedDestinations = DestinationRecommendationPresentation["destinations"];
+
+/**
+ * A reply already written means this same set of cards was picked before, so the only
+ * question left is whether the Journey still holds that choice: if the user has since
+ * moved somewhere else, replaying the old reply would describe a destination that is
+ * gone. The places are compared rather than the text, because the follow-up id does
+ * not depend on the order they were clicked in. Destinations saved before places were
+ * grouped carry no areas, and their text is all there is to compare.
+ */
+function stillHolds(
+  destination: TripState["destination"],
+  areas: readonly DestinationArea[],
+  value: string,
+): boolean {
+  if (destination.state !== "known") return false;
+  return destination.areas ? sameDestinationAreas(destination.areas, areas) : destination.value === value;
+}
+
+/**
+ * The picks become the destination itself, grouped by the provinces they were offered
+ * under. Cards from before places were grouped can carry no province, and there is
+ * nowhere truthful to file those: the offer is stale rather than wrong, so it is
+ * refused as stale and a fresh list can be asked for.
+ */
+function chosenAreas(chosen: OfferedDestinations): ReturnType<typeof groupDestinationAreas> | null {
+  const places: { province: string; name: string }[] = [];
+  for (const destination of chosen) {
+    if (destination.province === null) return null;
+    places.push({ province: destination.province, name: destination.name });
+  }
+  return groupDestinationAreas(places);
 }
 
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }): Promise<Response> {

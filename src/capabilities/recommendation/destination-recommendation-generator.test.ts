@@ -26,21 +26,26 @@ const history: TripMessage[] = [
   { id: "a1", tripId, role: "assistant", content: "可以慢慢决定目的地。", createdAt: action.createdAt },
 ];
 const valid = {
-  reply: "结合你目前的想法，先看看这三个方向。",
-  destinations: [
-    { name: "都江堰", region: "四川", reason: "适合作为从成都出发的探索方向。" },
-    { name: "青城山", region: "四川", reason: "可以考虑轻量户外体验。" },
-    { name: "峨眉山", region: null, reason: "可以考虑山地旅行体验。" },
+  provinces: [
+    { province: "四川省", places: [
+      { name: "甘孜藏族自治州", reason: "川西环线的主要一段" },
+      { name: "阿坝藏族羌族自治州", reason: "高原草甸和雪山都在这里" },
+    ] },
+    { province: "云南省", places: [{ name: "迪庆藏族自治州", reason: "从成都坐车过去不难" }] },
   ],
 };
 
+function context(state: TripState = tripState) {
+  return buildDestinationRecommendationContext(action, state, history);
+}
+
 test("dedicated context contains persisted action, authoritative state, and only real history", () => {
-  const context = buildDestinationRecommendationContext(action, tripState, history);
-  assert.equal(context.source, "explicit_action");
-  if (context.source !== "explicit_action") throw new Error("Expected explicit action context.");
-  assert.equal(context.action, action);
-  assert.equal(context.tripState, tripState);
-  assert.deepEqual(context.conversationHistory, [
+  const built = context();
+  assert.equal(built.source, "explicit_action");
+  if (built.source !== "explicit_action") throw new Error("Expected explicit action context.");
+  assert.equal(built.action, action);
+  assert.equal(built.tripState, tripState);
+  assert.deepEqual(built.conversationHistory, [
     { role: "user", content: history[0].content },
     { role: "assistant", content: history[1].content },
   ]);
@@ -54,9 +59,8 @@ test("generator performs one structured call without fabricating a user message"
       return { content: JSON.stringify(valid), model: "test", finishReason: "stop" };
     },
   };
-  const result = await generateDestinationRecommendations(
-    buildDestinationRecommendationContext(action, tripState, history), "request-1", client);
-  assert.deepEqual(result, valid);
+  const result = await generateDestinationRecommendations(context(), "request-1", client);
+  assert.deepEqual(result, valid.provinces);
   assert.equal(requests.length, 1);
   assert.equal(requests[0].userMessage, undefined);
   assert.equal(requests[0].tools, undefined);
@@ -65,31 +69,66 @@ test("generator performs one structured call without fabricating a user message"
     { role: "assistant", content: history[1].content },
   ]);
   assert.match(requests[0].systemPrompt, new RegExp(action.id));
-  assert.match(requests[0].systemPrompt, /成都/);
-  assert.match(requests[0].systemPrompt, /name "大理", region "云南"/);
-  assert.match(requests[0].systemPrompt, /do not invent broad labels/);
-  const destinationsSchema = (requests[0].jsonSchema.properties as Record<string, Record<string, unknown>>).destinations;
-  assert.equal(destinationsSchema.minItems, 3);
-  assert.equal(destinationsSchema.maxItems, 3);
-  const fields = (destinationsSchema.items as { properties: Record<string, { description: string }> }).properties;
-  assert.match(fields.name.description, /Concise destination/);
-  assert.match(fields.region.description, /Province-level/);
+  assert.match(requests[0].systemPrompt, /成都/u);
+  assert.match(requests[0].systemPrompt, /prefecture-level city or autonomous prefecture/u);
+  assert.match(requests[0].systemPrompt, /Never a province/u);
+  assert.match(requests[0].systemPrompt, /No destination is settled yet/u);
+  const provinces = (requests[0].jsonSchema.properties as Record<string, Record<string, unknown>>).provinces;
+  assert.equal(provinces.minItems, 1);
+  assert.equal(provinces.maxItems, 4);
+  const group = (provinces.items as { properties: Record<string, Record<string, unknown>> }).properties;
+  assert.match(String(group.province.description), /Full province-level name/u);
+  const place = (group.places.items as { properties: Record<string, { description: string }> }).properties;
+  assert.match(place.name.description, /prefecture-level city or autonomous prefecture/u);
+  assert.match(place.reason.description, /stated preferences/u);
 });
 
-test("rejects incomplete, malformed, and truncated structured output", async () => {
+test("a settled province is named in the prompt so the list stays inside it", async () => {
+  const requests: StructuredOutputModelRequest[] = [];
+  const client: StructuredOutputModelClient = {
+    async generateStructuredOutput(request) {
+      requests.push(request);
+      return { content: JSON.stringify(valid), model: "test", finishReason: "stop" };
+    },
+  };
+  await generateDestinationRecommendations(context({ ...tripState,
+    destination: { state: "approximate", value: "海南省", source: "user",
+      areas: [{ province: "海南省", places: [] }] } }), "request-1", client);
+  assert.match(requests[0].systemPrompt, /already settled as 海南省/u);
+  assert.doesNotMatch(requests[0].systemPrompt, /No destination is settled yet/u);
+});
+
+test("discovery results are marked unverified when they are given to the model", async () => {
+  const requests: StructuredOutputModelRequest[] = [];
+  const client: StructuredOutputModelClient = {
+    async generateStructuredOutput(request) {
+      requests.push(request);
+      return { content: JSON.stringify(valid), model: "test", finishReason: "stop" };
+    },
+  };
+  await generateDestinationRecommendations({ ...context(), discoveryResults: [
+    { source: "search", title: "近期资料", url: "https://example.test/travel" },
+  ] }, "request-1", client);
+  assert.match(requests[0].systemPrompt, /Unverified discovery search results/u);
+  assert.match(requests[0].systemPrompt, /never proof of existence, access, legality, safety, or current conditions/u);
+});
+
+test("rejects malformed, out-of-shape, and truncated structured output", async () => {
   for (const response of [
-    { content: JSON.stringify({ ...valid, destinations: valid.destinations.slice(0, 2) }), finishReason: "stop" },
-    { content: JSON.stringify({ ...valid, destinations: [...valid.destinations, valid.destinations[0]] }), finishReason: "stop" },
-    { content: JSON.stringify({ ...valid, reply: "" }), finishReason: "stop" },
+    { content: JSON.stringify({ provinces: [] }), finishReason: "stop" },
+    { content: JSON.stringify({ provinces: [{ province: "四川省", places: [] }] }), finishReason: "stop" },
+    { content: JSON.stringify({ destinations: valid.provinces[0].places }), finishReason: "stop" },
     { content: "not json", finishReason: "stop" },
+    { content: "", finishReason: "stop" },
     { content: JSON.stringify(valid), finishReason: "length" },
   ]) {
     const client: StructuredOutputModelClient = {
       async generateStructuredOutput() { return { ...response, model: "test" }; },
     };
     await assert.rejects(
-      generateDestinationRecommendations(buildDestinationRecommendationContext(action, tripState, history), "request-1", client),
+      generateDestinationRecommendations(context(), "request-1", client),
       InvalidDestinationRecommendationOutputError,
+      response.content.slice(0, 40),
     );
   }
 });
@@ -100,7 +139,7 @@ test("provider failure propagates without returning invented recommendations", a
     async generateStructuredOutput() { throw failure; },
   };
   await assert.rejects(
-    generateDestinationRecommendations(buildDestinationRecommendationContext(action, tripState, history), "request-1", client),
+    generateDestinationRecommendations(context(), "request-1", client),
     (error: unknown) => error === failure,
   );
 });

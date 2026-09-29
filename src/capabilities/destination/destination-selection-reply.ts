@@ -1,6 +1,6 @@
 import type { GeneratePlanReadiness } from "@/domain/trip-state/planning-readiness";
 import type { TripState } from "@/domain/trip-state/trip-state";
-import { capturedDetailsNote, missingDetailsInvitation } from "@/capabilities/conversation/turn-reply";
+import { capturedDetailsNote, missingDetailsInvitation, planReadyNote } from "@/capabilities/conversation/turn-reply";
 
 export function destinationSelectionReply(
   tripState: TripState,
@@ -17,6 +17,8 @@ export function destinationSelectionReply(
         return `${acknowledgement}还需要确认目的地，才能开始规划。`;
       case "destination_ambiguous":
         return `${acknowledgement}还需要确定具体地点，才能开始规划。`;
+      case "destination_area_only":
+        return `${acknowledgement}这个范围还比较大，还需要确定想去的地点，才能开始规划。`;
       case "destination_unresolved":
         return `${acknowledgement}还需要一个更具体的地点，才能开始规划。`;
       case "provider_error":
@@ -24,6 +26,5 @@ export function destinationSelectionReply(
     }
   }
 
-  const ready = "现在已经可以开始生成旅行计划。你可以直接告诉我开始生成，或者点击右侧的 Generate plan";
-  return `${acknowledgement}${capturedDetailsNote(tripState)}${ready}${missingDetailsInvitation(tripState)}`;
+  return `${acknowledgement}${capturedDetailsNote(tripState)}${planReadyNote}${missingDetailsInvitation(tripState)}`;
 }

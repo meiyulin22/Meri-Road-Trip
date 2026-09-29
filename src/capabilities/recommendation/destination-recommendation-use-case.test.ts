@@ -25,8 +25,8 @@ const interpretation: WorkspaceConversationInterpretation = {
 const recommendations = {
   content: "结合你喜欢的徒步和高山，看看这几个方向。",
   presentation: { type: "destination_recommendations" as const, destinations: [
-    { id: "c1", name: "甲", region: null, reason: "高山徒步", imageUrl: null },
-    { id: "c2", name: "乙", region: null, reason: "成熟路线", imageUrl: null },
+    { id: "c1", name: "迪庆藏族自治州", province: "云南省", reason: "高山徒步" },
+    { id: "c2", name: "甘孜藏族自治州", province: "四川省", reason: "成熟路线" },
   ] },
 };
 
@@ -41,6 +41,16 @@ test("presentation guard leaves normal text turns, direct destinations, and disa
   assert.equal(shouldCreateConversationalRecommendations({ ...interpretation,
     destinationDisambiguation: { state: "known", value: ["潮州", "汕头"] } }, state, null), false);
   assert.equal(shouldCreateConversationalRecommendations(interpretation, state, null), true);
+});
+
+test("a province the user named keeps 「去哪」 open, so the cards are still offered", () => {
+  const area = { state: "approximate" as const, value: "云南省", source: "user" as const,
+    areas: [{ province: "云南省", places: [] }] };
+  assert.equal(shouldCreateConversationalRecommendations(interpretation, { ...state, destination: area }, null), true);
+  assert.equal(shouldCreateConversationalRecommendations(interpretation, state, { destination: area }), true);
+  const chosen = { state: "known" as const, value: "云南省 丽江市", source: "user" as const,
+    areas: [{ province: "云南省", places: ["丽江市"] }] };
+  assert.equal(shouldCreateConversationalRecommendations(interpretation, { ...state, destination: chosen }, null), false);
 });
 
 test("a normal text turn does not call the recommendation pipeline or persist a recommendation", async () => {

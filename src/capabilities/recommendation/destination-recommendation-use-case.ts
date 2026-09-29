@@ -1,5 +1,5 @@
 import type { TripMessage } from "@/domain/trip-message/trip-message";
-import type { TripState, TripStatePatch } from "@/domain/trip-state/trip-state";
+import { isDestinationOpenToRecommendations, type TripState, type TripStatePatch } from "@/domain/trip-state/trip-state";
 import type { WorkspaceConversationInterpretation } from "@/domain/trip-state/workspace-conversation";
 import type { TripMessageService } from "@/capabilities/conversation/trip-message-service";
 import { logEvents, logger } from "@/platform/observability/logger";
@@ -16,8 +16,8 @@ export function shouldCreateConversationalRecommendations(
   patch: TripStatePatch | null,
 ): boolean {
   return interpretation.presentationIntent === "destination_recommendations" &&
-    authoritativeState.destination.state === "missing" &&
-    (!patch?.destination || patch.destination.state === "missing") &&
+    isDestinationOpenToRecommendations(authoritativeState.destination) &&
+    (!patch?.destination || isDestinationOpenToRecommendations(patch.destination)) &&
     interpretation.destinationDisambiguation?.state !== "known";
 }
 

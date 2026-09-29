@@ -3,13 +3,12 @@ import { randomUUID } from "node:crypto";
 import { cookies } from "next/headers";
 
 import { validateTripMessage, type TripMessage } from "@/domain/trip-message/trip-message";
-import type { TripState } from "@/domain/trip-state/trip-state";
+import { isDestinationOpenToRecommendations, type TripState } from "@/domain/trip-state/trip-state";
 import { validateTripUserAction, type TripUserAction } from "@/domain/trip-user-action/trip-user-action";
 import { TripNotFoundError } from "@/domain/trip/trip-errors";
 import { buildDestinationRecommendationContext } from "@/capabilities/recommendation/destination-recommendation-context";
 import { createDestinationRecommendationReply, destinationRecommendationDependencies, type DestinationRecommendationUseCaseDependencies } from "@/capabilities/recommendation/destination-recommendation-use-case";
-import { InvalidDestinationCandidateOutputError } from "@/capabilities/recommendation/destination-candidate-generator";
-import { InvalidDestinationRankingOutputError } from "@/capabilities/recommendation/destination-candidate-ranker";
+import { InvalidDestinationRecommendationOutputError } from "@/capabilities/recommendation/destination-recommendation-generator";
 import { LlmProviderRequestError, LlmProviderTimeoutError, MissingLlmConfigurationError } from "@/platform/llm/kimi-client";
 import { readGuestId } from "@/platform/identity/guest-identity";
 import { TripStateNotFoundError } from "@/capabilities/journey/journey-errors";
@@ -41,8 +40,8 @@ export async function handleDestinationRecommendationsPost(
   }
   try {
     const { tripState } = await dependencies.loadJourney(tripId, ownerGuestId);
-    if (tripState.destination.state !== "missing") {
-      return response({ error: { code: "destination_not_missing", message: "Destination is no longer missing." } }, 409);
+    if (!isDestinationOpenToRecommendations(tripState.destination)) {
+      return response({ error: { code: "destination_not_missing", message: "Destination is already settled." } }, 409);
     }
     const action = validateTripUserAction(await dependencies.persistAction({
       id: randomUUID(),
@@ -68,8 +67,7 @@ export async function handleDestinationRecommendationsPost(
         ? 503
         : error instanceof LlmProviderTimeoutError
           ? 504
-          : error instanceof LlmProviderRequestError || error instanceof InvalidDestinationCandidateOutputError ||
-            error instanceof InvalidDestinationRankingOutputError
+          : error instanceof LlmProviderRequestError || error instanceof InvalidDestinationRecommendationOutputError
             ? 502
             : 500;
     logger.error({ requestId, tripId, statusCode: status, error: serializeError(error) },

@@ -83,6 +83,34 @@ for (const [name, candidates, expected] of [
   });
 }
 
+test("places picked from Meri's own recommendations settle the destination without a lookup", async () => {
+  let calls = 0;
+  const service = new LocationService({
+    async searchByKeyword() { calls += 1; return { status: "success", candidates: [] }; },
+  });
+  // 「四川省 稻城、四姑娘山」 is not a name any provider holds, and it does not need to be.
+  const tripState = state({ state: "known", value: "四川省 稻城亚丁、四姑娘山", source: "user",
+    areas: [{ province: "四川省", places: ["稻城亚丁", "四姑娘山"] }] });
+  const before = structuredClone(tripState);
+  assert.deepEqual(await checkGeneratePlanReadiness(tripState, service), {
+    canProceed: true, destination: "selected",
+  });
+  assert.equal(calls, 0);
+  assert.deepEqual(tripState, before);
+});
+
+test("a province with no place inside it is too large to plan from, and asks rather than looks up", async () => {
+  let calls = 0;
+  const service = new LocationService({
+    async searchByKeyword() { calls += 1; return { status: "success", candidates: [] }; },
+  });
+  assert.deepEqual(await checkGeneratePlanReadiness(state({ state: "approximate", value: "海南省",
+    source: "user", areas: [{ province: "海南省", places: [] }] }), service), {
+    canProceed: false, reason: "destination_area_only",
+  });
+  assert.equal(calls, 0);
+});
+
 test("provider failure is retryable, not invalid TripState", async () => {
   const provider: LocationProvider = {
     async searchByKeyword() { return { status: "failure", reason: "http_error" }; },

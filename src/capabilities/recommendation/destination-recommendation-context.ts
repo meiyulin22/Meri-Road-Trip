@@ -1,5 +1,5 @@
 import type { TripMessage } from "@/domain/trip-message/trip-message";
-import type { TripState } from "@/domain/trip-state/trip-state";
+import { isDestinationOpenToRecommendations, type TripState } from "@/domain/trip-state/trip-state";
 import type { TripUserAction } from "@/domain/trip-user-action/trip-user-action";
 import type { StructuredOutputConversationMessage } from "@/platform/llm/kimi-client";
 
@@ -20,7 +20,7 @@ export function buildDestinationRecommendationContext(
   messages: readonly TripMessage[],
 ): DestinationRecommendationContext {
   if (action.type !== "request_destination_recommendations" ||
-    tripState.destination.state !== "missing") {
+    !isDestinationOpenToRecommendations(tripState.destination)) {
     throw new Error("Destination recommendation context is not eligible.");
   }
   return { source: "explicit_action", action, tripState, conversationHistory: selectMessages(messages, action.tripId) };
@@ -32,7 +32,7 @@ export function buildConversationalDestinationRecommendationContext(
   messages: readonly TripMessage[],
   currentUserText: string,
 ): DestinationRecommendationContext {
-  if (tripState.destination.state !== "missing" || currentUserText.trim() === "") {
+  if (!isDestinationOpenToRecommendations(tripState.destination) || currentUserText.trim() === "") {
     throw new Error("Conversational destination recommendation context is not eligible.");
   }
   const history = selectMessages(messages, tripId, currentUserText.length);

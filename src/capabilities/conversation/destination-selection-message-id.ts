@@ -30,12 +30,17 @@ export function locationCandidateSelectionMessageId(
   );
 }
 
+/**
+ * The ids are sorted, so picking the same places in a different order is recognised
+ * as the same choice. A single id produces exactly the payload single-card picks
+ * used, which keeps the follow-ups already stored reachable.
+ */
 export function destinationRecommendationSelectionMessageId(
   tripId: string,
   recommendationMessageId: string,
-  destinationId: string,
+  destinationIds: readonly string[],
 ): string {
   return selectionMessageId(
-    `${tripId}:${recommendationMessageId}:${destinationId}:destination-recommendation-selection`,
+    `${tripId}:${recommendationMessageId}:${[...destinationIds].sort().join(",")}:destination-recommendation-selection`,
   );
 }

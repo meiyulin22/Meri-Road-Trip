@@ -11,8 +11,9 @@ import type { LocationCandidate } from "@/domain/location/location";
 import type { TripState } from "@/domain/trip-state/trip-state";
 
 import { nextRevealCharacterCount, visibleAssistantText } from "./conversation-reveal";
-import { canSelectDestinationRecommendation, canUseDestinationGuidance, requestDestinationRecommendationsIfMissing, selectDestinationRecommendation } from "./destination-recommendation-model";
-import { DestinationRecommendationCard } from "./destination-recommendation-card";
+import { canSelectDestinationRecommendation, canUseDestinationGuidance, chosenDestinationPlaces, requestDestinationRecommendationsIfMissing, selectDestinationRecommendation } from "./destination-recommendation-model";
+import { DestinationRecommendationPicker } from "./destination-recommendation-picker";
+import { GeneratePlanAction } from "./generate-plan-action";
 import { formatMessageTimestamp } from "./message-timestamp";
 import { LocationCandidateCard } from "./location-candidate-card";
 import { appendPersistedMessageIfAbsent, locationCandidatePresentation, messageCreatedAt, recommendationPresentation, toWorkspaceUIMessages } from "./trip-message-ui-adapter";
@@ -66,8 +67,8 @@ export function ConversationPanel({
     readonly messageId: string;
     readonly kind: "selection" | "follow_up";
   } | null>(null);
-  const [selectionPendingId, setSelectionPendingId] = useState<string | null>(null);
-  const [selectionErrorId, setSelectionErrorId] = useState<string | null>(null);
+  const [selectionPendingMessageId, setSelectionPendingMessageId] = useState<string | null>(null);
+  const [selectionErrorMessageId, setSelectionErrorMessageId] = useState<string | null>(null);
   const [revealing, setRevealing] = useState<{
     readonly id: string;
     readonly visibleCharacters: number;
@@ -152,23 +153,23 @@ export function ConversationPanel({
     }
   }
 
-  async function handleRecommendationSelection(messageId: string, destinationId: string): Promise<void> {
-    if (!recommendationSelectionAvailable || selectionInFlight.current) return;
+  async function handleRecommendationSelection(messageId: string, destinationIds: readonly string[]): Promise<void> {
+    if (!recommendationSelectionAvailable || selectionInFlight.current || destinationIds.length === 0) return;
     selectionInFlight.current = true;
-    setSelectionPendingId(destinationId);
-    setSelectionErrorId(null);
+    setSelectionPendingMessageId(messageId);
+    setSelectionErrorMessageId(null);
     try {
       const { tripState: selectedState, assistantMessage } =
-        await selectDestinationRecommendation(tripId, messageId, destinationId);
+        await selectDestinationRecommendation(tripId, messageId, destinationIds);
       onTripStateChange(selectedState);
       setMessages((current) => appendPersistedMessageIfAbsent(current, assistantMessage));
       setRevealing({ id: assistantMessage.id, visibleCharacters: 0 });
     } catch (error) {
       if (error instanceof DestinationSelectionFollowUpError) onTripStateChange(error.tripState);
-      setSelectionErrorId(destinationId);
+      setSelectionErrorMessageId(messageId);
     } finally {
       selectionInFlight.current = false;
-      setSelectionPendingId(null);
+      setSelectionPendingMessageId(null);
     }
   }
 
@@ -286,19 +287,14 @@ export function ConversationPanel({
                     </div>
                   ) : null}
                   {recommendationPresentation(conversationMessage)?.destinations ? (
-                    <div className={styles.recommendationGrid}>
-                      {recommendationPresentation(conversationMessage)?.destinations.map((destination) => (
-                        <DestinationRecommendationCard
-                          destination={destination}
-                          disabled={!recommendationSelectionAvailable || selectionPendingId !== null}
-                          error={selectionErrorId === destination.id}
-                          key={destination.id}
-                          onSelect={() => void handleRecommendationSelection(conversationMessage.id, destination.id)}
-                          pending={selectionPendingId === destination.id}
-                          selected={tripState.destination.state === "known" && tripState.destination.value === destination.name}
-                        />
-                      ))}
-                    </div>
+                    <DestinationRecommendationPicker
+                      chosen={chosenDestinationPlaces(tripState)}
+                      destinations={recommendationPresentation(conversationMessage)?.destinations ?? []}
+                      disabled={!recommendationSelectionAvailable || selectionPendingMessageId !== null}
+                      error={selectionErrorMessageId === conversationMessage.id}
+                      onCommit={(destinationIds) => void handleRecommendationSelection(conversationMessage.id, destinationIds)}
+                      pending={selectionPendingMessageId === conversationMessage.id}
+                    />
                   ) : null}
                   {locationCandidatePresentation(conversationMessage)?.candidates ? (
                     <div className={styles.locationCandidateList} role="group" aria-label="具体目的地候选">
@@ -374,6 +370,8 @@ export function ConversationPanel({
           </div>
         </article>
       )}
+
+      <GeneratePlanAction tripId={tripId} tripState={tripState} />
 
       <form
         aria-busy={isSubmitting}
