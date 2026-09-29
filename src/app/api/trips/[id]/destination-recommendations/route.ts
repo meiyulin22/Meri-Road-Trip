@@ -4,7 +4,6 @@ import { cookies } from "next/headers";
 
 import { validateTripMessage, type TripMessage } from "@/domain/trip-message/trip-message";
 import { isDestinationOpenToRecommendations, type TripState } from "@/domain/trip-state/trip-state";
-import { validateTripUserAction, type TripUserAction } from "@/domain/trip-user-action/trip-user-action";
 import { TripNotFoundError } from "@/domain/trip/trip-errors";
 import { buildDestinationRecommendationContext } from "@/capabilities/recommendation/destination-recommendation-context";
 import { createDestinationRecommendationReply, destinationRecommendationDependencies, type DestinationRecommendationUseCaseDependencies } from "@/capabilities/recommendation/destination-recommendation-use-case";
@@ -18,7 +17,6 @@ import { serializeError } from "@/platform/observability/serialize-error";
 type Dependencies = {
   readonly loadJourney: (tripId: string, ownerGuestId: string) => Promise<{ tripState: TripState }>;
   readonly listMessages: (tripId: string, ownerGuestId: string) => Promise<TripMessage[]>;
-  readonly persistAction: (action: TripUserAction) => Promise<TripUserAction>;
   readonly runWorkflow: DestinationRecommendationUseCaseDependencies["runWorkflow"];
   readonly persistMessage: (message: TripMessage) => Promise<void>;
 };
@@ -43,15 +41,8 @@ export async function handleDestinationRecommendationsPost(
     if (!isDestinationOpenToRecommendations(tripState.destination)) {
       return response({ error: { code: "destination_not_missing", message: "Destination is already settled." } }, 409);
     }
-    const action = validateTripUserAction(await dependencies.persistAction({
-      id: randomUUID(),
-      tripId,
-      type: "request_destination_recommendations",
-      createdAt: new Date().toISOString(),
-    }));
-    if (action.tripId !== tripId) throw new Error("Persisted action belongs to another Journey.");
     const messages = await dependencies.listMessages(tripId, ownerGuestId);
-    const context = buildDestinationRecommendationContext(action, tripState, messages);
+    const context = buildDestinationRecommendationContext(tripId, tripState, messages);
     const recommendationReply = await createDestinationRecommendationReply(context, requestId, dependencies);
     const message = validateTripMessage({
       id: randomUUID(), tripId, role: "assistant", content: recommendationReply.content,
@@ -86,19 +77,16 @@ export async function POST(_request: Request, { params }: { readonly params: Pro
   if (!ownerGuestId || !uuidPattern.test(tripId)) {
     return response({ error: { code: "journey_not_found", message: "Journey not found." } }, 404);
   }
-  const [{ journeyService }, { tripMessageService }, { db }, { PostgresTripUserActionRepository }, { PostgresTripMessageRepository }] = await Promise.all([
+  const [{ journeyService }, { tripMessageService }, { db }, { PostgresTripMessageRepository }] = await Promise.all([
     import("@/capabilities/journey/journey-service-instance"),
     import("@/capabilities/conversation/trip-message-service-instance"),
     import("@/platform/persistence/database/db"),
-    import("@/platform/persistence/postgres/postgres-trip-user-action-repository"),
     import("@/platform/persistence/postgres/postgres-trip-message-repository"),
   ]);
-  const actionRepository = new PostgresTripUserActionRepository(db);
   const messageRepository = new PostgresTripMessageRepository(db);
   return handleDestinationRecommendationsPost(tripId, ownerGuestId, {
     loadJourney: (id, owner) => journeyService.loadJourney(id, owner),
     listMessages: (id, owner) => tripMessageService.listMessages(id, owner),
-    persistAction: (action) => actionRepository.create(action),
     ...destinationRecommendationDependencies(),
     persistMessage: (message) => messageRepository.createMessage(message),
   });

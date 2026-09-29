@@ -64,6 +64,13 @@
       "when": 1790410000000,
       "tag": "0008_trip_message_presentation",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1790681001082,
+      "tag": "0009_drop_trip_user_actions",
+      "breakpoints": true
     }
   ]
 }

@@ -3,18 +3,12 @@ import test from "node:test";
 
 import type { TripMessage } from "@/domain/trip-message/trip-message";
 import type { TripState } from "@/domain/trip-state/trip-state";
-import type { TripUserAction } from "@/domain/trip-user-action/trip-user-action";
 import type { StructuredOutputModelClient, StructuredOutputModelRequest } from "@/platform/llm/kimi-client";
 import { buildDestinationRecommendationContext } from "./destination-recommendation-context";
 import { generateDestinationRecommendations, InvalidDestinationRecommendationOutputError } from "./destination-recommendation-generator";
 
 const tripId = "3d17d2c7-fd9b-4748-b751-3a76a9a920be";
-const action: TripUserAction = {
-  id: "00000000-0000-4000-8000-000000000005",
-  tripId,
-  type: "request_destination_recommendations",
-  createdAt: "2026-09-26T00:00:00.000Z",
-};
+const createdAt = "2026-09-26T00:00:00.000Z";
 const tripState: TripState = {
   name: { state: "missing" }, origin: { state: "known", value: "成都", source: "user" },
   destination: { state: "missing" }, startDate: { state: "missing" },
@@ -22,8 +16,8 @@ const tripState: TripState = {
   transportPreference: { state: "known", value: "public_transport", source: "user" },
 };
 const history: TripMessage[] = [
-  { id: "u1", tripId, role: "user", content: "想出去走走，不自驾", createdAt: action.createdAt },
-  { id: "a1", tripId, role: "assistant", content: "可以慢慢决定目的地。", createdAt: action.createdAt },
+  { id: "u1", tripId, role: "user", content: "想出去走走，不自驾", createdAt },
+  { id: "a1", tripId, role: "assistant", content: "可以慢慢决定目的地。", createdAt },
 ];
 const valid = {
   provinces: [
@@ -36,14 +30,13 @@ const valid = {
 };
 
 function context(state: TripState = tripState) {
-  return buildDestinationRecommendationContext(action, state, history);
+  return buildDestinationRecommendationContext(tripId, state, history);
 }
 
-test("dedicated context contains persisted action, authoritative state, and only real history", () => {
+test("dedicated context carries how it was triggered, authoritative state, and only real history", () => {
   const built = context();
   assert.equal(built.source, "explicit_action");
   if (built.source !== "explicit_action") throw new Error("Expected explicit action context.");
-  assert.equal(built.action, action);
   assert.equal(built.tripState, tripState);
   assert.deepEqual(built.conversationHistory, [
     { role: "user", content: history[0].content },
@@ -68,7 +61,10 @@ test("generator performs one structured call without fabricating a user message"
     { role: "user", content: history[0].content },
     { role: "assistant", content: history[1].content },
   ]);
-  assert.match(requests[0].systemPrompt, new RegExp(action.id));
+  assert.match(requests[0].systemPrompt, /pressed the button/u);
+  // The button press used to be described by serialising its stored row, which put two
+  // UUIDs into a prompt that forbids the model from producing IDs at all.
+  assert.equal(requests[0].systemPrompt.includes(tripId), false);
   assert.match(requests[0].systemPrompt, /成都/u);
   assert.match(requests[0].systemPrompt, /prefecture-level city or autonomous prefecture/u);
   assert.match(requests[0].systemPrompt, /Never a province/u);

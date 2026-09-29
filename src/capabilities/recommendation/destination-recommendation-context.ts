@@ -1,6 +1,5 @@
 import type { TripMessage } from "@/domain/trip-message/trip-message";
 import { isDestinationOpenToRecommendations, type TripState } from "@/domain/trip-state/trip-state";
-import type { TripUserAction } from "@/domain/trip-user-action/trip-user-action";
 import type { StructuredOutputConversationMessage } from "@/platform/llm/kimi-client";
 
 const MAX_MESSAGES = 10;
@@ -10,20 +9,24 @@ export type DestinationRecommendationContext = {
   readonly tripState: TripState;
   readonly conversationHistory: readonly StructuredOutputConversationMessage[];
 } & (
-  { readonly source: "explicit_action"; readonly action: TripUserAction } |
+  /**
+   * Whether the user asked for places by pressing the button or by saying something
+   * that called for them. The prompt reads that difference, and nothing else needs
+   * it, so it is decided by which entry point ran rather than recorded anywhere.
+   */
+  { readonly source: "explicit_action" } |
   { readonly source: "conversation" }
 );
 
 export function buildDestinationRecommendationContext(
-  action: TripUserAction,
+  tripId: string,
   tripState: TripState,
   messages: readonly TripMessage[],
 ): DestinationRecommendationContext {
-  if (action.type !== "request_destination_recommendations" ||
-    !isDestinationOpenToRecommendations(tripState.destination)) {
+  if (!isDestinationOpenToRecommendations(tripState.destination)) {
     throw new Error("Destination recommendation context is not eligible.");
   }
-  return { source: "explicit_action", action, tripState, conversationHistory: selectMessages(messages, action.tripId) };
+  return { source: "explicit_action", tripState, conversationHistory: selectMessages(messages, tripId) };
 }
 
 export function buildConversationalDestinationRecommendationContext(

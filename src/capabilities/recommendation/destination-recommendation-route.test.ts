@@ -4,7 +4,6 @@ import test from "node:test";
 import { handleDestinationRecommendationsPost } from "@/app/api/trips/[id]/destination-recommendations/route";
 import type { TripMessage } from "@/domain/trip-message/trip-message";
 import type { TripState } from "@/domain/trip-state/trip-state";
-import type { TripUserAction } from "@/domain/trip-user-action/trip-user-action";
 import { TripNotFoundError } from "@/domain/trip/trip-errors";
 import type { DestinationRecommendationContext } from "./destination-recommendation-context";
 import { InvalidDestinationRecommendationOutputError } from "./destination-recommendation-generator";
@@ -30,11 +29,9 @@ const workflowResult: DestinationRecommendationWorkflowResult = {
 function dependencies(result: DestinationRecommendationWorkflowResult = workflowResult) {
   const calls: string[] = [];
   const saved: TripMessage[] = [];
-  let action: TripUserAction | null = null;
   let context: DestinationRecommendationContext | null = null;
-  return { calls, saved, get action() { return action; }, get context() { return context; }, deps: {
+  return { calls, saved, get context() { return context; }, deps: {
     async loadJourney() { calls.push("load"); return { tripState: state }; },
-    async persistAction(input: TripUserAction) { calls.push("action"); action = input; return input; },
     async listMessages() { calls.push("history"); return history; },
     async runWorkflow(input: DestinationRecommendationContext) { calls.push("workflow"); context = input; return result; },
     async persistMessage(message: TripMessage) { calls.push("message"); saved.push(message); },
@@ -46,8 +43,7 @@ test("explicit action uses shared workflow and persists one assistant with two c
   const response = await handleDestinationRecommendationsPost(tripId, "owner", fixture.deps, "request-1");
   assert.equal(response.status, 200);
   const body = await response.json();
-  assert.deepEqual(fixture.calls, ["load", "action", "history", "workflow", "message"]);
-  assert.equal(fixture.action?.type, "request_destination_recommendations");
+  assert.deepEqual(fixture.calls, ["load", "history", "workflow", "message"]);
   assert.equal(fixture.context?.source, "explicit_action");
   assert.equal(fixture.context?.tripState, state);
   assert.deepEqual(fixture.context?.conversationHistory, [{ role: "user", content: "我想旅行" }]);
@@ -84,7 +80,7 @@ test("a province with no place chosen inside it is still open, so the cards are 
       destination: { state: "approximate" as const, value: "四川省", source: "user" as const,
         areas: [{ province: "四川省", places: [] }] } } }; } });
   assert.equal(response.status, 200);
-  assert.deepEqual(fixture.calls, ["load", "action", "history", "workflow", "message"]);
+  assert.deepEqual(fixture.calls, ["load", "history", "workflow", "message"]);
 });
 
 test("wrong owner and an unusable model answer do not persist a recommendation message", async () => {
@@ -99,7 +95,6 @@ test("wrong owner and an unusable model answer do not persist a recommendation m
   });
   assert.equal(response.status, 502);
   assert.equal(failed.saved.length, 0);
-  assert.equal(failed.action?.type, "request_destination_recommendations");
 });
 
 test("message persistence failure returns an error", async () => {
