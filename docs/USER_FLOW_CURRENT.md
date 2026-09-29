@@ -163,7 +163,7 @@ flowchart TD
 
 | 用户动作 | API 和校验 | 状态与回复 |
 | --- | --- | --- |
-| 点击推荐城市卡，可多选 | [`destination-recommendation-selection`](../src/app/api/trips/[id]/destination-recommendation-selection/route.ts)只接受已保存在那条助手消息里的卡 ID；按省份组合选中地点；旧卡缺省份则拒绝 | 写 `destination=known` 且带 `areas`；随后做准备度检查并保存[固定选择确认回复](../src/capabilities/destination/destination-selection-reply.ts)。重复点击同一组合会返回原回复；状态已变化则 409 |
+| 点击推荐城市卡，可多选 | [`destination-recommendation-selection`](../src/app/api/trips/[id]/destination-recommendation-selection/route.ts)只接受已保存在那条助手消息里的卡 ID；按省份组合选中地点；旧卡缺省份则拒绝 | 首次选择写 `destination=known` 且带 `areas`；已选定目的地后新出的消歧卡记录当时的 `areas`，选择时追加城市并保留已有地点。随后做准备度检查并保存[固定选择确认回复](../src/capabilities/destination/destination-selection-reply.ts)。重复点击同一组合会返回原回复；状态已变化则 409 |
 | 点击地点歧义候选卡，单选 | [`location-candidate-selection`](../src/app/api/trips/[id]/location-candidate-selection/route.ts)从已保存的助手卡片按索引取候选，不能由客户端任意提供地名 | 写 `destination=known`，保存高德 providerId/坐标；准备度检查后保存固定确认回复。重复选择会去重；状态不符则 409 |
 
 注意：推荐卡选择的写入路径依据**已保存卡片及省份结构**，然后准备度检查把有具体地点的 `areas` 当作已选定；这里并没有在写入前逐个再次调用高德验证推荐地点。地点歧义候选卡的身份则来自先前高德查询。[推荐选择 API](../src/app/api/trips/[id]/destination-recommendation-selection/route.ts)、[准备度规则](../src/capabilities/destination/generate-plan-readiness.ts)。

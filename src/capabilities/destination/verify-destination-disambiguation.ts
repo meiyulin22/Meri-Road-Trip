@@ -1,6 +1,7 @@
 import type { LocationCandidate } from "@/domain/location/location";
 import type { DestinationRecommendationPresentation } from "@/domain/trip-message/trip-message";
 import type { DestinationDisambiguation } from "@/domain/location/destination-disambiguation";
+import type { DestinationArea } from "@/domain/trip-state/destination-areas";
 import { composeTurnReply, type DestinationTurnFact } from "@/capabilities/conversation/turn-reply";
 import type { LocationService } from "./location-service";
 
@@ -71,8 +72,10 @@ function cityOf(candidate: LocationCandidate): string | null {
  */
 export function narrowingPresentation(
   result: Extract<DestinationDisambiguationResult, { status: "verified" }>,
+  baseAreas?: readonly DestinationArea[],
 ): DestinationRecommendationPresentation {
-  return { type: "destination_recommendations", destinations: result.places };
+  return { type: "destination_recommendations", destinations: result.places,
+    ...(baseAreas === undefined ? {} : { baseAreas }) };
 }
 
 export function replyForDestinationDisambiguation(

@@ -71,6 +71,23 @@ test("a selected destination disables historical guidance and all recommendation
   assert.equal(calls, 0);
 });
 
+test("a fresh narrowing list can extend settled places until the Journey changes", () => {
+  const existing: TripState = { ...missingDestination, destination: { state: "known",
+    value: "浙江省 松阳古村落 · 福建省 龙潭里", source: "user",
+    areas: [{ province: "浙江省", places: ["松阳古村落"] },
+      { province: "福建省", places: ["龙潭里"] }] } };
+  const offered = { ...message.presentation, type: "destination_recommendations" as const,
+    baseAreas: existing.destination.state === "known"
+    ? existing.destination.areas : undefined };
+  assert.equal(canSelectDestinationRecommendation(existing), false);
+  assert.equal(canSelectDestinationRecommendation(existing, offered), true);
+  const changed: TripState = { ...existing, destination: { state: "known", source: "user",
+    value: "浙江省 松阳古村落 · 福建省 龙潭里 · 广东省 潮州市",
+    areas: [...(existing.destination.state === "known" ? existing.destination.areas ?? [] : []),
+      { province: "广东省", places: ["潮州市"] }] } };
+  assert.equal(canSelectDestinationRecommendation(changed, offered), false);
+});
+
 test("the picker groups the places under their provinces and offers one commit", async () => {
   const { DestinationRecommendationPicker } = await import("./destination-recommendation-picker");
   const markup = renderToStaticMarkup(createElement(DestinationRecommendationPicker, {

@@ -210,7 +210,8 @@ export async function POST(request: Request) {
       // Narrowing a broad expression offers 市 to pick several of; a provider that
       // found one expression ambiguous is still asking which single place was meant.
       ...(disambiguationResult?.status === "verified"
-        ? { assistantPresentation: narrowingPresentation(disambiguationResult) }
+        ? { assistantPresentation: narrowingPresentation(disambiguationResult,
+          persistedTripState.destination.state === "known" ? persistedTripState.destination.areas : undefined) }
         : resolution?.status === "ambiguous"
           ? { assistantPresentation: { type: "location_candidates" as const, candidates: resolution.candidates } }
           : {}),

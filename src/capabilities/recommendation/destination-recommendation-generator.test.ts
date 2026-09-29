@@ -44,6 +44,16 @@ test("dedicated context carries how it was triggered, authoritative state, and o
   ]);
 });
 
+test("dedicated context writes out the cards an earlier recommendation showed", () => {
+  const offered: TripMessage = { id: "a2", tripId, role: "assistant", content: "看看这些方向。",
+    createdAt: history[1].createdAt, presentation: { type: "destination_recommendations",
+      destinations: [{ id: "c1", name: "甘孜藏族自治州", province: "四川省" }] } };
+  const built = buildDestinationRecommendationContext(tripId, tripState, [...history, offered]);
+  assert.deepEqual(built.conversationHistory.at(-1), {
+    role: "assistant", content: "看看这些方向。\n[展示过的卡片] 四川省：甘孜藏族自治州",
+  });
+});
+
 test("generator performs one structured call without fabricating a user message", async () => {
   const requests: StructuredOutputModelRequest[] = [];
   const client: StructuredOutputModelClient = {
@@ -69,6 +79,7 @@ test("generator performs one structured call without fabricating a user message"
   assert.match(requests[0].systemPrompt, /prefecture-level city or autonomous prefecture/u);
   assert.match(requests[0].systemPrompt, /Never a province/u);
   assert.match(requests[0].systemPrompt, /No destination is settled yet/u);
+  assert.match(requests[0].systemPrompt, /Never write such a line in your reply/u);
   const provinces = (requests[0].jsonSchema.properties as Record<string, Record<string, unknown>>).provinces;
   assert.equal(provinces.minItems, 1);
   assert.equal(provinces.maxItems, 4);

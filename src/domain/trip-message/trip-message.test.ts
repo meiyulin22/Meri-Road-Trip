@@ -52,6 +52,15 @@ test("validates structured assistant presentation and keeps plain messages compa
   assert.throws(() => validateTripMessage({ ...message, presentation: { ...presentation, destinations: [presentation.destinations[0], presentation.destinations[0], presentation.destinations[2]] } }), InvalidTripMessageError);
 });
 
+test("an extension offer retains and validates the places already selected", () => {
+  const presentation = { type: "destination_recommendations", destinations: [
+    { id: "chaozhou", name: "潮州市", province: "广东省" },
+  ], baseAreas: [{ province: "浙江省", places: ["松阳古村落"] }] };
+  assert.deepEqual(validateTripMessage({ ...message, presentation }).presentation, presentation);
+  assert.throws(() => validateTripMessage({ ...message, presentation: { ...presentation,
+    baseAreas: [{ province: "浙江省", places: ["松阳古村落", "松阳古村落"] }] } }), InvalidTripMessageError);
+});
+
 test("cards stored before places were grouped read as what they were, without their image", () => {
   // The old cards named the province `region` and carried the photo shown on the card.
   const stored = { type: "destination_recommendations", destinations: [

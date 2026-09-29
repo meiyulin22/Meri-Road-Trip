@@ -1,6 +1,7 @@
 import { destinationProvinceText } from "@/domain/trip-state/destination-areas";
 import type { DestinationRecommendationContext } from "@/capabilities/recommendation/destination-recommendation-context";
 import type { DiscoverySearchResult } from "@/platform/search/discovery-search";
+import { shownCardsGuidance } from "@/capabilities/conversation/conversation-history-content";
 
 export function buildDestinationRecommendationSystemPrompt(
   context: DestinationRecommendationContext & { readonly discoveryResults?: readonly DiscoverySearchResult[] },
@@ -18,6 +19,8 @@ Each place is one prefecture-level city or autonomous prefecture — 丽江市, 
 ${scopeInstruction(context)}
 
 Each reason says in one short Chinese sentence, at most 30 characters, why that place may fit what the user has told us. Do not treat assistant suggestions as confirmed user preferences, and do not invent preferences the user has not expressed. Do not assert access, legality, safety, opening status, weather, route status, prices, or availability: none of that is verified here. Do not generate IDs, coordinates, images, or a reply. No tools or research are available beyond what is given below.
+
+${shownCardsGuidance}
 
 Authoritative TripState:
 ${JSON.stringify(context.tripState)}${discovery}`;

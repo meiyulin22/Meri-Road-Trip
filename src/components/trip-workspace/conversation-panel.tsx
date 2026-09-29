@@ -93,7 +93,6 @@ export function ConversationPanel({
   const latestMessage = messages.at(-1);
   const localNow = useSyncExternalStore(subscribeToBrowser, browserSnapshot, serverSnapshot) ? new Date() : null;
   const guidanceAvailable = canUseDestinationGuidance(tripState);
-  const recommendationSelectionAvailable = canSelectDestinationRecommendation(tripState);
   const latestCandidateMessageId = messages.findLast((item) => locationCandidatePresentation(item) !== undefined)?.id;
 
   useEffect(() => {
@@ -154,7 +153,9 @@ export function ConversationPanel({
   }
 
   async function handleRecommendationSelection(messageId: string, destinationIds: readonly string[]): Promise<void> {
-    if (!recommendationSelectionAvailable || selectionInFlight.current || destinationIds.length === 0) return;
+    const offered = messages.find((item) => item.id === messageId);
+    if (!canSelectDestinationRecommendation(tripState, offered && recommendationPresentation(offered)) ||
+      selectionInFlight.current || destinationIds.length === 0) return;
     selectionInFlight.current = true;
     setSelectionPendingMessageId(messageId);
     setSelectionErrorMessageId(null);
@@ -290,7 +291,8 @@ export function ConversationPanel({
                     <DestinationRecommendationPicker
                       chosen={chosenDestinationPlaces(tripState)}
                       destinations={recommendationPresentation(conversationMessage)?.destinations ?? []}
-                      disabled={!recommendationSelectionAvailable || selectionPendingMessageId !== null}
+                      disabled={!canSelectDestinationRecommendation(tripState,
+                        recommendationPresentation(conversationMessage)) || selectionPendingMessageId !== null}
                       error={selectionErrorMessageId === conversationMessage.id}
                       onCommit={(destinationIds) => void handleRecommendationSelection(conversationMessage.id, destinationIds)}
                       pending={selectionPendingMessageId === conversationMessage.id}

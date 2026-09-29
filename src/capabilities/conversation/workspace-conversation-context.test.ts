@@ -86,3 +86,61 @@ test("does not begin with an orphan assistant or include an incomplete turn", ()
     { role: "assistant", content: "real assistant" },
   ]);
 });
+
+test("folds a card selection follow-up into its turn and writes the shown cards out", () => {
+  const history: TripMessage[] = [
+    message("user", "我想去潮汕"),
+    { ...message("assistant", "潮汕 包含下面这几个市，你想去哪几个？"), presentation: {
+      type: "destination_recommendations", destinations: [
+        { id: "chaozhou", name: "潮州市", province: "广东省" },
+        { id: "shantou", name: "汕头市", province: "广东省" },
+        { id: "jieyang", name: "揭阳市", province: "广东省" },
+      ] } },
+    message("assistant", "好，目的地定为广东省 潮州市、汕头市了。"),
+  ];
+
+  assert.deepEqual(selectRecentConversationMessages(history), [
+    { role: "user", content: "我想去潮汕" },
+    { role: "assistant", content: "潮汕 包含下面这几个市，你想去哪几个？\n" +
+      "[展示过的卡片] 广东省：潮州市、汕头市、揭阳市\n\n好，目的地定为广东省 潮州市、汕头市了。" },
+  ]);
+});
+
+test("writes location candidates out with their region", () => {
+  const candidate = { providerId: "B1", name: "普陀山", province: "浙江省", city: "舟山市",
+    district: "普陀区", region: "浙江省舟山市普陀区", address: null, longitude: 122.38,
+    latitude: 30.01, coordinateSystem: "GCJ-02" as const };
+  const history: TripMessage[] = [
+    message("user", "我想去普陀"),
+    { ...message("assistant", "你说的是哪一个？"), presentation: {
+      type: "location_candidates", candidates: [candidate, { ...candidate, providerId: "B2",
+        name: "普陀区", region: null }] } },
+  ];
+
+  assert.equal(selectRecentConversationMessages(history)[1].content,
+    "你说的是哪一个？\n[展示过的地点候选] 普陀山（浙江省舟山市普陀区）｜普陀区");
+});
+
+test("lists cards offered without a province by name alone", () => {
+  const history: TripMessage[] = [
+    message("user", "推荐一下"),
+    { ...message("assistant", "看看这些"), presentation: {
+      type: "destination_recommendations", destinations: [
+        { id: "a", name: "丽江市", province: "云南省" },
+        { id: "b", name: "北海市", province: null },
+      ] } },
+  ];
+
+  assert.equal(selectRecentConversationMessages(history)[1].content,
+    "看看这些\n[展示过的卡片] 云南省：丽江市；北海市");
+});
+
+test("counts the written-out cards against the character budget", () => {
+  const history: TripMessage[] = [
+    message("user", "x".repeat(2_995)),
+    { ...message("assistant", "y".repeat(2_995)), presentation: {
+      type: "destination_recommendations", destinations: [{ id: "a", name: "丽江市", province: "云南省" }] } },
+  ];
+
+  assert.deepEqual(selectRecentConversationMessages(history), []);
+});

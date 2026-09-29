@@ -54,10 +54,14 @@ export async function handleDestinationRecommendationSelectionPost(
     if (chosen.some((item) => item === undefined)) {
       return Response.json({ error: "Recommendation selection not found." }, { status: 404 });
     }
-    const areas = chosenAreas(chosen as OfferedDestinations);
-    if (areas === null) {
+    const pickedAreas = chosenAreas(chosen as OfferedDestinations);
+    if (pickedAreas === null) {
       return Response.json({ error: "Recommendation selection is no longer current." }, { status: 409 });
     }
+    const areas = presentation.baseAreas === undefined ? pickedAreas : groupDestinationAreas([
+      ...presentation.baseAreas.flatMap((area) => area.places.map((name) => ({ province: area.province, name }))),
+      ...pickedAreas.flatMap((area) => area.places.map((name) => ({ province: area.province, name }))),
+    ]);
     const value = destinationAreasText(areas);
     const followUpId = destinationRecommendationSelectionMessageId(tripId, message.id, destinationIds);
     const existingFollowUp = messages.find((item) => item.id === followUpId && item.role === "assistant");
@@ -66,6 +70,13 @@ export async function handleDestinationRecommendationSelectionPost(
         return Response.json({ error: "Recommendation selection is no longer current." }, { status: 409 });
       }
       return Response.json({ tripState: currentState, assistantMessage: existingFollowUp });
+    }
+    const baseAreasAreCurrent = presentation.baseAreas === undefined
+      ? currentState.destination.state !== "known"
+      : currentState.destination.state === "known" && currentState.destination.areas !== undefined &&
+        sameDestinationAreas(currentState.destination.areas, presentation.baseAreas);
+    if (!baseAreasAreCurrent) {
+      return Response.json({ error: "Recommendation selection is no longer current." }, { status: 409 });
     }
     const tripState = await dependencies.updateTripState(tripId, ownerGuestId, {
       destination: { state: "known", value, source: "user", areas },

@@ -1,4 +1,5 @@
 import type { LocationCandidate } from "@/domain/location/location";
+import { parseDestinationAreas, type DestinationArea } from "@/domain/trip-state/destination-areas";
 
 export const tripMessageRoles = ["user", "assistant"] as const;
 
@@ -6,6 +7,8 @@ export type TripMessageRole = (typeof tripMessageRoles)[number];
 
 export interface DestinationRecommendationPresentation {
   readonly type: "destination_recommendations";
+  /** Existing choices when these cards were offered to extend a settled Journey. */
+  readonly baseAreas?: readonly DestinationArea[];
   /**
    * Places to pick from, a 市 at the finest: 「云南省 丽江市」 is something a plan can
    * be built for, 「云南」 is not, and which 景点 inside 丽江 is Generate plan's
@@ -98,11 +101,11 @@ export function validateTripMessage(value: unknown): TripMessage {
 }
 
 function validatePresentation(value: unknown, role: TripMessageRole): TripMessagePresentation {
-  if (role !== "assistant" || !isRecord(value) || Object.keys(value).length !== 2) {
+  if (role !== "assistant" || !isRecord(value)) {
     throw new InvalidTripMessageError("TripMessage.presentation is invalid.");
   }
   if (value.type === "location_candidates") {
-    if (!Array.isArray(value.candidates) || value.candidates.length < 1) {
+    if (Object.keys(value).length !== 2 || !Array.isArray(value.candidates) || value.candidates.length < 1) {
       throw new InvalidTripMessageError("TripMessage location candidates are invalid.");
     }
     const candidates = value.candidates.map(validateLocationCandidate);
@@ -114,9 +117,15 @@ function validatePresentation(value: unknown, role: TripMessageRole): TripMessag
     return { type: "location_candidates", candidates };
   }
   if (value.type !== "destination_recommendations" ||
+    Object.keys(value).some((key) => !["type", "destinations", "baseAreas"].includes(key)) ||
+    Object.keys(value).length !== (Object.hasOwn(value, "baseAreas") ? 3 : 2) ||
     !Array.isArray(value.destinations) || value.destinations.length < 1 ||
     value.destinations.length > maxDestinationRecommendations) {
     throw new InvalidTripMessageError("TripMessage.presentation is invalid.");
+  }
+  const baseAreas = Object.hasOwn(value, "baseAreas") ? parseDestinationAreas(value.baseAreas) : undefined;
+  if (baseAreas === null) {
+    throw new InvalidTripMessageError("TripMessage.presentation base areas are invalid.");
   }
   const destinations = value.destinations.map((item: unknown) => {
     if (!isRecord(item) || !hasKnownKeys(item, recommendationKeys, optionalRecommendationKeys) ||
@@ -133,7 +142,8 @@ function validatePresentation(value: unknown, role: TripMessageRole): TripMessag
   if (new Set(destinations.map((item) => item.id)).size !== destinations.length) {
     throw new InvalidTripMessageError("TripMessage.presentation IDs must be distinct.");
   }
-  return { type: "destination_recommendations", destinations };
+  return { type: "destination_recommendations", destinations,
+    ...(baseAreas === undefined ? {} : { baseAreas }) };
 }
 
 /**

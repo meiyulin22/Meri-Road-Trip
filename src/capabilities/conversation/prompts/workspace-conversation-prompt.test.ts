@@ -137,3 +137,11 @@ test("opening mode uses established TripState without conversation instructions"
   assert.doesNotMatch(text, /resolve_location tool boundary/);
   assert.doesNotMatch(text, /destinationDisambiguation/);
 });
+
+test("explains the shown-card lines in history and forbids copying them", () => {
+  const text = prompt();
+  assert.match(text, /a line starting with \[展示过的卡片\] or \[展示过的地点候选\] records the cards the screen showed/);
+  assert.match(text, /a card nobody picked is not a user decision/);
+  assert.match(text, /Never write such a line in your reply/);
+  assert.doesNotMatch(prompt("opening"), /展示过的卡片/);
+});

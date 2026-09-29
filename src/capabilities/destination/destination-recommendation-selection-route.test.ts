@@ -76,6 +76,59 @@ test("several picks become one destination, grouped back under the provinces the
     [{ province: "广西壮族自治区", places: ["北海市"] }, { province: "浙江省", places: ["舟山市", "台州市"] }]);
 });
 
+test("a later Guangdong narrowing choice is appended to the earlier Zhejiang and Fujian choices", async () => {
+  const earlier: TripState = { ...state, destination: { state: "known", source: "user",
+    value: "浙江省 松阳古村落 · 福建省 龙潭里",
+    areas: [{ province: "浙江省", places: ["松阳古村落"] },
+      { province: "福建省", places: ["龙潭里"] }] } };
+  const offer: TripMessage = { ...message, id: "guangdong-cards", presentation: {
+    type: "destination_recommendations", baseAreas: earlier.destination.state === "known"
+      ? earlier.destination.areas : undefined,
+    destinations: [
+      { id: "chaozhou", name: "潮州市", province: "广东省" },
+      { id: "shantou", name: "汕头市", province: "广东省" },
+      { id: "jieyang", name: "揭阳市", province: "广东省" },
+    ] } };
+  let current = earlier;
+  const dependencies = {
+    async loadJourney() { return { tripState: current }; },
+    async listMessages() { return [offer]; },
+    async updateTripState(_id: string, _owner: string, patch: TripStatePatch) {
+      current = applyTripStatePatch(current, patch);
+      return current;
+    },
+    async checkReadiness() { return readySelected; },
+    async persistFollowUp(input: Parameters<typeof followUp>[0]) { return followUp(input); },
+  };
+  const response = await handleDestinationRecommendationSelectionPost(tripId, "owner",
+    { messageId: offer.id, destinationIds: ["chaozhou", "shantou"] }, dependencies);
+  assert.equal(response.status, 200);
+  assert.deepEqual(current.destination.state === "known" ? current.destination.areas : null, [
+    { province: "浙江省", places: ["松阳古村落"] },
+    { province: "福建省", places: ["龙潭里"] },
+    { province: "广东省", places: ["潮州市", "汕头市"] },
+  ]);
+  const stale = await handleDestinationRecommendationSelectionPost(tripId, "owner",
+    { messageId: offer.id, destinationIds: ["jieyang"] }, dependencies);
+  assert.equal(stale.status, 409);
+});
+
+test("an earlier offer cannot replace a destination already selected", async () => {
+  let writes = 0;
+  const selected: TripState = { ...state, destination: { state: "known", source: "user",
+    value: "浙江省 舟山市", areas: [{ province: "浙江省", places: ["舟山市"] }] } };
+  const response = await handleDestinationRecommendationSelectionPost(tripId, "owner",
+    { messageId: message.id, destinationIds: ["rec-c"] }, {
+      async loadJourney() { return { tripState: selected }; },
+      async listMessages() { return [message]; },
+      async updateTripState() { writes += 1; return selected; },
+      async checkReadiness() { return readySelected; },
+      async persistFollowUp(input) { return followUp(input); },
+    });
+  assert.equal(response.status, 409);
+  assert.equal(writes, 0);
+});
+
 test("missing or wrong owner cannot pick a recommendation", async () => {
   let writes = 0;
   const dependencies = {

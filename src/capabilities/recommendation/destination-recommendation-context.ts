@@ -1,6 +1,7 @@
 import type { TripMessage } from "@/domain/trip-message/trip-message";
 import { isDestinationOpenToRecommendations, type TripState } from "@/domain/trip-state/trip-state";
 import type { StructuredOutputConversationMessage } from "@/platform/llm/kimi-client";
+import { conversationHistoryContent } from "@/capabilities/conversation/conversation-history-content";
 
 const MAX_MESSAGES = 10;
 const MAX_CHARACTERS = 6_000;
@@ -49,9 +50,10 @@ function selectMessages(messages: readonly TripMessage[], tripId: string, reserv
   for (let index = messages.length - 1; index >= 0 && selected.length < MAX_MESSAGES - (reservedCharacters > 0 ? 1 : 0); index -= 1) {
     const message = messages[index];
     if (message.tripId !== tripId) continue;
-    if (message.content.length > remaining) break;
-    selected.push({ role: message.role, content: message.content });
-    remaining -= message.content.length;
+    const content = conversationHistoryContent(message);
+    if (content.length > remaining) break;
+    selected.push({ role: message.role, content });
+    remaining -= content.length;
   }
   return selected.reverse();
 }

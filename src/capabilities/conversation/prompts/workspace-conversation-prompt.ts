@@ -3,6 +3,7 @@ import {
   certaintyStateGuidance,
   tripStateFieldGuidance,
 } from "@/capabilities/journey/prompts/trip-state-field-guidance";
+import { shownCardsGuidance } from "@/capabilities/conversation/conversation-history-content";
 
 export interface WorkspaceConversationPromptContext {
   readonly tripState: TripState;
@@ -42,6 +43,7 @@ Current authoritative TripState:
 ${JSON.stringify(tripState)}
 
 TripState is authoritative. Recent real conversation can clarify the user's meaning; assistant suggestions are not user decisions. Propose only changes the user clearly intends to make. The application validates and persists changes.
+${shownCardsGuidance}
 
 Decisions:
 - presentationIntent "destination_recommendations" is for open destination choice only, and only when the message carries something the cards can act on: a preference about the experience the user wants. Open means TripState.destination is missing, or its areas name provinces whose places are all empty. A destination change in the same turn does not rule the cards out — "我想去云南，想爬山" narrows them inside 云南省 — but "我想去云南和四川" carries no preference and is a destination update with "none". If any area already names a place, or destinationDisambiguation is known, presentationIntent is "none"; those turns use the established Journey or disambiguation flow instead.
