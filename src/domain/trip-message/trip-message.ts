@@ -12,12 +12,17 @@ export interface DestinationRecommendationPresentation {
    * question rather than this one. Several are picked at once, so the list is
    * longer than the three cards that used to be offered, and the province is what
    * groups it on screen.
+   *
+   * A reason is what a recommendation adds to a place. Narrowing a broad expression
+   * carries none — 「潮汕」 containing 潮州市 is the whole answer, and a sentence about
+   * why 潮州市 is worth going to would be invented rather than looked up — so the
+   * same cards are offered without one.
    */
   readonly destinations: readonly {
     readonly id: string;
     readonly name: string;
     readonly province: string | null;
-    readonly reason: string;
+    readonly reason?: string;
   }[];
 }
 
@@ -114,13 +119,15 @@ function validatePresentation(value: unknown, role: TripMessageRole): TripMessag
     throw new InvalidTripMessageError("TripMessage.presentation is invalid.");
   }
   const destinations = value.destinations.map((item: unknown) => {
-    if (!isRecord(item) || !hasKnownKeys(item, recommendationKeys, legacyRecommendationKeys) ||
-      !isPresentText(item.id) || !isPresentText(item.name) || !isPresentText(item.reason) ||
+    if (!isRecord(item) || !hasKnownKeys(item, recommendationKeys, optionalRecommendationKeys) ||
+      !isPresentText(item.id) || !isPresentText(item.name) ||
+      !(item.reason === undefined || isPresentText(item.reason)) ||
       [item.province, item.region].some((level) =>
         !(level === undefined || level === null || isPresentText(level)))) {
       throw new InvalidTripMessageError("TripMessage.presentation destination is invalid.");
     }
-    return { id: item.id, name: item.name, reason: item.reason,
+    return { id: item.id, name: item.name,
+      ...(item.reason === undefined ? {} : { reason: item.reason }),
       province: storedAreaLevel(item.province) ?? storedAreaLevel(item.region) };
   });
   if (new Set(destinations.map((item) => item.id)).size !== destinations.length) {
@@ -136,14 +143,15 @@ function validatePresentation(value: unknown, role: TripMessageRole): TripMessag
  */
 const maxDestinationRecommendations = 12;
 
-const recommendationKeys = ["id", "name", "reason"] as const;
+const recommendationKeys = ["id", "name"] as const;
 
 /**
- * Cards stored before places were picked in groups named the province `region` and
- * carried an `imageUrl` for the photo on the card. Both are read as what they were:
- * the region is the province, and the image is gone.
+ * `reason` is absent on a narrowing card. Cards stored before places were picked in
+ * groups named the province `region` and carried an `imageUrl` for the photo on the
+ * card; both are read as what they were: the region is the province, and the image
+ * is gone.
  */
-const legacyRecommendationKeys = ["province", "region", "imageUrl"] as const;
+const optionalRecommendationKeys = ["reason", "province", "region", "imageUrl"] as const;
 
 const locationCandidateKeys = [
   "providerId", "name", "region", "address", "longitude", "latitude", "coordinateSystem",

@@ -218,15 +218,18 @@ test("fuzzy Home creation skips raw lookup, keeps dates, and stores a single con
     async resolveDestination() { throw new Error("raw fuzzy lookup must be skipped"); },
     async verifyDisambiguation(expressions) {
       assert.deepEqual(expressions, ["潮州", "汕头"]);
-      return { status: "verified", candidates: [candidateA] };
+      return { status: "verified", places: [{ id: candidateA.providerId, name: "潮州市", province: "广东省" }] };
     },
     async createJourney(received, _owner, _message, assistant) {
       const state = initializeTripState(validateTripDraftDomain(received));
       assert.equal(state.destination.state, "missing");
       assert.equal(state.startDate.state, "approximate");
       assert.equal(state.duration.state, "known");
-      assert.deepEqual(assistant?.presentation, { type: "location_candidates", candidates: [candidateA] });
-      assert.match(assistant?.content ?? "", /潮汕.*一个更具体的地点/);
+      // The narrowed 市 are offered as the same multi-select cards a recommendation
+      // uses, so picking several writes one destination across their provinces.
+      assert.deepEqual(assistant?.presentation, { type: "destination_recommendations",
+        destinations: [{ id: candidateA.providerId, name: "潮州市", province: "广东省" }] });
+      assert.match(assistant?.content ?? "", /潮汕.*下面这个市/);
       return { ...journey, tripState: state };
     },
     async initializeOpening() { throw new Error("no extra LLM call"); },
@@ -258,10 +261,14 @@ test("fuzzy Home creation presents multiple verified candidates", async () => {
     destinationDisambiguation: { state: "known", value: ["潮州", "汕头"] } };
   await createJourneyWithOpening({ ...input, draft: fuzzyDraft }, {
     async resolveDestination() { throw new Error("raw lookup must be skipped"); },
-    async verifyDisambiguation() { return { status: "verified", candidates: [candidateA, candidateB] }; },
+    async verifyDisambiguation() { return { status: "verified", places: [
+      { id: candidateA.providerId, name: "潮州市", province: "广东省" },
+      { id: candidateB.providerId, name: "汕头市", province: "广东省" }] }; },
     async createJourney(received, _owner, _message, assistant) {
       assert.equal(validateTripDraftDomain(received).destination.state, "missing");
-      assert.deepEqual(assistant?.presentation, { type: "location_candidates", candidates: [candidateA, candidateB] });
+      assert.deepEqual(assistant?.presentation, { type: "destination_recommendations", destinations: [
+        { id: candidateA.providerId, name: "潮州市", province: "广东省" },
+        { id: candidateB.providerId, name: "汕头市", province: "广东省" }] });
       return journey;
     },
     async initializeOpening() { throw new Error("no extra LLM call"); },

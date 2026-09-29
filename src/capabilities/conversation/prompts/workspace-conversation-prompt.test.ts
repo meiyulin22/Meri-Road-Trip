@@ -72,9 +72,12 @@ test("authority, update, tool, and structured-output boundaries remain explicit"
   assert.match(text, /application validates and persists changes/);
   assert.match(text, /retain the user's destination expression/);
   assert.match(text, /Geographic ambiguity does not turn a clear update into unclear_update_intent/);
-  assert.match(text, /destinationDisambiguation to \{"state":"known","value":\["place 1","place 2"\]\}/);
+  assert.match(text, /destinationDisambiguation to \{"state":"known","value":\["市 1","市 2"\]\}/);
+  // 「我想去潮汕」 came back with 潮州古城 on the cards and then saved as the
+  // destination. A 景点 is what Generate plan picks inside a 市, never the 市 itself.
+  assert.match(text, /2–3 distinct 市 the expression actually contains/);
+  assert.match(text, /Name the 市, never a 景点 inside one/);
   assert.match(text, /Otherwise use \{"state":"missing","value":null\}/);
-  assert.match(text, /2–3 distinct, concise concrete place expressions/);
   assert.match(text, /provider IDs, coordinates, or selection metadata/);
   assert.match(text, /TripState\.destination\.value, using that exact value as query/);
   assert.match(text, /Do not resolve origin, conversation mentions, or explicit destination updates/);

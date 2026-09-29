@@ -30,6 +30,7 @@ import { journeyService } from "@/capabilities/journey/journey-service-instance"
 import { readGuestId } from "@/platform/identity/guest-identity";
 import { LocationService } from "@/capabilities/destination/location-service";
 import { persistWorkspacePatchWithDisambiguation } from "@/capabilities/destination/post-update-destination-resolution";
+import { narrowingPresentation } from "@/capabilities/destination/verify-destination-disambiguation";
 import { resolveWorkspaceTurn } from "@/capabilities/conversation/workspace-turn-branch";
 import { logger, logEvents } from "@/platform/observability/logger";
 import { tripMessageService } from "@/capabilities/conversation/trip-message-service-instance";
@@ -172,7 +173,7 @@ export async function POST(request: Request) {
     const destinationExpression = patch?.destination?.state !== "missing"
       ? patch?.destination?.value : null;
     const recommendationMessages = await persistConversationalRecommendationTurn({
-      tripId, ownerGuestId, tripState: persistedTripState, interpretation, patch,
+      tripId, ownerGuestId, tripState: persistedTripState, interpretation, patch, persistedPatch,
       previousMessages, currentUserText: body.message, requestId,
     }, {
       ...destinationRecommendationDependencies(),
@@ -206,11 +207,13 @@ export async function POST(request: Request) {
       ownerGuestId,
       userContent: body.message,
       assistantContent: finalInterpretation.reply,
-      ...(disambiguationResult?.status === "verified" || resolution?.status === "ambiguous"
-        ? { assistantPresentation: { type: "location_candidates" as const,
-            candidates: disambiguationResult?.status === "verified" ? disambiguationResult.candidates :
-              resolution?.status === "ambiguous" ? resolution.candidates : [] } }
-        : {}),
+      // Narrowing a broad expression offers 市 to pick several of; a provider that
+      // found one expression ambiguous is still asking which single place was meant.
+      ...(disambiguationResult?.status === "verified"
+        ? { assistantPresentation: narrowingPresentation(disambiguationResult) }
+        : resolution?.status === "ambiguous"
+          ? { assistantPresentation: { type: "location_candidates" as const, candidates: resolution.candidates } }
+          : {}),
     });
     logger.info(
       {

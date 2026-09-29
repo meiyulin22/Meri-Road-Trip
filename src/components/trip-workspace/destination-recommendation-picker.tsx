@@ -50,7 +50,9 @@ export function DestinationRecommendationPicker({
                     type="checkbox"
                   />
                   <span className={styles.name}>{destination.name}</span>
-                  <span className={styles.reason}>{destination.reason}</span>
+                  {destination.reason === undefined
+                    ? null
+                    : <span className={styles.reason}>{destination.reason}</span>}
                 </label>
               </li>
             ))}

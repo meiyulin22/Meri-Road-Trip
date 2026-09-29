@@ -37,10 +37,12 @@ test("cards win the turn, and their reply is the text shown above them", () => {
 test("an over-broad expression is narrowed, and the narrowing outranks the resolution reply", () => {
   const turn = resolve({
     destinationExpression: "潮汕",
-    disambiguationResult: { status: "verified", candidates: [candidate] },
+    disambiguationResult: { status: "verified",
+      places: [{ id: "chaozhou", name: "潮州市", province: "广东省" },
+        { id: "shantou", name: "汕头市", province: "广东省" }] },
   });
   assert.equal(turn.branch, "destination_narrowing");
-  assert.match(turn.reply, /「潮汕」范围比较大/);
+  assert.match(turn.reply, /「潮汕」其实包含下面这几个市/);
 });
 
 test("a TripState turn is a Journey update and keeps the model's own reply", () => {

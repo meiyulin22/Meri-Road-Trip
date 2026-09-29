@@ -22,6 +22,10 @@ const interpretation: WorkspaceConversationInterpretation = {
   intent: "question", presentationIntent: "destination_recommendations", changes: [],
   reply: "我可以推荐几个地方。",
 };
+/** What a turn did to the destination: what the model proposed, and what the write kept. */
+const noDestinationChange = { proposed: false, written: false };
+const destinationLanded = { proposed: true, written: true };
+const destinationLost = { proposed: true, written: false };
 const recommendations = {
   content: "结合你喜欢的徒步和高山，看看这几个方向。",
   presentation: { type: "destination_recommendations" as const, destinations: [
@@ -31,33 +35,38 @@ const recommendations = {
 };
 
 test("presentation guard leaves normal text turns, direct destinations, and disambiguation alone", () => {
-  assert.equal(shouldCreateConversationalRecommendations({ ...interpretation, presentationIntent: "none" }, state, null), false);
+  assert.equal(shouldCreateConversationalRecommendations({ ...interpretation, presentationIntent: "none" }, state, noDestinationChange), false);
   assert.equal(shouldCreateConversationalRecommendations(interpretation,
-    { ...state, destination: { state: "known", value: "青岛", source: "user" } }, null), false);
-  assert.equal(shouldCreateConversationalRecommendations(interpretation, state,
-    { destination: { state: "known", value: "青岛", source: "user" } }), false);
-  assert.equal(shouldCreateConversationalRecommendations(interpretation, state,
-    { destination: { state: "missing" } }), true);
+    { ...state, destination: { state: "known", value: "青岛", source: "user" } }, destinationLanded), false);
+  // A destination the user named that never landed is the turn's news; cards would
+  // quietly take the place of the sentence saying so.
+  assert.equal(shouldCreateConversationalRecommendations(interpretation, state, destinationLost), false);
   assert.equal(shouldCreateConversationalRecommendations({ ...interpretation,
-    destinationDisambiguation: { state: "known", value: ["潮州", "汕头"] } }, state, null), false);
-  assert.equal(shouldCreateConversationalRecommendations(interpretation, state, null), true);
+    destinationDisambiguation: { state: "known", value: ["潮州", "汕头"] } }, state, noDestinationChange), false);
+  assert.equal(shouldCreateConversationalRecommendations(interpretation, state, noDestinationChange), true);
+  // Clearing the destination on purpose reopens 「去哪」 rather than closing it.
+  assert.equal(shouldCreateConversationalRecommendations(interpretation, state, destinationLanded), true);
 });
 
 test("a province the user named keeps 「去哪」 open, so the cards are still offered", () => {
   const area = { state: "approximate" as const, value: "云南省", source: "user" as const,
     areas: [{ province: "云南省", places: [] }] };
-  assert.equal(shouldCreateConversationalRecommendations(interpretation, { ...state, destination: area }, null), true);
-  assert.equal(shouldCreateConversationalRecommendations(interpretation, state, { destination: area }), true);
+  assert.equal(shouldCreateConversationalRecommendations(interpretation, { ...state, destination: area }, noDestinationChange), true);
+  // 「我想去云南，想爬山」: the model proposes a plain known 云南 and only the write knows
+  // it is a province, so it lands as 云南省 with nothing chosen inside. Judging the
+  // proposal instead of the write declined the cards on the very turn that opened
+  // the question — 云南省 was saved and no 市 was ever offered inside it.
+  assert.equal(shouldCreateConversationalRecommendations(interpretation, { ...state, destination: area }, destinationLanded), true);
   const chosen = { state: "known" as const, value: "云南省 丽江市", source: "user" as const,
     areas: [{ province: "云南省", places: ["丽江市"] }] };
-  assert.equal(shouldCreateConversationalRecommendations(interpretation, { ...state, destination: chosen }, null), false);
+  assert.equal(shouldCreateConversationalRecommendations(interpretation, { ...state, destination: chosen }, destinationLanded), false);
 });
 
 test("a normal text turn does not call the recommendation pipeline or persist a recommendation", async () => {
   let calls = 0;
   const result = await persistConversationalRecommendationTurn({
     tripId, ownerGuestId: "owner", tripState: state,
-    interpretation: { ...interpretation, presentationIntent: "none" }, patch: null,
+    interpretation: { ...interpretation, presentationIntent: "none" }, patch: null, persistedPatch: null,
     previousMessages: history, currentUserText: "我还在想", requestId: "request-1",
   }, {
     async runWorkflow() { calls += 1; return recommendations; },
@@ -76,7 +85,7 @@ test("conversational trigger uses real context and persists one assistant with c
   let workflowCalls = 0;
   const currentUserText = "国内吧，成熟的路线";
   const messages = await persistConversationalRecommendationTurn({
-    tripId, ownerGuestId: "owner", tripState: state, interpretation, patch: null,
+    tripId, ownerGuestId: "owner", tripState: state, interpretation, patch: null, persistedPatch: null,
     previousMessages: history, currentUserText, requestId: "request-1",
   }, {
     async runWorkflow(context) {
@@ -110,7 +119,7 @@ test("conversational trigger uses real context and persists one assistant with c
 test("failed recommendation generation does not persist a successful turn", async () => {
   let writes = 0;
   await assert.rejects(persistConversationalRecommendationTurn({
-    tripId, ownerGuestId: "owner", tripState: state, interpretation, patch: null,
+    tripId, ownerGuestId: "owner", tripState: state, interpretation, patch: null, persistedPatch: null,
     previousMessages: history, currentUserText: "国内吧，成熟的路线", requestId: "request-1",
   }, {
     async runWorkflow() { throw new Error("model failed"); },
@@ -125,7 +134,7 @@ test("zero-result conversational workflow persists one user and one assistant wi
     tripService: { async getTripById() { return { id: tripId } as never; } }, repository,
   });
   const messages = await persistConversationalRecommendationTurn({
-    tripId, ownerGuestId: "owner", tripState: state, interpretation, patch: null,
+    tripId, ownerGuestId: "owner", tripState: state, interpretation, patch: null, persistedPatch: null,
     previousMessages: history, currentUserText: "国内吧，成熟的路线", requestId: "request-zero",
   }, {
     async runWorkflow() { return { content: "这次没有筛出合适的目的地。" }; },
@@ -149,7 +158,7 @@ test("meaningful preference turns invoke the shared workflow without optional Jo
       ? { duration: { state: "known" as const, value: "周末", source: "user" as const } }
       : currentUserText === examples[2] ? { destination: { state: "missing" as const } } : null;
     const result = await persistConversationalRecommendationTurn({
-      tripId, ownerGuestId: "owner", tripState: state, interpretation, patch,
+      tripId, ownerGuestId: "owner", tripState: state, interpretation, patch, persistedPatch: patch,
       previousMessages: [], currentUserText, requestId: "trigger-test",
     }, {
       async runWorkflow(context) {
@@ -176,17 +185,27 @@ test("meaningful preference turns invoke the shared workflow without optional Jo
 });
 
 test("vague turns, factual questions, destination updates, and disambiguation do not invoke workflow", async () => {
-  const cases: { text: string; output: WorkspaceConversationInterpretation; patch: TripStatePatch | null }[] = [
+  const qingdao = { state: "known" as const, value: "青岛", source: "user" as const };
+  const cases: {
+    text: string; output: WorkspaceConversationInterpretation;
+    patch: TripStatePatch | null; persistedPatch?: TripStatePatch | null; tripState?: TripState;
+  }[] = [
     ...["我想出去玩", "哪里好玩", "推荐个地方", "雪山徒步需要准备什么？"].map((text) =>
       ({ text, output: { ...interpretation, presentationIntent: "none" as const }, patch: null })),
-    { text: "我想去青岛", output: interpretation,
-      patch: { destination: { state: "known", value: "青岛", source: "user" } } },
+    // A place, not a province: the write kept it as it stands and 「去哪」 is answered.
+    { text: "我想去青岛", output: interpretation, patch: { destination: qingdao },
+      persistedPatch: { destination: qingdao }, tripState: { ...state, destination: qingdao } },
+    // The provider could not identify it, so nothing was written and the turn has to
+    // say that rather than change the subject to cards.
+    { text: "我想去瓦坎达", output: interpretation,
+      patch: { destination: { state: "known", value: "瓦坎达", source: "user" } }, persistedPatch: null },
     { text: "我想去潮汕", output: { ...interpretation,
       destinationDisambiguation: { state: "known", value: ["潮州", "汕头"] } }, patch: null },
   ];
-  for (const { text, output, patch } of cases) {
+  for (const { text, output, patch, persistedPatch, tripState } of cases) {
     const result = await persistConversationalRecommendationTurn({
-      tripId, ownerGuestId: "owner", tripState: state, interpretation: output, patch,
+      tripId, ownerGuestId: "owner", tripState: tripState ?? state, interpretation: output, patch,
+      persistedPatch: persistedPatch ?? null,
       previousMessages: [], currentUserText: text, requestId: "non-trigger-test",
     }, {
       async runWorkflow() { throw new Error("Workflow must not run"); },

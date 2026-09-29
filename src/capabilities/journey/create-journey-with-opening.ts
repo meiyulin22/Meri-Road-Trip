@@ -1,7 +1,7 @@
 import { validateTripDraftDomain, type TripDraft } from "@/domain/trip-draft/trip-draft";
 import type { TripMessagePresentation } from "@/domain/trip-message/trip-message";
 import type { LocationResolveResult } from "@/capabilities/destination/location-service";
-import type { DestinationDisambiguationResult } from "@/capabilities/destination/verify-destination-disambiguation";
+import { narrowingPresentation, type DestinationDisambiguationResult } from "@/capabilities/destination/verify-destination-disambiguation";
 import { replyForDestinationDisambiguation } from "@/capabilities/destination/verify-destination-disambiguation";
 
 import type { Journey } from "./journey-service";
@@ -94,7 +94,7 @@ function openingAfterDisambiguation(
   return {
     content: replyForDestinationDisambiguation(expression, result, false),
     ...(result.status === "verified"
-      ? { presentation: { type: "location_candidates" as const, candidates: result.candidates } }
+      ? { presentation: narrowingPresentation(result) }
       : {}),
   };
 }

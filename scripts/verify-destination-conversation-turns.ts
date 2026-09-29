@@ -5,7 +5,7 @@ import { interpretWorkspaceConversation } from "@/capabilities/conversation/work
 
 /**
  * Every unit test mocks the model, so a prompt rewrite goes green while Meri's
- * actual behaviour changes. These twelve turns are the ones the destination rules
+ * actual behaviour changes. These thirteen turns are the ones the destination rules
  * decide: whether an open destination still gets cards, whether a settled one stops
  * getting them, and whether the model keeps off the two sentences it must not write
  * — the itinerary, and whether a plan is ready.
@@ -98,6 +98,10 @@ const cases = {
   "12": {
     expect: 'destination update keeping both provinces, presentationIntent none',
     tripState: empty, message: "我想去云南和四川", conversationHistory: [],
+  },
+  "13": {
+    expect: 'destination update on 云南 AND destination_recommendations in the same turn — the province narrows the cards instead of closing them',
+    tripState: empty, message: "我想去云南，想爬山", conversationHistory: [],
   },
 } as const;
 

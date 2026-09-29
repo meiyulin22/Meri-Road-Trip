@@ -30,7 +30,7 @@ export type DestinationTurnFact =
   | { readonly kind: "choice_pending" }
   /** A region was saved as the destination, with the places inside it still open. */
   | { readonly kind: "area_recorded" }
-  | { readonly kind: "narrowing_offered"; readonly expression: string; readonly candidateCount: number }
+  | { readonly kind: "narrowing_offered"; readonly expression: string; readonly placeCount: number }
   | { readonly kind: "not_identified"; readonly expression: string | null }
   | { readonly kind: "lookup_unavailable"; readonly expression: string | null };
 
@@ -55,9 +55,9 @@ function sentenceForDestinationFact(fact: DestinationTurnFact): string | null {
     case "choice_pending":
       return "我找到几个可能的地点。你想去下面哪一个？";
     case "narrowing_offered":
-      return fact.candidateCount === 1
-        ? `「${fact.expression}」范围比较大，我找到一个更具体的地点。要把下方地点设为目的地吗？`
-        : `「${fact.expression}」范围比较大，我找到几个更具体的地点，你更想去哪个？`;
+      return fact.placeCount === 1
+        ? `「${fact.expression}」范围比较大，其中可以去的是下面这个市。要去的话选上它就好。`
+        : `「${fact.expression}」其实包含下面这几个市。想去哪些都可以选上，一次选几个也行。`;
     case "not_identified":
       return fact.expression === null
         ? `我还没能确认这个地点，${destinationUnchangedNote}能告诉我更具体的地名或所在地区吗？`

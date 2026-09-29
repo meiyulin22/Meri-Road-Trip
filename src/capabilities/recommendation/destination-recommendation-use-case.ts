@@ -10,14 +10,22 @@ export interface DestinationRecommendationUseCaseDependencies {
   readonly runWorkflow: (context: DestinationRecommendationContext, requestId: string) => Promise<DestinationRecommendationWorkflowResult>;
 }
 
+/**
+ * 「我想去云南，想爬山」 names a province, and only the provider knows that: the model
+ * proposes a plain known destination and the write turns it into an area with no place
+ * chosen inside. So openness is read from the state the write produced, never from the
+ * proposal — reading the proposal closed 「去哪」 on the exact turn that opened it.
+ * A destination the user named that failed to land is the turn's news instead, and
+ * cards would take the place of the sentence saying so.
+ */
 export function shouldCreateConversationalRecommendations(
   interpretation: WorkspaceConversationInterpretation,
-  authoritativeState: TripState,
-  patch: TripStatePatch | null,
+  stateAfterWrite: TripState,
+  destinationChange: { readonly proposed: boolean; readonly written: boolean },
 ): boolean {
+  if (destinationChange.proposed && !destinationChange.written) return false;
   return interpretation.presentationIntent === "destination_recommendations" &&
-    isDestinationOpenToRecommendations(authoritativeState.destination) &&
-    (!patch?.destination || isDestinationOpenToRecommendations(patch.destination)) &&
+    isDestinationOpenToRecommendations(stateAfterWrite.destination) &&
     interpretation.destinationDisambiguation?.state !== "known";
 }
 
@@ -51,14 +59,19 @@ export async function persistConversationalRecommendationTurn(input: {
   readonly ownerGuestId: string;
   readonly tripState: TripState;
   readonly interpretation: WorkspaceConversationInterpretation;
+  /** What the model proposed, and what the write actually committed of it. */
   readonly patch: TripStatePatch | null;
+  readonly persistedPatch: TripStatePatch | null;
   readonly previousMessages: readonly TripMessage[];
   readonly currentUserText: string;
   readonly requestId: string;
 }, dependencies: DestinationRecommendationUseCaseDependencies & {
   readonly persistTurn: Pick<TripMessageService, "persistSuccessfulTurn">["persistSuccessfulTurn"];
 }): Promise<readonly [TripMessage, TripMessage] | null> {
-  if (!shouldCreateConversationalRecommendations(input.interpretation, input.tripState, input.patch)) {
+  if (!shouldCreateConversationalRecommendations(input.interpretation, input.tripState, {
+    proposed: input.patch?.destination !== undefined,
+    written: input.persistedPatch?.destination !== undefined,
+  })) {
     // The model asked for cards on a turn that cannot offer them, so its reply is
     // the whole turn. That is legitimate, but it is also how a weak reply reaches
     // the user, and it is invisible without this line.
@@ -69,6 +82,7 @@ export async function persistConversationalRecommendationTurn(input: {
         tripId: input.tripId,
         destinationState: input.tripState.destination.state,
         patchDestinationState: input.patch?.destination?.state ?? null,
+        writtenDestinationState: input.persistedPatch?.destination?.state ?? null,
         disambiguationState: input.interpretation.destinationDisambiguation?.state ?? null,
       }, "Destination recommendations were requested on a turn that cannot offer them");
     }

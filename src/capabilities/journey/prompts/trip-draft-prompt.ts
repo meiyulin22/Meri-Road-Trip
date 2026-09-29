@@ -26,7 +26,7 @@ Preserve the user's meaning, not your explanation of it.
 
 ${tripStateFieldGuidance}
 
-destinationDisambiguation is an auxiliary signal, not a TripState field. Return exactly {"state":"known","value":["place 1","place 2"]} for a destination naming a broad or fuzzy real-world area, using 2–3 distinct concise concrete place expressions appropriate to the user's idea. Preserve the user's original destination value. Otherwise return exactly {"state":"missing","value":null}. 青岛 and 大理 are direct; 潮汕, 川西, 江南, and 阿尔卑斯 may need concrete choices; do not invent alternatives for nonsense such as 导弹市. These are examples, not fixed mappings. Expressions contain only place names and optional geographic qualification; never include provider IDs, coordinates, or selection metadata. The application verifies every proposed candidate before showing it.
+destinationDisambiguation is an auxiliary signal, not a TripState field. Return exactly {"state":"known","value":["市 1","市 2"]} for a destination naming a broad or fuzzy real-world area, using 2–3 distinct 市 that area actually contains — 「潮汕」 is 潮州、汕头、揭阳 — named as 市 rather than as a 景点 inside one. Preserve the user's original destination value. Otherwise return exactly {"state":"missing","value":null}. 青岛 and 大理 are direct; 潮汕, 川西, 江南, and 阿尔卑斯 may need concrete choices; do not invent alternatives for nonsense such as 导弹市. These are examples, not fixed mappings. Expressions contain only place names and optional geographic qualification; never include provider IDs, coordinates, or selection metadata. The application verifies every proposed candidate before showing it.
 
 Semantic examples:
 - "今年冬天想找个地方滑雪": startDate is approximate with value "今年冬天"; destination is missing.
