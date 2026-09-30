@@ -19,6 +19,16 @@ test("empty history leaves the current request single-turn", () => {
   assert.deepEqual(selectRecentConversationMessages([]), []);
 });
 
+test("city-level offers retain the named spot in model history without treating it as selected", () => {
+  const history: TripMessage[] = [message("user", "想去梅里雪山"), {
+    ...message("assistant", "勾选后确认"), presentation: { type: "destination_choices", mode: "add", choices: [
+      { id: "preference", name: "迪庆藏族自治州", province: "云南省", city: "迪庆藏族自治州", spot: "梅里雪山" },
+    ] },
+  }];
+  const content = selectRecentConversationMessages(history)[1].content;
+  assert.match(content, /\[展示过的卡片\].*迪庆藏族自治州（云南省），想去：梅里雪山/);
+});
+
 test("keeps complete turns in chronological order with original roles", () => {
   const history = [
     message("user", "Could we go to Furano?"),

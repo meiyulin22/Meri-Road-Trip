@@ -189,7 +189,7 @@ flowchart TD
 | none | 不变 | 有资格可推荐，否则模型 reply |
 | add/set + resolved | 不变 | 待选卡，唯一地点也需确认 |
 | add/set + area | 不变 | 已核验省级候选；选后保留空省，仍需选城市 |
-| add/set + ambiguous | 不变 | 多个真实候选，用行政区/地址区分 |
+| add/set + ambiguous | 不变 | 按省/市/景点偏好归并；不同省市分别供选择 |
 | add/set + unresolved | 不因该表达改变 | 暂未找到可靠地点 |
 | add/set + provider_error | 不因该表达改变 | 查询暂不可用，可重试 |
 | 多表达部分成功 | 候选仍未保存为目的地 | 展示成功项，并说明失败表达 |
@@ -198,7 +198,7 @@ flowchart TD
 | remove 无匹配 | 不删这个表达的项 | 告知当前旅程没有该地点 |
 | 多 remove 部分唯一 | 唯一目标可以删除 | 说明已移除可确认项及未处理项 |
 
-add/set 使用 Promise.all 查询表达，再按 provider ID 去重。不同 POI 不会因为同属一个城市而折叠。候选数受消息模型上限约束。set 生成 mode=replace，并记录 baseDestination=JSON.stringify(current)，用于后续过期检查。
+add/set 使用 Promise.all 查询表达。解析层保留不同 provider ID，不把不同 POI 认成同一具体位置；生成旅程选择卡时，按省/市/spot 偏好身份归并。三个梅里雪山记录若归属同一省市且表达同一偏好，只出一个城市选择，附「想去：梅里雪山」。这是目的地偏好的合并，不是具体 POI 消歧成功。不同省市、同市不同 spot 仍分别保留。候选数受消息模型上限约束。set 生成 mode=replace，并记录 baseDestination=JSON.stringify(current)，用于后续过期检查。
 
 聊天 remove 先匹配当前 areas 的精确名称，无精确匹配才允许唯一前缀；多匹配不能取第一个。UI 删除提交完整省/市/spot 元组，不用模糊前缀。
 
@@ -269,12 +269,22 @@ add/set 使用 Promise.all 查询表达，再按 provider ID 去重。不同 POI
 | 第二轮新城市 | 按候选身份判断，不按整个 destination.state 禁用 | 可以继续追加广东等地点 |
 | 已有市的新 spot | 检查 province/city/spot 元组 | 市存在仍可加新景点 |
 | 已经添加 | add 模式禁用并显示已添加 | 不重复；replace 可选已有城市 |
-| 无法区分同名项 | name、city、detail 相同 | 禁用，提示细化搜索 |
+| 同省市、同景点偏好的多个 POI | 按目标省/市/spot 分组 | 显示一个城市主项，附景点偏好，具体位置在规划阶段再确认 |
+| 同名但不同省市 | 目标行政归属不同 | 保留独立选择，不仅按名称合并 |
 | 旧卡无可靠身份 | legacyUnverified | 禁用，提示重新搜索 |
 | 任一选择正在保存 | selectionInFlight + pending | 暂停全部聊天选择卡，避免重入 |
-| 保存失败 | 显示可重试错误 | 不伪称已添加 |
+| 保存失败，且状态未确认写入 | 最新有效卡显示可重试错误 | 不伪称已添加 |
+| 已确认/继续聊天/后续新卡 | 原卡变成只读 | 禁用复选框和提交，显示“历史选项，仅供查看” |
+| 聊天内点击推荐、自己选、Generate plan | 立即关闭当前卡的本地操作资格 | 新返回的候选卡按新消息判断资格 |
+| replace 的目的地基底已变化 | 比较 baseDestination 和当前 destination | 原卡只读，不能覆盖新的决定 |
 
 [UI adapter](../src/components/trip-workspace/trip-message-ui-adapter.ts)兼容新 destination_choices、旧 destination_recommendations 和旧 location_candidates。旧独立 location-candidate-selection API 已移除。
+
+[destination-choice-identity](../src/domain/trip-message/destination-choice-identity.ts)定义偏好身份和历史卡分组。新卡的城市偏好 ID 由省/市/spot 构造，不依赖某条 POI。旧卡显示归并时保留组内全部原 ID，提交仍从保存的 offer 验证，不能伪造新 ID。暂选数量按显示行计数。
+
+旧卡一组多个 ID 提交时，服务端先确认它们都属于原 offer，再把同一省/市/spot 合成一次偏好核验，避免对相同表达重复查询高德。不会合并不同省市或不同景点意图。
+
+卡片资格由 [ConversationPanel](../src/components/trip-workspace/conversation-panel.tsx) 的 offerIsActive 判断：必须是消息列表最后一条，未在本地关闭，且 replace 基底未变化。正在聊天、推荐或保存时暂停选择；保存期间暂停发送聊天，避免本窗口同时提交两种决定。确认成功立即关闭原卡；follow_up_unavailable 也关闭，因为状态已经保存，并显示刷新核对提示。刷新后按持久化消息顺序恢复资格，后面已有确认或新对话的卡保持只读。本地按钮关闭记录只在当前页面有效，不将只读准备度查询当作新的持久化对话。
 
 #### 请求与服务器验证
 
@@ -288,10 +298,10 @@ add/set 使用 Promise.all 查询表达，再按 provider ID 去重。不同 POI
 
 1. 校验访客与 Journey 所有权，messageId 非空，destinationIds 非空且无重复。
 2. 从本 Journey 保存的助手消息取 offer，每个 ID 必须属于它。
-3. replace 首次检查 baseDestination；已变化则 409。
-4. [verifyDestinationChoice](../src/capabilities/destination/verified-destination-choice.ts)重新高德查询所选项。旧随机推荐 ID 不能当 provider 身份，须唯一精确规范名匹配；已验证保存的省级合成项有专门分支。
+3. 检查消息顺序：非最后一条 offer 且没有同组合确认记录，返回 409、code=offer_expired。replace 首次检查 baseDestination；已变化则 409。
+4. [verifyDestinationChoice](../src/capabilities/destination/verified-destination-choice.ts)重新高德查询所选项。新偏好 ID 校验查询结果中是否存在相同省/市/spot 的合理匹配，不能跨行政区保存，也不能把机场等相关 POI 当景点。旧 provider ID 仍核对身份；旧随机推荐 ID 需精确规范名匹配，多个记录若都代表同一个省市且不是景点，可确认该城市。已验证省级合成项有专门分支。
 5. 任一选中项核验失败则整批 409，不部分保存。
-6. 查询结束重读最新 TripState：add 合并最新 areas；replace 再检查基底，从空 areas 构造整体替换。
+6. 查询结束重读最新 TripState；同组合已有确认且当前结果仍匹配时返回原确认、不写状态。否则再次读取消息，若有后续消息或该组合已消费，返回 offer_expired，防止查询期间继续聊天后旧卡落库。未过期时：add 合并最新 areas；replace 再检查基底，从空 areas 构造整体替换。
 7. 按 offer 顺序处理，使请求 ID 顺序变化仍一致；省市合并、spot 同名去重。
 8. 带 expectedDestination 保存，避免覆盖查询期间的目的地修改。
 9. [destinationSelectionReply](../src/capabilities/destination/destination-selection-reply.ts)按保存后的准备度生成固定确认，保存助手消息。
@@ -301,8 +311,8 @@ add/set 使用 Promise.all 查询表达，再按 provider ID 去重。不同 POI
 
 - [确认 ID](../src/capabilities/conversation/destination-selection-message-id.ts)由 Journey、原消息及所选组合确定，ID 顺序变化不会产生新确认身份。
 - 已有确认且所选仍存在时 add 可返回原回复；replace 还要求当前整个目的地与这次替换结果一致。
-- 确认存在不表示可以忽略后来删除/替换；旧 replace 不能覆盖新的决定。
-- 状态已保存但确认失败返回 500、code=follow_up_unavailable 和已保存 tripState。[客户端异常](../src/components/trip-workspace/workspace-conversation-model.ts)先同步真实状态，再显示回复失败。
+- 确认存在不表示可以忽略后来删除/替换；旧 add 不能恢复后来删除的地点，旧 replace 不能覆盖新的决定。已消费卡不能换一组选项再次提交。客户端收到 offer_expired 后锁定卡片，提示刷新或重新搜索。
+- 状态已保存但确认失败返回 500、code=follow_up_unavailable 和已保存 tripState。[客户端异常](../src/components/trip-workspace/workspace-conversation-model.ts)先同步真实状态，关闭卡片，再显示“目的地已保存，但确认回复未完成”的刷新提示。
 - 非法 body 为 400；无权限/消息/选项不存在 404；核验、基底或并发冲突 409；其他保存失败 500。
 
 ## 5. 右侧 Journey overview 的直接操作
@@ -367,7 +377,7 @@ add/set 使用 Promise.all 查询表达，再按 provider ID 去重。不同 POI
 | 最后一个城市删除 | 空省仍表示省范围偏好，显示尚未选择城市 |
 | 所有省删除且无 legacyText | destination 回到 missing |
 
-最终 spots 是名称字符串，不含 provider ID/坐标。候选消息保留身份与地址供选择，确认后不会把这些身份复制进 spots。未来规划须重新查询具体地点。spots 表示用户想去，不表示强制行程或已经验证开放/安全/可达。
+最终 spots 是名称字符串，不含 provider ID/坐标。聊天卡选择城市及景点偏好，使用偏好身份，不展示某条 POI 地址来暗示已选精确位置；手动搜索和历史原始候选可保留 provider 身份与地址，确认后也不复制进 spots。未来规划须重新查询具体地点。spots 表示用户想去，不表示强制行程或已经验证开放/安全/可达。
 
 城市删除连带删 spots；未来规划读取当前 TripState，不能从历史聊天恢复这些偏好。历史消息保留是对话记录，不是当前意图清单。
 
@@ -443,7 +453,7 @@ add/set 使用 Promise.all 查询表达，再按 provider ID 去重。不同 POI
 - 选卡组合有确认身份与去重，普通聊天/推荐 POST 还无全局重试幂等保证。
 - 手动路由 ownerAndTrip 把加载异常统一当未找到，不能由 404 区分数据库故障。
 - 最终 spot 按名称保存/去重，不能单靠 TripState 区分两个同名 POI，未来须再核验。
-- 同名不可区分项在 UI 禁用，尚无地图消歧界面。
+- 手动搜索的同名不可区分项仍禁用；聊天只确认省市及景点偏好，精确 POI/地图消歧留到规划阶段。
 - 未实现删除撤销、省内限定搜索、Research Agent 或真正计划生成。
 
 ### 7.4 下一版 Generate Plan 的交接边界（计划）
@@ -463,6 +473,7 @@ add/set 使用 Promise.all 查询表达，再按 provider ID 去重。不同 POI
 | 初始状态与读取兼容 | [trip-state](../src/domain/trip-state/trip-state.ts) | authority、初始化、旧数据 |
 | 目的地操作契约 | [destination-edit](../src/domain/trip-state/destination-edit.ts) | 受限 schema、四种操作 |
 | 层级纯函数 | [destination-areas](../src/domain/trip-state/destination-areas.ts) | 合并、包含、唯一匹配、级联 |
+| 城市与景点偏好归并 | [destination-choice-identity](../src/domain/trip-message/destination-choice-identity.ts) | 目标身份、同省市同偏好合并、历史原 ID 保留 |
 | 聊天模型解释 | [interpreter](../src/capabilities/conversation/workspace-conversation-interpreter.ts) | 四项 JSON、opening 限制 |
 | 普通字段校验 | [workspace-conversation](../src/domain/trip-state/workspace-conversation.ts) | changes → user patch |
 | 实际聊天分支 | [messages route](../src/app/api/trip-workspace/messages/route.ts) | 保存顺序、固定正文、错误 |

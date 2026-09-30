@@ -1,6 +1,7 @@
 import { cookies } from "next/headers";
 
 import type { DestinationChoice, TripMessage } from "@/domain/trip-message/trip-message";
+import { destinationPreferenceId, groupDestinationChoices } from "@/domain/trip-message/destination-choice-identity";
 import { addToDestination, destinationContains, type DestinationArea, type DestinationPick } from "@/domain/trip-state/destination-areas";
 import type { TripState, TripStatePatch, DestinationField } from "@/domain/trip-state/trip-state";
 import { TripNotFoundError } from "@/domain/trip/trip-errors";
@@ -70,13 +71,22 @@ export async function handleDestinationRecommendationSelectionPost(
     }
     const followUpId = destinationRecommendationSelectionMessageId(tripId, message.id, destinationIds);
     const existingFollowUp = messages.find((item) => item.id === followUpId && item.role === "assistant");
+    if (!existingFollowUp && messages.at(-1)?.id !== message.id) {
+      return Response.json({ error: "Destination offer expired. Please ask again.", code: "offer_expired" }, { status: 409 });
+    }
     if (offer.mode === "replace" && !existingFollowUp && offer.baseDestination !== JSON.stringify(currentState.destination)) {
       return Response.json({ error: "Destination changed since this offer. Please ask again." }, { status: 409 });
     }
 
     const service = new LocationService(new AmapLocationProvider());
     const verify = dependencies.verifyChoice ?? ((choice: DestinationChoice) => verifyDestinationChoice(choice, service));
-    const resolved = await Promise.all((chosen as DestinationChoice[]).map(verify));
+    // Older cards submitted all POI IDs behind a displayed preference. Verify the
+    // preference once instead of repeating identical map queries for that city.
+    const verificationChoices = groupDestinationChoices(chosen).flatMap(({ choice, ids }) =>
+      choice.city && ids.length > 1 ? [{ ...choice,
+        id: destinationPreferenceId(choice.province, choice.city, choice.spot ?? null), name: choice.city }]
+        : chosen.filter((item) => ids.includes(item.id)));
+    const resolved = await Promise.all(verificationChoices.map(verify));
     if (resolved.some((item) => item.status !== "verified")) {
       return Response.json({ error: "Some places could not be verified. Please search again." }, { status: 409 });
     }
@@ -91,6 +101,12 @@ export async function handleDestinationRecommendationSelectionPost(
       !currentState.destination.legacyText && JSON.stringify(currentAreas) === JSON.stringify(replacementAreas);
     if (existingFollowUp && alreadyAdded && (offer.mode === "add" || replacementMatches)) {
       return Response.json({ tripState: currentState, assistantMessage: existingFollowUp });
+    }
+    // A cached response may be returned, but an old card must never mutate state
+    // after another turn or restore a destination the user subsequently removed.
+    const latestMessages = await dependencies.listMessages(tripId, ownerGuestId);
+    if (existingFollowUp || latestMessages.at(-1)?.id !== message.id) {
+      return Response.json({ error: "Destination offer expired. Please ask again.", code: "offer_expired" }, { status: 409 });
     }
     if (offer.mode === "replace" && offer.baseDestination !== JSON.stringify(currentState.destination)) {
       return Response.json({ error: "Destination changed since this offer. Please ask again." }, { status: 409 });

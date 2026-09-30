@@ -4,6 +4,7 @@ import {
   type DestinationArea,
 } from "@/domain/trip-state/destination-areas";
 import type { DestinationEdit } from "@/domain/trip-state/destination-edit";
+import { destinationPreferenceId } from "@/domain/trip-message/destination-choice-identity";
 import { maxDestinationChoices, type DestinationChoice, type DestinationChoicesPresentation } from "@/domain/trip-message/trip-message";
 import type { DestinationField } from "@/domain/trip-state/trip-state";
 
@@ -105,12 +106,13 @@ function choicesFrom(
   const choices: DestinationChoice[] = [];
   const seen = new Set<string>();
   for (const pick of picks) {
-    if (seen.has(pick.id)) continue;
-    seen.add(pick.id);
-    choices.push({ id: pick.id, name: pick.spot ?? pick.place ?? pick.province, province: pick.province,
+    const id = pick.place === null ? pick.id : destinationPreferenceId(pick.province, pick.place, pick.spot);
+    if (seen.has(id)) continue;
+    seen.add(id);
+    choices.push({ id, name: pick.place ?? pick.province, province: pick.province,
       ...(pick.place === null ? {} : { city: pick.place }),
       ...(pick.spot === null ? {} : { spot: pick.spot }),
-      ...(pick.detail ? { detail: pick.detail } : {}) });
+    });
   }
   return choices.length === 0 ? null : {
     presentation: { type: "destination_choices", mode, choices: choices.slice(0, maxDestinationChoices),

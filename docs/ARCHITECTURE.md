@@ -101,7 +101,8 @@ and reply. There is no separate intent or destinationDisambiguation field.
 Ordinary changes receive user authority through domain validation. Destination
 changes go through applyDestinationEdit:
 
-- set/add queries expressions, preserves distinct provider IDs and offers choices;
+- set/add queries expressions, preserves distinct provider IDs during resolution,
+  then groups offers by province/city/named preference;
   neither silently writes destination.
 - remove matches current saved names. An exact match wins; a prefix must be unique.
   City removal cascades spots and retains the province.
@@ -121,9 +122,21 @@ Chat selection uses the owned persisted assistant offer and its choice IDs throu
 POST /api/trips/[id]/destination-recommendation-selection. Amap rechecks chosen
 identities. Add merges with existing areas, including a new spot under an existing
 city. Replace compares the offer’s baseDestination with current state and returns
-409 if it changed. Same-choice retries reuse the persisted follow-up when applicable.
+409 if it changed. Only the latest conversation message can offer a new selection. The server checks
+history before verification and again before writing; expired offers return 409.
+Consumed cards cannot change their selection or restore a removed destination.
+Same-choice retries reuse the persisted follow-up when the saved target still matches,
+without writing state again.
 State-save success followed by reply failure returns the saved TripState and
 follow_up_unavailable, allowing the UI to show the actual saved state.
+
+New chat offers show city/prefecture names with optional named spot preferences.
+Multiple POIs for the same province/city/spot become one preference choice. Its ID
+represents that preference, and submission revalidates the same target against
+reasonable provider matches. It does not confirm one exact POI or coordinate.
+Different city/province targets and different spot names remain separate. Older
+offers retain their original IDs when grouped for display. Exact POI selection
+and access checks remain future planning work.
 
 The saved spots currently retain names, not provider coordinates. They express
 user preferences for later planning. Historical free-text destinations remain in
@@ -143,6 +156,8 @@ the button separately records TripUserAction. Suggestions do not modify TripStat
 Historical presentations adapt into the unified choice UI.
 
 Chat choices are grouped by province with checkboxes and a single batch submit.
+Confirmed cards and cards preceding later conversation become read-only. The client
+also closes the current card when another chat action starts; only new offers are actionable.
 DestinationEditor uses the same field-row layout as dates and origin, with an
 indented province/city/spot value and a pencil to expand manual search. The manual
 search result's Add action remains an explicit selection boundary.

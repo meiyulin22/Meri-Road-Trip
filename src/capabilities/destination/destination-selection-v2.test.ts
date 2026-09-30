@@ -4,6 +4,8 @@ import test from "node:test";
 import { handleDestinationRecommendationSelectionPost } from "@/app/api/trips/[id]/destination-recommendation-selection/route";
 import type { TripMessage } from "@/domain/trip-message/trip-message";
 import { applyTripStatePatch, type TripState } from "@/domain/trip-state/trip-state";
+import { destinationPreferenceId } from "@/domain/trip-message/destination-choice-identity";
+import { verifyDestinationChoice } from "./verified-destination-choice";
 
 const tripId = "trip-a";
 const owner = "guest-a";
@@ -55,4 +57,33 @@ test("an old replacement offer cannot overwrite a newer destination", async () =
       persistFollowUp: async () => { throw new Error("must not reply"); },
     });
   assert.equal(response.status, 409);
+});
+
+test("a grouped historical spot offer revalidates once and saves one city preference", async () => {
+  let state = initial;
+  let verifications = 0;
+  const offered = message({ type: "destination_choices", mode: "add", choices: ["a", "b", "c"].map((id) => ({
+    id, name: "梅里雪山", province: "云南省", city: "迪庆藏族自治州", spot: "梅里雪山",
+  })) });
+  const response = await handleDestinationRecommendationSelectionPost(tripId, owner,
+    { messageId: offered.id, destinationIds: ["a", "b", "c"] }, {
+      loadJourney: async () => ({ tripState: state }), listMessages: async () => [offered],
+      updateTripState: async (_tripId, _owner, patch) => { state = applyTripStatePatch(state, patch); return state; },
+      verifyChoice: async (choice) => {
+        verifications += 1;
+        assert.equal(choice.id, destinationPreferenceId("云南省", "迪庆藏族自治州", "梅里雪山"));
+        return verifyDestinationChoice(choice, { search: async () => ({ status: "success", candidates: [{
+          providerId: "fresh-poi", name: "梅里雪山", province: "云南省", city: "迪庆藏族自治州",
+          district: "德钦县", address: null, region: "云南省迪庆藏族自治州", longitude: 98.67, latitude: 28.43,
+          coordinateSystem: "GCJ-02",
+        }] }) });
+      },
+      persistFollowUp: async ({ messageId, content }) => ({ id: messageId, tripId, role: "assistant",
+        content, createdAt: "2026-09-30T00:00:00.000Z" }),
+    });
+  assert.equal(response.status, 200);
+  assert.equal(verifications, 1);
+  assert.deepEqual(state.destination.state === "known" && state.destination.areas.at(-1), {
+    province: "云南省", places: [{ name: "迪庆藏族自治州", spots: ["梅里雪山"] }],
+  });
 });

@@ -1,7 +1,7 @@
 import { validateTripMessage, type TripMessage } from "@/domain/trip-message/trip-message";
 import type { DestinationRecommendationPresentation } from "@/domain/trip-message/trip-message";
 import { isDestinationOpenToRecommendations, validateTripState, type TripState } from "@/domain/trip-state/trip-state";
-import { DestinationSelectionFollowUpError, WorkspaceConversationRequestError } from "./workspace-conversation-model";
+import { DestinationOfferExpiredError, DestinationSelectionFollowUpError, WorkspaceConversationRequestError } from "./workspace-conversation-model";
 
 type Fetcher = (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>;
 
@@ -90,6 +90,8 @@ export async function selectDestinationRecommendation(
     throw new WorkspaceConversationRequestError("Destination recommendation selection response is invalid.");
   }
   if (!response.ok) {
+    if (response.status === 409 && typeof body === "object" && body !== null &&
+      "code" in body && body.code === "offer_expired") throw new DestinationOfferExpiredError();
     if (typeof body === "object" && body !== null && "code" in body &&
       body.code === "follow_up_unavailable" && "tripState" in body) {
       throw new DestinationSelectionFollowUpError(validateTripState(body.tripState));

@@ -200,3 +200,10 @@ test("successful selection applies the server name to Workspace title and Journe
   assert.equal(getWorkspaceTitle(displayed), "泉州之旅");
   assert.equal(journeyFieldLabel(displayed.name, "旅程名称待定"), "泉州之旅");
 });
+
+
+test("an expired offer has a distinct error so the UI closes it instead of inviting retries", async () => {
+ const { DestinationOfferExpiredError } = await import("./workspace-conversation-model");
+ await assert.rejects(()=>selectDestinationRecommendation("trip", "old-offer", ["choice"],
+  async()=>Response.json({code:"offer_expired"},{status:409})),DestinationOfferExpiredError);
+});

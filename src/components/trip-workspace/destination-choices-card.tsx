@@ -3,18 +3,21 @@
 import { useState } from "react";
 
 import type { DestinationChoicesPresentation } from "@/domain/trip-message/trip-message";
+import { groupDestinationChoices } from "@/domain/trip-message/destination-choice-identity";
 import { destinationContains, type DestinationArea } from "@/domain/trip-state/destination-areas";
 
 import styles from "./destination-recommendation-picker.module.css";
 
-export function DestinationChoicesCard({ presentation, areas, pending, error, onCommit }: {
+export function DestinationChoicesCard({ presentation, areas, active, pending, error, onCommit }: {
   readonly presentation: DestinationChoicesPresentation;
   readonly areas: readonly DestinationArea[];
+  readonly active: boolean;
   readonly pending: boolean;
   readonly error: boolean;
   readonly onCommit: (ids: readonly string[]) => void;
 }) {
   const [picked, setPicked] = useState<readonly string[]>([]);
+  const rows = groupDestinationChoices(presentation.choices);
   function isAdded(choice: DestinationChoicesPresentation["choices"][number]): boolean {
     return choice.city
       ? destinationContains(areas, { province: choice.province, place: choice.city, spot: choice.spot ?? null })
@@ -22,10 +25,11 @@ export function DestinationChoicesCard({ presentation, areas, pending, error, on
         (area.province === choice.name || area.places.some((place) =>
           place.name === choice.name || place.spots.includes(choice.name))));
   }
-  const selectedIds = picked.filter((id) => presentation.choices.some((choice) =>
-    choice.id === id && (presentation.mode === "replace" || !isAdded(choice))));
+  const selectedRows = rows.filter(({ choice }) => picked.includes(choice.id) &&
+    (presentation.mode === "replace" || !isAdded(choice)));
+  const selectedIds = selectedRows.flatMap((row) => row.ids);
   const groups = new Map<string, DestinationChoicesPresentation["choices"][number][]>();
-  for (const choice of presentation.choices) {
+  for (const { choice } of rows) {
     const group = groups.get(choice.province) ?? [];
     group.push(choice);
     groups.set(choice.province, group);
@@ -34,34 +38,32 @@ export function DestinationChoicesCard({ presentation, areas, pending, error, on
     {[...groups].map(([province, choices]) => <div className={styles.group} key={province}>
       <h3>{province}</h3>
       <ul>{choices.map((choice) => {
-        const indistinguishable = choices.filter((item) => item.name === choice.name &&
-          item.city === choice.city && item.detail === choice.detail).length > 1;
         const selected = isAdded(choice);
         return <li key={choice.id}>
           <div className={styles.choiceRow}>
             <label className={styles.place} data-picked={picked.includes(choice.id)}>
-              <input type="checkbox" checked={selectedIds.includes(choice.id)} disabled={pending ||
-                (presentation.mode === "add" && selected) || choice.legacyUnverified || indistinguishable}
-                onChange={() => setPicked((current) => current.includes(choice.id)
-                  ? current.filter((id) => id !== choice.id) : [...current, choice.id])} />
-              <span className={styles.name}>{choice.name}
-                {choice.city ? <small className={styles.choiceRegion}>{choice.province} · {choice.city}</small> : null}
-                {choice.detail ? <small className={styles.choiceRegion}>{choice.detail}</small> : null}
+              <input type="checkbox" checked={selectedIds.includes(choice.id)} disabled={!active || pending ||
+                (presentation.mode === "add" && selected) || choice.legacyUnverified}
+                onChange={() => { if (!active || pending) return; setPicked((current) => current.includes(choice.id)
+                  ? current.filter((id) => id !== choice.id) : [...current, choice.id]); }} />
+              <span className={styles.name}>{choice.city ?? choice.name}
+                {choice.spot ? <small className={styles.choiceRegion}>想去：{choice.spot}（具体位置将在规划时确认）</small> : null}
+                {!choice.city && choice.detail ? <small className={styles.choiceRegion}>{choice.detail}</small> : null}
               </span>
               {choice.reason ? <span className={styles.reason}>{choice.reason}</span> : null}
             </label>
-            {indistinguishable || choice.legacyUnverified || (presentation.mode === "add" && selected)
-              ? <span className={styles.choiceStatus}>{indistinguishable ? "请细化搜索" : choice.legacyUnverified ? "请重新搜索" : "已添加"}</span> : null}
+            {choice.legacyUnverified || (presentation.mode === "add" && selected)
+              ? <span className={styles.choiceStatus}>{choice.legacyUnverified ? "请重新搜索" : "已添加"}</span> : null}
           </div>
         </li>;
       })}</ul>
     </div>)}
     <div className={styles.commit}>
-      <span>{selectedIds.length ? `已选 ${selectedIds.length} 个` : "可以一次选择多个城市"}</span>
-      <button type="button" disabled={pending || selectedIds.length === 0} onClick={() => onCommit(selectedIds)}>
+      <span>{!active ? "历史选项，仅供查看" : selectedRows.length ? `已选 ${selectedRows.length} 个` : "可以一次选择多个城市"}</span>
+      <button type="button" disabled={!active || pending || selectedIds.length === 0} onClick={() => { if (active && !pending && selectedIds.length) onCommit(selectedIds); }}>
         {pending ? "保存中…" : presentation.mode === "replace" ? "替换为所选目的地" : "添加所选"}
       </button>
     </div>
-    {error ? <p className={styles.error} role="alert">保存失败，请重试。</p> : null}
+    {error && active ? <p className={styles.error} role="alert">保存失败，请重试。</p> : null}
   </section>;
 }

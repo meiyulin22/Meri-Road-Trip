@@ -21,7 +21,9 @@ import styles from "./trip-workspace.module.css";
 export function GeneratePlanAction({
   tripId,
   tripState,
+  onRequest,
 }: {
+  readonly onRequest?: () => void;
   readonly tripId: string;
   readonly tripState: TripState;
 }) {
@@ -39,6 +41,7 @@ export function GeneratePlanAction({
   async function checkReadiness(): Promise<void> {
     if (requestInFlight.current) return;
     requestInFlight.current = true;
+    onRequest?.();
     setIsChecking(true);
     setAnswer(null);
     try {

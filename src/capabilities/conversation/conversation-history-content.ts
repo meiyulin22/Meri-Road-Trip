@@ -24,7 +24,7 @@ function presentationText(presentation: TripMessagePresentation): string {
   switch (presentation.type) {
     case "destination_choices":
       return `${shownDestinationCardsLabel} ${presentation.choices.map((choice) =>
-        `${choice.name}（${choice.province}${choice.city ? ` · ${choice.city}` : ""}）`).join("｜")}`;
+        `${choice.city ?? choice.name}（${choice.province}）${choice.spot ? `，想去：${choice.spot}` : ""}`).join("｜")}`;
     case "destination_recommendations":
       return `${shownDestinationCardsLabel} ${destinationCardsText(presentation.destinations)}`;
     case "location_candidates":

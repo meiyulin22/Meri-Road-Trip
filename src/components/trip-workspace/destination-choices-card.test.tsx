@@ -12,7 +12,7 @@ nodeRequire.extensions[".css"] = (module) => {
 test("an existing city still permits adding a new spot and replacement can select an existing city", async () => {
   const { DestinationChoicesCard } = await import("./destination-choices-card");
   const areas = [{ province: "云南省", places: [{ name: "迪庆藏族自治州", spots: ["梅里雪山"] }] }];
-  const props = { areas, pending: false, error: false, onCommit: () => {} };
+  const props = { areas, active: true, pending: false, error: false, onCommit: () => {} };
   const addition = renderToStaticMarkup(createElement(DestinationChoicesCard, { ...props,
     presentation: { type: "destination_choices", mode: "add", choices: [
       { id: "new-spot", name: "普达措", province: "云南省", city: "迪庆藏族自治州", spot: "普达措" },
@@ -26,4 +26,38 @@ test("an existing city still permits adding a new spot and replacement can selec
     ] } }));
   assert.doesNotMatch(replacement.match(/<input[^>]*>/)?.[0] ?? "", /disabled/);
   assert.match(replacement, /替换为所选目的地/);
+});
+
+test("historical repeated POIs render one city preference instead of indistinguishable disabled spots", async () => {
+  const { DestinationChoicesCard } = await import("./destination-choices-card");
+  const { groupDestinationChoices } = await import("@/domain/trip-message/destination-choice-identity");
+  const choices = ["a", "b", "c"].map((id) => ({ id, name: "梅里雪山", province: "云南省",
+    city: "迪庆藏族自治州", spot: "梅里雪山", detail: "德钦县" }));
+  const grouped = groupDestinationChoices(choices);
+  assert.equal(grouped.length, 1);
+  assert.deepEqual(grouped[0].ids, ["a", "b", "c"]);
+  const markup = renderToStaticMarkup(createElement(DestinationChoicesCard, {
+    areas: [], active: true, pending: false, error: false, onCommit: () => {},
+    presentation: { type: "destination_choices", mode: "replace", choices },
+  }));
+  assert.equal((markup.match(/type="checkbox"/g) ?? []).length, 1);
+  assert.match(markup, /迪庆藏族自治州/);
+  assert.match(markup, /想去：梅里雪山/);
+  assert.doesNotMatch(markup, /请细化搜索|德钦县/);
+  assert.doesNotMatch(markup.match(/<input[^>]*>/)?.[0] ?? "", /disabled/);
+});
+
+
+test("a historical replacement card has disabled checkboxes and submission", async () => {
+ const { DestinationChoicesCard } = await import("./destination-choices-card");
+ const markup=renderToStaticMarkup(createElement(DestinationChoicesCard,{
+  active:false,areas:[],pending:false,error:false,onCommit:()=>{throw new Error("historical card submitted");},
+  presentation:{type:"destination_choices",mode:"replace",choices:[
+   {id:"city",name:"迪庆藏族自治州",province:"云南省",city:"迪庆藏族自治州",spot:"梅里雪山"},
+  ]},
+ }));
+ assert.match(markup.match(/<input[^>]*>/)?.[0]??"",/disabled/);
+ assert.match(markup.match(/<button[^>]*>/)?.[0]??"",/disabled/);
+ assert.match(markup,/历史选项，仅供查看/);
+ assert.match(markup,/想去：梅里雪山/);
 });

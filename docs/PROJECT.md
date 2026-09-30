@@ -74,6 +74,9 @@ The implemented destination flow includes:
 - Amap verification of place expressions before presenting choices. Even a unique
   match requires explicit selection before it enters TripState. Chat offers use
   checkboxes and one batch confirmation; manual search uses a result's Add action.
+- Chat choices stop at city/prefecture level. User-named spots appear as preferences
+  under that city. Repeated POIs for the same province/city/preference show once;
+  this does not resolve the exact POI for future planning.
 - Province → city/prefecture → spot display with continued additions and removals.
   Removing a city removes its spots and retains the province. Removing a spot keeps
   the city; removing a province removes all its children.

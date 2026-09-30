@@ -95,3 +95,10 @@ export class DestinationSelectionFollowUpError extends WorkspaceConversationRequ
     this.name = "DestinationSelectionFollowUpError";
   }
 }
+
+export class DestinationOfferExpiredError extends WorkspaceConversationRequestError {
+  constructor() {
+    super("The destination offer has expired.");
+    this.name = "DestinationOfferExpiredError";
+  }
+}

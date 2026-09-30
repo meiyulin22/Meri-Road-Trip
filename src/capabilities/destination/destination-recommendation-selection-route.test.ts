@@ -45,3 +45,32 @@ test("a replacement retry succeeds even when choice IDs arrive in another order"
  assert.equal((await select(tripId,"owner",{...body,destinationIds:["b","a"]},f.dependencies)).status,200);
  assert.equal(f.getWrites(),1);
 });
+
+
+test("later user turns and new assistant offers expire an unconfirmed card", async () => {
+ for (const role of ["user", "assistant"] as const) {
+  const f=fixture(); let verified=false;
+  f.messages.push({...offer,id:"later",role});
+  const response=await select(tripId,"owner",body,{...f.dependencies,verifyChoice:async()=>{
+   verified=true; return {status:"provider_error"};
+  }});
+  assert.equal(response.status,409);assert.equal(f.getWrites(),0);assert.equal(verified,false);
+ }
+});
+
+test("a confirmed card cannot submit a different selection or restore a deleted destination", async () => {
+ const f=fixture();assert.equal((await select(tripId,"owner",body,f.dependencies)).status,200);
+ assert.equal((await select(tripId,"owner",{...body,destinationIds:["a"]},f.dependencies)).status,409);
+ const deleted=applyTripStatePatch(f.getState(),{destination:{state:"missing"}});
+ const response=await select(tripId,"owner",body,{...f.dependencies,loadJourney:async()=>({tripState:deleted})});
+ assert.equal(response.status,409);assert.equal(f.getWrites(),1);
+});
+
+test("a turn arriving during provider verification prevents an old card from saving", async () => {
+ const f=fixture();
+ const response=await select(tripId,"owner",body,{...f.dependencies,verifyChoice:async c=>{
+  f.messages.push({...offer,id:"later-user",role:"user"});
+  return {status:"verified",pick:{province:c.province,place:c.city??null,spot:c.spot??null}};
+ }});
+ assert.equal(response.status,409);assert.equal(f.getWrites(),0);
+});
