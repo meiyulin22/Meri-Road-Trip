@@ -25,13 +25,12 @@ import { selectRecentConversationMessages } from "@/capabilities/conversation/wo
 import { destinationRecommendationDependencies, persistConversationalRecommendationTurn } from "@/capabilities/recommendation/destination-recommendation-use-case";
 import { InvalidDestinationRecommendationOutputError } from "@/capabilities/recommendation/destination-recommendation-generator";
 import { AmapLocationProvider } from "@/platform/location-provider/amap-location-provider";
-import { TripStateNotFoundError } from "@/capabilities/journey/journey-errors";
+import { TripStateNotFoundError, TripStateConflictError } from "@/capabilities/journey/journey-errors";
 import { journeyService } from "@/capabilities/journey/journey-service-instance";
 import { readGuestId } from "@/platform/identity/guest-identity";
 import { LocationService } from "@/capabilities/destination/location-service";
-import { persistWorkspacePatchWithDisambiguation } from "@/capabilities/destination/post-update-destination-resolution";
-import { narrowingPresentation } from "@/capabilities/destination/verify-destination-disambiguation";
-import { resolveWorkspaceTurn } from "@/capabilities/conversation/workspace-turn-branch";
+import { applyDestinationEdit } from "@/capabilities/destination/apply-destination-edit";
+import { resolveDestinationPlace } from "@/capabilities/destination/resolve-destination-place";
 import { logger, logEvents } from "@/platform/observability/logger";
 import { tripMessageService } from "@/capabilities/conversation/trip-message-service-instance";
 import { serializeError } from "@/platform/observability/serialize-error";
@@ -61,6 +60,9 @@ function getRequestContext(): { referenceDate: string; timezone: string } {
 }
 
 function mapError(error: unknown): ErrorResponse {
+  if (error instanceof TripStateConflictError) {
+    return { status: 409, message: "Journey changed while saving. Please refresh and retry." };
+  }
   if (
     error instanceof InvalidWorkspaceConversationRequestError ||
     error instanceof InvalidTripStateError
@@ -160,35 +162,45 @@ export async function POST(request: Request) {
       ...getRequestContext(),
     });
     const patch = createTripStatePatchFromInterpretation(interpretation);
+    let persistedTripState = patch
+      ? await journeyService.updateTripState(tripId, ownerGuestId, patch)
+      : tripState;
     const locationService = new LocationService(new AmapLocationProvider());
-    const disambiguation = interpretation.destinationDisambiguation;
-    const { tripState: persistedTripState, resolution, persistedPatch, disambiguationResult } =
-      await persistWorkspacePatchWithDisambiguation(
-        tripState,
-        patch,
-        disambiguation,
-        (committedPatch) => journeyService.updateTripState(tripId, ownerGuestId, committedPatch),
-        locationService,
-      );
-    const destinationExpression = patch?.destination?.state !== "missing"
-      ? patch?.destination?.value : null;
-    const recommendationMessages = await persistConversationalRecommendationTurn({
-      tripId, ownerGuestId, tripState: persistedTripState, interpretation, patch, persistedPatch,
-      previousMessages, currentUserText: body.message, requestId,
-    }, {
-      ...destinationRecommendationDependencies(),
-      persistTurn: (input) => tripMessageService.persistSuccessfulTurn(input),
-    });
-    const turn = resolveWorkspaceTurn({
-      interpretation,
-      recommendationReply: recommendationMessages?.[1].content ?? null,
-      disambiguationResult,
-      destinationExpression: destinationExpression ?? null,
-      tripState: persistedTripState,
-      resolution,
-      persistedPatch,
-    });
-    const finalInterpretation = { ...interpretation, reply: turn.reply };
+    const destinationResult = await applyDestinationEdit(
+      persistedTripState.destination,
+      interpretation.destinationEdit,
+      (expression) => resolveDestinationPlace(expression,
+        (query) => locationService.resolveExpression(query)),
+    );
+    if (destinationResult.changed) {
+      persistedTripState = await journeyService.updateTripState(tripId, ownerGuestId,
+        { destination: destinationResult.destination }, persistedTripState.destination);
+    }
+    const persistedPatch = patch ?? (destinationResult.changed
+      ? { destination: destinationResult.destination } : null);
+    const recommendationMessages = destinationResult.choices || interpretation.destinationEdit.operation !== "none"
+      ? null
+      : await persistConversationalRecommendationTurn({
+        tripId, ownerGuestId, tripState: persistedTripState, interpretation, patch, persistedPatch,
+        previousMessages, currentUserText: body.message, requestId,
+      }, {
+        ...destinationRecommendationDependencies(),
+        persistTurn: (input) => tripMessageService.persistSuccessfulTurn(input),
+      });
+    const reply = destinationResult.choices
+      ? `找到「${destinationResult.choices.answering}」相关的地点了。点击添加后才会记入旅程。${
+          destinationResult.unresolved.length ? `「${destinationResult.unresolved.join("、")}」暂时没找到。` : ""}${
+          destinationResult.lookupFailed.length ? `「${destinationResult.lookupFailed.join("、")}」查询暂时不可用。` : ""}`
+      : destinationResult.ambiguousRemovals.length
+        ? `${destinationResult.changed ? "已移除能确认的地点。" : ""}「${destinationResult.ambiguousRemovals.join("、")}」对应多个已保存地点，请说得更具体一些。`
+        : destinationResult.notInDestination.length
+          ? `${destinationResult.changed ? "已移除能确认的地点。" : ""}当前旅程里没有找到「${destinationResult.notInDestination.join("、")}」。`
+      : destinationResult.lookupFailed.length
+        ? "地点查询暂时不可用，目的地没有改变。请稍后重试。"
+        : destinationResult.unresolved.length
+          ? `暂时没找到「${destinationResult.unresolved.join("、")}」的可靠地点，目的地没有因此改变。`
+          : interpretation.reply;
+    const finalInterpretation = { ...interpretation, reply: recommendationMessages?.[1].content ?? reply };
 
     if (persistedPatch !== null) {
       logger.info(
@@ -207,21 +219,14 @@ export async function POST(request: Request) {
       ownerGuestId,
       userContent: body.message,
       assistantContent: finalInterpretation.reply,
-      // Narrowing a broad expression offers 市 to pick several of; a provider that
-      // found one expression ambiguous is still asking which single place was meant.
-      ...(disambiguationResult?.status === "verified"
-        ? { assistantPresentation: narrowingPresentation(disambiguationResult,
-          persistedTripState.destination.state === "known" ? persistedTripState.destination.areas : undefined) }
-        : resolution?.status === "ambiguous"
-          ? { assistantPresentation: { type: "location_candidates" as const, candidates: resolution.candidates } }
-          : {}),
+      ...(destinationResult.choices ? { assistantPresentation: destinationResult.choices.presentation } : {}),
     });
     logger.info(
       {
         event: logEvents.tripMessageTurnPersisted,
         ...context,
         tripId,
-        branch: turn.branch,
+        branch: destinationResult.choices ? "destination_choices" : recommendationMessages ? "destination_recommendations" : "conversation",
         messageIds: messages.map((message) => message.id),
       },
       "Trip conversation turn persisted",

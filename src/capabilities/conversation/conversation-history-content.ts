@@ -22,6 +22,9 @@ export function conversationHistoryContent(message: TripMessage): string {
 
 function presentationText(presentation: TripMessagePresentation): string {
   switch (presentation.type) {
+    case "destination_choices":
+      return `${shownDestinationCardsLabel} ${presentation.choices.map((choice) =>
+        `${choice.name}（${choice.province}${choice.city ? ` · ${choice.city}` : ""}）`).join("｜")}`;
     case "destination_recommendations":
       return `${shownDestinationCardsLabel} ${destinationCardsText(presentation.destinations)}`;
     case "location_candidates":

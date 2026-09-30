@@ -17,7 +17,7 @@ import {
 const draft: TripDraft = {
   name: { state: "known", value: "冬季旅行" },
   origin: { state: "missing" },
-  destination: { state: "missing" },
+  destinationEdit: { operation: "none" },
   startDate: { state: "approximate", value: "今年冬天" },
   endDate: { state: "missing" },
   duration: { state: "missing" },
@@ -119,8 +119,7 @@ test("does not navigate when Journey persistence fails", async () => {
 });
 
 test("Home carries fuzzy destination expressions through draft review", async () => {
-  const fuzzyDraft: TripDraft = { ...draft, destination: { state: "known", value: "潮汕" },
-    destinationDisambiguation: { state: "known", value: ["潮州", "汕头"] } };
+  const fuzzyDraft: TripDraft = { ...draft, destinationEdit: { operation: "set", places: ["潮州市", "汕头市", "揭阳市"], broadRegion: "潮汕" }, };
   const fetcher: typeof fetch = async () => Response.json({ draft: fuzzyDraft });
   assert.deepEqual(await requestTripDraft("我想去潮汕", fetcher), fuzzyDraft);
 });

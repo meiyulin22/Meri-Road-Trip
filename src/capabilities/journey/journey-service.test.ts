@@ -16,7 +16,7 @@ const guestB = "f6dd6c50-91c6-4ad1-9089-dbb3feaa61cc";
 const draft: TripDraft = {
   name: { state: "known", value: "富良野滑雪" },
   origin: { state: "missing" },
-  destination: { state: "known", value: "富良野" },
+  destinationEdit: { operation: "set", places: ["富良野"], broadRegion: null },
   startDate: { state: "approximate", value: "今年冬天" },
   endDate: { state: "missing" },
   duration: { state: "missing" },
@@ -82,11 +82,7 @@ test("creates an incomplete Trip and authoritative TripState with one identity",
   assert.equal(repositoryTripId, trip.id);
   assert.equal(receivedOwnerGuestId, guestA);
   assert.deepEqual(receivedTripInput, {});
-  assert.deepEqual(journey.tripState.destination, {
-    state: "known",
-    value: "富良野",
-    source: "user",
-  });
+  assert.deepEqual(journey.tripState.destination, {state:"missing"});
   assert.deepEqual(journey.tripState.startDate, {
     state: "approximate",
     value: "今年冬天",
@@ -173,7 +169,7 @@ test("persists a deterministic opening assistant after the original user message
     },
     async deleteTripById() { throw new Error("must not roll back"); },
   });
-  await service.createJourney({ ...draft, name: { state: "missing" }, destination: { state: "missing" } },
+  await service.createJourney({ ...draft, name: { state: "missing" }, destinationEdit: { operation: "none" } },
     guestA, "原始 Home 输入", openingAssistant);
   assert.deepEqual(events, ["trip", "state", "user", "assistant"]);
 });
@@ -286,7 +282,7 @@ test("loads an existing Trip and TripState", async () => {
   const stateRepository = createStateRepository({
     name: { state: "known", value: "富良野滑雪", source: "system" },
     origin: { state: "missing" },
-    destination: { state: "known", value: "富良野", source: "user" },
+    destination: { state: "known" as const, source: "user", areas: [], legacyText: "富良野" },
     startDate: { state: "approximate", value: "今年冬天", source: "user" },
     endDate: { state: "missing" },
     duration: { state: "missing" },
@@ -361,7 +357,7 @@ test("updates state through the repository bound to the real Trip ID", async () 
   const initialState: TripState = {
     name: { state: "known", value: "富良野滑雪", source: "system" },
     origin: { state: "missing" },
-    destination: { state: "known", value: "二世谷", source: "user" },
+    destination: { state: "known" as const, source: "user", areas: [], legacyText: "二世谷" },
     startDate: { state: "missing" },
     endDate: { state: "missing" },
     duration: { state: "missing" },
@@ -389,14 +385,14 @@ test("updates state through the repository bound to the real Trip ID", async () 
     trip.id,
     guestA,
     {
-      destination: { state: "known", value: "富良野", source: "user" },
+      destination: { state: "known" as const, source: "user", areas: [], legacyText: "富良野" },
     },
   );
 
   assert.deepEqual(updated.destination, {
     state: "known",
-    value: "富良野",
     source: "user",
+    areas: [], legacyText: "富良野",
   });
   assert.deepEqual(updated.name, {
     state: "known",
@@ -458,7 +454,7 @@ test("does not update another guest's TripState", async () => {
 
   await assert.rejects(
     service.updateTripState(trip.id, guestB, {
-      destination: { state: "known", value: "札幌", source: "user" },
+      destination: { state: "known" as const, source: "user", areas: [], legacyText: "札幌" },
     }),
     TripNotFoundError,
   );

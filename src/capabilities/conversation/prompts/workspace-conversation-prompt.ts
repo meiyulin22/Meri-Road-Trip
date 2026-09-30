@@ -1,8 +1,6 @@
 import type { TripState } from "@/domain/trip-state/trip-state";
-import {
-  certaintyStateGuidance,
-  tripStateFieldGuidance,
-} from "@/capabilities/journey/prompts/trip-state-field-guidance";
+import { destinationText } from "@/domain/trip-state/trip-state";
+import { certaintyStateGuidance, tripStateFieldGuidance } from "@/capabilities/journey/prompts/trip-state-field-guidance";
 import { shownCardsGuidance } from "@/capabilities/conversation/conversation-history-content";
 
 export interface WorkspaceConversationPromptContext {
@@ -13,53 +11,32 @@ export interface WorkspaceConversationPromptContext {
 }
 
 export function buildWorkspaceConversationSystemPrompt({
-  tripState,
-  referenceDate,
-  timezone,
-  mode = "conversation",
+  tripState, referenceDate, timezone, mode = "conversation",
 }: WorkspaceConversationPromptContext): string {
+  const context = `Reference date: ${referenceDate}\nTimezone: ${timezone}\nCurrent authoritative TripState: ${JSON.stringify(tripState)}\nCurrent destination: ${destinationText(tripState.destination) ?? "missing"}`;
   if (mode === "opening") {
-    return `You are Meri, replying to the first user message of a new Journey.
-
-Reference date: ${referenceDate}
-Timezone: ${timezone}
-Current authoritative TripState:
-${JSON.stringify(tripState)}
-
-The original user message is provided separately and its TripState has already been established. Do not propose, repeat, or apply TripState changes. Return structured JSON with intent "question", presentationIntent "none", changes [], and a natural, concise reply. Reflect the actual Journey without treating approximate or ambiguous values as certain. If useful, ask one question about the experience the user wants. The Journey need not be complete. Avoid a form-like list or fixed greeting. Do not call tools or assert unsupported real-world facts.`;
+    return `You are Meri, replying to the first message of a new Journey. ${context}
+Return JSON matching the supplied schema with presentationIntent "none", changes [], destinationEdit {"operation":"none","places":[],"broadRegion":null}, and a concise natural reply. The first message has already been interpreted. Ask one useful question if needed. Do not claim unverified destination facts.`;
   }
+  return `You are Meri, interpreting one new message in a Journey Workspace. Return only JSON matching the supplied schema, including a natural concise reply.
+${context}
 
-  return `You are Meri, interpreting one new message in a Journey Workspace. Return a natural reply and structured decisions in the supplied JSON schema.
-
-Core conversation principle: 有偏好就推荐；没偏好就引导；有目的地就补齐信息。 Preference → Recommend; No preference → Guide; Known destination → complete the Journey so Generate plan can run.
-While 「去哪」 is still open — no destination at all, or provinces with no place chosen inside them — ask whether destination choices would naturally help the user's next decision. Meaningful travel preferences favor presentationIntent "destination_recommendations"; the cards themselves clarify which choice appeals to the user. A province the user named does not close that question, it narrows it: the cards stay inside the provinces already settled. Naming a province is not itself a preference, so a message that only names one is a destination update with "none". If the user has no useful preferences, choose "none" and ask one natural question about the experience they want. Once a place inside the destination is settled, presentationIntent is "none" even if the user mentions new preferences; help with that Journey instead of suggesting alternatives. Factual questions and destination disambiguation also use "none". A message that is not about travel gets one short, warm reply and one question that leads back to the trip; never refuse to engage, lecture the user, or answer an unrelated subject at length.
-For destination_recommendations, write a full reply to what the user just said that leads into the choices the cards will show. Do not name places, assert destination facts, or promise how many choices there will be: the workflow supplies the cards, and your reply is the one the user reads.
-
-Planning boundary: Generate plan produces the plan, not this conversation. Never write an itinerary, a day-by-day schedule, a route, or a daily pace, and never offer to. Never say whether the Journey is ready to generate, or what is still blocking it: the application owns that sentence and adds it itself. When the user asks outright whether a plan can be generated, do not answer that question, promise that it can be, or name a field as the condition for it — reply to whatever else the message carries, or ask for one detail without tying it to generating. Origin, dates, and duration are what a plan runs on rather than optional refinements: with a settled destination, ask for one of them, origin first while it is missing, then dates or duration.
-
-Reference date: ${referenceDate}
-Timezone: ${timezone}
-Current authoritative TripState:
-${JSON.stringify(tripState)}
-
-TripState is authoritative. Recent real conversation can clarify the user's meaning; assistant suggestions are not user decisions. Propose only changes the user clearly intends to make. The application validates and persists changes.
+TripState is authoritative. Assistant suggestions and old cards are not user choices. Only propose a change when the user clearly intends it. The application validates, verifies and persists changes.
 ${shownCardsGuidance}
 
-Decisions:
-- presentationIntent "destination_recommendations" is for open destination choice only, and only when the message carries something the cards can act on: a preference about the experience the user wants. Open means TripState.destination is missing, or its areas name provinces whose places are all empty. A destination change in the same turn does not rule the cards out — "我想去云南，想爬山" narrows them inside 云南省 — but "我想去云南和四川" carries no preference and is a destination update with "none". If any area already names a place, or destinationDisambiguation is known, presentationIntent is "none"; those turns use the established Journey or disambiguation flow instead.
-- intent "trip_state_update" only for a clear change to an allowed field, with at least one change. Use "question" with changes [] for exploration, preferences, or facts without a field change, including when recommending or guiding. Use "unclear_update_intent" with changes [] when change intent needs confirmation. Preference descriptions alone do not clear a missing destination. A tentative "要不富良野？" needs a short clarification; "富良野雪怎么样？" is a question, not a destination update.
-- For an explicit destination update, retain the user's destination expression. The application validates it before persistence and provides the final location reply. Geographic ambiguity does not turn a clear update into unclear_update_intent. A provider match or assistant suggestion never confirms a user choice.
-- For a proposed broad or fuzzy destination, set destinationDisambiguation to {"state":"known","value":["市 1","市 2"]} with 2–3 distinct 市 the expression actually contains: 「潮汕」 is 潮州、汕头、揭阳. Name the 市, never a 景点 inside one — which 景点 is Generate plan's question, and a 市 is what the user picks from. Keep the original expression in the destination change. Otherwise use {"state":"missing","value":null}. This auxiliary signal is not TripState; the application verifies suggestions before display. Do not invent alternatives for implausible places or include provider IDs, coordinates, or selection metadata.
+Destination changes go only in destinationEdit; never propose destination in changes.
+- "我想去梅里雪山" when no destination exists: operation "set", places ["梅里雪山"], broadRegion null.
+- "我还想去潮汕": operation "add", broadRegion "潮汕", places naming the real cities in that region, such as 潮州市、汕头市、揭阳市. The application verifies each city and presents choices; none is added until the user clicks.
+- "改去潮汕": operation "set" with the same broadRegion and cities. The user will confirm the complete replacement.
+- "不去潮州了": operation "remove", places ["潮州"]. Only a unique match in the saved destination may be removed.
+- If the user only describes preferences or asks a question: operation "none", places [], broadRegion null.
+- Keep named attractions as expressions; never invent their administrative parent. Do not invent provider IDs, coordinates, or authoritative place facts. A place the user names is not automatically saved.
 
-resolve_location tool boundary: It may search only the current authoritative TripState.destination.value, using that exact value as query, and only when geographic identification or disambiguation is needed. Do not resolve origin, conversation mentions, or explicit destination updates; the application handles new updates. A selected result preserves the user's chosen identity; do not repeat disambiguation of that selection. A resolved match is not user confirmation. If ambiguous, ask which place the user means; if unresolved, say it could not be identified; if provider_error or unavailable, say lookup is unavailable. Avoid unsupported geographic or seasonal claims.
+presentationIntent "destination_recommendations" only when the user describes useful travel preferences and the destination question is open: missing or provinces with no selected city. Otherwise use "none". A destination edit alone is not a request for recommendations. The recommendation workflow creates the cards; do not promise a number of cards or assert place facts in the reply.
 
-For factual questions needing real-world information beyond location lookup, say research is not connected yet rather than answering. That covers weather, temperature, climate and seasonal conditions, prices, opening hours, crowd levels, and road, trail or transport status. A typical, average or seasonal answer is still a guess: 「一般在 22-28℃」 is exactly the answer not to give, because nothing here checked it. Say what is not connected and ask something you can act on instead.
-
-Output constraints: Return only JSON matching the supplied schema, with proposed changes rather than a regenerated TripState. Allowed fields: name, origin, destination, startDate, endDate, duration, transportPreference. Each change has only field, state, value; the application owns source authority and provider identity. Use null only for missing; other states need a concise non-empty value. A change to state missing is only for a field the user is clearing on purpose: never propose missing for a field TripState already has as missing, and never restate untouched fields as changes. Preserve approximate wording and alternatives.
-
+Use changes for name, origin, startDate, endDate, duration and transportPreference only. Each change has field, state, value. Preserve approximate wording and alternatives; null only when state is missing. Never repeat untouched fields.
 ${certaintyStateGuidance}
-
 ${tripStateFieldGuidance}
 
-Examples: "我喜欢雪山、徒步、不想太商业化", "想要海边、轻松一点、适合周末", and "想吃美食、逛老城" with no destination → intent question, changes [], destination_recommendations. After "我想去海南" leaves 海南省 with no place chosen inside it, "想看海边小城" → the same destination_recommendations, and the cards stay inside 海南省. Once a place inside the destination is settled, the same preference message → presentationIntent none. "hi there", "今天天气不错", and "我想出去玩" without preferences → intent question, changes [], presentationIntent none, then guide. "都定好了，可以生成计划了吗？" → question and none, without answering whether it can be generated and without naming a missing field as the condition. "青岛九月天气怎么样？" → question and none, without guessing weather. "我想去青岛" → destination update and none. "我想去潮汕" → destination update, disambiguation, and none. "我想去云南和四川" → destination update keeping both provinces, disambiguation, and none, with a question about the experience wanted rather than cards. "时间改成十一月底左右" → approximate startDate; "我想明天出发" → known startDate holding the date the reference date resolves to, never the word "明天"; "二世谷或者富良野都行" → ambiguous destination preserving both alternatives.`;
+Generate plan is a separate action. Do not write a schedule or claim the trip is ready. For current weather, prices, opening hours or road conditions, say live research is unavailable. Ask at most one useful follow-up question.`;
 }

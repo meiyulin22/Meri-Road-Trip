@@ -67,7 +67,7 @@ test("missing owner and established destination never start workflow", async () 
   assert.equal((await handleDestinationRecommendationsPost(tripId, null, fixture.deps)).status, 404);
   assert.deepEqual(fixture.calls, []);
   const established = { ...fixture.deps, async loadJourney() {
-    return { tripState: { ...state, destination: { state: "known" as const, value: "成都", source: "user" as const } } };
+    return { tripState: { ...state, destination: { state: "known" as const, source: "user" as const, areas: [], legacyText: "成都" } } };
   } };
   assert.equal((await handleDestinationRecommendationsPost(tripId, "owner", established)).status, 409);
   assert.deepEqual(fixture.calls, []);
@@ -77,8 +77,7 @@ test("a province with no place chosen inside it is still open, so the cards are 
   const fixture = dependencies();
   const response = await handleDestinationRecommendationsPost(tripId, "owner", { ...fixture.deps,
     async loadJourney() { fixture.calls.push("load"); return { tripState: { ...state,
-      destination: { state: "approximate" as const, value: "四川省", source: "user" as const,
-        areas: [{ province: "四川省", places: [] }] } } }; } });
+      destination: { state: "known" as const, source: "user" as const, areas: [{ province: "四川省", places: [] }] } } }; } });
   assert.equal(response.status, 200);
   assert.deepEqual(fixture.calls, ["load", "history", "workflow", "message"]);
 });

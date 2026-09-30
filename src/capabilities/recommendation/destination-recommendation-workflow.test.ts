@@ -61,8 +61,7 @@ test("a discovery failure degrades instead of aborting, and nothing unverified r
 
 test("a settled province keeps its own spelling and drops places proposed outside it", async () => {
   const settled: DestinationRecommendationContext = { ...context, tripState: { ...state,
-    destination: { state: "approximate", value: "云南省", source: "user",
-      areas: [{ province: "云南省", places: [] }] } } };
+    destination: { state: "known" as const, source: "user", areas: [{ province: "云南省", places: [] }] } } };
   const { deps } = dependencies({ generated: [
     { province: "云南", places: [{ name: "丽江市", reason: "古城和雪山都在一天路程里" }] },
     { province: "四川省", places: [{ name: "甘孜藏族自治州", reason: "川西环线的主要一段" }] },
@@ -74,8 +73,7 @@ test("a settled province keeps its own spelling and drops places proposed outsid
 
 test("nothing left inside the settled provinces is said in words, with no empty list to pick from", async () => {
   const settled: DestinationRecommendationContext = { ...context, tripState: { ...state,
-    destination: { state: "approximate", value: "海南省", source: "user",
-      areas: [{ province: "海南省", places: [] }] } } };
+    destination: { state: "known" as const, source: "user", areas: [{ province: "海南省", places: [] }] } } };
   const { deps } = dependencies();
   const result = await runDestinationRecommendationWorkflow(settled, "request-4", deps);
   assert.equal(result.presentation, undefined);

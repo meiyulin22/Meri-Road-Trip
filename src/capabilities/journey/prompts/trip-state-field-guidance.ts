@@ -15,7 +15,7 @@ export const certaintyStateGuidance = `Every field must use exactly one certaint
 - ambiguous: the user provided multiple reasonable interpretations and choosing one would require an assumption.`;
 
 export const tripStateFieldGuidance = `Field guidance:
-- origin is where the user will depart from. destination is where the user wants to go.
+- origin is where the user will depart from. Destination expressions belong in destinationEdit, not a text field.
 - startDate and endDate use YYYY-MM-DD only when known. Approximate date expressions remain in the user's natural language.
 - Resolve sufficiently definite relative dates, such as "明天", using the reference date and timezone.
 - duration preserves expressions such as "一周" or "大概一周".

@@ -18,6 +18,7 @@ import type { TripMessage } from "@/domain/trip-message/trip-message";
 
 import { requestDestinationMissingGuidance } from "./destination-missing-guidance-model";
 import { LocationEditor } from "./location-editor";
+import { DestinationEditor } from "./destination-editor";
 import { planningReadinessMessage, requestPlanningReadiness, shouldHighlightMissingDestination } from "./planning-readiness-model";
 import {
   createDirectTripStatePatch,
@@ -126,6 +127,7 @@ export function ExpeditionBriefPanel({
   }
 
   function startEditing(field: TripStateFieldName): void {
+    if (field === "destination") return;
     const currentField = tripState[field];
     setEditing({
       field,
@@ -216,13 +218,20 @@ export function ExpeditionBriefPanel({
       ) : null}
 
       <dl className={styles.briefFields}>
-        {visibleFields.map(({ key, label }) => key === "origin" || key === "destination" ? (
+        {visibleFields.map(({ key, label }) => key === "destination" ? (
+          <DestinationEditor
+            highlightMissing={highlightMissingDestination}
+            initiallyOpen={destinationEditorOpenRequest > 0}
+            key={`${key}-${destinationEditorOpenRequest}`}
+            onTripStateChange={handleDestinationStateChange}
+            tripId={tripId}
+            tripState={tripState}
+          />
+        ) : key === "origin" ? (
           <LocationEditor
-            field={key}
-            highlightMissing={key === "destination" && highlightMissingDestination}
-            initiallyOpen={key === "destination" && destinationEditorOpenRequest > 0}
-            key={key === "destination" ? `${key}-${destinationEditorOpenRequest}` : key}
-            onTripStateChange={key === "destination" ? handleDestinationStateChange : onTripStateChange}
+            field="origin"
+            key={key}
+            onTripStateChange={onTripStateChange}
             tripId={tripId}
             tripState={tripState}
           />

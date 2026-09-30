@@ -16,15 +16,15 @@ test("a destination with no structure shows its own text, with nothing held back
   // Destinations written before areas existed, and destinations the user typed as
   // free text, have only `value` — and it is already the whole answer.
   const label = destinationSummaryLabel(
-    { state: "known", value: "二世谷", source: "user" },
+    { state: "known", source: "user", areas:[], legacyText:"二世谷" },
     missingLabel,
   );
-  assert.deepEqual(label, { text: "二世谷", detail: null, placeCount: 0 });
+  assert.deepEqual(label, { text: "二世谷", detail: "旧旅程记录，地点尚待重新确认", placeCount: 0 });
 });
 
 test("provinces with no place chosen inside them are the whole answer already", () => {
   const destination: DestinationField = {
-    state: "approximate", value: "海南省", source: "user",
+    state: "known", source: "user",
     areas: [{ province: "海南省", places: [] }],
   };
   assert.deepEqual(destinationSummaryLabel(destination, missingLabel),
@@ -33,10 +33,10 @@ test("provinces with no place chosen inside them are the whole answer already", 
 
 test("places across provinces summarise to the provinces and keep every place for the reveal", () => {
   const destination: DestinationField = {
-    state: "known", value: "广西壮族自治区 北海市 · 浙江省 舟山市、台州市", source: "user",
+    state: "known", source: "user",
     areas: [
-      { province: "广西壮族自治区", places: ["北海市"] },
-      { province: "浙江省", places: ["舟山市", "台州市"] },
+      { province: "广西壮族自治区", places: [{name:"北海市",spots:[]}] },
+      { province: "浙江省", places: [{name:"舟山市",spots:[]}, {name:"台州市",spots:[]}] },
     ],
   };
   const label = destinationSummaryLabel(destination, missingLabel);
@@ -47,8 +47,8 @@ test("places across provinces summarise to the provinces and keep every place fo
 
 test("one place in one province still reveals the place the provinces omit", () => {
   const destination: DestinationField = {
-    state: "known", value: "四川省 稻城县", source: "user",
-    areas: [{ province: "四川省", places: ["稻城县"] }],
+    state: "known", source: "user",
+    areas: [{ province: "四川省", places: [{name:"稻城县",spots:[]}] }],
   };
   const label = destinationSummaryLabel(destination, missingLabel);
   assert.equal(label.text, "四川省");

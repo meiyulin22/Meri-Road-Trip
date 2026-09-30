@@ -14,7 +14,7 @@ const guestB = "f6dd6c50-91c6-4ad1-9089-dbb3feaa61cc";
 const state: TripState = {
   name: { state: "known", value: "北方之旅", source: "user" },
   origin: { state: "missing" },
-  destination: { state: "known", value: "大连", source: "user" },
+  destination: { state: "known" as const, source: "user", areas: [], legacyText: "大连" },
   startDate: { state: "approximate", value: "十月初", source: "user" },
   endDate: { state: "missing" },
   duration: { state: "missing" },
@@ -130,7 +130,7 @@ test("filters by Trip owner and keeps missing TripState fields missing", async (
 
   row.state = {
     ...row.state,
-    destination: { state: "known", value: "东京", source: "user" },
+    destination: { state: "known" as const, source: "user", areas: [], legacyText: "东京" },
   };
   const [legacySummary] = await repository.listByOwner(guestA);
   assert.equal(legacySummary.name, "新的旅程想法");

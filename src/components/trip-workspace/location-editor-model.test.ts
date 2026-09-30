@@ -22,31 +22,25 @@ test("parses a complete suggestion response without truncating the list", () => 
   assert.throws(() => parseSuggestionResponse({ suggestions: [{ name: "missing fields" }] }));
 });
 
-test("selection maps only supported metadata to the exact destination PATCH", () => {
+test("selection maps only supported metadata to the exact origin PATCH", () => {
   const suggestion = {
     provider: "amap", providerId: "tip-1", name: "香格里拉站",
     region: "云南省迪庆藏族自治州", adcode: "533401", address: "环湖公路18号",
     coordinates: { longitude: 99.7, latitude: 27.8, coordinateSystem: "GCJ-02" },
   } as const;
-  const patch = createSelectedLocationPatch("destination", suggestion);
+  const patch = createSelectedLocationPatch("origin", suggestion);
   assert.deepEqual(validateTripStatePatch(patch), patch);
   assert.deepEqual(patch, {
-    destination: {
-      state: "known", value: "香格里拉站", source: "user",
-      selection: {
-        provider: "amap", providerId: "tip-1", region: "云南省迪庆藏族自治州",
-        address: "环湖公路18号", coordinates: suggestion.coordinates,
-      },
-    },
+    origin: {state:"known",value:"香格里拉站",source:"user",selection:{provider:"amap",providerId:"tip-1",region:"云南省迪庆藏族自治州",address:"环湖公路18号",coordinates:suggestion.coordinates}},
   });
 });
 
 test("nullable suggestion details are omitted from selection", () => {
-  const patch = createSelectedLocationPatch("destination", {
+  const patch = createSelectedLocationPatch("origin", {
     provider: "amap", providerId: null, name: "香格里拉",
     region: "云南省", adcode: null, address: null, coordinates: null,
   });
-  assert.deepEqual(patch.destination, {
+  assert.deepEqual(patch.origin, {
     state: "known", value: "香格里拉", source: "user",
     selection: { provider: "amap", region: "云南省" },
   });

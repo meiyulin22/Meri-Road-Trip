@@ -1,6 +1,7 @@
 import type { UIMessage } from "ai";
 
-import type { DestinationRecommendationPresentation, LocationCandidatesPresentation, TripMessage } from "@/domain/trip-message/trip-message";
+import type { DestinationChoicesPresentation, DestinationRecommendationPresentation, LocationCandidatesPresentation, TripMessage } from "@/domain/trip-message/trip-message";
+import { picksFromSearch } from "@/capabilities/destination/resolve-destination-place";
 
 export function toWorkspaceUIMessages(messages: readonly TripMessage[]): UIMessage[] {
   return messages.map((message) => ({
@@ -29,6 +30,24 @@ export function locationCandidatePresentation(message: UIMessage): LocationCandi
   if (typeof metadata !== "object" || metadata === null || !("presentation" in metadata)) return undefined;
   const presentation = metadata.presentation as TripMessage["presentation"];
   return presentation?.type === "location_candidates" ? presentation : undefined;
+}
+
+export function destinationChoicePresentation(message: UIMessage): DestinationChoicesPresentation | undefined {
+  const metadata = message.metadata;
+  if (typeof metadata !== "object" || metadata === null || !("presentation" in metadata)) return undefined;
+  const presentation = metadata.presentation as TripMessage["presentation"];
+  if (presentation?.type === "destination_choices") return presentation;
+  if (presentation?.type === "destination_recommendations") return { type: "destination_choices", mode: "add",
+    choices: presentation.destinations.flatMap((item) => item.province === null ? [] :
+      [{ id: item.id, name: item.name, province: item.province, reason: item.reason,
+        legacyUnverified: !/(省|市|自治区|特别行政区)$/u.test(item.province) }]) };
+  if (presentation?.type === "location_candidates") return { type: "destination_choices", mode: "add",
+    choices: picksFromSearch(presentation.candidates).map((pick) => ({ id: pick.id,
+      name: pick.spot ?? pick.place ?? pick.province, province: pick.province,
+      ...(pick.place === null ? {} : { city: pick.place }),
+      ...(pick.spot === null ? {} : { spot: pick.spot }),
+      ...(pick.detail ? { detail: pick.detail } : {}) })) };
+  return undefined;
 }
 
 export function appendPersistedMessageIfAbsent(

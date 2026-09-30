@@ -27,6 +27,9 @@ export function createDirectTripStatePatch(
   field: TripStateFieldName,
   value: string,
 ): TripStatePatch {
+  if (field === "destination") {
+    throw new TripStatePersistenceRequestError("Destination changes require verified selection.");
+  }
   if (value.trim() === "") {
     return { [field]: { state: "missing" } };
   }

@@ -1,86 +1,54 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import {
-  destinationAreasText,
-  destinationAreasTitle,
-  destinationProvinceText,
-  groupDestinationAreas,
-  parseDestinationAreas,
-  sameDestinationAreas,
-} from "./destination-areas";
+import { addToDestination, destinationAreasText, destinationAreasTitle, destinationContains,
+  destinationProvinceText, parseDestinationAreas, removeFromDestination } from "./destination-areas";
 
-const sichuan = { province: "四川省", places: ["稻城亚丁", "四姑娘山"] };
-const yunnan = { province: "云南省", places: ["梅里雪山"] };
+const sichuan = { province: "四川省", places: [
+  { name: "甘孜藏族自治州", spots: ["稻城亚丁"] },
+  { name: "阿坝藏族羌族自治州", spots: ["四姑娘山"] },
+] };
+const yunnan = { province: "云南省", places: [{ name: "迪庆藏族自治州", spots: ["梅里雪山"] }] };
 const hainan = { province: "海南省", places: [] };
 
-test("a destination reads as its places under their provinces", () => {
-  assert.equal(destinationAreasText([sichuan, yunnan]), "四川省 稻城亚丁、四姑娘山 · 云南省 梅里雪山");
+test("destination text groups cities and their spot preferences under provinces", () => {
+  assert.equal(destinationAreasText([sichuan, yunnan]),
+    "四川省 甘孜藏族自治州（稻城亚丁）、阿坝藏族羌族自治州（四姑娘山） · 云南省 迪庆藏族自治州（梅里雪山）");
   assert.equal(destinationProvinceText([sichuan, yunnan]), "四川省、云南省");
 });
 
-test("a province with no places is the destination text, not an empty one", () => {
-  // 「我想去海南」 before knowing where in 海南 is an answer, and it has to display.
+test("empty province remains visible after its final city is deleted", () => {
   assert.equal(destinationAreasText([hainan]), "海南省");
   assert.equal(destinationAreasTitle([hainan]), "海南省");
-  assert.equal(destinationAreasText([hainan, sichuan]), "海南省 · 四川省 稻城亚丁、四姑娘山");
+  const removed = removeFromDestination([{ province: "海南省", places: [{ name: "三亚市", spots: ["蜈支洲岛"] }] }],
+    { province: "海南省", place: "三亚市", spot: null });
+  assert.deepEqual(removed, [hainan]);
 });
 
-test("the title is the one place when there is one, and the provinces otherwise", () => {
-  assert.equal(destinationAreasTitle([yunnan]), "梅里雪山");
+test("one city names the trip; multiple cities use provinces", () => {
+  assert.equal(destinationAreasTitle([yunnan]), "迪庆藏族自治州");
   assert.equal(destinationAreasTitle([sichuan]), "四川省");
   assert.equal(destinationAreasTitle([sichuan, yunnan]), "四川省、云南省");
 });
 
-test("stored areas are parsed into their own structure, not trusted as given", () => {
-  const areas = parseDestinationAreas([{ province: "四川省", places: ["稻城亚丁"] }]);
-  assert.deepEqual(areas, [{ province: "四川省", places: ["稻城亚丁"] }]);
-  assert.deepEqual(parseDestinationAreas([{ province: "海南省", places: [] }]), [hainan]);
-});
-
-test("a shape that is not a destination is rejected rather than half-read", () => {
-  for (const value of [
-    undefined, null, "四川省", {}, [],
-    [{ province: "  ", places: [] }],
-    [{ province: "四川省" }],
-    [{ places: ["稻城亚丁"] }],
-    [{ province: "四川省", places: ["稻城亚丁"], note: "x" }],
-    [{ province: "四川省", places: "稻城亚丁" }],
-    [{ province: "四川省", places: [""] }],
-    [{ province: "四川省", places: ["稻城亚丁", "稻城亚丁"] }],
-    [{ province: "四川省", places: [] }, { province: "四川省", places: ["四姑娘山"] }],
-  ]) {
-    assert.equal(parseDestinationAreas(value), null, JSON.stringify(value ?? null));
+test("stored areas are copied and invalid structures are rejected", () => {
+  const input = [{ province: "云南省", places: [{ name: "迪庆藏族自治州", spots: ["梅里雪山"] }] }];
+  const parsed = parseDestinationAreas(input);
+  assert.deepEqual(parsed, input);
+  assert.notStrictEqual(parsed, input);
+  assert.deepEqual(parseDestinationAreas([hainan]), [hainan]);
+  for (const value of [undefined, null, "云南省", {}, [],
+    [{ province: "云南省", places: ["梅里雪山"] }],
+    [{ province: "云南省", places: [{ name: "迪庆藏族自治州", spots: ["梅里雪山", "梅里雪山"] }] }],
+    [hainan, hainan]]) {
+    assert.equal(parseDestinationAreas(value), null);
   }
 });
 
-test("picked places are grouped under their provinces, in the order they were offered", () => {
-  assert.deepEqual(groupDestinationAreas([
-    { province: "四川省", name: "稻城亚丁" },
-    { province: "云南省", name: "梅里雪山" },
-    { province: "四川省", name: "四姑娘山" },
-  ]), [sichuan, yunnan]);
-  assert.deepEqual(groupDestinationAreas([]), []);
-});
-
-test("the same place picked twice is one place, not two", () => {
-  assert.deepEqual(groupDestinationAreas([
-    { province: "云南省", name: "梅里雪山" },
-    { province: "云南省", name: "梅里雪山" },
-  ]), [yunnan]);
-});
-
-test("the same places are one choice however they were ordered or grouped", () => {
-  assert.ok(sameDestinationAreas([sichuan, yunnan], [yunnan, sichuan]));
-  assert.ok(sameDestinationAreas([sichuan], [{ province: "四川省", places: ["四姑娘山", "稻城亚丁"] }]));
-  assert.ok(sameDestinationAreas([hainan], [hainan]));
-  assert.ok(sameDestinationAreas([], []));
-});
-
-test("a different set of places is a different choice", () => {
-  assert.equal(sameDestinationAreas([sichuan], [sichuan, yunnan]), false);
-  assert.equal(sameDestinationAreas([sichuan], [{ province: "四川省", places: ["稻城亚丁"] }]), false);
-  assert.equal(sameDestinationAreas([sichuan], [{ province: "四川省", places: ["稻城亚丁", "泸沽湖"] }]), false);
-  assert.equal(sameDestinationAreas([yunnan], [{ province: "四川省", places: ["梅里雪山"] }]), false);
-  assert.equal(sameDestinationAreas([hainan], [{ province: "海南省", places: ["三亚市"] }]), false);
+test("adding a new spot preserves all other cities and deduplicates repeats", () => {
+  const areas = addToDestination([sichuan], { province: "四川省", place: "甘孜藏族自治州", spot: "贡嘎山" });
+  assert.deepEqual(areas[0].places[0].spots, ["稻城亚丁", "贡嘎山"]);
+  assert.deepEqual(areas[0].places[1], sichuan.places[1]);
+  assert.equal(destinationContains(areas, { province: "四川省", place: "甘孜藏族自治州", spot: "贡嘎山" }), true);
+  assert.deepEqual(addToDestination(areas, { province: "四川省", place: "甘孜藏族自治州", spot: "贡嘎山" }), areas);
 });

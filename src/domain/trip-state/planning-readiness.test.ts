@@ -1,65 +1,16 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-
-import { evaluatePlanningReadiness } from "./planning-readiness";
-import type { TripState, TripStateField } from "./trip-state";
-
-const baseState: TripState = {
-  name: { state: "known", value: "冬季旅行", source: "user" },
-  origin: { state: "missing" },
-  destination: { state: "missing" },
-  startDate: { state: "missing" },
-  endDate: { state: "missing" },
-  duration: { state: "missing" },
-  transportPreference: { state: "missing" },
-};
-
-const cases: {
-  name: string;
-  destination: TripStateField;
-  expected: ReturnType<typeof evaluatePlanningReadiness>;
-}[] = [
-  {
-    name: "missing destination",
-    destination: { state: "missing" },
-    expected: {
-      locationResolve: {
-        canAttempt: false,
-        reason: "destination_missing",
-      },
-    },
-  },
-  {
-    name: "known destination",
-    destination: { state: "known", value: "富良野", source: "user" },
-    expected: { locationResolve: { canAttempt: true } },
-  },
-  {
-    name: "approximate destination",
-    destination: {
-      state: "approximate",
-      value: "北海道附近",
-      source: "user",
-    },
-    expected: { locationResolve: { canAttempt: true } },
-  },
-  {
-    name: "ambiguous destination",
-    destination: {
-      state: "ambiguous",
-      value: "二世谷或者富良野",
-      source: "user",
-    },
-    expected: { locationResolve: { canAttempt: true } },
-  },
-];
-
-for (const { name, destination, expected } of cases) {
-  test(`evaluates locationResolve readiness for ${name} without mutating TripState`, () => {
-    const tripState: TripState = { ...baseState, destination };
-    const originalState = structuredClone(tripState);
-
-    assert.deepEqual(evaluatePlanningReadiness(tripState), expected);
-    assert.deepEqual(tripState, originalState);
-  });
-}
+import { evaluateGeneratePlanReadiness } from "./planning-readiness";
+import { initializeTripState, type DestinationField } from "./trip-state";
+const state = initializeTripState({ name: {state:"missing"}, origin: {state:"missing"}, destinationEdit: {operation:"none"}, startDate:{state:"missing"}, endDate:{state:"missing"}, duration:{state:"missing"}, transportPreference:{state:"missing"} });
+for (const [destination, result] of [
+ [{state:"missing"}, {canProceed:false, reason:"destination_missing"}],
+ [{state:"known", source:"user", areas:[{province:"云南省", places:[]}]}, {canProceed:false, reason:"destination_area_only"}],
+ [{state:"known", source:"user", areas:[], legacyText:"梅里雪山"}, {canProceed:false, reason:"destination_unverified"}],
+ [{state:"known", source:"user", areas:[{province:"云南省", places:[{name:"迪庆藏族自治州",spots:["梅里雪山"]}]}]}, {canProceed:true, destination:"selected"}],
+] as const) test("readiness derives from saved destination: " + JSON.stringify(result), () => {
+ const input = {...state, destination: destination as DestinationField};
+ const before=structuredClone(input);
+ assert.deepEqual(evaluateGeneratePlanReadiness(input),result);
+ assert.deepEqual(input,before);
+});

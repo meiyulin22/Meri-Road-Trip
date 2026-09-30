@@ -1,4 +1,4 @@
-import { destinationProvinceText } from "@/domain/trip-state/destination-areas";
+import { destinationAreasText, destinationProvinceText } from "@/domain/trip-state/destination-areas";
 import type { DestinationField, TripState, TripStateField } from "@/domain/trip-state/trip-state";
 import type { TransportPreference } from "@/domain/trip-draft/trip-draft";
 
@@ -33,12 +33,16 @@ export function destinationSummaryLabel(
   missingLabel: string,
 ): DestinationSummaryLabel {
   if (destination.state === "missing") return { text: missingLabel, detail: null, placeCount: 0 };
-  const areas = destination.areas ?? [];
+  if (destination.areas.length === 0 && destination.legacyText) {
+    return { text: destination.legacyText, detail: "旧旅程记录，地点尚待重新确认", placeCount: 0 };
+  }
+  const areas = destination.areas;
   const placeCount = areas.reduce((total, area) => total + area.places.length, 0);
   const provinces = destinationProvinceText(areas);
-  return placeCount === 0 || provinces === destination.value
-    ? { text: destination.value, detail: null, placeCount: 0 }
-    : { text: provinces, detail: destination.value, placeCount };
+  const detail = [destination.legacyText, destinationAreasText(areas)].filter(Boolean).join(" · ");
+  return placeCount === 0 || provinces === detail
+    ? { text: provinces, detail: null, placeCount: 0 }
+    : { text: provinces, detail, placeCount };
 }
 
 export function journeyDateLabel(state: TripState): string {

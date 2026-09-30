@@ -2,35 +2,45 @@ import {
   transportPreferences,
   type TransportPreference,
 } from "@/domain/trip-draft/trip-draft";
-import { validateDestinationDisambiguation, type DestinationDisambiguation } from "@/domain/location/destination-disambiguation";
+import { validateDestinationEdit, type DestinationEdit } from "@/domain/trip-state/destination-edit";
 import type {
   TripState,
   TripStateField,
-  TripStateFieldName,
   TripStatePatch,
 } from "@/domain/trip-state/trip-state";
 
-export const workspaceConversationIntents = [
-  "trip_state_update",
-  "question",
-  "unclear_update_intent",
+/**
+ * The fields a turn can change with a plain value. The destination is not among them:
+ * it changes only through `destinationEdit`, which names places for the application
+ * to confirm rather than a value to store.
+ */
+export const conversationFieldNames = [
+  "name",
+  "origin",
+  "startDate",
+  "endDate",
+  "duration",
+  "transportPreference",
 ] as const;
 
-export type WorkspaceConversationIntent =
-  (typeof workspaceConversationIntents)[number];
+export type ConversationFieldName = (typeof conversationFieldNames)[number];
 
 export interface ProposedTripStateChange {
-  readonly field: TripStateFieldName;
+  readonly field: ConversationFieldName;
   readonly state: "known" | "approximate" | "ambiguous" | "missing";
   readonly value: string | null;
 }
 
+/**
+ * There is no separate intent: whether a turn updates the Journey is exactly whether
+ * it proposes changes, and asking the model to state it twice only gave it a way to
+ * contradict itself — which failed the whole turn.
+ */
 export interface WorkspaceConversationInterpretation {
-  readonly intent: WorkspaceConversationIntent;
   readonly presentationIntent: "none" | "destination_recommendations";
   readonly changes: readonly ProposedTripStateChange[];
+  readonly destinationEdit: DestinationEdit;
   readonly reply: string;
-  readonly destinationDisambiguation?: DestinationDisambiguation | null;
 }
 
 export class InvalidWorkspaceConversationInterpretationError extends Error {
@@ -39,16 +49,6 @@ export class InvalidWorkspaceConversationInterpretationError extends Error {
     this.name = "InvalidWorkspaceConversationInterpretationError";
   }
 }
-
-const tripStateFieldNames: TripStateFieldName[] = [
-  "name",
-  "origin",
-  "destination",
-  "startDate",
-  "endDate",
-  "duration",
-  "transportPreference",
-];
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -70,20 +70,8 @@ function assertExactKeys(
   }
 }
 
-function isTripStateFieldName(value: unknown): value is TripStateFieldName {
-  return (
-    typeof value === "string" &&
-    tripStateFieldNames.some((field) => field === value)
-  );
-}
-
-function isWorkspaceConversationIntent(
-  value: unknown,
-): value is WorkspaceConversationIntent {
-  return (
-    typeof value === "string" &&
-    workspaceConversationIntents.some((intent) => intent === value)
-  );
+function isConversationFieldName(value: unknown): value is ConversationFieldName {
+  return typeof value === "string" && conversationFieldNames.some((field) => field === value);
 }
 
 function parseChange(value: unknown, index: number): ProposedTripStateChange {
@@ -96,7 +84,7 @@ function parseChange(value: unknown, index: number): ProposedTripStateChange {
 
   assertExactKeys(value, ["field", "state", "value"], label);
 
-  if (!isTripStateFieldName(value.field)) {
+  if (!isConversationFieldName(value.field)) {
     throw new InvalidWorkspaceConversationInterpretationError(
       `${label}.field is invalid.`,
     );
@@ -152,15 +140,8 @@ export function validateWorkspaceConversationInterpretation(
     );
   }
 
-  assertExactKeys(value, Object.hasOwn(value, "destinationDisambiguation")
-    ? ["intent", "presentationIntent", "changes", "reply", "destinationDisambiguation"]
-    : ["intent", "presentationIntent", "changes", "reply"], "interpretation");
+  assertExactKeys(value, ["presentationIntent", "changes", "destinationEdit", "reply"], "interpretation");
 
-  if (!isWorkspaceConversationIntent(value.intent)) {
-    throw new InvalidWorkspaceConversationInterpretationError(
-      "interpretation.intent is invalid.",
-    );
-  }
   if (value.presentationIntent !== "none" && value.presentationIntent !== "destination_recommendations") {
     throw new InvalidWorkspaceConversationInterpretationError("interpretation.presentationIntent is invalid.");
   }
@@ -185,33 +166,20 @@ export function validateWorkspaceConversationInterpretation(
     );
   }
 
-  if (value.intent === "trip_state_update" && changes.length === 0) {
+  let destinationEdit: DestinationEdit;
+  try {
+    destinationEdit = validateDestinationEdit(value.destinationEdit);
+  } catch (error) {
     throw new InvalidWorkspaceConversationInterpretationError(
-      "trip_state_update must contain at least one change.",
+      error instanceof Error ? error.message : "destinationEdit is invalid.",
     );
   }
+  return { presentationIntent: value.presentationIntent, changes, destinationEdit, reply: value.reply };
+}
 
-  if (value.intent !== "trip_state_update" && changes.length !== 0) {
-    throw new InvalidWorkspaceConversationInterpretationError(
-      "Only trip_state_update may contain changes.",
-    );
-  }
-
-  let destinationDisambiguation: DestinationDisambiguation | null | undefined;
-  if (Object.hasOwn(value, "destinationDisambiguation")) {
-    try {
-      destinationDisambiguation = validateDestinationDisambiguation(
-        value.destinationDisambiguation,
-        value.intent === "trip_state_update" && changes.some((change) => change.field === "destination" && change.state !== "missing"),
-      );
-    } catch (error) {
-      throw new InvalidWorkspaceConversationInterpretationError(
-        error instanceof Error ? error.message : "destinationDisambiguation is invalid.",
-      );
-    }
-  }
-  return { intent: value.intent, presentationIntent: value.presentationIntent, changes, reply: value.reply,
-    ...(destinationDisambiguation !== undefined ? { destinationDisambiguation } : {}) };
+/** Whether the turn proposes anything for the Journey at all. */
+export function proposesJourneyUpdate(interpretation: WorkspaceConversationInterpretation): boolean {
+  return interpretation.changes.length > 0 || interpretation.destinationEdit.operation !== "none";
 }
 
 function createUserField(
@@ -231,7 +199,7 @@ function createUserField(
 export function createTripStatePatchFromInterpretation(
   interpretation: WorkspaceConversationInterpretation,
 ): TripStatePatch | null {
-  if (interpretation.intent !== "trip_state_update") {
+  if (interpretation.changes.length === 0) {
     return null;
   }
 

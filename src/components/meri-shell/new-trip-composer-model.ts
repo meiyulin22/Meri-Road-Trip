@@ -1,9 +1,4 @@
-import {
-  transportPreferences,
-  type TripDraft,
-  type TripDraftField,
-} from "@/domain/trip-draft/trip-draft";
-import { validateDestinationDisambiguation } from "@/domain/location/destination-disambiguation";
+import { validateTripDraftDomain, type TripDraft } from "@/domain/trip-draft/trip-draft";
 import { validateTripMessage } from "@/domain/trip-message/trip-message";
 
 export type NewTripComposerPhase = "editing" | "submitting" | "review" | "error" | "opening_failed" | "retrying_opening";
@@ -90,79 +85,9 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
-function hasExactKeys(value: Record<string, unknown>, keys: string[]): boolean {
-  const actualKeys = Object.keys(value);
-  return (
-    actualKeys.length === keys.length &&
-    keys.every((key) => Object.hasOwn(value, key))
-  );
-}
-
-function isTripDraftField(
-  value: unknown,
-  validateKnownValue: (knownValue: string) => boolean = () => true,
-): value is TripDraftField {
-  if (!isRecord(value) || typeof value.state !== "string") {
-    return false;
-  }
-
-  if (value.state === "known") {
-    return (
-      hasExactKeys(value, ["state", "value"]) &&
-      typeof value.value === "string" &&
-      value.value.trim() !== "" &&
-      validateKnownValue(value.value)
-    );
-  }
-
-  if (value.state === "missing") {
-    return hasExactKeys(value, ["state"]);
-  }
-
-  return (
-    (value.state === "approximate" || value.state === "ambiguous") &&
-    hasExactKeys(value, ["state", "value"]) &&
-    typeof value.value === "string" &&
-    value.value.trim() !== ""
-  );
-}
-
 function isTripDraft(value: unknown): value is TripDraft {
-  if (
-    !isRecord(value) ||
-    !hasExactKeys(value, [
-      "name",
-      "origin",
-      "destination",
-      "startDate",
-      "endDate",
-      "duration",
-      "transportPreference",
-      ...(Object.hasOwn(value, "destinationDisambiguation") ? ["destinationDisambiguation"] : []),
-    ])
-  ) {
-    return false;
-  }
-
-  if (Object.hasOwn(value, "destinationDisambiguation")) {
-    try {
-      validateDestinationDisambiguation(value.destinationDisambiguation,
-        isRecord(value.destination) && value.destination.state !== "missing");
-    } catch {
-      return false;
-    }
-  }
-  return (
-    isTripDraftField(value.name) &&
-    isTripDraftField(value.origin) &&
-    isTripDraftField(value.destination) &&
-    isTripDraftField(value.startDate) &&
-    isTripDraftField(value.endDate) &&
-    isTripDraftField(value.duration) &&
-    isTripDraftField(value.transportPreference, (knownValue) =>
-      transportPreferences.some((preference) => preference === knownValue),
-    )
-  );
+  try { validateTripDraftDomain(value); return true; }
+  catch { return false; }
 }
 
 export async function requestTripDraft(

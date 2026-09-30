@@ -1,6 +1,6 @@
 import { desc, eq, sql } from "drizzle-orm";
 
-import { validateTripState, type TripState, type TripStateField } from "@/domain/trip-state/trip-state";
+import { destinationText, validateTripState, type TripState, type TripStateField } from "@/domain/trip-state/trip-state";
 import type { JourneySummary, JourneySummaryRepository } from "@/platform/persistence/journey-summary-repository";
 import { tripStates } from "@/platform/persistence/database/schema/trip-states";
 import { trips } from "@/platform/persistence/database/schema/trips";
@@ -33,7 +33,7 @@ export class PostgresJourneySummaryRepository implements JourneySummaryRepositor
       return {
         id: row.id,
         name: titleFromState(state),
-        destination: fieldText(state.destination),
+        destination: destinationText(state.destination),
         startDate: fieldText(state.startDate),
         endDate: fieldText(state.endDate),
         status: row.status,

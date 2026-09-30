@@ -1,30 +1,19 @@
-import type { GeneratePlanReadiness } from "@/domain/trip-state/planning-readiness";
-import type { TripState } from "@/domain/trip-state/trip-state";
+import { destinationText, type TripState } from "@/domain/trip-state/trip-state";
 import { capturedDetailsNote, missingDetailsInvitation, planReadyNote } from "@/capabilities/conversation/turn-reply";
+import { evaluateGeneratePlanReadiness } from "@/domain/trip-state/planning-readiness";
 
-export function destinationSelectionReply(
-  tripState: TripState,
-  readiness: GeneratePlanReadiness,
-): string {
-  if (tripState.destination.state !== "known") {
-    throw new Error("Selected destination must be known before composing a reply.");
+/** Meri's answer when the user picks places from cards, which has no model reply of its own. */
+export function destinationSelectionReply(tripState: TripState): string {
+  const text = destinationText(tripState.destination);
+  if (text === null) {
+    throw new Error("Selected destination must be set before composing a reply.");
   }
-
-  const acknowledgement = `好，目的地定为${tripState.destination.value}了。`;
+  const readiness = evaluateGeneratePlanReadiness(tripState);
   if (!readiness.canProceed) {
-    switch (readiness.reason) {
-      case "destination_missing":
-        return `${acknowledgement}还需要确认目的地，才能开始规划。`;
-      case "destination_ambiguous":
-        return `${acknowledgement}还需要确定具体地点，才能开始规划。`;
-      case "destination_area_only":
-        return `${acknowledgement}这个范围还比较大，还需要确定想去的地点，才能开始规划。`;
-      case "destination_unresolved":
-        return `${acknowledgement}还需要一个更具体的地点，才能开始规划。`;
-      case "provider_error":
-        return `${acknowledgement}暂时无法确认规划准备情况，请稍后再试。`;
-    }
+    const next = readiness.reason === "destination_unverified"
+      ? "之前保存的地点还需要重新搜索确认。"
+      : "接下来可以选这个省里想去的城市。";
+    return `好，目的地现在是${text}。${capturedDetailsNote(tripState)}${next}`;
   }
-
-  return `${acknowledgement}${capturedDetailsNote(tripState)}${planReadyNote}${missingDetailsInvitation(tripState)}`;
+  return `好，目的地现在是${text}。${capturedDetailsNote(tripState)}${planReadyNote}${missingDetailsInvitation(tripState)}`;
 }

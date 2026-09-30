@@ -7,7 +7,7 @@ function createEmptyModelDraft() {
   return {
     name: { state: "missing", value: null },
     origin: { state: "missing", value: null },
-    destination: { state: "missing", value: null },
+    destinationEdit: { operation: "none" },
     startDate: { state: "missing", value: null },
     endDate: { state: "missing", value: null },
     duration: { state: "missing", value: null },
@@ -25,14 +25,14 @@ test("preserves a broad seasonal expression as approximate", () => {
     state: "approximate",
     value: "今年冬天",
   });
-  assert.deepEqual(draft.destination, { state: "missing" });
+  assert.deepEqual(draft.destinationEdit, { operation: "none" });
 });
 
 test("represents a supplied origin as known", () => {
   const draft = validateTripDraft({
     ...createEmptyModelDraft(),
     origin: { state: "known", value: "大连" },
-    destination: { state: "known", value: "云南" },
+    destinationEdit: { operation: "set", places: ["云南"], broadRegion: null },
     duration: { state: "known", value: "一周" },
   });
 
@@ -54,13 +54,10 @@ test("preserves an approximate date expression without inventing precision", () 
 test("preserves multiple destination alternatives as ambiguous", () => {
   const draft = validateTripDraft({
     ...createEmptyModelDraft(),
-    destination: { state: "ambiguous", value: "二世谷或者富良野都行" },
+    destinationEdit: { operation: "set", places: ["二世谷", "富良野"], broadRegion: null },
   });
 
-  assert.deepEqual(draft.destination, {
-    state: "ambiguous",
-    value: "二世谷或者富良野都行",
-  });
+  assert.deepEqual(draft.destinationEdit, { operation: "set", places: ["二世谷", "富良野"], broadRegion: null });
 });
 
 test("preserves an approximate duration in its own field", () => {

@@ -2,9 +2,16 @@
 
 ## Status
 
-This document records future product and architecture intent only.
+This document records future product and architecture intent only. Reviewed
+against the workspace on 2026-09-30; current behavior is documented in
+[USER_FLOW_CURRENT](../USER_FLOW_CURRENT.md).
 
-Adaptive Workspace is not part of the current B2C persistence phase. This
+The current application has persisted conversations, Amap location choices,
+province/city/spot destination editing, and a planning readiness check. It does
+not yet generate plans or run research. These concrete presentations use typed
+data and deterministic React components, without an adaptive layout decision engine.
+
+Adaptive Workspace is not part of the current destination preparation phase. This
 document does not commit Meri to a decision engine, framework, or implementation
 approach.
 

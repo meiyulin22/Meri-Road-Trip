@@ -63,36 +63,34 @@ conversation, edit state through supported controls, and review the
 saved conversation.
 
 Current TripState fields are name, origin, destination, start date, end
-date, duration, and transport preference. Values may be known,
-approximate, ambiguous, or missing. This state is authoritative;
+date, duration, and transport preference. Ordinary values may be known,
+approximate, ambiguous, or missing. Destination is missing or known and
+stores provinces, cities/prefectures, and named spots under each city. This state is authoritative;
 conversation history and assistant suggestions are not.
 
 The implemented destination flow includes:
 
-- LLM interpretation of the user's meaning, followed by application
-  validation.
-- Location Provider verification before a proposed destination replaces
-  authoritative TripState.
-- Destination Disambiguation for a broad or fuzzy place, with
-  provider-verified candidates and explicit selection.
-- An explicit **[帮我推荐]** action that runs Discovery Search, candidate generation,
-  official access checking, ranking, and image enrichment before showing up to
-  three destination cards.
-- Conversational Gen UI: a narrow presentationIntent can trigger the
-  same recommendation pipeline when the destination is missing and the
-  conversation has useful preference context.
-- Persisted assistant messages containing the reply and cards, restored
-  when the Journey reopens.
-- A planning-readiness view based on the currently available Journey
-  state.
+- LLM interpretation into explicit destination edits: set, add, remove, or none.
+- Amap verification of place expressions before presenting choices. Even a unique
+  match requires explicit selection before it enters TripState. Chat offers use
+  checkboxes and one batch confirmation; manual search uses a result's Add action.
+- Province → city/prefecture → spot display with continued additions and removals.
+  Removing a city removes its spots and retains the province. Removing a spot keeps
+  the city; removing a province removes all its children.
+- Manual destination search and explicit addition after provider verification.
+- Discovery Search, structured recommendation generation, and filtering to the
+  user’s settled provinces. Up to 12 suggested places may be shown; selection
+  rechecks identity with Amap before saving.
+- Persisted assistant offers restored when the Journey reopens. Add offers can
+  extend existing destinations; replacement offers reject changes to their base state.
+- Older free-text destinations remain visible as unverified records until the user
+  searches again or explicitly clears them.
+- Planning readiness requires a selected city and no unverified legacy record.
 
-Recommendation cards suggest possibilities; they do not establish a
-destination. Selecting a card passes through destination validation.
-The recommendation access check evaluates search evidence for obvious access
-restrictions. It is not a full travel feasibility or safety assessment. Meri
-does not yet provide the planned Research Agent, full travel feasibility
-assessment, generated Plan, live weather intelligence, or route
-research.
+Location identity does not establish access, safety, or travel feasibility.
+The active recommendation workflow does not run access checks, ranking, or image
+lookup. Research Agent, generated Plan, live weather intelligence, and route
+research remain planned.
 
 ## 5. Product principles
 
@@ -127,11 +125,10 @@ appropriate only when the next action depends on observed results.
 
 ## 6. Near-term roadmap — planned
 
-**Recommendation Workflow v0.1:** the implemented deterministic workflow
-proposes 8–10 candidates, interprets official access search evidence,
-removes blocked candidates, ranks the rest, and shows 1–3 cards. Uncertain
-access remains eligible for recommendation, and explicit selection is still
-required. Deeper feasibility checks remain future work.
+**Recommendation Workflow v0.1 — implemented:** the deterministic workflow uses
+Discovery Search as context, generates validated province/city suggestions, and
+restricts them to settled provinces. Access checking, ranking and images are not
+connected to this workflow. Explicit selection and identity verification are required.
 
 **Generate Plan and Research:** after recommendation, a later Generate
 Plan action may start a Research Agent. It should inspect the Journey
@@ -139,6 +136,14 @@ and use weather, route, transport, opening/access, risk, and
 destination-fact tools as needed. It should observe results, decide
 whether further research is needed, produce a research result, and then
 support a final Plan. This Agent is not implemented.
+
+The next planning input should come from current TripState, including city-level
+destination choices and their named spots. Deleted spots and unselected offers
+must not re-enter the plan through conversation history. Spot names need renewed
+identity verification; the current readiness check does not perform research.
+
+See [the detailed current user flow](USER_FLOW_CURRENT.md) for each operation,
+API, response source, persistence boundary, and its implementation files.
 
 Longer-term directions include delta intelligence, background
 monitoring, evidence-backed research, personalized memory, gear gap

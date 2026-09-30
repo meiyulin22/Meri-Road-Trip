@@ -3,13 +3,11 @@ import { randomUUID } from "node:crypto";
 import { cookies } from "next/headers";
 
 import type { GeneratePlanReadiness } from "@/domain/trip-state/planning-readiness";
+import { evaluateGeneratePlanReadiness } from "@/domain/trip-state/planning-readiness";
 import type { TripState } from "@/domain/trip-state/trip-state";
 import { TripNotFoundError } from "@/domain/trip/trip-errors";
-import { AmapLocationProvider } from "@/platform/location-provider/amap-location-provider";
 import { readGuestId } from "@/platform/identity/guest-identity";
 import { TripStateNotFoundError } from "@/capabilities/journey/journey-errors";
-import { checkGeneratePlanReadiness } from "@/capabilities/destination/generate-plan-readiness";
-import { LocationService } from "@/capabilities/destination/location-service";
 import { logger } from "@/platform/observability/logger";
 import { serializeError } from "@/platform/observability/serialize-error";
 
@@ -52,11 +50,10 @@ export async function GET(_request: Request, context: RouteContext): Promise<Res
   const ownerGuestId = readGuestId(await cookies());
   if (!ownerGuestId || !uuidPattern.test(tripId)) return notFound();
   const { journeyService } = await import("@/capabilities/journey/journey-service-instance");
-  const locationService = new LocationService(new AmapLocationProvider());
   return handlePlanningReadinessGet(
     tripId,
     ownerGuestId,
     (id, owner) => journeyService.loadJourney(id, owner),
-    (tripState) => checkGeneratePlanReadiness(tripState, locationService),
+    async (tripState) => evaluateGeneratePlanReadiness(tripState),
   );
 }

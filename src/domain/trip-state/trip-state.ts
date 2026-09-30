@@ -6,6 +6,7 @@ import {
 } from "@/domain/trip-draft/trip-draft";
 import type { LocationSuggestion } from "@/domain/location/location-suggestion";
 import {
+  destinationAreasText,
   destinationAreasTitle,
   parseDestinationAreas,
   type DestinationArea,
@@ -51,39 +52,38 @@ export type LocationField =
 
 /**
  * The destination is the one location that can name several places at once, so it
- * carries `areas` where an origin cannot. `value` is the text of those areas: it
- * stays the single field every reader already uses — the title, the prompts, the
- * Journey list — while `areas` is there for the readers that need the structure.
- * Both are written together by whoever settles the destination, and validation
- * deliberately does not require them to still agree, because a stored Journey has
- * to keep opening after the text form changes.
+ * is nothing but its structure: provinces, the 市 inside them, and the spots inside
+ * those. There is no free-text value beside it to drift out of step, and no
+ * approximate or ambiguous form — a destination is either not chosen yet, or it is a
+ * set of real places a provider has confirmed. Its text is derived when needed.
  */
 export type DestinationField =
+  | { readonly state: "missing" }
   | {
       readonly state: "known";
-      readonly value: string;
       readonly source: TripFieldSource;
-      readonly selection?: LocationSelection;
-      readonly areas?: readonly DestinationArea[];
-    }
-  | {
-      readonly state: "approximate" | "ambiguous";
-      readonly value: string;
-      readonly source: TripFieldSource;
-      readonly areas?: readonly DestinationArea[];
-    }
-  | { readonly state: "missing" };
+      readonly areas: readonly DestinationArea[];
+      /** Unverified text from an older Journey; retained until the traveler revisits it. */
+      readonly legacyText?: string;
+    };
+
+/** The destination written out, or null when there is none. */
+export function destinationText(destination: DestinationField): string | null {
+  if (destination.state === "missing") return null;
+  return [destination.legacyText, destination.areas.length ? destinationAreasText(destination.areas) : null]
+    .filter(Boolean).join(" · ");
+}
 
 /**
  * Recommendations answer 「去哪」, so they are offered while that question is open: no
- * destination at all, or regions nobody has chosen a place inside yet. Once a place
+ * destination at all, or provinces nobody has chosen a place inside yet. Once a place
  * is settled the question has an answer, and offering a list against it would be
  * arguing with the user instead of helping them.
  */
 export function isDestinationOpenToRecommendations(destination: DestinationField): boolean {
   if (destination.state === "missing") return true;
-  if (destination.state === "known") return false;
-  return (destination.areas ?? []).every((area) => area.places.length === 0);
+  if (destination.legacyText) return false;
+  return destination.areas.every((area) => area.places.length === 0);
 }
 
 export interface TripState {
@@ -166,7 +166,7 @@ function validateStateField<T extends string = string>(
   return value as TripStateField<T>;
 }
 
-function validateLocationSelection(value: unknown, label: "origin" | "destination"): LocationSelection {
+function validateLocationSelection(value: unknown, label: "origin"): LocationSelection {
   if (!isRecord(value) || value.provider !== "amap") {
     throw new InvalidTripStateError(`${label}.selection.provider is invalid.`);
   }
@@ -201,7 +201,7 @@ function validateLocationSelection(value: unknown, label: "origin" | "destinatio
   return value as unknown as LocationSelection;
 }
 
-function validateLocationField(value: unknown, label: "origin" | "destination"): LocationField {
+function validateLocationField(value: unknown, label: "origin"): LocationField {
   if (!isRecord(value) || !Object.hasOwn(value, "selection")) {
     return validateStateField(value, label);
   }
@@ -219,22 +219,43 @@ function validateLocationField(value: unknown, label: "origin" | "destination"):
 }
 
 function validateDestinationField(value: unknown): DestinationField {
-  if (!isRecord(value) || !Object.hasOwn(value, "areas")) {
-    return validateLocationField(value, "destination");
+  if (!isRecord(value) || typeof value.state !== "string") {
+    throw new InvalidTripStateError("destination must be a TripState field.");
   }
-
-  const areas = parseDestinationAreas(value.areas);
+  if (value.state === "missing") {
+    if (!hasExactKeys(value, ["state"])) {
+      throw new InvalidTripStateError("destination missing shape is invalid.");
+    }
+    return { state: "missing" };
+  }
+  if (value.state !== "known" && value.state !== "approximate" && value.state !== "ambiguous") {
+    throw new InvalidTripStateError("destination shape is invalid.");
+  }
+  if ((value.source !== "user" && value.source !== "system") ||
+    (value.state !== "known" && typeof value.value !== "string")) {
+    throw new InvalidTripStateError("destination shape is invalid.");
+  }
+  // Older Journeys stored a free-text value and sometimes string places. Those
+  // strings may be attractions rather than cities, so retain them for review.
+  if (typeof value.value === "string" && value.value.trim() !== "") {
+    return { state: "known", source: value.source, areas: [], legacyText: value.value };
+  }
+  if (value.state !== "known" ||
+    !(hasExactKeys(value, ["state", "source", "areas"]) ||
+      hasExactKeys(value, ["state", "source", "areas", "legacyText"]))) {
+    throw new InvalidTripStateError("destination shape is invalid.");
+  }
+  const legacyText = value.legacyText;
+  if (legacyText !== undefined && (typeof legacyText !== "string" || legacyText.trim() === "")) {
+    throw new InvalidTripStateError("destination.legacyText is invalid.");
+  }
+  const areas = Array.isArray(value.areas) && value.areas.length === 0 && legacyText
+    ? [] : parseDestinationAreas(value.areas);
   if (areas === null) {
     throw new InvalidTripStateError("destination.areas is invalid.");
   }
-
-  const withoutAreas = { ...value };
-  delete withoutAreas.areas;
-  const base = validateLocationField(withoutAreas, "destination");
-  if (base.state === "missing") {
-    throw new InvalidTripStateError("destination.areas requires a destination.");
-  }
-  return { ...base, areas };
+  return { state: "known", source: value.source, areas,
+    ...(legacyText === undefined ? {} : { legacyText }) };
 }
 
 export function validateTripState(value: unknown): TripState {
@@ -290,13 +311,14 @@ export function validateTripStatePatch(value: unknown): TripStatePatch {
   ) {
     throw new InvalidTripStateError("TripStatePatch has invalid fields.");
   }
+  // A destination only changes through a destination edit, where every place is
+  // confirmed by the provider. A plain patch would let a client write any text in.
+  if (keys.includes("destination")) {
+    throw new InvalidTripStateError("destination cannot be patched directly.");
+  }
 
   const patch: { -readonly [K in keyof TripState]?: TripState[K] } = {};
   for (const key of keys as TripStateFieldName[]) {
-    if (key === "destination") {
-      Object.assign(patch, { destination: validateDestinationField(value.destination) });
-      continue;
-    }
     if (key === "origin") {
       Object.assign(patch, { origin: validateLocationField(value.origin, "origin") });
       continue;
@@ -326,15 +348,17 @@ function initializeField<T extends string>(
   return { ...field, source };
 }
 
+/**
+ * The destination starts missing: the first message names it in words, and it only
+ * becomes places once the destination edit has confirmed them with the provider.
+ */
 export function initializeTripState(draft: TripDraft): TripState {
-  const destination = initializeField(draft.destination, "user");
-  const name = initializeField(draft.name, "system");
   return {
     // TripDraft currently cannot distinguish a user-supplied name from one
     // inferred by the model, so the narrow safe default is system-sourced.
-    name: withDefaultName(name, destination),
+    name: initializeField(draft.name, "system"),
     origin: initializeField(draft.origin, "user"),
-    destination,
+    destination: { state: "missing" },
     startDate: initializeField(draft.startDate, "user"),
     endDate: initializeField(draft.endDate, "user"),
     duration: initializeField(draft.duration, "user"),
@@ -356,7 +380,7 @@ export function applyTripStatePatch(
 
   if (patch.destination?.state === "known" &&
     state.name.state !== "missing" && state.name.source === "system" &&
-    (state.destination.state !== "known" || state.destination.value !== patch.destination.value)) {
+    destinationText(state.destination) !== destinationText(patch.destination)) {
     return {
       ...nextState,
       name: { state: "known", value: `${destinationTitle(patch.destination)}之旅`, source: "system" },
@@ -386,9 +410,9 @@ function withDefaultName(
 
 /**
  * A destination spanning several provinces would make an unreadable title if every
- * place went into it, so the structure names the trip when it is there.
+ * place went into it, so the structure names the trip.
  */
 function destinationTitle(destination: DestinationField): string {
-  if (destination.state === "missing") return "";
-  return destination.areas?.length ? destinationAreasTitle(destination.areas) : destination.value;
+  return destination.state === "missing" ? "" : destination.areas.length
+    ? destinationAreasTitle(destination.areas) : destination.legacyText ?? "";
 }

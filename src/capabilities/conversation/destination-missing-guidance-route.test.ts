@@ -36,7 +36,7 @@ test("owned missing destination persists guidance and returns the assistant mess
 
 test("a destination that is no longer missing prevents guidance creation", async () => {
   const result = await handleDestinationMissingGuidancePost(tripId, "owner",
-    async () => ({ tripState: { ...state, destination: { state: "known", value: "云南", source: "user" } } }),
+    async () => ({ tripState: { ...state, destination: { state: "known" as const, source: "user", areas: [], legacyText: "云南" } } }),
     async () => { throw new Error("must not persist"); },
   );
   assert.equal(result.status, 409);

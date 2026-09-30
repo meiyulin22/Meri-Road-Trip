@@ -15,11 +15,7 @@ type TripStateInsert = typeof tripStates.$inferInsert;
 const state: TripState = {
   name: { state: "known", value: "冬季滑雪", source: "system" },
   origin: { state: "missing" },
-  destination: {
-    state: "ambiguous",
-    value: "二世谷或者富良野",
-    source: "user",
-  },
+  destination: { state: "known" as const, source: "user", areas: [], legacyText: "二世谷或者富良野" },
   startDate: { state: "approximate", value: "今年冬天", source: "user" },
   endDate: { state: "missing" },
   duration: { state: "known", value: "一周", source: "user" },
@@ -101,10 +97,10 @@ test("loads TripState without losing domain semantics", async () => {
 
   assert.deepEqual(loaded, state);
   assert.equal(loaded?.startDate.state, "approximate");
-  assert.equal(loaded?.destination.state, "ambiguous");
+  assert.equal(loaded?.destination.state, "known");
   assert.deepEqual(loaded?.origin, { state: "missing" });
   assert.equal(
-    loaded?.destination.state === "ambiguous"
+    loaded?.destination.state === "known"
       ? loaded.destination.source
       : null,
     "user",
@@ -120,7 +116,7 @@ test("updates the row belonging to its Trip ID", async () => {
   const repository = new PostgresTripStateRepository(database, "trip_123");
   const updatedState: TripState = {
     ...state,
-    destination: { state: "known", value: "富良野", source: "user" },
+    destination: { state: "known" as const, source: "user", areas: [], legacyText: "富良野" },
   };
 
   await repository.update(updatedState);

@@ -14,7 +14,7 @@ import {
 const tripState: TripState = {
   name: { state: "known", value: "二世谷滑雪", source: "system" },
   origin: { state: "missing" },
-  destination: { state: "known", value: "二世谷", source: "user" },
+  destination: { state: "known" as const, source: "user", areas: [], legacyText: "二世谷" },
   startDate: { state: "missing" },
   endDate: { state: "missing" },
   duration: { state: "missing" },
@@ -51,10 +51,7 @@ test("returns a validated change proposal without source metadata", async () => 
     createClient(
       {
         content: JSON.stringify({
-          intent: "trip_state_update", presentationIntent: "none",
-          changes: [
-            { field: "destination", state: "known", value: "富良野" },
-          ],
+          destinationEdit: { operation: "set", places: ["富良野"], broadRegion: null }, presentationIntent: "none", changes: [],
           reply: "好的，目的地改成富良野。",
         }),
         model: "kimi-k2.6",
@@ -69,9 +66,7 @@ test("returns a validated change proposal without source metadata", async () => 
 
   assert.equal(capturedOperation, "workspace_conversation_interpretation");
   assert.match(capturedPrompt, /二世谷/);
-  assert.deepEqual(interpretation.changes, [
-    { field: "destination", state: "known", value: "富良野" },
-  ]);
+  assert.deepEqual(interpretation.destinationEdit, {operation:"set", places:["富良野"], broadRegion:null});
 });
 
 test("passes recent assistant context and current TripState for a confirmation", async () => {
@@ -93,8 +88,7 @@ test("passes recent assistant context and current TripState for a confirmation",
     createClient(
       {
         content: JSON.stringify({
-          intent: "trip_state_update", presentationIntent: "none",
-          changes: [{ field: "destination", state: "known", value: "富良野" }],
+          destinationEdit: { operation: "set", places: ["富良野"], broadRegion: null }, presentationIntent: "none", changes: [],
           reply: "好的，目的地改成富良野。",
         }),
         model: "kimi-k2.6",
@@ -114,7 +108,7 @@ test("passes recent assistant context and current TripState for a confirmation",
     },
   ]);
   assert.equal(capturedRequest?.userMessage, "Yes.");
-  assert.match(capturedRequest?.systemPrompt ?? "", /"destination":\{"state":"known","value":"二世谷"/);
+  assert.match(capturedRequest?.systemPrompt ?? "", /二世谷/);
 });
 
 test("rejects invalid model output without applying partial data", async () => {
@@ -138,7 +132,7 @@ test("opening mode uses the original message and authoritative TripState without
   const opening = await interpretWorkspaceConversation(
     { ...input, mode: "opening", message: "I want to ski in Japan in October." },
     createClient({
-      content: JSON.stringify({ intent: "question", presentationIntent: "none", changes: [], reply: "That sounds exciting. Which part of Japan interests you most?" }),
+      content: JSON.stringify({ destinationEdit: { operation: "none" }, presentationIntent: "none", changes: [], reply: "That sounds exciting. Which part of Japan interests you most?" }),
       model: "kimi-k2.6",
       finishReason: "stop",
     }, (request) => { capturedRequest = request; }),
@@ -147,7 +141,7 @@ test("opening mode uses the original message and authoritative TripState without
   assert.equal(capturedRequest?.userMessage, "I want to ski in Japan in October.");
   assert.match(capturedRequest?.systemPrompt ?? "", /Current authoritative TripState/);
   assert.match(capturedRequest?.systemPrompt ?? "", /二世谷/);
-  assert.match(capturedRequest?.systemPrompt ?? "", /Do not propose, repeat, or apply TripState changes/);
+  assert.match(capturedRequest?.systemPrompt ?? "", /changes \[\]/);
   assert.equal(capturedRequest?.tools, undefined);
 });
 
@@ -157,8 +151,7 @@ test("opening mode rejects model-proposed TripState changes", async () => {
       { ...input, mode: "opening" },
       createClient({
         content: JSON.stringify({
-          intent: "trip_state_update", presentationIntent: "none",
-          changes: [{ field: "destination", state: "known", value: "富良野" }],
+          destinationEdit: { operation: "set", places: ["富良野"], broadRegion: null }, presentationIntent: "none", changes: [],
           reply: "好的。",
         }),
         model: "kimi-k2.6",
@@ -174,7 +167,7 @@ test("opening mode rejects destination recommendation presentation intent", asyn
     interpretWorkspaceConversation(
       { ...input, mode: "opening" },
       createClient({
-        content: JSON.stringify({ intent: "question", presentationIntent: "destination_recommendations",
+        content: JSON.stringify({ destinationEdit: { operation: "none" }, presentationIntent: "destination_recommendations",
           changes: [], reply: "看看三个方向。" }),
         model: "kimi-k2.6", finishReason: "stop",
       }),

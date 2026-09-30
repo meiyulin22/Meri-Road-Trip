@@ -1,59 +1,35 @@
-import type { TripState, TripStatePatch } from "@/domain/trip-state/trip-state";
 import type { WorkspaceConversationInterpretation } from "@/domain/trip-state/workspace-conversation";
-import type { LocationResolveResult } from "@/capabilities/destination/location-service";
-import { replyAfterDestinationResolution } from "@/capabilities/destination/post-update-destination-resolution";
-import {
-  replyForDestinationDisambiguation,
-  type DestinationDisambiguationResult,
-} from "@/capabilities/destination/verify-destination-disambiguation";
+import type { DestinationEditResult } from "@/capabilities/destination/apply-destination-edit";
 
-/**
- * Which of Meri's four conversational routes a workspace turn took, and the reply
- * that route produces. The routes were a nested ternary in the request handler plus
- * an unwritten agreement with the prompt, so nothing named them and nothing logged
- * them. Naming them here makes a fifth route — Generate plan — one more entry.
- */
-export type WorkspaceTurnBranch =
-  /** Cards were produced, and the reply is the sentence written above them. */
-  | "destination_recommendations"
-  /** The expression covers too much ground, so narrower places are offered. */
-  | "destination_narrowing"
-  /** The turn moved the Journey forward by proposing TripState values. */
-  | "journey_update"
-  /**
-   * Everything else the user can say: a factual question, an unclear update, and
-   * 闲聊. This route has no code of its own by design — the model's own words are
-   * the reply, and the system prompt is the only thing steering them.
-   */
-  | "conversation";
+export type WorkspaceTurnBranch = "destination_recommendations" | "destination_choices" | "journey_update" | "conversation";
 
 export function resolveWorkspaceTurn(input: {
   readonly interpretation: WorkspaceConversationInterpretation;
-  /** The assistant content already persisted by the recommendation workflow, if it ran. */
   readonly recommendationReply: string | null;
-  readonly disambiguationResult: DestinationDisambiguationResult | null;
-  readonly destinationExpression: string | null;
-  readonly tripState: TripState;
-  readonly resolution: LocationResolveResult | null;
-  readonly persistedPatch: TripStatePatch | null;
+  readonly destinationResult: DestinationEditResult;
 }): { readonly branch: WorkspaceTurnBranch; readonly reply: string } {
   if (input.recommendationReply !== null) {
     return { branch: "destination_recommendations", reply: input.recommendationReply };
   }
-  if (input.disambiguationResult && input.destinationExpression) {
-    return {
-      branch: "destination_narrowing",
-      reply: replyForDestinationDisambiguation(
-        input.destinationExpression, input.disambiguationResult, input.persistedPatch !== null),
-    };
+  if (input.destinationResult.choices) {
+    return { branch: "destination_choices", reply:
+      `找到「${input.destinationResult.choices.answering}」相关的地点了。点击添加后才会记入旅程。` };
   }
-  // The provider can also find an over-broad destination ambiguous after the model
-  // thought it was settled. That narrowing arrives here rather than above, because
-  // only the resolution knows it happened.
-  const reply = replyAfterDestinationResolution(
-    input.interpretation, input.tripState, input.resolution, input.persistedPatch);
-  return {
-    branch: input.interpretation.intent === "trip_state_update" ? "journey_update" : "conversation",
-    reply,
-  };
+  if (input.destinationResult.ambiguousRemovals.length) {
+    return { branch: "conversation", reply:
+      `「${input.destinationResult.ambiguousRemovals.join("、")}」对应多个已保存地点，请说得更具体一些。` };
+  }
+  if (input.destinationResult.notInDestination.length) {
+    return { branch: "conversation", reply:
+      `当前旅程里没有找到「${input.destinationResult.notInDestination.join("、")}」。` };
+  }
+  if (input.destinationResult.lookupFailed.length) {
+    return { branch: "conversation", reply: "地点查询暂时不可用，目的地没有改变。请稍后重试。" };
+  }
+  if (input.destinationResult.unresolved.length) {
+    return { branch: "conversation", reply:
+      `暂时没找到「${input.destinationResult.unresolved.join("、")}」的可靠地点，目的地没有因此改变。` };
+  }
+  return { branch: input.interpretation.changes.length || input.destinationResult.changed
+    ? "journey_update" : "conversation", reply: input.interpretation.reply };
 }

@@ -1,17 +1,17 @@
 import type { TripState } from "@/domain/trip-state/trip-state";
-import { AmapLocationProvider } from "@/platform/location-provider/amap-location-provider";
 import {
+  conversationFieldNames,
+  proposesJourneyUpdate,
   validateWorkspaceConversationInterpretation,
   type WorkspaceConversationInterpretation,
 } from "@/domain/trip-state/workspace-conversation";
+import { destinationEditJsonSchema } from "@/domain/trip-state/destination-edit";
 import { createAiSdkKimiClientFromEnvironment } from "@/platform/llm/ai-sdk-kimi-client";
 import type {
   StructuredOutputConversationMessage,
   StructuredOutputModelClient,
 } from "@/platform/llm/kimi-client";
 import { buildWorkspaceConversationSystemPrompt } from "@/capabilities/conversation/prompts/workspace-conversation-prompt";
-import { createResolveLocationTool } from "@/capabilities/conversation/tools/resolve-location";
-import { LocationService } from "@/capabilities/destination/location-service";
 import { logger, logEvents } from "@/platform/observability/logger";
 import { serializeError } from "@/platform/observability/serialize-error";
 
@@ -44,18 +44,7 @@ const changeSchema = {
   additionalProperties: false,
   required: ["field", "state", "value"],
   properties: {
-    field: {
-      type: "string",
-      enum: [
-        "name",
-        "origin",
-        "destination",
-        "startDate",
-        "endDate",
-        "duration",
-        "transportPreference",
-      ],
-    },
+    field: { type: "string", enum: [...conversationFieldNames] },
     state: {
       type: "string",
       enum: ["known", "approximate", "ambiguous", "missing"],
@@ -67,27 +56,16 @@ const changeSchema = {
 export const workspaceConversationJsonSchema: Record<string, unknown> = {
   type: "object",
   additionalProperties: false,
-  required: ["intent", "presentationIntent", "changes", "reply"],
+  required: ["presentationIntent", "changes", "destinationEdit", "reply"],
   properties: {
-    intent: {
-      type: "string",
-      enum: ["trip_state_update", "question", "unclear_update_intent"],
-    },
     presentationIntent: { type: "string", enum: ["none", "destination_recommendations"] },
     changes: {
       type: "array",
-      maxItems: 7,
+      maxItems: conversationFieldNames.length,
       items: changeSchema,
     },
+    destinationEdit: destinationEditJsonSchema,
     reply: { type: "string", minLength: 1 },
-    destinationDisambiguation: {
-      type: "object", additionalProperties: false, required: ["state", "value"],
-      properties: {
-        state: { type: "string", enum: ["missing", "known"] },
-        value: { type: ["array", "null"], minItems: 2, maxItems: 3,
-          items: { type: "string", minLength: 1, maxLength: 80 } },
-      },
-    },
   },
 };
 
@@ -116,7 +94,6 @@ function validateInput(input: InterpretWorkspaceConversationInput): void {
 export async function interpretWorkspaceConversation(
   input: InterpretWorkspaceConversationInput,
   client?: StructuredOutputModelClient,
-  locationService?: LocationService,
 ): Promise<WorkspaceConversationInterpretation> {
   validateInput(input);
   const modelClient = client ?? createAiSdkKimiClientFromEnvironment();
@@ -135,13 +112,6 @@ export async function interpretWorkspaceConversation(
       userMessage: input.message,
       conversationHistory: input.conversationHistory,
       jsonSchema: workspaceConversationJsonSchema,
-      tools: input.mode === "opening" ? undefined : {
-        resolve_location: createResolveLocationTool({
-          tripState: input.tripState,
-          requestId: input.requestId,
-          locationService: locationService ?? new LocationService(new AmapLocationProvider()),
-        }),
-      },
     });
 
     if (response.content === null || response.content.trim() === "") {
@@ -168,8 +138,7 @@ export async function interpretWorkspaceConversation(
 
     const interpretation = validateWorkspaceConversationInterpretation(parsed);
     if (input.mode === "opening" &&
-      (interpretation.intent !== "question" || interpretation.changes.length !== 0 ||
-        interpretation.presentationIntent !== "none")) {
+      (proposesJourneyUpdate(interpretation) || interpretation.presentationIntent !== "none")) {
       throw new InvalidWorkspaceConversationModelOutputError(
         "Opening response must not propose TripState changes.",
       );
@@ -178,7 +147,7 @@ export async function interpretWorkspaceConversation(
       {
         event: logEvents.workspaceConversationInterpreted,
         requestId: input.requestId,
-        intent: interpretation.intent,
+        destinationOperation: interpretation.destinationEdit.operation,
         presentationIntent: interpretation.presentationIntent,
         changedFields: interpretation.changes.map((change) => change.field),
       },

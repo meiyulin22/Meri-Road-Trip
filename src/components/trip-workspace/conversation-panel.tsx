@@ -7,17 +7,15 @@ import type { UIMessage } from "ai";
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 
 import type { TripMessage } from "@/domain/trip-message/trip-message";
-import type { LocationCandidate } from "@/domain/location/location";
 import type { TripState } from "@/domain/trip-state/trip-state";
 
 import { nextRevealCharacterCount, visibleAssistantText } from "./conversation-reveal";
-import { canSelectDestinationRecommendation, canUseDestinationGuidance, chosenDestinationPlaces, requestDestinationRecommendationsIfMissing, selectDestinationRecommendation } from "./destination-recommendation-model";
-import { DestinationRecommendationPicker } from "./destination-recommendation-picker";
+import { canUseDestinationGuidance, requestDestinationRecommendationsIfMissing, selectDestinationRecommendation } from "./destination-recommendation-model";
+import { DestinationChoicesCard } from "./destination-choices-card";
 import { GeneratePlanAction } from "./generate-plan-action";
 import { formatMessageTimestamp } from "./message-timestamp";
-import { LocationCandidateCard } from "./location-candidate-card";
-import { appendPersistedMessageIfAbsent, locationCandidatePresentation, messageCreatedAt, recommendationPresentation, toWorkspaceUIMessages } from "./trip-message-ui-adapter";
-import { canSelectLocationCandidates, DestinationSelectionFollowUpError, selectLocationCandidate } from "./workspace-conversation-model";
+import { appendPersistedMessageIfAbsent, destinationChoicePresentation, messageCreatedAt, toWorkspaceUIMessages } from "./trip-message-ui-adapter";
+import { DestinationSelectionFollowUpError } from "./workspace-conversation-model";
 import {
   reconcileCommittedUserId,
   WorkspaceChatTransport,
@@ -58,15 +56,6 @@ export function ConversationPanel({
   const [recommendationError, setRecommendationError] = useState(false);
   const recommendationInFlight = useRef(false);
   const selectionInFlight = useRef(false);
-  const candidateInFlight = useRef(false);
-  const [candidatePending, setCandidatePending] = useState<{
-    readonly messageId: string;
-    readonly candidateIndex: number;
-  } | null>(null);
-  const [candidateError, setCandidateError] = useState<{
-    readonly messageId: string;
-    readonly kind: "selection" | "follow_up";
-  } | null>(null);
   const [selectionPendingMessageId, setSelectionPendingMessageId] = useState<string | null>(null);
   const [selectionErrorMessageId, setSelectionErrorMessageId] = useState<string | null>(null);
   const [revealing, setRevealing] = useState<{
@@ -93,7 +82,6 @@ export function ConversationPanel({
   const latestMessage = messages.at(-1);
   const localNow = useSyncExternalStore(subscribeToBrowser, browserSnapshot, serverSnapshot) ? new Date() : null;
   const guidanceAvailable = canUseDestinationGuidance(tripState);
-  const latestCandidateMessageId = messages.findLast((item) => locationCandidatePresentation(item) !== undefined)?.id;
 
   useEffect(() => {
     if (!guidanceMessage) return;
@@ -154,7 +142,7 @@ export function ConversationPanel({
 
   async function handleRecommendationSelection(messageId: string, destinationIds: readonly string[]): Promise<void> {
     const offered = messages.find((item) => item.id === messageId);
-    if (!canSelectDestinationRecommendation(tripState, offered && recommendationPresentation(offered)) ||
+    if (!offered || !destinationChoicePresentation(offered) ||
       selectionInFlight.current || destinationIds.length === 0) return;
     selectionInFlight.current = true;
     setSelectionPendingMessageId(messageId);
@@ -171,29 +159,6 @@ export function ConversationPanel({
     } finally {
       selectionInFlight.current = false;
       setSelectionPendingMessageId(null);
-    }
-  }
-
-  async function handleCandidateSelection(messageId: string, candidateIndex: number): Promise<void> {
-    if (candidateInFlight.current || !canSelectLocationCandidates(tripState, messageId, latestCandidateMessageId)) return;
-    candidateInFlight.current = true;
-    setCandidatePending({ messageId, candidateIndex });
-    setCandidateError(null);
-    try {
-      const { tripState: selectedState, assistantMessage } = await selectLocationCandidate(tripId, messageId, candidateIndex);
-      onTripStateChange(selectedState);
-      setMessages((current) => appendPersistedMessageIfAbsent(current, assistantMessage));
-      setRevealing({ id: assistantMessage.id, visibleCharacters: 0 });
-    } catch (error) {
-      if (error instanceof DestinationSelectionFollowUpError) {
-        onTripStateChange(error.tripState);
-        setCandidateError({ messageId, kind: "follow_up" });
-      } else {
-        setCandidateError({ messageId, kind: "selection" });
-      }
-    } finally {
-      candidateInFlight.current = false;
-      setCandidatePending(null);
     }
   }
 
@@ -287,36 +252,14 @@ export function ConversationPanel({
                       <button disabled={!guidanceAvailable} onClick={handleChooseDestination} type="button">我自己选</button>
                     </div>
                   ) : null}
-                  {recommendationPresentation(conversationMessage)?.destinations ? (
-                    <DestinationRecommendationPicker
-                      chosen={chosenDestinationPlaces(tripState)}
-                      destinations={recommendationPresentation(conversationMessage)?.destinations ?? []}
-                      disabled={!canSelectDestinationRecommendation(tripState,
-                        recommendationPresentation(conversationMessage)) || selectionPendingMessageId !== null}
+                  {destinationChoicePresentation(conversationMessage) ? (
+                    <DestinationChoicesCard
+                      areas={tripState.destination.state === "known" ? tripState.destination.areas : []}
+                      presentation={destinationChoicePresentation(conversationMessage)!}
                       error={selectionErrorMessageId === conversationMessage.id}
                       onCommit={(destinationIds) => void handleRecommendationSelection(conversationMessage.id, destinationIds)}
-                      pending={selectionPendingMessageId === conversationMessage.id}
+                      pending={selectionPendingMessageId !== null}
                     />
-                  ) : null}
-                  {locationCandidatePresentation(conversationMessage)?.candidates ? (
-                    <div className={styles.locationCandidateList} role="group" aria-label="具体目的地候选">
-                      {locationCandidatePresentation(conversationMessage)?.candidates.map((candidate, candidateIndex) => (
-                        <LocationCandidateCard
-                          candidate={candidate}
-                          disabled={candidatePending !== null || !canSelectLocationCandidates(tripState, conversationMessage.id, latestCandidateMessageId)}
-                          key={`${candidate.providerId}-${candidateIndex}`}
-                          onSelect={() => void handleCandidateSelection(conversationMessage.id, candidateIndex)}
-                          pending={candidatePending?.messageId === conversationMessage.id &&
-                            candidatePending.candidateIndex === candidateIndex}
-                          selected={isSelectedCandidate(candidate, tripState)}
-                        />
-                      ))}
-                      {candidateError?.messageId === conversationMessage.id ? <p role="alert">
-                        {candidateError.kind === "follow_up"
-                          ? "目的地已保存，但 Meri 的后续确认暂时没能完成。请刷新旅程核对。"
-                          : "目的地暂时没能保存，请重试选择。"}
-                      </p> : null}
-                    </div>
                   ) : null}
                 </div>
               </article>
@@ -410,12 +353,6 @@ export function ConversationPanel({
       </form>
     </section>
   );
-}
-
-function isSelectedCandidate(candidate: LocationCandidate, tripState: TripState): boolean {
-  return tripState.destination.state === "known" &&
-    tripState.destination.value === candidate.name &&
-    tripState.destination.selection?.providerId === candidate.providerId;
 }
 
 function MessageHeader({ speaker, createdAt, now }: {

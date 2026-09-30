@@ -10,7 +10,7 @@ import { handlePlanningReadinessGet } from "@/app/api/trips/[id]/planning-readin
 const tripState: TripState = {
   name: { state: "known", value: "旅程", source: "user" },
   origin: { state: "missing" },
-  destination: { state: "known", value: "云南", source: "user" },
+  destination: { state: "known" as const, source: "user", areas: [], legacyText: "云南" },
   startDate: { state: "missing" },
   endDate: { state: "missing" },
   duration: { state: "missing" },
@@ -46,10 +46,10 @@ test("owned Journey uses freshly loaded authoritative TripState and returns only
     },
     async (loaded) => {
       assert.equal(loaded, tripState);
-      return { canProceed: true, destination: "resolved" };
+      return { canProceed: true, destination: "selected" };
     },
   );
   assert.equal(response.status, 200);
   assert.equal(response.headers.get("Cache-Control"), "no-store");
-  assert.deepEqual(await response.json(), { canProceed: true, destination: "resolved" });
+  assert.deepEqual(await response.json(), { canProceed: true, destination: "selected" });
 });

@@ -12,11 +12,7 @@ import {
 const state: TripState = {
   name: { state: "known", value: "冬季滑雪", source: "system" },
   origin: { state: "missing" },
-  destination: {
-    state: "ambiguous",
-    value: "二世谷或者富良野",
-    source: "user",
-  },
+  destination: { state: "known" as const, source: "user", areas: [], legacyText: "二世谷或者富良野" },
   startDate: { state: "approximate", value: "今年冬天", source: "user" },
   endDate: { state: "missing" },
   duration: { state: "missing" },
@@ -36,10 +32,11 @@ test("creates a user patch while preserving existing certainty", () => {
   );
 });
 
-test("creates missing when a direct edit is cleared", () => {
-  assert.deepEqual(createDirectTripStatePatch(state, "destination", "  "), {
-    destination: { state: "missing" },
+test("creates missing when an ordinary edit is cleared and rejects direct destination edits", () => {
+  assert.deepEqual(createDirectTripStatePatch(state, "origin", "  "), {
+    origin: { state: "missing" },
   });
+  assert.throws(() => createDirectTripStatePatch(state, "destination", "云南"), TripStatePersistenceRequestError);
 });
 
 test("persists against the real Trip ID and returns validated state", async () => {
@@ -47,7 +44,7 @@ test("persists against the real Trip ID and returns validated state", async () =
   let requestedBody = "";
   const updatedState: TripState = {
     ...state,
-    destination: { state: "known", value: "富良野", source: "user" },
+    destination: { state: "known" as const, source: "user", areas: [], legacyText: "富良野" },
   };
 
   const result = await requestTripStateUpdate(

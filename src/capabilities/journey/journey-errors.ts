@@ -14,3 +14,9 @@ export class TripStateNotFoundError extends Error {
     this.tripId = tripId;
   }
 }
+export class TripStateConflictError extends Error {
+  constructor(tripId: string) {
+    super(`TripState changed while updating Trip ${tripId}.`);
+    this.name = "TripStateConflictError";
+  }
+}

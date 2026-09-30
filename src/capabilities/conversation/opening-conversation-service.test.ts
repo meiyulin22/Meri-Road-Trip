@@ -18,7 +18,7 @@ const ownerGuestId = "25ba5b26-8db0-4fe3-bfcc-b684dd7889cc";
 const state: TripState = {
   name: { state: "known", value: "日本滑雪", source: "system" },
   origin: { state: "missing" },
-  destination: { state: "known", value: "日本", source: "user" },
+  destination: { state: "known" as const, source: "user", areas: [], legacyText: "日本" },
   startDate: { state: "approximate", value: "十月", source: "user" },
   endDate: { state: "missing" },
   duration: { state: "known", value: "一周", source: "user" },

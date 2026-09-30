@@ -14,4 +14,8 @@
 .commit button:hover:not(:disabled), .commit button:focus-visible { background: #d4e5ce; outline-color: #446a51; }
 .commit button:disabled { opacity: .65; cursor: not-allowed; }
 .error { margin: 0; padding: 0 14px 10px; color: #955a48; font-size: 11px; }
+.choiceRow { display: flex; align-items: center; gap: 4px; }
+.choiceRow .place { flex: 1; min-width: 0; }
+.choiceRegion { display: block; margin-top: 2px; color: #778779; font-size: 11px; }
+.choiceStatus { flex: none; margin-right: 14px; color: #778779; font-size: 11px; }
 @media (max-width: 640px) { .place { grid-template-columns: auto 1fr; } .reason { grid-column: 2; } }

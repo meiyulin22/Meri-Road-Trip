@@ -43,12 +43,9 @@ test("client rejects invalid success payloads and failed HTTP responses", async 
   await assert.rejects(() => requestPlanningReadiness("trip-id", async () => new Response(null, { status: 404 })));
 });
 
-test("UI messages distinguish matched but unconfirmed destination from explicit selection", () => {
-  assert.match(planningReadinessMessage({ canProceed: true, destination: "selected" }), /已选定/);
-  assert.match(planningReadinessMessage({ canProceed: true, destination: "resolved" }), /尚未作为你的确认地点保存/);
-  for (const reason of ["destination_missing", "destination_ambiguous", "destination_unresolved", "provider_error"] as const) {
-    assert.ok(planningReadinessMessage({ canProceed: false, reason }).length > 0);
-  }
+test("UI messages distinguish selected, province-only and old unverified records",()=>{
+ assert.match(planningReadinessMessage({canProceed:true,destination:"selected"}),/已选定/);
+ for(const reason of ["destination_missing","destination_area_only","destination_unverified"] as const)assert.ok(planningReadinessMessage({canProceed:false,reason}));
 });
 
 test("only an attempted, current destination_missing result highlights Destination", () => {
@@ -58,7 +55,7 @@ test("only an attempted, current destination_missing result highlights Destinati
   assert.equal(shouldHighlightMissingDestination({ destinationKey: key, result: missing }, key), true);
   assert.equal(shouldHighlightMissingDestination({ destinationKey: key, result: missing }, "updated-destination"), false);
   assert.equal(shouldHighlightMissingDestination({ destinationKey: key, result: {
-    canProceed: false, reason: "destination_ambiguous",
+    canProceed: false, reason: "destination_area_only",
   } }, key), false);
   assert.equal(shouldHighlightMissingDestination({ destinationKey: key, result: {
     canProceed: true, destination: "selected",
@@ -70,29 +67,20 @@ test("Generate plan is offered once the destination names a place, not while it 
   // 「我想去海南」 leaves a province with nothing chosen inside it: there is no plan to
   // generate yet, and a button that only ever answers 「范围还比较大」 is worse than none.
   assert.equal(canRequestPlanGeneration({ ...tripState, destination: {
-    state: "approximate", value: "海南省", source: "user",
+    state: "known", source: "user",
     areas: [{ province: "海南省", places: [] }],
   } }), false);
   assert.equal(canRequestPlanGeneration({ ...tripState, destination: {
-    state: "known", value: "海南省 三亚市", source: "user",
-    areas: [{ province: "海南省", places: ["三亚市"] }],
+    state: "known", source: "user",
+    areas: [{ province: "海南省", places: [{name:"三亚市",spots:[]}] }],
   } }), true);
   // One chosen place is enough; the other province being still open does not undo it.
   assert.equal(canRequestPlanGeneration({ ...tripState, destination: {
-    state: "known", value: "四川省 稻城县 · 云南省", source: "user",
-    areas: [{ province: "四川省", places: ["稻城县"] }, { province: "云南省", places: [] }],
+    state: "known", source: "user",
+    areas: [{ province: "四川省", places: [{name:"甘孜藏族自治州",spots:[]}] }, { province: "云南省", places: [] }],
   } }), true);
 });
 
-test("a destination without areas is judged by its own certainty", () => {
-  // Free text and rows written before areas existed have only `value`. A known one
-  // is a place the endpoint can answer for; an unsettled one is not worth the click.
-  assert.equal(canRequestPlanGeneration({ ...tripState, destination: {
-    state: "known", value: "二世谷", source: "user",
-  } }), true);
-  for (const state of ["approximate", "ambiguous"] as const) {
-    assert.equal(canRequestPlanGeneration({ ...tripState, destination: {
-      state, value: "北海道附近", source: "user",
-    } }), false);
-  }
+test("legacy records need verification before offering plan generation",()=>{
+ assert.equal(canRequestPlanGeneration({...tripState,destination:{state:"known",source:"user",areas:[],legacyText:"梅里雪山"}}),false);
 });

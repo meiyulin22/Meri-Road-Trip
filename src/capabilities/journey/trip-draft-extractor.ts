@@ -2,7 +2,7 @@ import {
   validateTripDraft,
   type TripDraft,
 } from "@/domain/trip-draft/trip-draft";
-import { validateDestinationDisambiguation } from "@/domain/location/destination-disambiguation";
+import { destinationEditJsonSchema } from "@/domain/trip-state/destination-edit";
 import { createAiSdkKimiClientFromEnvironment } from "@/platform/llm/ai-sdk-kimi-client";
 import type { StructuredOutputModelClient } from "@/platform/llm/kimi-client";
 import { buildTripDraftSystemPrompt } from "@/capabilities/journey/prompts/trip-draft-prompt";
@@ -49,7 +49,7 @@ export const tripDraftJsonSchema: Record<string, unknown> = {
   required: [
     "name",
     "origin",
-    "destination",
+    "destinationEdit",
     "startDate",
     "endDate",
     "duration",
@@ -58,44 +58,13 @@ export const tripDraftJsonSchema: Record<string, unknown> = {
   properties: {
     name: fieldSchema,
     origin: fieldSchema,
-    destination: fieldSchema,
+    destinationEdit: destinationEditJsonSchema,
     startDate: fieldSchema,
     endDate: fieldSchema,
     duration: fieldSchema,
     transportPreference: fieldSchema,
-    destinationDisambiguation: {
-      type: "object", additionalProperties: false, required: ["state", "value"],
-      properties: {
-        state: { type: "string", enum: ["missing", "known"] },
-        value: { type: ["array", "null"], minItems: 2, maxItems: 3,
-          items: { type: "string", minLength: 1, maxLength: 80 } },
-      },
-    },
   },
 };
-
-function validateExtractedDraft(value: unknown, requestId: string): TripDraft {
-  if (typeof value !== "object" || value === null || Array.isArray(value) ||
-    !Object.hasOwn(value, "destinationDisambiguation")) {
-    return validateTripDraft(value);
-  }
-
-  const { destinationDisambiguation, ...coreValue } = value as Record<string, unknown>;
-  const draft = validateTripDraft(coreValue);
-  try {
-    return { ...draft, destinationDisambiguation: validateDestinationDisambiguation(
-      destinationDisambiguation, draft.destination.state !== "missing") };
-  } catch (error) {
-    logger.warn({
-      event: logEvents.llmAuxiliaryOutputInvalid,
-      requestId,
-      operation: "trip_draft_extraction",
-      field: "destinationDisambiguation",
-      reason: error instanceof Error ? error.message : "invalid_auxiliary_output",
-    }, "TripDraft auxiliary output was discarded");
-    return { ...draft, destinationDisambiguation: { state: "missing", value: null } };
-  }
-}
 
 function isIsoDate(value: string): boolean {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) {
@@ -169,7 +138,7 @@ export async function extractTripDraft(
       );
     }
 
-    return validateExtractedDraft(parsed, input.requestId);
+    return validateTripDraft(parsed);
   } catch (error) {
     logger.warn(
       {

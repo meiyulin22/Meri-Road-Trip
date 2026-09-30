@@ -7,6 +7,7 @@ import {
   initializeTripState,
   type TripState,
   type TripStatePatch,
+  type DestinationField,
 } from "@/domain/trip-state/trip-state";
 import type { Trip } from "@/domain/trip/trip";
 import type { TripStateRepository } from "@/platform/persistence/trip-state-repository";
@@ -15,6 +16,7 @@ import type { TripService } from "./trip-service";
 import {
   JourneyCreationError,
   TripStateNotFoundError,
+  TripStateConflictError,
 } from "./journey-errors";
 
 export interface Journey {
@@ -139,12 +141,23 @@ export class JourneyService {
     tripId: string,
     ownerGuestId: string,
     patch: TripStatePatch,
+    expectedDestination?: DestinationField,
   ): Promise<TripState> {
-    const { tripState } = await this.loadJourney(tripId, ownerGuestId);
-    const nextState = applyTripStatePatch(tripState, patch);
-    await this.dependencies
-      .createTripStateRepository(tripId)
-      .update(nextState);
-    return nextState;
+    for (let attempt = 0; attempt < 3; attempt += 1) {
+      const { tripState } = await this.loadJourney(tripId, ownerGuestId);
+      if (expectedDestination !== undefined &&
+        JSON.stringify(tripState.destination) !== JSON.stringify(expectedDestination)) {
+        throw new TripStateConflictError(tripId);
+      }
+      const nextState = applyTripStatePatch(tripState, patch);
+      const repository = this.dependencies.createTripStateRepository(tripId);
+      if (repository.compareAndUpdate) {
+        if (await repository.compareAndUpdate(tripState, nextState)) return nextState;
+        continue;
+      }
+      await repository.update(nextState);
+      return nextState;
+    }
+    throw new TripStateConflictError(tripId);
   }
 }

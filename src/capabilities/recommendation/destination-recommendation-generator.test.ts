@@ -99,8 +99,7 @@ test("a settled province is named in the prompt so the list stays inside it", as
     },
   };
   await generateDestinationRecommendations(context({ ...tripState,
-    destination: { state: "approximate", value: "海南省", source: "user",
-      areas: [{ province: "海南省", places: [] }] } }), "request-1", client);
+    destination: { state: "known" as const, source: "user", areas: [{ province: "海南省", places: [] }] } }), "request-1", client);
   assert.match(requests[0].systemPrompt, /already settled as 海南省/u);
   assert.doesNotMatch(requests[0].systemPrompt, /No destination is settled yet/u);
 });

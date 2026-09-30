@@ -1,6 +1,5 @@
 import { validateTripMessage, type TripMessage } from "@/domain/trip-message/trip-message";
 import type { DestinationRecommendationPresentation } from "@/domain/trip-message/trip-message";
-import { sameDestinationAreas } from "@/domain/trip-state/destination-areas";
 import { isDestinationOpenToRecommendations, validateTripState, type TripState } from "@/domain/trip-state/trip-state";
 import { DestinationSelectionFollowUpError, WorkspaceConversationRequestError } from "./workspace-conversation-model";
 
@@ -18,14 +17,10 @@ export function canUseDestinationGuidance(tripState: TripState): boolean {
 }
 
 export function canSelectDestinationRecommendation(
-  tripState: TripState,
+  _tripState: TripState,
   presentation?: DestinationRecommendationPresentation,
 ): boolean {
-  if (presentation?.baseAreas !== undefined) {
-    return tripState.destination.state === "known" && tripState.destination.areas !== undefined &&
-      sameDestinationAreas(tripState.destination.areas, presentation.baseAreas);
-  }
-  return tripState.destination.state !== "known";
+  return presentation !== undefined;
 }
 
 /** Provinces in the order they were offered, each keeping its own places' order. */
@@ -45,8 +40,7 @@ export function groupRecommendationsByProvince(
 export function chosenDestinationPlaces(tripState: TripState): readonly string[] {
   const destination = tripState.destination;
   if (destination.state !== "known") return [];
-  const places = (destination.areas ?? []).flatMap((area) => area.places);
-  return places.length > 0 ? places : [destination.value];
+  return destination.areas.flatMap((area) => area.places.map((place) => place.name));
 }
 
 export async function requestDestinationRecommendations(

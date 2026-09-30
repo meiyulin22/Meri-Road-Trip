@@ -26,7 +26,7 @@ const empty: TripState = {
 const provinceOnly: TripState = {
   ...empty,
   destination: {
-    state: "approximate", value: "海南省", source: "user",
+    state: "known", source: "user",
     areas: [{ province: "海南省", places: [] }],
   },
 };
@@ -35,8 +35,8 @@ const provinceOnly: TripState = {
 const placeSettled: TripState = {
   ...empty,
   destination: {
-    state: "known", value: "海南省 三亚市", source: "user",
-    areas: [{ province: "海南省", places: ["三亚市"] }],
+    state: "known", source: "user",
+    areas: [{ province: "海南省", places: [{ name: "三亚市", spots: [] }] }],
   },
 };
 
@@ -68,7 +68,7 @@ const cases = {
     ],
   },
   "5": {
-    expect: 'trip_state_update on destination, presentationIntent none',
+    expect: 'destinationEdit set on destination, presentationIntent none',
     tripState: empty, message: "我想去海南", conversationHistory: [],
   },
   "6": {
@@ -92,7 +92,7 @@ const cases = {
     tripState: placeSettled, message: "三亚十一月天气怎么样？", conversationHistory: [],
   },
   "11": {
-    expect: 'destination update + destinationDisambiguation with 2–3 concrete places + none',
+    expect: 'destinationEdit set with broadRegion and 2–3 concrete places + none',
     tripState: empty, message: "我想去潮汕", conversationHistory: [],
   },
   "12": {
@@ -117,11 +117,9 @@ async function run(id: keyof typeof cases): Promise<void> {
   });
   process.stdout.write(`\n=== ${id} 「${message}」\n`);
   process.stdout.write(`expect: ${expect}\n`);
-  process.stdout.write(`intent: ${interpretation.intent} / presentationIntent: ${interpretation.presentationIntent}\n`);
+  process.stdout.write(`presentationIntent: ${interpretation.presentationIntent}\n`);
   process.stdout.write(`changes: ${JSON.stringify(interpretation.changes)}\n`);
-  if (interpretation.destinationDisambiguation) {
-    process.stdout.write(`disambiguation: ${JSON.stringify(interpretation.destinationDisambiguation)}\n`);
-  }
+  process.stdout.write(`destinationEdit: ${JSON.stringify(interpretation.destinationEdit)}\n`);
   process.stdout.write(`reply: ${interpretation.reply}\n`);
 }
 

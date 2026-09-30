@@ -21,7 +21,7 @@ export function LocationEditor({
   tripId,
   tripState,
 }: {
-  readonly field: "origin" | "destination";
+  readonly field: "origin";
   readonly highlightMissing?: boolean;
   readonly initiallyOpen?: boolean;
   readonly onTripStateChange: (state: TripState) => void;
@@ -29,7 +29,7 @@ export function LocationEditor({
   readonly tripState: TripState;
 }) {
   const location = tripState[field];
-  const label = field === "origin" ? "出发地" : "目的地";
+  const label = "出发地";
   const [open, setOpen] = useState(initiallyOpen);
   const [query, setQuery] = useState(initiallyOpen && location.state !== "missing" ? location.value : "");
   const [suggestions, setSuggestions] = useState<readonly LocationSuggestion[]>([]);

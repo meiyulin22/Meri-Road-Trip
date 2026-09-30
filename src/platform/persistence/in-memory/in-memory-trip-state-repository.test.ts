@@ -8,7 +8,7 @@ import { InMemoryTripStateRepository } from "./in-memory-trip-state-repository";
 const state: TripState = {
   name: { state: "known", value: "冬季滑雪", source: "system" },
   origin: { state: "missing" },
-  destination: { state: "known", value: "二世谷", source: "user" },
+  destination: { state: "known" as const, source: "user", areas: [], legacyText: "二世谷" },
   startDate: { state: "approximate", value: "今年冬天", source: "user" },
   endDate: { state: "missing" },
   duration: { state: "missing" },
@@ -29,7 +29,7 @@ test("updates TripState by replacing its previous value", async () => {
   await repository.create(state);
   const updatedState: TripState = {
     ...state,
-    destination: { state: "known", value: "富良野", source: "user" },
+    destination: { state: "known" as const, source: "user", areas: [], legacyText: "富良野" },
   };
 
   await repository.update(updatedState);

@@ -33,16 +33,14 @@ nodeRequire.extensions[".css"] = (module) => {
 
 test("guidance and recommendation selection are available while destination is missing", () => {
   assert.equal(canUseDestinationGuidance(missingDestination), true);
-  assert.equal(canSelectDestinationRecommendation(missingDestination), true);
+  assert.equal(canSelectDestinationRecommendation(missingDestination, message.presentation as never), true);
 });
 
 test("a region the user named still gets recommendations, because 「去哪」 is still open", () => {
-  const area: TripState = { ...missingDestination, destination: { state: "approximate", value: "海南省",
-    source: "user", areas: [{ province: "海南省", places: [] }] } };
+  const area: TripState = { ...missingDestination, destination: { state: "known" as const, source: "user", areas: [{ province: "海南省", places: [] }] } };
   assert.equal(canUseDestinationGuidance(area), true);
-  assert.equal(canSelectDestinationRecommendation(area), true);
-  const chosen: TripState = { ...missingDestination, destination: { state: "known", value: "海南省 三亚市",
-    source: "user", areas: [{ province: "海南省", places: ["三亚市"] }] } };
+  assert.equal(canSelectDestinationRecommendation(area, message.presentation as never), true);
+  const chosen: TripState = { ...missingDestination, destination: { state: "known" as const, source: "user", areas: [{ province: "海南省", places: [{ name: "三亚市", spots: [] }] }] } };
   assert.equal(canUseDestinationGuidance(chosen), false);
   assert.deepEqual(chosenDestinationPlaces(chosen), ["三亚市"]);
   assert.deepEqual(chosenDestinationPlaces(area), []);
@@ -57,11 +55,11 @@ test("the offered places keep their provinces and their order when they are grou
 });
 
 test("a selected destination disables historical guidance and all recommendation actions", async () => {
-  const selected = { ...missingDestination,
-    destination: { state: "known", value: "迪庆藏族自治州", source: "user" } as const };
+  const selected:TripState = { ...missingDestination,
+    destination: { state: "known" as const, source: "user", areas: [], legacyText: "迪庆藏族自治州" } };
   assert.equal(canUseDestinationGuidance(selected), false);
   assert.equal(canSelectDestinationRecommendation(selected), false);
-  assert.equal(selected.destination.value === message.presentation.destinations[1].name, true);
+  assert.deepEqual(chosenDestinationPlaces(selected), []);
   let calls = 0;
   const result = await requestDestinationRecommendationsIfMissing("trip-1", selected, async () => {
     calls += 1;
@@ -72,20 +70,15 @@ test("a selected destination disables historical guidance and all recommendation
 });
 
 test("a fresh narrowing list can extend settled places until the Journey changes", () => {
-  const existing: TripState = { ...missingDestination, destination: { state: "known",
-    value: "浙江省 松阳古村落 · 福建省 龙潭里", source: "user",
-    areas: [{ province: "浙江省", places: ["松阳古村落"] },
-      { province: "福建省", places: ["龙潭里"] }] } };
+  const existing: TripState = { ...missingDestination, destination: { state: "known" as const, source: "user", areas: [{ province: "浙江省", places: [{ name: "松阳古村落", spots: [] }] },
+      { province: "福建省", places: [{ name: "龙潭里", spots: [] }] }] } };
   const offered = { ...message.presentation, type: "destination_recommendations" as const,
-    baseAreas: existing.destination.state === "known"
-    ? existing.destination.areas : undefined };
+    baseAreas:[{province:"浙江省",places:["松阳古村落"]},{province:"福建省",places:["龙潭里"]}] };
   assert.equal(canSelectDestinationRecommendation(existing), false);
   assert.equal(canSelectDestinationRecommendation(existing, offered), true);
-  const changed: TripState = { ...existing, destination: { state: "known", source: "user",
-    value: "浙江省 松阳古村落 · 福建省 龙潭里 · 广东省 潮州市",
-    areas: [...(existing.destination.state === "known" ? existing.destination.areas ?? [] : []),
-      { province: "广东省", places: ["潮州市"] }] } };
-  assert.equal(canSelectDestinationRecommendation(changed, offered), false);
+  const changed: TripState = { ...existing, destination: { state: "known" as const, source: "user", areas: [...(existing.destination.state === "known" ? existing.destination.areas ?? [] : []),
+      { province: "广东省", places: [{ name: "潮州市", spots: [] }] }] } };
+  assert.equal(canSelectDestinationRecommendation(changed, offered), true);
 });
 
 test("the picker groups the places under their provinces and offers one commit", async () => {
@@ -140,7 +133,7 @@ test("client rejects failed and invalid recommendation responses", async () => {
 
 const selectedState: TripState = {
   name: { state: "missing" }, origin: { state: "missing" },
-  destination: { state: "known", value: "香格里拉", source: "user" },
+  destination: { state: "known" as const, source: "user", areas: [], legacyText: "香格里拉" },
   startDate: { state: "missing" }, endDate: { state: "missing" },
   duration: { state: "missing" }, transportPreference: { state: "missing" },
 };
@@ -183,7 +176,7 @@ test("a failed selection leaves the Workspace showing what it had", async () => 
   const original: TripState = {
     name: { state: "known", value: "云南大理之旅", source: "system" },
     origin: { state: "missing" },
-    destination: { state: "known", value: "云南大理", source: "user" },
+    destination: { state: "known" as const, source: "user", areas: [], legacyText: "云南大理" },
     startDate: { state: "missing" }, endDate: { state: "missing" },
     duration: { state: "missing" }, transportPreference: { state: "missing" },
   };
@@ -196,7 +189,7 @@ test("successful selection applies the server name to Workspace title and Journe
   const persisted: TripState = {
     name: { state: "known", value: "泉州之旅", source: "system" },
     origin: { state: "missing" },
-    destination: { state: "known", value: "泉州", source: "user" },
+    destination: { state: "known" as const, source: "user", areas: [], legacyText: "泉州" },
     startDate: { state: "missing" }, endDate: { state: "missing" },
     duration: { state: "missing" }, transportPreference: { state: "missing" },
   };

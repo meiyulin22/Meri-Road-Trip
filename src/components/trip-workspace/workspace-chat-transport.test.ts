@@ -15,7 +15,7 @@ import {
 const tripState: TripState = {
   name: { state: "known", value: "滑雪", source: "system" },
   origin: { state: "missing" },
-  destination: { state: "known", value: "富良野", source: "user" },
+  destination: { state: "known" as const, source: "user", areas: [], legacyText: "富良野" },
   startDate: { state: "missing" },
   endDate: { state: "missing" },
   duration: { state: "missing" },
@@ -30,8 +30,8 @@ const user: UIMessage = {
 
 const responseBody = {
   interpretation: {
-    intent: "trip_state_update", presentationIntent: "none",
-    changes: [{ field: "destination", state: "known", value: "富良野" }],
+    destinationEdit: { operation: "set", places:["富良野"], broadRegion:null }, presentationIntent: "none",
+    changes: [],
     reply: "好的，目的地改成富良野。",
   },
   tripState,

@@ -28,8 +28,8 @@ Normal conversation does not run an Agent.
 
 ### Planned architecture
 
-The recommendation workflow now includes candidate generation, an access
-check, and ranking. A later Generate Plan phase may use a Research Agent
+The active recommendation workflow includes discovery, candidate generation,
+validation, and province filtering. A later Generate Plan phase may use a Research Agent
 whose tool choices depend on observed results. That Agent is not implemented.
 
 ## 2. Core model and authority
@@ -47,7 +47,9 @@ Current TripState fields are:
 - Duration
 - Transport preference
 
-Fields can be known, approximate, ambiguous, or missing. Established
+Ordinary fields can be known, approximate, ambiguous, or missing. Destination
+is missing or known: areas contain provinces and city/prefecture places, each
+with named spots. The display text is derived rather than stored a second time. Established
 values retain their user or system source. TripState is authoritative
 for Journey decisions; conversation history, assistant suggestions,
 recommendation cards, and model output are not.
@@ -59,8 +61,8 @@ established field.
 
 A TripMessage records the real user or assistant conversation. An
 assistant message may carry a narrow presentation. The current
-presentations include location candidates and destination
-recommendations. These are persisted with message content and restored
+presentations include destination_choices and destination_recommendations.
+Historical location_candidates remain readable through adapters. These are persisted with message content and restored
 when the Journey reopens.
 
 A TripUserAction records the explicit destination recommendation button
@@ -75,8 +77,8 @@ action or another user message.
 | Domain | Trip, TripState, messages, validated changes, and location/recommendation shapes. |
 | Journey services | Create and load owned Journeys; apply valid TripState updates. |
 | AI interpretation | Extract a TripDraft or interpret a Workspace turn with a constrained structured output. |
-| Location services | Normalize provider results, validate destination identity, verify disambiguation candidates, and enrich recommendation images. |
-| Recommendation use case | Discover context, generate candidates, interpret access evidence, rank eligible choices, enrich images, and build up to three cards. |
+| Location services | Normalize provider results, preserve distinct POIs, and verify offered choices before saving. |
+| Recommendation use case | Discover context, generate validated candidates, filter settled provinces, and build up to 12 suggestions. |
 | Message services | Persist opening and conversation turns and read history for refresh. |
 | UI and API | Submit user actions, show persisted state and conversation, render supported cards, and accept explicit selections. |
 | Persistence and provider adapters | Store domain records in PostgreSQL and keep Amap-specific behavior at the boundary. |
@@ -88,117 +90,74 @@ validated location identity.
 
 ## 4. Current Journey and conversation flow
 
-Journey creation interprets the initial idea into a TripDraft, creates
-the owned Trip and TripState, and saves the original user message. The
-opening assistant turn acknowledges the established Journey; it cannot
-propose new TripState changes or request destination recommendations.
+Journey creation interprets the initial idea into a TripDraft containing ordinary
+fields and destinationEdit. It saves the owned Journey and original user message.
+A destination edit is verified and saved as an assistant offer; destination remains
+missing until explicit selection. Without an edit, opening mode replies without
+proposing further changes. Opening reply failure leaves the Journey recoverable.
 
-For a later Workspace message:
+Workspace interpretation returns presentationIntent, changes, destinationEdit,
+and reply. There is no separate intent or destinationDisambiguation field.
+Ordinary changes receive user authority through domain validation. Destination
+changes go through applyDestinationEdit:
 
-1. Load the owned Journey, authoritative TripState, and recent persisted
-   conversation.
-2. Interpret the real user text with a structured output containing
-   intent, proposed changes, reply, optional destination disambiguation,
-   and presentationIntent.
-3. Validate that output. Only the application turns a valid proposal
-   into a TripState patch.
-4. Validate a proposed destination with the Location Provider before
-   authoritative persistence. Other valid fields from the same turn may
-   persist independently.
-5. Choose the final assistant reply and supported presentation.
-6. Persist the real user message and one coherent assistant message,
-   then return the persisted result to the UI.
+- set/add queries expressions, preserves distinct provider IDs and offers choices;
+  neither silently writes destination.
+- remove matches current saved names. An exact match wins; a prefix must be unique.
+  City removal cascades spots and retains the province.
+- failed lookup and ambiguous removal produce a factual reply without claiming success.
 
-The reply shown in the Workspace is the committed assistant message.
-Refresh reads stored messages and presentations; it does not regenerate
-cards merely because the Journey reopened.
+The server persists one real user message and one assistant message with its supported
+presentation. Refresh reads these records; it does not regenerate offers.
 
-Critical rules are deterministic. The model may judge meaning and
-timing, but it does not generate React instructions, arbitrary cards,
-provider identity, or media choices.
+## 5. Destination authority and selection
 
-## 5. Reality Validation and Destination Disambiguation
+DestinationEditor renders province → city/prefecture → spot. Its search uses
+GET /api/trips/[id]/destinations and explicit addition uses POST with query and
+provider ID. The server searches again and saves the verified pick. DELETE names
+an exact saved province/city/spot; an explicit legacy flag clears old unverified text.
 
-**Location Validation asks whether a destination expression can be tied
-to a real place. Travel Feasibility asks whether that place is suitable
-or accessible for this trip.** A resolved place is not evidence that its
-route is open, safe, reachable, or timely. The current product
-implements destination identity validation; the broader Safety / Access
-Check is planned.
+Chat selection uses the owned persisted assistant offer and its choice IDs through
+POST /api/trips/[id]/destination-recommendation-selection. Amap rechecks chosen
+identities. Add merges with existing areas, including a new spot under an existing
+city. Replace compares the offer’s baseDestination with current state and returns
+409 if it changed. Same-choice retries reuse the persisted follow-up when applicable.
+State-save success followed by reply failure returns the saved TripState and
+follow_up_unavailable, allowing the UI to show the actual saved state.
 
-A new destination proposal follows:
-
-User expression → LLM interpretation → Location Provider validation → authoritative TripState update only when resolved.
-
-The Location Provider can return:
-
-- **Resolved:** persist the validated destination.
-- **Ambiguous:** keep the previous authoritative destination and show
-  provider-returned candidates for explicit selection.
-- **Unresolved:** keep the previous destination or missing state and ask
-  for clarification.
-- **Provider error:** explain that verification is unavailable rather
-  than claiming the place does not exist.
-
-For a fuzzy region, Destination Disambiguation may propose a small
-number of concrete place expressions. The application verifies these
-with the Location Provider before showing candidates. A candidate
-becomes authoritative only after the user selects it; provider identity
-and coordinates are retained with that selection. Do not hardcode
-geography mappings or treat a model-suggested candidate as verified.
-
-The same reality boundary applies when a user selects a recommendation
-card. Cards are possibilities, not authoritative locations or proof of
-Travel Feasibility.
+The saved spots currently retain names, not provider coordinates. They express
+user preferences for later planning. Historical free-text destinations remain in
+legacyText for review; they are not converted into invented city identities.
+Location identity verification does not verify opening, safety, or reachability.
 
 ## 6. Conversation and Gen UI
 
-Workspace interpretation returns a narrow presentationIntent: none or
-destination_recommendations. The intent is a semantic signal, not a UI
-definition. The server honors a conversational recommendation signal
-only when authoritative destination is exactly missing, the turn
-proposes no destination change, and it does not request destination
-disambiguation.
+presentationIntent is none or destination_recommendations. The application honors
+recommendations only when destination is missing or consists of provinces with no
+selected city, and destinationEdit is none. A destination edit occupies that turn
+with verified choices or a failure reply. The model does not generate UI code.
 
-When the signal is honored, the application passes the real current user
-text, prior real conversation, and TripState to the shared recommendation
-workflow. It persists one assistant TripMessage with a short reply and
-1–3 destination_recommendations cards, or a reply without a presentation
-when no candidates survive. The interpreter's provisional reply is not
-saved as a second assistant turn.
+Both conversational recommendations and the explicit recommendation button use the
+shared workflow. Conversational context contains the real user turn and history;
+the button separately records TripUserAction. Suggestions do not modify TripState.
+Historical presentations adapt into the unified choice UI.
 
-The explicit [帮我推荐] button continues to persist a TripUserAction and
-uses that same generation, enrichment, and presentation core. A
-conversational trigger does not fabricate that action. Both paths leave
-TripState.destination unchanged until explicit selection and validation.
-
-The current UI renders only known presentation types from persisted
-messages. It does not execute model-generated UI code or use a generic
-Gen UI router.
+Chat choices are grouped by province with checkboxes and a single batch submit.
+DestinationEditor uses the same field-row layout as dates and origin, with an
+indented province/city/spot value and a pencil to expand manual search. The manual
+search result's Add action remains an explicit selection boundary.
 
 ## 7. Recommendation Workflow v0.1
 
-Journey-local preferences → Discovery Search → 8–10 candidates → official
-access search and LLM evidence interpretation → remove blocked candidates
-→ rank eligible candidates → enrich the top 1–3 → cards → explicit user
-selection → validated authoritative TripState.destination.
+Journey-local context → Bocha Discovery Search → structured LLM generation →
+validation and de-duplication → settled-province filtering → persisted suggestions →
+explicit selection → Amap verification → saved destination.
 
-All three searches in that line — discovery, official access evidence,
-and card images — are one provider, Bocha's Web Search API, behind three
-ports. A single response carries both web pages and images, so the
-adapters differ only in which section they read. None of them narrows
-`freshness`: Bocha documents the unrestricted default as the better
-search and warns that naming a window often matches no pages at all,
-which would reach Meri as an absence of evidence rather than a badly
-asked question.
-
-The application validates model output and evidence references. Clear and
-uncertain candidates remain eligible; a failed access lookup becomes
-uncertain and says so in the log, because a candidate nobody could check
-is otherwise indistinguishable from one that was checked and found fine.
-Image lookup failure leaves imageUrl null for the UI fallback.
-The workflow does not assess broader safety or travel feasibility. It is
-deterministic and does not use an Agent.
+Discovery failure degrades to no search context. Search results are unverified
+inspiration. The workflow supports up to 12 places and does not call access checking,
+ranking or image enrichment. It is ordinary application orchestration, not an Agent
+loop or Vercel Workflow runtime. Generate Plan remains a readiness check; city
+selection is required and legacy records must be reviewed first.
 
 ## 8. Workflow and Agent boundary
 
@@ -239,6 +198,17 @@ user-established TripState. The domain should remain independent of any
 particular Agent framework.
 
 ## 10. Reliability and deferred decisions
+
+JourneyService applies patches against freshly loaded state and uses repository
+compareAndUpdate, retrying up to three times. Production PostgreSQL compares the
+raw JSONB state in the UPDATE condition. Destination mutations also supply an
+expected destination; a changed destination yields 409 rather than applying a
+stale replacement. Ordinary field retries preserve concurrent destination writes.
+
+State mutation and conversation persistence are still separate steps. A chat
+request may fail after state was saved; the client asks the user to refresh and
+check the result. Selection follow-up failure returns the saved state explicitly.
+See [USER_FLOW_CURRENT](USER_FLOW_CURRENT.md) for detailed API and error paths.
 
 - Preserve the distinction between user intent, model proposals,
   provider evidence, and authoritative state.

@@ -19,4 +19,10 @@ export class InMemoryTripStateRepository implements TripStateRepository {
     this.states.set(this.tripId, state);
     return Promise.resolve();
   }
+
+  compareAndUpdate(expected: TripState, state: TripState): Promise<boolean> {
+    if (JSON.stringify(this.states.get(this.tripId)) !== JSON.stringify(expected)) return Promise.resolve(false);
+    this.states.set(this.tripId, state);
+    return Promise.resolve(true);
+  }
 }

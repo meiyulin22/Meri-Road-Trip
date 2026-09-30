@@ -27,7 +27,7 @@ export function parseSuggestionResponse(value: unknown): readonly LocationSugges
 }
 
 export function createSelectedLocationPatch(
-  field: "origin" | "destination",
+  field: "origin",
   suggestion: LocationSuggestion,
 ): TripStatePatch {
   return {

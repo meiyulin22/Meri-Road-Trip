@@ -26,7 +26,7 @@ export function shouldCreateConversationalRecommendations(
   if (destinationChange.proposed && !destinationChange.written) return false;
   return interpretation.presentationIntent === "destination_recommendations" &&
     isDestinationOpenToRecommendations(stateAfterWrite.destination) &&
-    interpretation.destinationDisambiguation?.state !== "known";
+    interpretation.destinationEdit.operation === "none";
 }
 
 export async function createDestinationRecommendationReply(
@@ -83,7 +83,7 @@ export async function persistConversationalRecommendationTurn(input: {
         destinationState: input.tripState.destination.state,
         patchDestinationState: input.patch?.destination?.state ?? null,
         writtenDestinationState: input.persistedPatch?.destination?.state ?? null,
-        disambiguationState: input.interpretation.destinationDisambiguation?.state ?? null,
+        destinationOperation: input.interpretation.destinationEdit.operation,
       }, "Destination recommendations were requested on a turn that cannot offer them");
     }
     return null;

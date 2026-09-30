@@ -1,225 +1,487 @@
 # Meri 当前用户操作流程与回复来源
 
-> 按 2026-09-29 当前工作区源码梳理，包含未提交改动。本文描述源码实际调用路径，不以旧架构文档中的规划为准；未连接线上服务逐条实测。`Home` 指首页 `/`；`Workspace` 指 `/trips/[id]`；Journey 是持久化的旅程。
+> 按 2026-09-30 工作区源码更新，包含未提交的 destination 重构和 UI 调整。沿用原有章节、流程图、操作表及代码索引，供业务追踪与面试讲解。本文描述实际调用路径；输入示例是按规则推导，未来能力明确标为计划。Home 指 `/`，Workspace 指 `/trips/[id]`，Journey 是持久化旅程。
 
 ## 先看全局
 
 ```mermaid
 flowchart TD
-  A[首页 /] -->|输入新旅行想法| B[提取 TripDraft：Kimi]
-  B --> C[创建 Journey、TripState、原始用户消息]
-  C --> D{目的地是否需要澄清？}
-  D -->|是| E[固定开场回复及候选卡]
-  D -->|否| F[Kimi 生成第一条回复]
-  E --> W[Workspace /trips/id]
+  A[首页 /] -->|输入旅行想法| B[Kimi 提取 TripDraft]
+  B --> C[校验普通字段及 destinationEdit]
+  C --> D{有地点提案？}
+  D -->|有| E[高德核验，准备候选]
+  E --> G[创建 Journey、状态、原话、候选消息]
+  D -->|无| F[创建 Journey 后生成 opening 回复]
+  G --> W[Workspace /trips/id]
   F --> W
-  A -->|点最近旅程| W
-  L[旅程列表 /trips] -->|打开既有 Journey| W
-  W -->|发聊天消息| G[结构化解释：Kimi]
-  G --> H[应用验证与写入 TripState]
-  H --> I{最终分支}
-  I -->|目的地推荐| J[Bocha 搜索 + Kimi 生成候选 + 推荐卡]
-  I -->|模糊目的地| K[高德验证 + 候选卡/固定回复]
-  I -->|旅程更新| M[模型回复或固定事实纠偏]
-  I -->|问题、闲聊、需确认| N[模型回复]
-  J --> P[保存消息及卡片]
-  K --> P
-  M --> P
-  N --> P
-  P --> W
-  W -->|点卡片、编辑字段、Generate plan| Q[独立确定性 API]
+  A -->|最近旅程| W
+  L[旅程列表 /trips] --> W
+  W -->|聊天| I[Kimi 结构化解释]
+  I --> J[应用校验并保存普通字段]
+  J --> K{destinationEdit}
+  K -->|add/set| P[核验并保存待选卡，目的地不变]
+  K -->|remove| R[当前状态匹配，唯一目标删除]
+  K -->|none| N{推荐意图且状态允许？}
+  N -->|是| S[Bocha + Kimi 推荐 + 省份过滤]
+  N -->|否| T[模型 reply]
+  P --> M[保存真实用户与助手消息]
+  R --> M
+  S --> M
+  T --> M
+  M --> W
+  W -->|勾选后统一提交| V[取保存的卡片 ID，复核高德，保存目的地]
+  W -->|编辑字段、搜索、删除| Q[独立确定性 API]
+  W -->|Generate plan| H[只检查准备度]
+  V --> W
   Q --> W
+  H --> W
 ```
 
-**核心边界：**`TripState` 是旅程当前事实；聊天记录、模型建议、推荐卡都不能单独确认目的地。Kimi 负责理解语言并提出结构化建议，应用负责校验、写入、地点核验和卡片选择。普通聊天没有开放式 Agent。[状态模型](../src/domain/trip-state/trip-state.ts)、[Workspace API](../src/app/api/trip-workspace/messages/route.ts)。
+**数据权威：**TripState 是当前决定，模型输出是提案，助手卡片是待选项，聊天记录是历史。核验成功不代表用户已经选择；显式提交后的地点才进入正式 destination。删除后不能因为历史里提过就自动恢复。
+
+**谁决定执行什么：**LLM 理解语言并输出受限 JSON；应用校验 JSON、判断可执行分支、调用高德和保存；React 根据受支持的 presentation 渲染。workflow 是我们写的确定性应用流程。Vercel AI SDK 用于模型调用及聊天适配；当前没有 Vercel Workflow 执行器或开放式 Agent 循环。
+
+代码：[TripState](../src/domain/trip-state/trip-state.ts)、[消息模型](../src/domain/trip-message/trip-message.ts)、[聊天 API](../src/app/api/trip-workspace/messages/route.ts)、[AI SDK 客户端](../src/platform/llm/ai-sdk-kimi-client.ts)。
 
 ## 1. 用户能从哪里进入
 
 | 入口与操作 | 页面/组件 | 到达结果 |
 | --- | --- | --- |
-| 首页输入一句旅行想法 | [`/`](../src/app/page.tsx) → [NewTripComposer](../src/components/meri-shell/new-trip-composer.tsx) | 创建新 Journey，成功后跳转 `/trips/{id}` |
-| 首页点最近旅程卡片 | [RecentJourneys](../src/components/meri-shell/recent-journeys.tsx) | 打开既有 Workspace，不重跑 LLM |
-| `/trips` 旅程列表点卡片 | [旅程列表](../src/app/trips/page.tsx) | 打开既有 Workspace |
-| Workspace 左侧“新旅程” | [TripWorkspace](../src/components/trip-workspace/trip-workspace.tsx) | 返回首页新建入口 |
+| 首页输入一句旅行想法 | [`/`](../src/app/page.tsx) → [NewTripComposer](../src/components/meri-shell/new-trip-composer.tsx) | 提取草稿，创建 Journey，开场成功后跳转 Workspace |
+| 首页点最近旅程 | [RecentJourneys](../src/components/meri-shell/recent-journeys.tsx) | 打开既有 Journey，不重新提取草稿 |
+| `/trips` 点旅程卡 | [旅程列表](../src/app/trips/page.tsx) | 打开已有 Workspace |
+| Workspace 左侧新旅程 | [TripWorkspace](../src/components/trip-workspace/trip-workspace.tsx) | 返回首页输入入口 |
 | `/trips/new` | [重定向](../src/app/trips/new/page.tsx) | 返回首页 |
 
-Workspace 页面先按访客 cookie 校验所有权，加载 TripState 与已保存消息；无权限/无旅程返回 404，缺少 TripState 显示异常页。刷新时读取已有消息和卡片，**不会仅因刷新重新调用模型**。[页面加载](../src/app/trips/[id]/page.tsx)、[访客身份](../src/platform/identity/guest-identity.ts)、[消息服务](../src/capabilities/conversation/trip-message-service.ts)。
+### 1.1 访客身份、列表与刷新
+
+1. 访客 cookie 提供 ownerGuestId；当前是访客所属 Journey，没有账号协作体系。
+2. Workspace 加载先验证 Trip 属于访客，再加载 TripState 和保存的消息。
+3. 不存在或不属于访客的 Journey 按 404 处理；Trip 存在但状态缺失属于不完整旅程错误。
+4. 刷新读取保存的正文和 presentation，不因刷新重跑 Kimi 或重新生成卡片。
+5. JourneySummary 是列表读模型，不作为修改或未来规划的事实基底。
+
+代码：[页面加载](../src/app/trips/[id]/page.tsx)、[访客身份](../src/platform/identity/guest-identity.ts)、[JourneyService](../src/capabilities/journey/journey-service.ts)、[消息服务](../src/capabilities/conversation/trip-message-service.ts)、[列表查询](../src/capabilities/journey/my-journeys.ts)。
 
 ## 2. Home 新建 Journey：输入一句话之后
 
 ```mermaid
 flowchart TD
-  U[用户输入非空文本] --> A[POST /api/trip-drafts]
-  A --> B[Kimi 提取 7 个字段及可选目的地拆分]
-  B --> C{结构化输出有效？}
-  C -->|否| X[首页显示错误，原输入保留]
+  U[非空用户原话] --> A[POST /api/trip-drafts]
+  A --> B[Kimi 输出普通字段和 destinationEdit]
+  B --> C{JSON 与领域校验通过？}
+  C -->|否| X[错误提示，保留输入]
   C -->|是| D[POST /api/journeys]
-  D --> E{目的地提案}
-  E -->|没有| I[创建 Journey]
-  E -->|普通地点| F[高德查询及匹配]
-  E -->|模糊区域且模型给 2-3 个市| G[逐个经高德核验]
-  F -->|resolved| I
-  F -->|ambiguous、area、unresolved、provider_error| H[创建时目的地和名称置 missing]
-  G --> H
-  H --> I
-  I --> J[保存用户原话]
-  J --> K{是否已有固定澄清回复？}
-  K -->|是| L[保存固定回复及可用卡片]
-  K -->|否| M[Kimi opening 模式生成回复]
-  L --> N[进入 Workspace]
-  M -->|成功| N
-  M -->|失败| O[Journey 已保存；可重试回复或先进入]
+  D --> E{有原话且有地点 edit？}
+  E -->|是| G[applyDestinationEdit 查询高德]
+  G --> H[准备固定正文与可用候选]
+  H --> I[保存 Trip、TripState、原话及可选助手消息]
+  E -->|否| I
+  I --> J{已有固定开场？}
+  J -->|是| W[进入 Workspace]
+  J -->|否| K[Kimi opening 模式]
+  K -->|成功| W
+  K -->|失败| R[Journey 保留，可重试回复或先进入]
 ```
 
-1. 首页提交后，[客户端模型](../src/components/meri-shell/new-trip-composer-model.ts)先调用 `POST /api/trip-drafts`；[API](../src/app/api/trip-drafts/route.ts)通过 [提取器](../src/capabilities/journey/trip-draft-extractor.ts)调用 Kimi，输出 `name / origin / destination / startDate / endDate / duration / transportPreference`，各字段带 `known / approximate / ambiguous / missing`。提示词在 [trip-draft-prompt.ts](../src/capabilities/journey/prompts/trip-draft-prompt.ts)。此步只是提取数据，**不创建 Journey，也没有回复用户的正文**。
-2. 客户端再调用 `POST /api/journeys`，带提取结果和用户原话。[创建协调器](../src/capabilities/journey/create-journey-with-opening.ts)核验目的地：模糊区域按模型建议的 2–3 个市分别向高德求证；普通表达走地点解析。创建代码当前仅把 `resolved` 当作可直接保留。`area`（例如省级地区）、`ambiguous`、`unresolved`、`provider_error` 都会在**新建时**把目的地和推断名称置为 `missing`，并写一条固定澄清回复；若有可展示候选则附卡片。这里与 Workspace 对省级地区的处理不同，见第 4 节。
-3. [JourneyService](../src/capabilities/journey/journey-service.ts)创建 Trip、TripState 并保存原始用户消息；状态/消息写入失败时尝试删除 Trip 回滚。新建正常开场走 [OpeningConversationService](../src/capabilities/conversation/opening-conversation-service.ts)：Kimi 使用专用 opening prompt，只能回答，不能提议改状态或推荐卡；开场消息保存后跳转。模型开场失败时 Journey 仍已创建，首页提供“重试 Meri 回复”和“先进入旅程”。[重试 API](../src/app/api/trips/[id]/conversation/initialize/route.ts)会检查当前是否仍适合生成开场，并避免重复写同一条回复。
+### 2.1 提取阶段：只理解，不保存旅程
 
-**回复来源：**普通开场是 Kimi；目的地被拒绝或需消歧时是 [固定文案](../src/capabilities/journey/create-journey-with-opening.ts)，候选来自高德验证。没有消息时 Workspace 还有一条仅用于空界面的[本地占位开场](../src/components/trip-workspace/conversation-panel.tsx)，它不代表保存过的助手消息。
+[客户端模型](../src/components/meri-shell/new-trip-composer-model.ts)把 trim 后的非空原话作为 `{message}` 提交 [trip-drafts API](../src/app/api/trip-drafts/route.ts)。[TripDraftExtractor](../src/capabilities/journey/trip-draft-extractor.ts)调用结构化模型；[prompt](../src/capabilities/journey/prompts/trip-draft-prompt.ts)规定提取规则；[领域校验](../src/domain/trip-draft/trip-draft.ts)保证合法形状。
+
+草稿包括 name、origin、startDate、endDate、duration、transportPreference 六个普通字段，另有 destinationEdit。目的地不再由模型拼一个包含所有旧地点的 destination.value。
+
+普通字段支持 known、approximate、ambiguous、missing。日期解释使用参考日期和时区；交通 known 值只支持 self_drive、no_self_drive、public_transport、flexible。这一步没有 Journey ID、数据库副作用或助手正文。
+
+### 2.2 创建阶段：地点提案与正式状态分开
+
+客户端提交 `{draft, initialUserMessage}` 到 [journeys API](../src/app/api/journeys/route.ts)。[createJourneyWithOpening](../src/capabilities/journey/create-journey-with-opening.ts)再次校验草稿；有原话且 destinationEdit 不为 none 时，以 missing 目的地为基底执行地点操作。
+
+- add/set 查询地点并生成待选卡，即使唯一匹配也不直接写 destination。
+- 有候选时保存固定开场和 presentation，告知选好后提交才会记入旅程。
+- 没结果或提供方失败时保存事实说明，不写无法验证的地点。
+- 没有上述固定开场时，创建后执行 opening 模式。
+- 没有 initialUserMessage 的接口调用返回 not_requested；首页正常路径提供原话。
+
+[initializeTripState](../src/domain/trip-state/trip-state.ts)建立初始状态，目的地初始 missing。草稿中的普通字段可保留；正式目的地由后续用户选择提交产生。
+
+### 2.3 保存、回滚与开场重试
+
+[JourneyService.createJourney](../src/capabilities/journey/journey-service.ts)顺序保存 Trip、TripState、用户原话及可选固定助手消息。状态/消息保存失败时尝试删除 Trip；清理失败保留创建与清理的两份错误。这是补偿回滚，并非整个调用链的一笔数据库事务。
+
+[OpeningConversationService](../src/capabilities/conversation/opening-conversation-service.ts)调用 Kimi opening 模式：只允许 reply，拒绝 changes、目的地 edit 和推荐意图。因此开场不会再次修改已经创建的状态。
+
+模型开场失败后 Journey 仍存在。首页进入 opening_failed，提供“重试 Meri 回复”和“先进入旅程”。重试调用 [conversation/initialize](../src/app/api/trips/[id]/conversation/initialize/route.ts)，服务检查现有消息及开场资格，使用确定的助手消息身份减少重复写入；不会重新创建 Journey。
+
+**回复来源：**普通开场是 Kimi；地点候选/失败开场是应用模板。无保存消息时 [ConversationPanel](../src/components/trip-workspace/conversation-panel.tsx)还可能显示本地占位，它不代表数据库已有助手消息。
 
 ## 3. Workspace 聊天：每条输入如何分流
 
 ```mermaid
 flowchart TD
-  U[用户发送消息] --> A[POST /api/trip-workspace/messages]
-  A --> B[读取 TripState 与最近真实对话]
-  B --> C[Kimi 输出 intent、changes、presentationIntent、reply、可选消歧]
-  C --> D{结构与业务约束有效？}
-  D -->|否| ERR[返回错误；客户端提示刷新核对]
-  D -->|是| E[生成 TripState patch]
-  E --> F{提出目的地更改？}
-  F -->|否| H[其它有效字段可写入]
-  F -->|是| G[高德核验或验证消歧城市]
-  G --> H
-  H --> I{推荐信号可执行？}
-  I -->|是| J[推荐工作流；写一组用户+助手消息]
-  I -->|否| K[按地点事实确定最终回复和卡片]
-  K --> L[写一组用户+助手消息]
-  J --> M[返回已保存消息及 TripState]
-  L --> M
-  M --> N[客户端展示已提交结果]
+  U[用户原话] --> A[POST /api/trip-workspace/messages]
+  A --> B[验证 owner，读取状态与历史]
+  B --> C[Kimi 输出四项 JSON]
+  C --> D[校验输出并生成普通字段 patch]
+  D --> E[保存普通字段]
+  E --> F[applyDestinationEdit]
+  F -->|add/set| G[候选或失败事实，目的地不变]
+  F -->|remove| H[唯一目标删除，带预期目的地保存]
+  F -->|none| I[判断推荐资格]
+  I -->|允许| J[推荐工作流]
+  I -->|不允许| K[模型 reply]
+  G --> L[确定最终正文及 presentation]
+  H --> L
+  J --> L
+  K --> L
+  L --> M[保存真实用户和助手消息]
+  M --> N[返回 interpretation、tripState、messages]
 ```
 
 ### 3.1 模型实际决定什么
 
-[解释器](../src/capabilities/conversation/workspace-conversation-interpreter.ts)读取当前 TripState、当日日期/时区和[最近对话](../src/capabilities/conversation/workspace-conversation-context.ts)，要求 Kimi 输出：
+[interpretWorkspaceConversation](../src/capabilities/conversation/workspace-conversation-interpreter.ts)调用一次 generateStructuredOutput，输入当前 TripState、用户原话、参考日期/时区和最近对话。
 
-| 字段 | 可选值 | 含义 |
+[历史选择器](../src/capabilities/conversation/workspace-conversation-context.ts)最多取最近 5 轮、6000 字符，先合并连续助手消息，避免选卡确认因没有新用户原话而被遗漏。[conversation-history-content](../src/capabilities/conversation/conversation-history-content.ts)将持久化卡片转成上下文内容。
+
+| 字段 | 合法值/形状 | 用途 |
 | --- | --- | --- |
-| `intent` | `trip_state_update` / `question` / `unclear_update_intent` | 是明确修改、提问，还是意图不清 |
-| `changes` | 最多 7 个受限字段 | 仅明确更新才可非空；不能重复字段 |
-| `presentationIntent` | `none` / `destination_recommendations` | 模型认为这轮是否适合展示目的地推荐；应用还要再次判断 |
-| `destinationDisambiguation` | `missing` 或 2–3 个地点表达 | 对“潮汕”一类表达提议较具体的市，应用再向高德求证 |
-| `reply` | 非空文字 | 模型写的临时回复；可能成为最终回复，也可能被应用覆盖 |
+| presentationIntent | none / destination_recommendations | 推荐信号，应用再检查资格 |
+| changes | 六类普通字段的修改数组 | field、state、value；不能改 destination 或重复字段 |
+| destinationEdit | none / add / set / remove | 本次用户提及的地点操作，不重写整个旧目的地 |
+| reply | 非空文字 | 暂定自然回复，可能被应用事实覆盖 |
 
-[Prompt](../src/capabilities/conversation/prompts/workspace-conversation-prompt.ts)规定：有偏好且“去哪”仍开放时倾向推荐；没偏好时自然追问；已定目的地时补旅程信息；天气、价格、开放情况等未接入实时研究的问题不能编造；不能直接写行程。正常聊天另有一个可选 `resolve_location` 工具调用前置步骤，只允许查询**当前 TripState 中原样存放的目的地**；明确的新目的地改动由后续应用核验，不由工具直接写入。[工具边界](../src/capabilities/conversation/tools/resolve-location.ts)、[Kimi 客户端](../src/platform/llm/ai-sdk-kimi-client.ts)。
+受限 JSON 示例（按规则构造，不代表某次线上原始输出）：
+
+```json
+{
+  "presentationIntent": "none",
+  "changes": [],
+  "destinationEdit": {
+    "operation": "add",
+    "places": ["梅里雪山"],
+    "broadRegion": null
+  },
+  "reply": "我帮你确认一下梅里雪山的位置。"
+}
+```
+
+[destinationEdit schema](../src/domain/trip-state/destination-edit.ts)在严格模型输出里要求 operation、places、broadRegion 都出现；校验后的领域 none 只保留 operation，remove 不保留 broadRegion。places 最多 6 个表达、每个最多 80 字符，trim 后去重。
+
+- add 是追加提议，保留现有目的地。
+- set 是整体替换提议，提交前不会清空旧目的地。
+- remove 是删除当前保存目标。
+- broadRegion 表示潮汕等宽泛区域，places 为模型提出的具体表达，仍需高德验证。
+
+[Workspace prompt](../src/capabilities/conversation/prompts/workspace-conversation-prompt.ts)要求区分明确修改与提问、保留用户决定及具体景点表达、缺目的地时推荐或追问。不允许编造未研究的实时事实或直接写行程。
+
+当前没有 intent、destinationDisambiguation 和旧 resolve_location 前置工具。模型不能生成 providerId、宣称数据库操作成功或生成任意 React/CSS。LLM 判断语义，应用负责执行权限和事实边界。
 
 ### 3.2 应用实际决定什么
 
-[领域校验](../src/domain/trip-state/workspace-conversation.ts)拒绝无效结构：`trip_state_update` 必须有改动，其他 intent 不能带改动；只允许 7 个状态字段及合法状态值。验证后才生成用户来源的 patch。目的地要走 [写入前核验](../src/capabilities/destination/post-update-destination-resolution.ts)：
+**结构校验：**解释器拒绝空输出、截断输出、非法 JSON；[领域校验](../src/domain/trip-state/workspace-conversation.ts)要求精确四项顶层键，检查字段名、重复字段、状态和值及交通枚举。missing 的 value 必须为 null，其他普通状态必须有非空 value。
 
-| 地点结果 | 状态行为 | 用户看到什么 |
+**普通字段：**createTripStatePatchFromInterpretation 将 changes 转成 source=user 的 patch；空数组返回 null。destination 不在普通 changes 中。
+
+**地点执行：**[applyDestinationEdit](../src/capabilities/destination/apply-destination-edit.ts)返回 destination、changed、choices，以及 unresolved、lookupFailed、notInDestination、ambiguousRemovals 等事实，供 route 决定保存和回复。
+
+| 操作/查询结果 | 正式目的地行为 | 用户看到什么 |
 | --- | --- | --- |
-| `resolved`，匹配唯一地点 | 保留目的地 patch；其它字段也写 | 通常用模型回复，附应用固定的 Generate plan 提示 |
-| `area`，识别为省级区域 | 保存为 `approximate`，`areas` 只有省、没有具体地点 | 通常保留模型回复；之后仍可在该省内推荐 |
-| `ambiguous`，有多个同名/近似地点 | **不写**新目的地；同轮其它字段可写 | 固定“请选择哪一个”，附 `location_candidates` 卡 |
-| `unresolved` | 不写新目的地；同轮其它字段可写 | 固定“还没能确认地点”类回复 |
-| `provider_error` | 不写新目的地；同轮其它字段可写 | 固定“地点查询暂不可用”类回复 |
-| 模型给出 2–3 个消歧表达 | 逐个高德核验；不直接写该目的地；其它字段可写 | 有验证结果时出可多选的城市卡；否则固定失败说明 |
-| 用户明确清除目的地 | 允许写成 `missing` | 按模型回复继续；没有地点查询 |
+| none | 不变 | 有资格可推荐，否则模型 reply |
+| add/set + resolved | 不变 | 待选卡，唯一地点也需确认 |
+| add/set + area | 不变 | 已核验省级候选；选后保留空省，仍需选城市 |
+| add/set + ambiguous | 不变 | 多个真实候选，用行政区/地址区分 |
+| add/set + unresolved | 不因该表达改变 | 暂未找到可靠地点 |
+| add/set + provider_error | 不因该表达改变 | 查询暂不可用，可重试 |
+| 多表达部分成功 | 候选仍未保存为目的地 | 展示成功项，并说明失败表达 |
+| remove 唯一匹配 | 删除对应项 | 无失败时可用模型 reply；级联由领域规则执行 |
+| remove 多匹配 | 不删这个表达的项 | 要求说明更具体目标 |
+| remove 无匹配 | 不删这个表达的项 | 告知当前旅程没有该地点 |
+| 多 remove 部分唯一 | 唯一目标可以删除 | 说明已移除可确认项及未处理项 |
 
-分支优先级由 [workspace-turn-branch.ts](../src/capabilities/conversation/workspace-turn-branch.ts)确定：**推荐回复 > 消歧回复 > 普通更新/问答**。普通更新中，[turn-reply.ts](../src/capabilities/conversation/turn-reply.ts)按真正的地点结果纠正模型先前的假设；地点确认为 `known` 时还拼上固定的 Generate plan 提示。`journey_update` 与 `conversation` 是日志/选择回复的分支名，不代表两个独立的模型。
+add/set 使用 Promise.all 查询表达，再按 provider ID 去重。不同 POI 不会因为同属一个城市而折叠。候选数受消息模型上限约束。set 生成 mode=replace，并记录 baseDestination=JSON.stringify(current)，用于后续过期检查。
 
-**一个容易忽略的失败边界：**聊天 API 先可能写 TripState，再运行推荐和保存消息；这些动作不是同一笔跨步骤事务。若后续失败，状态可能已变而本轮消息尚未成功提交。客户端因此显示“发送结果未确认，请刷新核对”。[API](../src/app/api/trip-workspace/messages/route.ts)、[Transport](../src/components/trip-workspace/workspace-chat-transport.ts)。
+聊天 remove 先匹配当前 areas 的精确名称，无精确匹配才允许唯一前缀；多匹配不能取第一个。UI 删除提交完整省/市/spot 元组，不用模糊前缀。
+
+**实际分支顺序：**[messages route](../src/app/api/trip-workspace/messages/route.ts)先保存普通字段，再运行地点 edit；只有 destinationEdit=none 才进入推荐用例。最终正文按“候选 → 删除歧义 → 删除无匹配 → 查询失败 → 无结果 → 模型 reply”选取，候选正文可包含部分失败说明。推荐用例返回已保存消息时不再重复保存一组。
+
+[workspace-turn-branch](../src/capabilities/conversation/workspace-turn-branch.ts)存在且有单测，但当前 route 没有调用它。这里以实际 route 条件为准，不能把该 helper 描述为正在运行的中央决策器。
+
+**失败边界：**普通字段、目的地删除、推荐查询、消息保存不是同一笔跨步骤事务。后一步失败时前面状态可能已变。客户端因此提示发送结果未确认，需刷新核对。
+
+| 聊天错误 | HTTP | 定位含义 |
+| --- | --- | --- |
+| 请求/状态无效 | 400 | 未通过输入规则 |
+| Journey/状态不存在 | 404 | owner 或持久化读取失败边界 |
+| 状态并发冲突 | 409 | 重读后不能安全提交 |
+| 模型配置缺失 | 503 | 未配置服务 |
+| 模型超时 | 504 | 超过请求时间 |
+| 模型请求或输出失败 | 502 | 外部调用/JSON/业务校验失败 |
+| 其他错误 | 500 | 未分类失败 |
+
+响应带 requestId，可与结构化日志关联。[Transport](../src/components/trip-workspace/workspace-chat-transport.ts)处理完整响应与客户端状态同步。
 
 ### 3.3 输入示例与实际路径
 
-下列是**按代码规则推导的示例**，具体 Kimi 输出会变化；模型若没有给预期意图，应用也不会凭文字硬触发该分支。
+下面是按代码推导的示例；实际提案取决于模型输出，应用不会只靠自然语言关键词绕过解释器。
 
-| 输入及当前状态 | 可能的决策和行为 | 最终回复来源 |
+| 输入及状态 | 预期结构与路径 | 结果 |
 | --- | --- | --- |
-| 没目的地：“我喜欢雪山和徒步，想安静一点” | Kimi 给 `question + destination_recommendations`；应用检查地点仍开放；Bocha 搜索、Kimi 生成推荐卡，写入一组消息 | 有卡：**本轮 Kimi 的 reply** + 应用生成卡；无卡：固定“没筛出合适目的地” |
-| 没目的地：“我想出去玩” | `question + none`，无状态写入，追问偏好 | Kimi |
-| “我想去海南” | `trip_state_update`；高德识别省级 `area`；写 `approximate` 省份；暂无具体地点 | 通常 Kimi；后续推荐只在已定省份内 |
-| “我想去云南，想爬山” | 同轮先写省级范围；若 Kimi 同时给推荐信号，应用允许在云南省内出卡 | 有卡时 Kimi reply；卡由推荐工作流给出 |
-| “我想去潮汕” | Kimi 提议消歧城市；高德逐个核验；原表达不直接确认为目的地 | 固定消歧文案 + 验证后的城市卡 |
-| “我想去朝阳”而高德匹配多个地点 | 不写新目的地；展示匹配结果 | 固定澄清文案 + 高德候选卡 |
-| “时间改成十一月底左右” | 只写约略开始时间 | Kimi；无地点副作用 |
-| “富良野雪怎么样？” | prompt 要求作为事实问题，不改目的地；未接研究时说明无法核实 | Kimi，受 prompt 约束 |
-| “要不富良野？” | prompt 要求作为待确认意图，不改状态 | Kimi |
-| “都定好了，可以生成计划了吗？” | 当前聊天没有生成计划分支；prompt 要求不要擅自宣布准备度 | Kimi；用户点按钮才会执行准备度检查 |
+| 缺目的地：“人少安静，彻底放空” | none + 推荐信号，Bocha/Kimi 推荐 | 有卡用本轮模型 reply，目的地不变 |
+| 缺目的地：“想出去玩” | none，无推荐信号 | Kimi 追问，无状态变化 |
+| “我想去云南” | add/set，查询省级 area | 待选省卡；提交后为空省，尚不能规划 |
+| “云南，想爬山” | 地点 edit 占本轮 | 先确认省，之后可省内推荐；本轮不再自动连跑推荐 |
+| 已有浙江福建：“还想去潮汕” | add，broadRegion=潮汕，核验相关市 | 广东城市可多选追加，旧目的地保留 |
+| “改去潮汕” | set，replace 卡 | 一次提交后整体替换，旧卡可能 409 |
+| “想去梅里雪山” | 保留表达并查真实行政归属 | 确认后城市含 spots=[梅里雪山]，名称不被自治州吞掉 |
+| “朝阳”返回多个地点 | ambiguous，保留不同 provider 身份 | 用户区分候选，不自动取第一项 |
+| “不去潮州了” | remove 当前保存名 | 唯一目标删除，最后一个城市删除后省仍在 |
+| “不去梅里雪山了” | remove 当前 spot | 删除 spot，保留城市和省 |
+| “时间改到十一月底左右” | startDate approximate | 普通字段变化，Kimi reply |
+| “梅里雪山现在开放吗” | 应识别为问题 | 地点核验不能当成开放证据 |
+| “可以生成计划了吗” | 普通 reply | 聊天无计划执行分支，按钮只检查准备度 |
 
 ## 4. 推荐卡、候选卡和点击后的动作
 
 ### 4.1 推荐如何触发
 
-**聊天自动触发：**Kimi 返回 `presentationIntent=destination_recommendations` 还不够。[应用门槛](../src/capabilities/recommendation/destination-recommendation-use-case.ts)要求写入后的目的地仍“开放”（完全缺失，或尚未选具体地点的区域）、没有有效消歧信号，并且本轮提出的目的地改动若存在必须真的写成功。此路径用真实用户消息和历史构造上下文，保存**一条用户消息 + 一条助手消息**，不虚构按钮操作。
+**聊天自动触发：**presentationIntent=destination_recommendations 只是模型信号。[shouldCreateConversationalRecommendations](../src/capabilities/recommendation/destination-recommendation-use-case.ts)还要求 destinationEdit=none，且 [isDestinationOpenToRecommendations](../src/domain/trip-state/trip-state.ts)允许当前状态：missing 或没有选城市的省范围。已定城市不能因推荐信号被替换；legacyText 不作为已验证省范围。
 
-**显式按钮：**Journey overview 的 Generate plan 在目的地缺失时会保存一条固定引导消息，内含“帮我推荐 / 我自己选”。“帮我推荐”调用 `POST /api/trips/{id}/destination-recommendations`，先保存一条 `TripUserAction`，再生成和保存助手推荐消息；不新增一条伪用户聊天消息。“我自己选”打开右侧目的地编辑器。[引导 API](../src/app/api/trips/[id]/destination-missing-guidance/route.ts)、[固定引导句](../src/capabilities/conversation/destination-missing-guidance.ts)、[推荐 API](../src/app/api/trips/[id]/destination-recommendations/route.ts)、[会话按钮](../src/components/trip-workspace/conversation-panel.tsx)。显式推荐也可在只有省份、未定具体地点时用；固定引导消息只在目的地完全缺失时由右侧按钮产生。
+**显式按钮：**右侧 Generate plan 在 destination_missing 时保存固定引导，提供“帮我推荐 / 我自己选”。推荐调用 [destination-recommendations API](../src/app/api/trips/[id]/destination-recommendations/route.ts)，先记录 TripUserAction，再保存助手消息，不伪造用户聊天；自己选打开编辑器。[引导模板](../src/capabilities/conversation/destination-missing-guidance.ts)和 [引导 API](../src/app/api/trips/[id]/destination-missing-guidance/route.ts)按当前状态限制入口。
 
-**推荐工作流的当前实际步骤：**[上下文](../src/capabilities/recommendation/destination-recommendation-context.ts)取 TripState 和最多 10 条/6000 字已保存对话 → [Bocha Discovery Search](../src/platform/search/discovery-search.ts)尝试取最多 8 条搜索结果（搜索失败退化为空结果）→ [Kimi 结构化生成](../src/capabilities/recommendation/destination-recommendation-generator.ts)省份及市/州候选与理由 → [领域校验](../src/domain/location/destination-recommendations.ts)去重、最多 12 个地点 → [工作流](../src/capabilities/recommendation/destination-recommendation-workflow.ts)把建议限制在用户已经选定的省份内，赋卡片 ID。**这条当前调用链没有官方访问检查、风险排序或图片补全**；搜索结果只是启发信息，不能证明开放、安全或可达。卡片只是建议，不能直接改 TripState。
+**实际推荐流水线：**
+
+1. [构造上下文](../src/capabilities/recommendation/destination-recommendation-context.ts)：TripState、最多 10 条/6000 字符对话、当前真实原话或显式 action。
+2. [Discovery Search](../src/platform/search/discovery-search.ts)：Bocha 取最多 8 条启发信息，失败退化为空搜索上下文。
+3. [推荐生成器](../src/capabilities/recommendation/destination-recommendation-generator.ts)：Kimi 输出省、市/州和理由。
+4. [领域校验](../src/domain/location/destination-recommendations.ts)：形状校验、去重、最多 12 个地点。
+5. [workflow](../src/capabilities/recommendation/destination-recommendation-workflow.ts)：withinSettledProvinces 按规范化省名限制已定省，并采用用户保存的省名拼写，给卡项赋 ID。
+6. 保存 destination_recommendations presentation，UI 适配为统一多选卡。卡项仍是建议，提交时才高德复核。
+
+该执行链没有访问检查、风险排序或图片补全。搜索上下文不能证明开放、安全或可达。搜索失败可降级，模型失败仍可能令请求失败。
 
 ### 4.2 用户点击卡片
 
-| 用户动作 | API 和校验 | 状态与回复 |
-| --- | --- | --- |
-| 点击推荐城市卡，可多选 | [`destination-recommendation-selection`](../src/app/api/trips/[id]/destination-recommendation-selection/route.ts)只接受已保存在那条助手消息里的卡 ID；按省份组合选中地点；旧卡缺省份则拒绝 | 首次选择写 `destination=known` 且带 `areas`；已选定目的地后新出的消歧卡记录当时的 `areas`，选择时追加城市并保留已有地点。随后做准备度检查并保存[固定选择确认回复](../src/capabilities/destination/destination-selection-reply.ts)。重复点击同一组合会返回原回复；状态已变化则 409 |
-| 点击地点歧义候选卡，单选 | [`location-candidate-selection`](../src/app/api/trips/[id]/location-candidate-selection/route.ts)从已保存的助手卡片按索引取候选，不能由客户端任意提供地名 | 写 `destination=known`，保存高德 providerId/坐标；准备度检查后保存固定确认回复。重复选择会去重；状态不符则 409 |
+[DestinationChoicesCard](../src/components/trip-workspace/destination-choices-card.tsx)按省分组，逐项勾选后统一提交“添加所选”；replace 卡提交“替换为所选目的地”。没有逐行添加按钮。勾选只改变本地 picked，不写服务器。
 
-注意：推荐卡选择的写入路径依据**已保存卡片及省份结构**，然后准备度检查把有具体地点的 `areas` 当作已选定；这里并没有在写入前逐个再次调用高德验证推荐地点。地点歧义候选卡的身份则来自先前高德查询。[推荐选择 API](../src/app/api/trips/[id]/destination-recommendation-selection/route.ts)、[准备度规则](../src/capabilities/destination/generate-plan-readiness.ts)。
+| 动作/状态 | UI 判定 | 结果 |
+| --- | --- | --- |
+| 多选 | 记录暂选 ID 并显示数量 | 一次提交整组 |
+| 第二轮新城市 | 按候选身份判断，不按整个 destination.state 禁用 | 可以继续追加广东等地点 |
+| 已有市的新 spot | 检查 province/city/spot 元组 | 市存在仍可加新景点 |
+| 已经添加 | add 模式禁用并显示已添加 | 不重复；replace 可选已有城市 |
+| 无法区分同名项 | name、city、detail 相同 | 禁用，提示细化搜索 |
+| 旧卡无可靠身份 | legacyUnverified | 禁用，提示重新搜索 |
+| 任一选择正在保存 | selectionInFlight + pending | 暂停全部聊天选择卡，避免重入 |
+| 保存失败 | 显示可重试错误 | 不伪称已添加 |
+
+[UI adapter](../src/components/trip-workspace/trip-message-ui-adapter.ts)兼容新 destination_choices、旧 destination_recommendations 和旧 location_candidates。旧独立 location-candidate-selection API 已移除。
+
+#### 请求与服务器验证
+
+统一 [POST /api/trips/{id}/destination-recommendation-selection](../src/app/api/trips/[id]/destination-recommendation-selection/route.ts)只接受精确两键 body：
+
+```json
+{"messageId":"已保存助手消息 ID","destinationIds":["候选 ID 1","候选 ID 2"]}
+```
+
+服务端不信任客户端传入地名、行政区、spot 或 verified 标记。实际顺序：
+
+1. 校验访客与 Journey 所有权，messageId 非空，destinationIds 非空且无重复。
+2. 从本 Journey 保存的助手消息取 offer，每个 ID 必须属于它。
+3. replace 首次检查 baseDestination；已变化则 409。
+4. [verifyDestinationChoice](../src/capabilities/destination/verified-destination-choice.ts)重新高德查询所选项。旧随机推荐 ID 不能当 provider 身份，须唯一精确规范名匹配；已验证保存的省级合成项有专门分支。
+5. 任一选中项核验失败则整批 409，不部分保存。
+6. 查询结束重读最新 TripState：add 合并最新 areas；replace 再检查基底，从空 areas 构造整体替换。
+7. 按 offer 顺序处理，使请求 ID 顺序变化仍一致；省市合并、spot 同名去重。
+8. 带 expectedDestination 保存，避免覆盖查询期间的目的地修改。
+9. [destinationSelectionReply](../src/capabilities/destination/destination-selection-reply.ts)按保存后的准备度生成固定确认，保存助手消息。
+10. 返回 `{tripState,assistantMessage}`，客户端同步聊天与右侧。
+
+#### 重试、过期与保存一半
+
+- [确认 ID](../src/capabilities/conversation/destination-selection-message-id.ts)由 Journey、原消息及所选组合确定，ID 顺序变化不会产生新确认身份。
+- 已有确认且所选仍存在时 add 可返回原回复；replace 还要求当前整个目的地与这次替换结果一致。
+- 确认存在不表示可以忽略后来删除/替换；旧 replace 不能覆盖新的决定。
+- 状态已保存但确认失败返回 500、code=follow_up_unavailable 和已保存 tripState。[客户端异常](../src/components/trip-workspace/workspace-conversation-model.ts)先同步真实状态，再显示回复失败。
+- 非法 body 为 400；无权限/消息/选项不存在 404；核验、基底或并发冲突 409；其他保存失败 500。
 
 ## 5. 右侧 Journey overview 的直接操作
 
-| 操作 | 实际行为 | LLM / 固定文案 |
+| 操作 | 实际行为 | LLM/聊天副作用 |
 | --- | --- | --- |
-| 编辑旅程名称、日期、时长、交通偏好 | 客户端构造字段 patch，`PATCH /api/trips/{id}/state`；服务端校验后写 TripState | 不调用 LLM，也不生成聊天回复；失败显示固定错误 |
-| 编辑出发地或目的地 | 输入至少 2 字后，防抖请求 `GET /api/locations/suggestions?q=...`；用户点高德建议；同一个 state PATCH 保存选中地点身份 | 不调用 LLM；列表来自高德，保存后不自动产生聊天回复 |
-| 点击右侧 Generate plan | `GET /api/trips/{id}/planning-readiness`；目的地缺失时还会保存一次固定引导消息 | 固定准备度文案；**没有生成旅行计划** |
-| 点击聊天区 Generate plan | 仅在目的地已是可请求状态时显示；同一准备度 API | 固定准备度文案；**没有生成旅行计划** |
-| 返回首页/重新打开 | 读取持久化 TripState 与消息 | 不调用 LLM |
-| 首页最近旅程或 `/trips` 列表删除 Journey | `DELETE /api/trips/{id}`，按访客所有权删除；列表把它移走 | 不调用 LLM；确认/错误文案由前端写定 |
+| 修改名称、日期、时长、交通 | [state PATCH](../src/app/api/trips/[id]/state/route.ts)，校验普通字段 | 无 LLM，无聊天正文 |
+| 修改出发地 | [LocationEditor](../src/components/trip-workspace/location-editor.tsx)、[suggestions API](../src/app/api/locations/suggestions/route.ts)、选中后 state PATCH | 仍是 origin 身份结构，不走 destinationEdit |
+| 展开目的地 | 编辑器铅笔 | 本地展开，无状态写入 |
+| 搜索城市/景点 | GET /api/trips/{id}/destinations?q=… | 高德，无 LLM，无消息 |
+| 添加搜索结果 | POST 同路径 `{query,id}` | 重查身份后保存，无助手消息 |
+| 删除省、市、spot | DELETE 同路径 `{province,place,spot}` | 确定性级联，同步状态 |
+| 清除旧文本 | DELETE `{legacy:true}` | 删除 legacyText，保留已添加 areas |
+| 右侧 Generate plan | [planning-readiness API](../src/app/api/trips/[id]/planning-readiness/route.ts) | 只检查，缺失时保存固定引导 |
+| 聊天 Generate plan | [GeneratePlanAction](../src/components/trip-workspace/generate-plan-action.tsx) | 同一检查，不执行规划 |
+| 返回、重开、刷新 | 读持久化状态与消息 | 不调用模型 |
+| 删除 Journey | [DELETE /api/trips/{id}](../src/app/api/trips/[id]/route.ts)，校验 owner | 列表反馈，不调用模型 |
 
-相关实现：[右侧面板](../src/components/trip-workspace/expedition-brief-panel.tsx)、[地点编辑器](../src/components/trip-workspace/location-editor.tsx)、[直接状态 patch](../src/components/trip-workspace/trip-state-persistence-model.ts)、[状态 API](../src/app/api/trips/[id]/state/route.ts)、[聊天区 Generate plan](../src/components/trip-workspace/generate-plan-action.tsx)、[准备度显示文案](../src/components/trip-workspace/planning-readiness-model.ts)、[删除 API](../src/app/api/trips/[id]/route.ts)。直接状态 PATCH 是用户操作路径，**不会走聊天目的地解析器**；地点编辑器通过建议选择获得高德身份。
+### 5.1 普通字段编辑体验
 
-准备度只围绕目的地：缺失、歧义、省级范围、不可识别、供应商故障会返回各自原因；已有具体地点的 `areas` 直接通过，带高德选中身份的已知地点也通过，其他已知目的地才调用高德解析。[规则](../src/capabilities/destination/generate-plan-readiness.ts)、[API](../src/app/api/trips/[id]/planning-readiness/route.ts)。出发地、日期和时长目前不是这个检查的硬性条件。
+[ExpeditionBriefPanel](../src/components/trip-workspace/expedition-brief-panel.tsx)切换编辑：Enter/失焦提交，Escape 取消；交通用枚举下拉。成功采用服务器状态，失败显示错误。[createDirectTripStatePatch](../src/components/trip-workspace/trip-state-persistence-model.ts)构造 source=user 修改；客户端及服务端均禁止通过通用 PATCH 改 destination。
+
+收起详细字段时保留目的地、开始时间和时长。省摘要、旅程标题等由 [workspace-presentation](../src/components/trip-workspace/workspace-presentation.ts)派生，不是另一份目的地事实。
+
+### 5.2 目的地搜索、核验、保存
+
+目的地沿用日期等字段的两列、状态图标和铅笔。值列按省 → 市/自治州 → 想去景点缩进，移除独立外框、嵌套省卡和亮色标题按钮；展开后搜索横跨字段行。手动搜索仍用单个结果添加，聊天则多选统一提交。
+
+- 至少 2 字开始查询，250ms 防抖，新输入/收起取消旧请求；已取消响应不得覆盖新列表。
+- [destinations API](../src/app/api/trips/[id]/destinations/route.ts)限制表达 2–80 字符，最多返回 12 项，GET 响应 no-store。
+- 候选提供 id、name、province、city、spot、detail，前端 Zod 校验，spot 必须有 city。
+- 详情可显示规范名称差异、区县及地址；无法区分的同名结果要求细化搜索。
+- POST 用 query 和 id 重新查高德，身份消失返回 409，不信任缓存候选。
+- 核验后重读最新状态再合并；busy/inFlight 防重入，成功使用返回 TripState，没有乐观假保存。
+- 已有城市但新 spot 未添加仍可保存；追加时保留待确认旧文本。
+
+### 5.3 层级、级联与具体景点偏好
+
+正式 destination 示例：
+
+```json
+{
+  "state": "known",
+  "source": "user",
+  "areas": [
+    {"province":"云南省","places":[{"name":"迪庆藏族自治州","spots":["梅里雪山"]}]},
+    {"province":"广东省","places":[{"name":"潮州市","spots":[]}]},
+    {"province":"福建省","places":[]}
+  ]
+}
+```
+
+[resolveDestinationPlace / picksFromSearch](../src/capabilities/destination/resolve-destination-place.ts)取得高德省市父级。匹配城市本身时不建 spot；具体 POI 进入所属市的 spots，适当保留用户表达，否则采用规范名。直辖市以省名作市级父项，UI 显示市内避免重复。
+
+[destination-areas](../src/domain/trip-state/destination-areas.ts)纯函数负责：
+
+| 删除元组 | 影响 |
+| --- | --- |
+| province + place=null + spot=null | 删除省及所有城市/景点 |
+| province + place + spot=null | 删除市及其 spots，保留省 |
+| province + place + spot | 只删景点，市与省保留 |
+| 最后一个城市删除 | 空省仍表示省范围偏好，显示尚未选择城市 |
+| 所有省删除且无 legacyText | destination 回到 missing |
+
+最终 spots 是名称字符串，不含 provider ID/坐标。候选消息保留身份与地址供选择，确认后不会把这些身份复制进 spots。未来规划须重新查询具体地点。spots 表示用户想去，不表示强制行程或已经验证开放/安全/可达。
+
+城市删除连带删 spots；未来规划读取当前 TripState，不能从历史聊天恢复这些偏好。历史消息保留是对话记录，不是当前意图清单。
+
+### 5.4 Generate plan 当前只检查准备度
+
+[evaluateGeneratePlanReadiness](../src/domain/trip-state/planning-readiness.ts)是纯状态判断，没有高德调用：
+
+| 当前目的地 | 返回 | 下一步 |
+| --- | --- | --- |
+| missing | destination_missing | 补目的地，可推荐或自己选 |
+| 存在 legacyText | destination_unverified | 重新确认或清除旧记录 |
+| 只有空省，所有 places=[] | destination_area_only | 继续选城市 |
+| 至少一个已选市且无旧文本 | canProceed=true，destination=selected | 提示规划功能尚未开放 |
+
+出发地、日期、时长、交通不是当前硬门槛。known 仅表示目的地状态已保存；空省或旧文本仍可能不能规划。
+
+[准备度 UI 模型](../src/components/trip-workspace/planning-readiness-model.ts)将结果关联 destination 快照。目的地改变后旧准备度不再展示，避免新决定沿用旧检查结果。
 
 ## 6. 回复到底是谁写的：速查表
 
-| 场景 | 文本来源 | 卡片/数据来源 |
+| 场景 | 正文来源 | 卡片/状态来源 |
 | --- | --- | --- |
-| Home 正常开场 | Kimi opening 模式 | 已创建 TripState |
-| Home 目的地含糊/无法验证 | 创建协调器固定模板 | 高德解析/消歧验证 |
-| Workspace 普通提问、闲聊、未明确的修改 | Kimi `reply` | 无 |
-| Workspace 普通字段修改 | 通常 Kimi `reply` | 应用验证并写状态 |
-| Workspace 目的地唯一匹配或省级范围 | 通常 Kimi `reply`；唯一确认时应用追加固定计划提示 | 高德解析后的结果 |
-| Workspace 目的地多解、未识别、查询故障、城市消歧 | [固定事实文案](../src/capabilities/conversation/turn-reply.ts)替换 Kimi 原回复 | 高德候选/验证后的城市 |
-| Workspace 聊天触发推荐 | 有卡时 Kimi 本轮 `reply`；无卡时固定“没筛出” | Bocha 搜索作上下文 + Kimi 候选 + 应用过滤 |
-| 点“帮我推荐” | 推荐工作流固定引导句或固定“没筛出” | 同一推荐工作流 |
-| 点推荐卡/候选卡 | 固定选择确认句 | 已保存卡片、TripState、准备度检查 |
-| 点 Generate plan | 固定准备度/错误文案 | TripState，必要时高德解析 |
-| 无消息时的聊天占位 | 客户端固定句，不持久化 | 当前 TripState |
+| Home 普通开场 | Kimi opening reply | 初始 TripState |
+| Home 地点候选/失败 | createJourneyWithOpening 固定模板 | 高德及 applyDestinationEdit |
+| 普通提问、闲聊、普通字段修改 | Kimi reply | 校验后的普通 patch |
+| 地点 add/set 候选 | messages route 固定说明 | 高德候选，正式目的地不变 |
+| 地点未找到/查询失败 | route 固定事实说明 | 无结果/故障事实 |
+| remove 成功无失败项 | Kimi reply | 实际删除；成功措辞仍依赖模型 |
+| remove 歧义/无匹配 | route 固定说明 | 当前保存状态匹配结果 |
+| 聊天推荐有卡 | 本轮解释 Kimi reply | 另一次 Kimi 推荐生成、Bocha 上下文及应用过滤 |
+| 聊天推荐无卡 | workflow 固定失败正文 | 无可展示建议 |
+| 显式推荐按钮 | workflow content | action 和助手建议 |
+| 聊天选卡提交成功 | destinationSelectionReply 固定确认 | 保存后状态和准备度 |
+| 右侧直接编辑/搜索/删除 | 固定加载、按钮、错误提示 | 不新增聊天正文 |
+| 缺目的地引导 | destinationMissingGuidance 固定句 | 按钮 presentation |
+| Generate plan | planningReadinessMessage 固定句 | 状态检查，不生成行程 |
 
-Kimi 接口默认模型 `kimi-k2.6`，可用 `LLM_MODEL` 覆盖；通过 Moonshot 兼容接口调用，相关环境变量见 [AI 客户端](../src/platform/llm/ai-sdk-kimi-client.ts)。LLM 的 JSON、字段值和推荐列表均由应用校验，模型不能生成 React 组件。
+[AI SDK 客户端](../src/platform/llm/ai-sdk-kimi-client.ts)默认 kimi-k2.6，LLM_MODEL 可覆盖；MOONSHOT_API_KEY 认证，MOONSHOT_BASE_URL 可覆盖地址。默认超时 60 秒，maxRetries=0。仓库默认配置不等于实时服务保证。
+
+[WorkspaceChatTransport](../src/components/trip-workspace/workspace-chat-transport.ts)取得服务端完整 JSON 后适配 useChat，替换临时用户 ID、同步真实状态。[conversation-reveal](../src/components/trip-workspace/conversation-reveal.ts)提供客户端逐字显示；这不代表 API 正在逐 token 流式生成或保存。
 
 ## 7. 持久化与几个需要留意的实现差异
 
-- **保存的是什么：**Trip 是 ID/访客所有权；TripState 是 7 个旅程字段；TripMessage 保存真实用户/助手文本及受限卡片 presentation；显式“帮我推荐”另存 TripUserAction。[TripState](../src/domain/trip-state/trip-state.ts)、[TripMessage](../src/domain/trip-message/trip-message.ts)、[TripUserAction](../src/domain/trip-user-action/trip-user-action.ts)。
-- **Home 与 Workspace 对省份不同：**Home 新建协调器只保留 `resolved`，所以高德返回 `area` 时会清空初始目的地；Workspace 写入协调器则把 `area` 保存为 `approximate + areas`。这是当前代码可观察到的不一致，不是流程图简化。
-- **旧文档已落后：**[ARCHITECTURE.md](ARCHITECTURE.md)仍描述“官方访问检查、排序、图片补全、最多 3 张卡”；目前的[推荐工作流](../src/capabilities/recommendation/destination-recommendation-workflow.ts)是搜索启发 + 模型生成 + 省份过滤，领域上限是 12 个地点。旧文档对可行性/安全核验的说法不能当成现有功能。
-- **Generate plan 只是检查：**UI 和回复会说“可以开始生成”，但按钮点击仅返回“规划功能尚未开放”等准备度文案；没有生成计划、路线、天气或研究 Agent 的执行 API。[按钮](../src/components/trip-workspace/generate-plan-action.tsx)、[文案](../src/components/trip-workspace/planning-readiness-model.ts)。
-- **推荐卡权威边界：**用户点卡后才写目的地，但这一路径只核对卡片确曾保存，不在写入前逐一复查高德地点身份。后续准备度对有地点的 `areas` 直接判可继续。这点与旧架构文档“选择卡片也要过 Location Provider 验证”不一致。
-- **部分成功：**开场模型失败时 Journey 已保存；卡片选择已写状态而确认回复失败时 API 返回 `follow_up_unavailable` 与新 TripState；聊天状态先写而后续消息/推荐失败时需刷新确认。前端都设有对应提示。[创建协调器](../src/capabilities/journey/create-journey-with-opening.ts)、[卡片选择 API](../src/app/api/trips/[id]/destination-recommendation-selection/route.ts)、[聊天 API](../src/app/api/trip-workspace/messages/route.ts)。
+### 7.1 各记录的职责
+
+- Trip：Journey 身份、owner、生命周期。
+- TripState：当前七类字段，目的地省市/景点；不包含 UI 布局决定。
+- TripMessage：真实用户/助手文本，助手可带受限 presentation，刷新重读。
+- TripUserAction：显式推荐按钮操作，与用户聊天消息区分。
+- JourneySummary：列表投影，不能作为修改基底。
+
+数据库定义：[schema](../src/platform/persistence/database/schema/index.ts)。状态仓库：[postgres-trip-state-repository](../src/platform/persistence/postgres/postgres-trip-state-repository.ts)。
+
+### 7.2 并发写入与比较并交换
+
+[updateTripState](../src/capabilities/journey/journey-service.ts)每次读最新状态、应用 patch，再 compareAndUpdate，最多尝试 3 次。普通字段冲突重读重算，保留并发新增目的地，避免用旧整个状态覆盖。
+
+目的地变更传 expectedDestination，重读后与预期不同则 TripStateConflictError/409；不能重套旧目的地 patch。聊天删除、手动变更和选卡提交都走这个边界。
+
+[Postgres CAS](../src/platform/persistence/postgres/postgres-trip-state-repository.ts)读取原始 JSON、验证领域对象与预期状态，再用原始 JSONB 作 UPDATE 条件，检查返回 ID。即使旧 JSON 在读取时被适配，也能原子阻止旧状态覆盖新写入。
+
+生产 Postgres 和内存仓库实现 CAS；接口仍允许没有 compareAndUpdate 的测试替身退回 update，不能把替身路径当生产并发保护。
+
+### 7.3 旧数据与实现局限
+
+旧字符串 places、旧卡片 presentation 在领域读取边界适配。旧 free-text destination.value 保留为 known、areas=[]、legacyText；显示待确认，不把景点强转为城市。
+
+追加已核验地点保留 legacyText，明确清除旧记录才移除；用户提交 replace 整体替换则采用新目的地。没有清库或新增地理实体数据库。
+
+当前限制：
+
+- 聊天状态与消息不是同一跨步骤事务，失败需刷新核对。
+- 选卡组合有确认身份与去重，普通聊天/推荐 POST 还无全局重试幂等保证。
+- 手动路由 ownerAndTrip 把加载异常统一当未找到，不能由 404 区分数据库故障。
+- 最终 spot 按名称保存/去重，不能单靠 TripState 区分两个同名 POI，未来须再核验。
+- 同名不可区分项在 UI 禁用，尚无地图消歧界面。
+- 未实现删除撤销、省内限定搜索、Research Agent 或真正计划生成。
+
+### 7.4 下一版 Generate Plan 的交接边界（计划）
+
+未来规划应从当前 TripState 取得省范围、已选城市、spots 偏好及日期/交通。空省、旧文本有明确处理规则；未提交候选不能当已选，已删除景点不能从历史恢复。
+
+生成前重新核验 POI，保存证据和新鲜度，再研究交通、天气、开放/访问与风险。准备度通过不代表这些事实已成立。执行、失败恢复、研究预算及持久化规划产物尚未接入；本轮只记录边界，不预先实现框架。
 
 ### 核心文件索引
 
-| 想找什么 | 文件 |
-| --- | --- |
-| Home 新建调用顺序 | [new-trip-composer-model.ts](../src/components/meri-shell/new-trip-composer-model.ts) |
-| Home 提取 prompt 与 API | [trip-draft-prompt.ts](../src/capabilities/journey/prompts/trip-draft-prompt.ts)、[trip-drafts/route.ts](../src/app/api/trip-drafts/route.ts) |
-| 新建目的地核验与开场 | [create-journey-with-opening.ts](../src/capabilities/journey/create-journey-with-opening.ts) |
-| Workspace 聊天总控制器 | [messages/route.ts](../src/app/api/trip-workspace/messages/route.ts) |
-| 聊天决策 prompt 与 JSON schema | [workspace-conversation-prompt.ts](../src/capabilities/conversation/prompts/workspace-conversation-prompt.ts)、[workspace-conversation-interpreter.ts](../src/capabilities/conversation/workspace-conversation-interpreter.ts) |
-| 地点写入、最终回复 | [post-update-destination-resolution.ts](../src/capabilities/destination/post-update-destination-resolution.ts)、[workspace-turn-branch.ts](../src/capabilities/conversation/workspace-turn-branch.ts)、[turn-reply.ts](../src/capabilities/conversation/turn-reply.ts) |
-| 推荐生成和触发门槛 | [destination-recommendation-use-case.ts](../src/capabilities/recommendation/destination-recommendation-use-case.ts)、[destination-recommendation-workflow.ts](../src/capabilities/recommendation/destination-recommendation-workflow.ts) |
-| 用户点推荐/歧义卡 | [destination-recommendation-selection/route.ts](../src/app/api/trips/[id]/destination-recommendation-selection/route.ts)、[location-candidate-selection/route.ts](../src/app/api/trips/[id]/location-candidate-selection/route.ts) |
-| 状态/消息数据库连接 | [journey-service-instance.ts](../src/capabilities/journey/journey-service-instance.ts)、[trip-message-service-instance.ts](../src/capabilities/conversation/trip-message-service-instance.ts) |
+| 业务/操作 | 文件 | 追踪细节 |
+| --- | --- | --- |
+| Home 提交和失败重试 | [composer model](../src/components/meri-shell/new-trip-composer-model.ts) | 两次请求、phase、导航 |
+| 草稿提取 | [extractor](../src/capabilities/journey/trip-draft-extractor.ts) | 模型 JSON 与校验 |
+| 创建开场协调 | [create-journey-with-opening](../src/capabilities/journey/create-journey-with-opening.ts) | 高德候选、opening 分支 |
+| 创建/读取/并发更新 | [journey-service](../src/capabilities/journey/journey-service.ts) | 所有权、回滚、CAS |
+| 初始状态与读取兼容 | [trip-state](../src/domain/trip-state/trip-state.ts) | authority、初始化、旧数据 |
+| 目的地操作契约 | [destination-edit](../src/domain/trip-state/destination-edit.ts) | 受限 schema、四种操作 |
+| 层级纯函数 | [destination-areas](../src/domain/trip-state/destination-areas.ts) | 合并、包含、唯一匹配、级联 |
+| 聊天模型解释 | [interpreter](../src/capabilities/conversation/workspace-conversation-interpreter.ts) | 四项 JSON、opening 限制 |
+| 普通字段校验 | [workspace-conversation](../src/domain/trip-state/workspace-conversation.ts) | changes → user patch |
+| 实际聊天分支 | [messages route](../src/app/api/trip-workspace/messages/route.ts) | 保存顺序、固定正文、错误 |
+| 历史上下文 | [conversation-context](../src/capabilities/conversation/workspace-conversation-context.ts) | 5 轮/6000 字符、助手合并 |
+| 地点操作执行 | [apply-destination-edit](../src/capabilities/destination/apply-destination-edit.ts) | 候选、不自动保存、部分失败 |
+| 高德层级映射 | [resolve-destination-place](../src/capabilities/destination/resolve-destination-place.ts) | 省市、spot、不同 POI 保留 |
+| 提供方解析 | [location-service](../src/capabilities/destination/location-service.ts)、[Amap adapter](../src/platform/location-provider/amap-location-provider.ts) | 解析状态、规范化错误 |
+| 推荐资格 | [recommendation-use-case](../src/capabilities/recommendation/destination-recommendation-use-case.ts) | 自动/显式来源、消息一次保存 |
+| 推荐流水线 | [workflow](../src/capabilities/recommendation/destination-recommendation-workflow.ts) | 搜索、生成、省范围过滤 |
+| 统一选卡提交 | [selection route](../src/app/api/trips/[id]/destination-recommendation-selection/route.ts) | offer 校验、整批核验、替换、重试 |
+| 提交身份复核 | [verified-choice](../src/capabilities/destination/verified-destination-choice.ts) | provider ID 与历史规范名 |
+| 手动搜索/添加/删除 | [destinations route](../src/app/api/trips/[id]/destinations/route.ts) | 精确 body、重查、完整删除元组 |
+| 聊天多选卡 | [choices card](../src/components/trip-workspace/destination-choices-card.tsx) | 分省、暂选、批量确认 |
+| 聊天同步/恢复 | [conversation-panel](../src/components/trip-workspace/conversation-panel.tsx)、[transport](../src/components/trip-workspace/workspace-chat-transport.ts) | pending、保存状态、消息 ID |
+| 右侧目的地 | [destination-editor](../src/components/trip-workspace/destination-editor.tsx) | 层级、搜索防抖、busy、删除 |
+| 右侧普通字段 | [brief panel](../src/components/trip-workspace/expedition-brief-panel.tsx)、[location-editor](../src/components/trip-workspace/location-editor.tsx) | 编辑、origin、准备度快照 |
+| 历史卡片适配 | [trip-message](../src/domain/trip-message/trip-message.ts)、[UI adapter](../src/components/trip-workspace/trip-message-ui-adapter.ts) | 领域读取与统一展示 |
+| 规划准备度 | [planning-readiness](../src/domain/trip-state/planning-readiness.ts) | missing/area_only/unverified/selected |
+| 原子数据库更新 | [postgres state repository](../src/platform/persistence/postgres/postgres-trip-state-repository.ts) | 原始 JSONB 条件更新 |
+| 模型 SDK | [ai-sdk-kimi-client](../src/platform/llm/ai-sdk-kimi-client.ts) | 模型配置、超时、日志 |
+
+面试讲解建议按“用户入口 → 模型 JSON → 领域校验 → 地点核验/推荐 → 显式选择 → 状态保存 → UI 恢复”展开。每层说明业务规则、权威来源和失败边界，区分提案、候选与已保存决定。
