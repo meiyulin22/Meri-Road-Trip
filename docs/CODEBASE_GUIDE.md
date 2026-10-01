@@ -178,6 +178,7 @@ LLM 解释自然语言并提出受限 JSON；应用校验、决定是否执行�
 | [docs/PROJECT.md](../docs/PROJECT.md) | 文档/开发约定 | 产品愿景、当前 MVP、用户决定原则、规划方向及当前非目标。 |
 | [docs/USER_FLOW_CURRENT.md](../docs/USER_FLOW_CURRENT.md) | 文档/开发约定 | 向用户讲解的详细业务材料：入口、模型 JSON、每个操作的 API/代码、状态变化、错误、并发与兼容。 |
 | [docs/product/adaptive-workspace.md](../docs/product/adaptive-workspace.md) | 文档/开发约定 | 精简的未来界面方向：按用户决定调整信息重点，保留状态和受控组件边界，不预选框架。 |
+| [docs/product/companion-bear.md](../docs/product/companion-bear.md) | 文档/开发约定 | 小熊未来方向：64px 精灵图素材方案、坐下/看地图/吃饭团等动作清单，以及“反应优先、自由时间随机”的行为逻辑；不是已实现功能。 |
 
 ### 6.3 App Router 页面与 HTTP 接口
 

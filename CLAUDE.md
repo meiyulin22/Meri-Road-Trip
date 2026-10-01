@@ -23,8 +23,8 @@ For database schema, repository, or migration work, also read
 `docs/DATABASE_SCHEMA.md` for the table/field directory, relationships, constraints,
 and code mappings. Keep it consistent with the actual schema and migration files.
 
-`docs/product/adaptive-workspace.md` describes future direction, not an implementation
-requirement. Historical plans in Git are not the current behavior contract.
+`docs/product/adaptive-workspace.md` and `docs/product/companion-bear.md` describe future
+direction, not an implementation requirement. Historical plans in Git are not the current behavior contract.
 
 ## Working rules
 

@@ -250,7 +250,7 @@ Generate plan 只有一个，位于聊天下方：missing→按钮不可用并�
 
 后续研究需保留来源、新鲜度、不确定性和可恢复错误，明确停止条件、调用/时间预算与权限边界。不能从聊天恢复已删除偏好，不能静默覆盖用户决定。当前不选择通用 Agent、模型路由、向量库或 UI 决策框架。
 
-Adaptive Workspace 的简短方向见 [product/adaptive-workspace.md](product/adaptive-workspace.md)，只保留设计意图，不作为当前实施任务。新增能力应由实际产品需求推动。
+Adaptive Workspace 的简短方向见 [product/adaptive-workspace.md](product/adaptive-workspace.md)，只保留设计意图，不作为当前实施任务。小熊的动画与行为方向见 [product/companion-bear.md](product/companion-bear.md)，同样只是设计意图。新增能力应由实际产品需求推动。
 
 ## 8. 验证与运行边界
 
