@@ -188,7 +188,7 @@ flowchart TD
 | --- | --- | --- |
 | none | 不变 | 有资格可推荐，否则模型 reply |
 | add/set + resolved | 不变 | 待选卡，唯一地点也需确认 |
-| add/set + area | 不变 | 已核验省级候选；选后保留空省，仍需选城市 |
+| add/set + area | 不变 | 已核验省级候选；选后保存为只有省的目的地，可直接规划，也可继续选城市 |
 | add/set + ambiguous | 不变 | 按省/市/景点偏好归并；不同省市分别供选择 |
 | add/set + unresolved | 不因该表达改变 | 暂未找到可靠地点 |
 | add/set + provider_error | 不因该表达改变 | 查询暂不可用，可重试 |
@@ -228,7 +228,7 @@ add/set 使用 Promise.all 查询表达。解析层保留不同 provider ID，�
 | --- | --- | --- |
 | 缺目的地：“人少安静，彻底放空” | none + 推荐信号，Bocha/Kimi 推荐 | 有卡用本轮模型 reply，目的地不变 |
 | 缺目的地：“想出去玩” | none，无推荐信号 | Kimi 追问，无状态变化 |
-| “我想去云南” | add/set，查询省级 area | 待选省卡；提交后为空省，尚不能规划 |
+| “我想去云南” | add/set，查询省级 area | 待选省卡；提交后为只有省的目的地，已可规划 |
 | “云南，想爬山” | 地点 edit 占本轮 | 先确认省，之后可省内推荐；本轮不再自动连跑推荐 |
 | 已有浙江福建：“还想去潮汕” | add，broadRegion=潮汕，核验相关市 | 广东城市可多选追加，旧目的地保留 |
 | “改去潮汕” | set，replace 卡 | 一次提交后整体替换，旧卡可能 409 |
@@ -246,11 +246,11 @@ add/set 使用 Promise.all 查询表达。解析层保留不同 provider ID，�
 
 **聊天自动触发：**presentationIntent=destination_recommendations 只是模型信号。[shouldCreateConversationalRecommendations](../src/capabilities/recommendation/destination-recommendation-use-case.ts)还要求 destinationEdit=none，且 [isDestinationOpenToRecommendations](../src/domain/trip-state/trip-state.ts)允许当前状态：missing 或没有选城市的省范围。已定城市不能因推荐信号被替换；legacyText 不作为已验证省范围。
 
-**显式按钮：**右侧 Generate plan 在 destination_missing 时保存固定引导，提供“帮我推荐 / 我自己选”。推荐调用 [destination-recommendations API](../src/app/api/trips/[id]/destination-recommendations/route.ts)，按请求入口构造 source=explicit_action 的推荐上下文，再保存助手消息，不另存 action 记录、不伪造用户聊天；自己选打开编辑器。[引导模板](../src/capabilities/conversation/destination-missing-guidance.ts)和 [引导 API](../src/app/api/trips/[id]/destination-missing-guidance/route.ts)按当前状态限制入口。
+**没有推荐按钮：**推荐只从聊天触发。缺目的地时，聊天下方的 Generate plan 不可用，悬停或聚焦时提示用户：在对话里说出想去的地方、对 Meri 说“帮我推荐几个地方”，或点击提示里的链接打开右侧目的地搜索（见 5.4）。旧版“帮我推荐 / 我自己选”引导消息及其 API 已删除；旧旅程历史里保存的那条引导消息仍按普通助手消息显示，不再带按钮，[其稳定 ID](../src/capabilities/conversation/destination-missing-guidance.ts) 只用于开场判断时跳过它。
 
 **实际推荐流水线：**
 
-1. [构造上下文](../src/capabilities/recommendation/destination-recommendation-context.ts)：TripState、最多 10 条/6000 字符对话；聊天入口追加当前真实原话并使用 source=conversation，按钮入口使用 source=explicit_action，来源标记只存在于本次调用上下文。
+1. [构造上下文](../src/capabilities/recommendation/destination-recommendation-context.ts)：TripState、最多 10 条/6000 字符对话；追加当前真实原话并使用 source=conversation（唯一入口），来源标记只存在于本次调用上下文。
 2. [Discovery Search](../src/platform/search/discovery-search.ts)：Bocha 取最多 8 条启发信息，失败退化为空搜索上下文。
 3. [推荐生成器](../src/capabilities/recommendation/destination-recommendation-generator.ts)：Kimi 输出省、市/州和理由。
 4. [领域校验](../src/domain/location/destination-recommendations.ts)：形状校验、去重、最多 12 个地点。
@@ -275,7 +275,7 @@ add/set 使用 Promise.all 查询表达。解析层保留不同 provider ID，�
 | 任一选择正在保存 | selectionInFlight + pending | 暂停全部聊天选择卡，避免重入 |
 | 保存失败，且状态未确认写入 | 最新有效卡显示可重试错误 | 不伪称已添加 |
 | 已确认/继续聊天/后续新卡 | 原卡变成只读 | 禁用复选框和提交，显示“历史选项，仅供查看” |
-| 聊天内点击推荐、自己选、Generate plan | 立即关闭当前卡的本地操作资格 | 新返回的候选卡按新消息判断资格 |
+| 点击 Generate plan，或在其提示里打开目的地搜索 | 立即关闭当前卡的本地操作资格 | 新返回的候选卡按新消息判断资格 |
 | replace 的目的地基底已变化 | 比较 baseDestination 和当前 destination | 原卡只读，不能覆盖新的决定 |
 
 [UI adapter](../src/components/trip-workspace/trip-message-ui-adapter.ts)兼容新 destination_choices、旧 destination_recommendations 和旧 location_candidates。旧独立 location-candidate-selection API 已移除。
@@ -319,27 +319,51 @@ add/set 使用 Promise.all 查询表达。解析层保留不同 provider ID，�
 
 | 操作 | 实际行为 | LLM/聊天副作用 |
 | --- | --- | --- |
-| 修改名称、日期、时长、交通 | [state PATCH](../src/app/api/trips/[id]/state/route.ts)，校验普通字段 | 无 LLM，无聊天正文 |
+| 修改名称 | 文本编辑后 [state PATCH](../src/app/api/trips/[id]/state/route.ts)，校验普通字段 | 无 LLM，无聊天正文 |
+| 选择交通偏好 | 一次点选四个选项之一，再点已选项清除；state PATCH | 无 LLM，无聊天正文 |
+| 选择“何时” | [TripDatesField](../src/components/trip-workspace/trip-dates-editor.tsx)范围日历 + 天数步进器；state PATCH 只发送用户选的值，服务器补算第三个 | 无 LLM，无聊天正文 |
 | 修改出发地 | [LocationEditor](../src/components/trip-workspace/location-editor.tsx)、[suggestions API](../src/app/api/locations/suggestions/route.ts)、选中后 state PATCH | 仍是 origin 身份结构，不走 destinationEdit |
-| 展开目的地 | 编辑器铅笔 | 本地展开，无状态写入 |
+| 展开目的地搜索 | 目的地行右侧“＋ 添加”（展开后变“收起”） | 本地展开，无状态写入 |
 | 搜索城市/景点 | GET /api/trips/{id}/destinations?q=… | 高德，无 LLM，无消息 |
 | 添加搜索结果 | POST 同路径 `{query,id}` | 重查身份后保存，无助手消息 |
 | 删除省、市、spot | DELETE 同路径 `{province,place,spot}` | 确定性级联，同步状态 |
 | 清除旧文本 | DELETE `{legacy:true}` | 删除 legacyText，保留已添加 areas |
-| 右侧 Generate plan | [planning-readiness API](../src/app/api/trips/[id]/planning-readiness/route.ts) | 只检查，缺失时保存固定引导 |
-| 聊天 Generate plan | [GeneratePlanAction](../src/components/trip-workspace/generate-plan-action.tsx) | 同一检查，不执行规划 |
+| Generate plan（唯一，位于聊天下方） | [GeneratePlanAction](../src/components/trip-workspace/generate-plan-action.tsx) 调用 [planning-readiness API](../src/app/api/trips/[id]/planning-readiness/route.ts) | 只检查，不执行规划；右侧面板不再有 Generate plan |
 | 返回、重开、刷新 | 读持久化状态与消息 | 不调用模型 |
 | 删除 Journey | [DELETE /api/trips/{id}](../src/app/api/trips/[id]/route.ts)，校验 owner | 列表反馈，不调用模型 |
 
 ### 5.1 普通字段编辑体验
 
-[ExpeditionBriefPanel](../src/components/trip-workspace/expedition-brief-panel.tsx)切换编辑：Enter/失焦提交，Escape 取消；交通用枚举下拉。成功采用服务器状态，失败显示错误。[createDirectTripStatePatch](../src/components/trip-workspace/trip-state-persistence-model.ts)构造 source=user 修改；客户端及服务端均禁止通过通用 PATCH 改 destination。
+[ExpeditionBriefPanel](../src/components/trip-workspace/expedition-brief-panel.tsx)按“从哪出发 → 去哪 → 何时 → 怎么去”排列：出发地、目的地、何时、交通偏好，旅程名称放最后。不再显示“N / 7 已理解”计数、示意封面、重复的目的地/日期/交通摘要和“即将开放”快捷按钮。
 
-收起详细字段时保留目的地、开始时间和时长。省摘要、旅程标题等由 [workspace-presentation](../src/components/trip-workspace/workspace-presentation.ts)派生，不是另一份目的地事实。
+每行状态由 [field-certainty](../src/components/trip-workspace/field-certainty.tsx)统一表示：known 绿色勾；approximate 琥珀色圆点并在值后显示“大致”；ambiguous 红褐色感叹号并显示“待确认”；missing 灰色虚线圆。完整状态文字仍以屏幕阅读器可读的隐藏文本提供。
+
+- 旅程名称：文本编辑，Enter/失焦提交，Escape 取消。
+- 交通偏好：四个选项（自驾、不自驾、公共交通、灵活）一次点选，再点已选项清除为 missing；Meri 从对话记下的近似原话（如“可能自驾吧”）显示在选项下方，直到用户点选。
+- 何时：一行概括开始、结束和时长，例如“10月1日 → 10月7日 · 7天”；近似原话原样显示并标“大致”。点开为范围日历（宽屏两个月、窄屏一个月，今天之前不可选）：第一次点为开始、第二次点为结束，结束早于开始时改为新的开始；选完两端才保存。只选了开始就填天数或关闭浮层，会连同开始一起保存。天数可用 −/+ 或直接输入（1–366）。“清除日期”把三项都设为 missing。
+- 成功采用服务器状态，失败显示错误。[createDirectTripStatePatch](../src/components/trip-workspace/trip-state-persistence-model.ts)与 [createTripDatesPatch](../src/components/trip-workspace/trip-dates-model.ts)构造 source=user 修改；客户端及服务端均禁止通过通用 PATCH 改 destination。
+
+收起详细字段时保留目的地和何时。页头日期行与“何时”使用同一 [tripDatesSummary](../src/components/trip-workspace/trip-dates-model.ts)；旅程标题等由 [workspace-presentation](../src/components/trip-workspace/workspace-presentation.ts)派生，不是另一份事实。
+
+**日期补算规则：**开始、结束、时长描述同一段时间，任意两项确定第三项，天数按含首尾计算（1号到7号为 7天，即 7天6晚）。[deriveTripDates](../src/domain/trip-state/trip-dates.ts)在 [applyTripStatePatch](../src/domain/trip-state/trip-state.ts)中执行，因此右侧编辑和聊天修改都遵守同一规则：
+
+| 本次修改 | 已有 | 补算 |
+| --- | --- | --- |
+| 开始 + 结束 | — | 时长 |
+| 开始 + 时长 | — | 结束 |
+| 结束 + 时长 | — | 开始 |
+| 只改开始 | 时长 | 保持时长，移动结束 |
+| 只改开始 | 结束（无时长） | 时长 |
+| 只改结束 | 开始 | 时长 |
+| 只改结束 | 时长（无开始） | 开始 |
+| 只改时长 | 开始 | 保持开始，移动结束 |
+| 只改时长 | 结束（无开始） | 开始 |
+
+只有 state=known 且格式精确的值参与：日期为真实日历日 `YYYY-MM-DD`，时长为 `N天`（可带“M晚”）。“周末”“十月底”“大概一周”等近似或非精确写法不参与，也不会被改写；结束早于开始时不补算。补算出的值 source=system。已保存的旧旅程不回填，下次修改日期时才补算。对话模型的字段说明要求精确天数写成 `N天`（“玩七天”→“7天”）。
 
 ### 5.2 目的地搜索、核验、保存
 
-目的地沿用日期等字段的两列、状态图标和铅笔。值列按省 → 市/自治州 → 想去景点缩进，移除独立外框、嵌套省卡和亮色标题按钮；展开后搜索横跨字段行。手动搜索仍用单个结果添加，聊天则多选统一提交。
+目的地标题行右侧是“＋ 添加”按钮；其下横跨整行，每个省一块浅底区域：省名在左、删除省的 ✕ 统一在右；城市为带 ✕ 的标签，想去的景点以带定位图标的浅色标签紧跟在所属城市后。没有城市的省显示“全省”标签和“规划时按整省考虑”，表示整省范围的目的地，而不是未完成项。展开后搜索横跨字段行。手动搜索仍用单个结果添加，聊天则多选统一提交。
 
 - 至少 2 字开始查询，250ms 防抖，新输入/收起取消旧请求；已取消响应不得覆盖新列表。
 - [destinations API](../src/app/api/trips/[id]/destinations/route.ts)限制表达 2–80 字符，最多返回 12 项，GET 响应 no-store。
@@ -365,7 +389,7 @@ add/set 使用 Promise.all 查询表达。解析层保留不同 provider ID，�
 }
 ```
 
-[resolveDestinationPlace / picksFromSearch](../src/capabilities/destination/resolve-destination-place.ts)取得高德省市父级。匹配城市本身时不建 spot；具体 POI 进入所属市的 spots，适当保留用户表达，否则采用规范名。直辖市以省名作市级父项，UI 显示市内避免重复。
+[resolveDestinationPlace / picksFromSearch](../src/capabilities/destination/resolve-destination-place.ts)取得高德省市父级。匹配城市本身时不建 spot；具体 POI 进入所属市的 spots，适当保留用户表达，否则采用规范名。直辖市以省名作市级父项，UI 显示“市内”标签避免重复。
 
 [destination-areas](../src/domain/trip-state/destination-areas.ts)纯函数负责：
 
@@ -374,7 +398,7 @@ add/set 使用 Promise.all 查询表达。解析层保留不同 provider ID，�
 | province + place=null + spot=null | 删除省及所有城市/景点 |
 | province + place + spot=null | 删除市及其 spots，保留省 |
 | province + place + spot | 只删景点，市与省保留 |
-| 最后一个城市删除 | 空省仍表示省范围偏好，显示尚未选择城市 |
+| 最后一个城市删除 | 保留省，表示整省范围的目的地，仍可规划 |
 | 所有省删除且无 legacyText | destination 回到 missing |
 
 最终 spots 是名称字符串，不含 provider ID/坐标。聊天卡选择城市及景点偏好，使用偏好身份，不展示某条 POI 地址来暗示已选精确位置；手动搜索和历史原始候选可保留 provider 身份与地址，确认后也不复制进 spots。未来规划须重新查询具体地点。spots 表示用户想去，不表示强制行程或已经验证开放/安全/可达。
@@ -387,12 +411,13 @@ add/set 使用 Promise.all 查询表达。解析层保留不同 provider ID，�
 
 | 当前目的地 | 返回 | 下一步 |
 | --- | --- | --- |
-| missing | destination_missing | 补目的地，可推荐或自己选 |
-| 存在 legacyText | destination_unverified | 重新确认或清除旧记录 |
-| 只有空省，所有 places=[] | destination_area_only | 继续选城市 |
-| 至少一个已选市且无旧文本 | canProceed=true，destination=selected | 提示规划功能尚未开放 |
+| missing | destination_missing | 按钮不可用；悬停/聚焦提示三种添加途径 |
+| 存在 legacyText | destination_unverified | 按钮不可用；提示重新搜索添加或清除旧记录 |
+| 已有省（无论是否选了市）且无旧文本 | canProceed=true，destination=selected | 可点击，提示规划功能尚未开放 |
 
-出发地、日期、时长、交通不是当前硬门槛。known 仅表示目的地状态已保存；空省或旧文本仍可能不能规划。
+出发地、日期、时长、交通不是当前硬门槛。只有省、没有市也算已有目的地，规划会以整省为范围；只有旧文本未确认时不能规划。
+
+按钮始终显示。不可用时使用 `aria-disabled` 而非 `disabled`，保持可聚焦，使键盘用户也能读到提示；提示卡位于按钮所在容器内，指针从按钮移到提示上不会关闭，可点击其中的“在旅程信息里搜索并添加目的地”。该链接通过 [TripWorkspace](../src/components/trip-workspace/trip-workspace.tsx) 递增编辑器打开请求，右侧 [DestinationEditor](../src/components/trip-workspace/destination-editor.tsx) 重新挂载为展开状态并自动聚焦搜索框。点击可用按钮时的检查结果仍只在按钮下方显示，并随目的地变化失效。
 
 [准备度 UI 模型](../src/components/trip-workspace/planning-readiness-model.ts)将结果关联 destination 快照。目的地改变后旧准备度不再展示，避免新决定沿用旧检查结果。
 
@@ -409,10 +434,8 @@ add/set 使用 Promise.all 查询表达。解析层保留不同 provider ID，�
 | remove 歧义/无匹配 | route 固定说明 | 当前保存状态匹配结果 |
 | 聊天推荐有卡 | 本轮解释 Kimi reply | 另一次 Kimi 推荐生成、Bocha 上下文及应用过滤 |
 | 聊天推荐无卡 | workflow 固定失败正文 | 无可展示建议 |
-| 显式推荐按钮 | workflow content | explicit_action 上下文与保存的助手建议，不另存 action |
 | 聊天选卡提交成功 | destinationSelectionReply 固定确认 | 保存后状态和准备度 |
 | 右侧直接编辑/搜索/删除 | 固定加载、按钮、错误提示 | 不新增聊天正文 |
-| 缺目的地引导 | destinationMissingGuidance 固定句 | 按钮 presentation |
 | Generate plan | planningReadinessMessage 固定句 | 状态检查，不生成行程 |
 
 [AI SDK 客户端](../src/platform/llm/ai-sdk-kimi-client.ts)默认 kimi-k2.6，LLM_MODEL 可覆盖；MOONSHOT_API_KEY 认证，MOONSHOT_BASE_URL 可覆盖地址。默认超时 60 秒，maxRetries=0。仓库默认配置不等于实时服务保证。
@@ -426,7 +449,7 @@ add/set 使用 Promise.all 查询表达。解析层保留不同 provider ID，�
 - Trip：Journey 身份、owner、生命周期。
 - TripState：当前七类字段，目的地省市/景点；不包含 UI 布局决定。
 - TripMessage：真实用户/助手文本，助手可带受限 presentation，刷新重读。
-- 显式推荐操作：本次上下文使用 source=explicit_action，未定义当前独立持久化实体；历史 `trip_user_actions` 表由 [0007](../drizzle/0007_trip_user_actions.sql) 创建、[0009](../drizzle/0009_drop_trip_user_actions.sql) 定义删除，当前 schema 不包含该表。具体环境是否执行迁移需另行检查。
+- 推荐操作：只从聊天触发（source=conversation），未定义独立持久化实体；历史 `trip_user_actions` 表由 [0007](../drizzle/0007_trip_user_actions.sql) 创建、[0009](../drizzle/0009_drop_trip_user_actions.sql) 定义删除，当前 schema 不包含该表。具体环境是否执行迁移需另行检查。
 - JourneySummary：列表投影，不能作为修改基底。
 
 数据库定义：[schema](../src/platform/persistence/database/schema/index.ts)。状态仓库：[postgres-trip-state-repository](../src/platform/persistence/postgres/postgres-trip-state-repository.ts)。
@@ -459,7 +482,7 @@ add/set 使用 Promise.all 查询表达。解析层保留不同 provider ID，�
 
 ### 7.4 下一版 Generate Plan 的交接边界（计划）
 
-未来规划应从当前 TripState 取得省范围、已选城市、spots 偏好及日期/交通。空省、旧文本有明确处理规则；未提交候选不能当已选，已删除景点不能从历史恢复。
+未来规划应从当前 TripState 取得省范围、已选城市、spots 偏好及日期/交通。只有省的目的地以整省为范围、旧文本需重新确认，均有明确处理规则；未提交候选不能当已选，已删除景点不能从历史恢复。
 
 生成前重新核验 POI，保存证据和新鲜度，再研究交通、天气、开放/访问与风险。准备度通过不代表这些事实已成立。执行、失败恢复、研究预算及持久化规划产物尚未接入；本轮只记录边界，不预先实现框架。
 
@@ -492,7 +515,7 @@ add/set 使用 Promise.all 查询表达。解析层保留不同 provider ID，�
 | 右侧目的地 | [destination-editor](../src/components/trip-workspace/destination-editor.tsx) | 层级、搜索防抖、busy、删除 |
 | 右侧普通字段 | [brief panel](../src/components/trip-workspace/expedition-brief-panel.tsx)、[location-editor](../src/components/trip-workspace/location-editor.tsx) | 编辑、origin、准备度快照 |
 | 历史卡片适配 | [trip-message](../src/domain/trip-message/trip-message.ts)、[UI adapter](../src/components/trip-workspace/trip-message-ui-adapter.ts) | 领域读取与统一展示 |
-| 规划准备度 | [planning-readiness](../src/domain/trip-state/planning-readiness.ts) | missing/area_only/unverified/selected |
+| 规划准备度 | [planning-readiness](../src/domain/trip-state/planning-readiness.ts) | missing/unverified/selected |
 | 原子数据库更新 | [postgres state repository](../src/platform/persistence/postgres/postgres-trip-state-repository.ts) | 原始 JSONB 条件更新 |
 | 模型 SDK | [ai-sdk-kimi-client](../src/platform/llm/ai-sdk-kimi-client.ts) | 模型配置、超时、日志 |
 

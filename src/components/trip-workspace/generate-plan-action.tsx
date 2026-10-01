@@ -1,28 +1,26 @@
 "use client";
 
 import { LoaderCircle, Route } from "lucide-react";
-import { useRef, useState } from "react";
+import { useId, useRef, useState } from "react";
 
-import type { GeneratePlanReadiness } from "@/domain/trip-state/planning-readiness";
+import { evaluateGeneratePlanReadiness, type GeneratePlanReadiness } from "@/domain/trip-state/planning-readiness";
 import type { TripState } from "@/domain/trip-state/trip-state";
 
-import { canRequestPlanGeneration, planningReadinessMessage, requestPlanningReadiness } from "./planning-readiness-model";
+import { planningReadinessMessage, requestPlanningReadiness } from "./planning-readiness-model";
 import styles from "./trip-workspace.module.css";
 
 /**
- * Generate plan belongs where the user just finished choosing. Journey overview is
- * on the right and is the panel a user collapses; the conversation is where Meri
- * says the plan can be generated, so the button that acts on that sentence sits
- * with it, and answers there too.
- *
- * It keeps its own check rather than sharing Journey overview's: both ask the same
- * endpoint, and an answer shown where the click happened is the whole point.
+ * The one Generate plan, under the conversation where Meri says a plan can be made.
+ * It is always visible so the user knows it exists. Until a destination is saved it
+ * stays unavailable and, on hover or focus, explains the ways to add one.
  */
 export function GeneratePlanAction({
   tripId,
   tripState,
+  onChooseDestination,
   onRequest,
 }: {
+  readonly onChooseDestination: () => void;
   readonly onRequest?: () => void;
   readonly tripId: string;
   readonly tripState: TripState;
@@ -35,11 +33,13 @@ export function GeneratePlanAction({
   } | null>(null);
   const [isChecking, setIsChecking] = useState(false);
   const requestInFlight = useRef(false);
+  const hintId = useId();
   const destinationKey = JSON.stringify(tripState.destination);
   const current = answer?.destinationKey === destinationKey ? answer : null;
+  const blocked = evaluateGeneratePlanReadiness(tripState);
 
   async function checkReadiness(): Promise<void> {
-    if (requestInFlight.current) return;
+    if (requestInFlight.current || !blocked.canProceed) return;
     requestInFlight.current = true;
     onRequest?.();
     setIsChecking(true);
@@ -54,23 +54,53 @@ export function GeneratePlanAction({
     }
   }
 
-  if (!canRequestPlanGeneration(tripState)) return null;
-
   return (
     <div className={styles.chatGeneratePlan} data-region="chat-generate-plan">
-      <button
-        aria-busy={isChecking}
-        disabled={isChecking}
-        onClick={() => void checkReadiness()}
-        type="button"
-      >
-        {isChecking ? (
-          <LoaderCircle aria-hidden="true" className={styles.loadingIcon} size={17} />
-        ) : (
-          <Route aria-hidden="true" size={17} />
+      <div className={styles.generatePlanTrigger}>
+        {/* aria-disabled rather than disabled keeps the button focusable, so keyboard
+            users reach the explanation too. */}
+        <button
+          aria-busy={isChecking}
+          aria-describedby={blocked.canProceed ? undefined : hintId}
+          aria-disabled={!blocked.canProceed || isChecking}
+          aria-label={isChecking ? "正在检查目的地" : "Generate plan"}
+          className={styles.haloButton}
+          onClick={() => void checkReadiness()}
+          type="button"
+        >
+          {isChecking ? (
+            <LoaderCircle aria-hidden="true" className={styles.loadingIcon} size={17} />
+          ) : (
+            <Route aria-hidden="true" size={17} />
+          )}
+          <HaloLabel text={isChecking ? "正在检查目的地…" : "Generate plan"} />
+        </button>
+        {blocked.canProceed ? null : (
+          <div className={styles.generatePlanHint} id={hintId} role="note">
+            {blocked.reason === "destination_missing" ? (
+              <>
+                <strong>先告诉 Meri 想去哪里</strong>
+                <ul>
+                  <li>在下方对话里说出想去的省、城市或景点</li>
+                  <li>还没想好？对 Meri 说「帮我推荐几个地方」</li>
+                  <li>
+                    <button onClick={onChooseDestination} type="button">在旅程信息里搜索并添加目的地</button>
+                  </li>
+                </ul>
+              </>
+            ) : (
+              <>
+                <strong>旧旅程里的目的地需要重新确认</strong>
+                <ul>
+                  <li>
+                    <button onClick={onChooseDestination} type="button">在旅程信息的目的地里重新搜索添加，或清除旧记录</button>
+                  </li>
+                </ul>
+              </>
+            )}
+          </div>
         )}
-        <span>{isChecking ? "正在检查目的地…" : "Generate plan"}</span>
-      </button>
+      </div>
       {current?.readiness ? (
         <p role="status" data-ready={current.readiness.canProceed}>
           {planningReadinessMessage(current.readiness)}
@@ -80,5 +110,17 @@ export function GeneratePlanAction({
         <p role="alert" data-ready="false">暂时无法完成检查，请重试。</p>
       ) : null}
     </div>
+  );
+}
+
+/** The label split into letters so each can lift in turn on hover; the button's
+ * aria-label carries the words for assistive technology. */
+function HaloLabel({ text }: { readonly text: string }) {
+  return (
+    <span aria-hidden="true" className={styles.haloLabel}>
+      {Array.from(text).map((character, index) => (
+        <span key={index} style={{ "--i": index } as React.CSSProperties}>{character}</span>
+      ))}
+    </span>
   );
 }

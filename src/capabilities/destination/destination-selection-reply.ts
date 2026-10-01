@@ -9,11 +9,10 @@ export function destinationSelectionReply(tripState: TripState): string {
     throw new Error("Selected destination must be set before composing a reply.");
   }
   const readiness = evaluateGeneratePlanReadiness(tripState);
+  // A text-bearing destination is never missing, so the only way it is not ready is
+  // an old record that was never verified. A whole province is ready.
   if (!readiness.canProceed) {
-    const next = readiness.reason === "destination_unverified"
-      ? "之前保存的地点还需要重新搜索确认。"
-      : "接下来可以选这个省里想去的城市。";
-    return `好，目的地现在是${text}。${capturedDetailsNote(tripState)}${next}`;
+    return `好，目的地现在是${text}。${capturedDetailsNote(tripState)}之前保存的地点还需要重新搜索确认。`;
   }
   return `好，目的地现在是${text}。${capturedDetailsNote(tripState)}${planReadyNote}${missingDetailsInvitation(tripState)}`;
 }

@@ -4,7 +4,7 @@ import test from "node:test";
 import type { TripMessage } from "@/domain/trip-message/trip-message";
 import type { TripState } from "@/domain/trip-state/trip-state";
 import type { StructuredOutputModelClient, StructuredOutputModelRequest } from "@/platform/llm/kimi-client";
-import { buildDestinationRecommendationContext } from "./destination-recommendation-context";
+import { buildConversationalDestinationRecommendationContext } from "./destination-recommendation-context";
 import { generateDestinationRecommendations, InvalidDestinationRecommendationOutputError } from "./destination-recommendation-generator";
 
 const tripId = "3d17d2c7-fd9b-4748-b751-3a76a9a920be";
@@ -29,27 +29,29 @@ const valid = {
   ],
 };
 
+const askedFor = "帮我推荐几个地方";
+
 function context(state: TripState = tripState) {
-  return buildDestinationRecommendationContext(tripId, state, history);
+  return buildConversationalDestinationRecommendationContext(tripId, state, history, askedFor);
 }
 
-test("dedicated context carries how it was triggered, authoritative state, and only real history", () => {
+test("context carries how it was triggered, authoritative state, and only real history", () => {
   const built = context();
-  assert.equal(built.source, "explicit_action");
-  if (built.source !== "explicit_action") throw new Error("Expected explicit action context.");
+  assert.equal(built.source, "conversation");
   assert.equal(built.tripState, tripState);
   assert.deepEqual(built.conversationHistory, [
     { role: "user", content: history[0].content },
     { role: "assistant", content: history[1].content },
+    { role: "user", content: askedFor },
   ]);
 });
 
-test("dedicated context writes out the cards an earlier recommendation showed", () => {
+test("context writes out the cards an earlier recommendation showed", () => {
   const offered: TripMessage = { id: "a2", tripId, role: "assistant", content: "看看这些方向。",
     createdAt: history[1].createdAt, presentation: { type: "destination_recommendations",
       destinations: [{ id: "c1", name: "甘孜藏族自治州", province: "四川省" }] } };
-  const built = buildDestinationRecommendationContext(tripId, tripState, [...history, offered]);
-  assert.deepEqual(built.conversationHistory.at(-1), {
+  const built = buildConversationalDestinationRecommendationContext(tripId, tripState, [...history, offered], askedFor);
+  assert.deepEqual(built.conversationHistory.at(-2), {
     role: "assistant", content: "看看这些方向。\n[展示过的卡片] 四川省：甘孜藏族自治州",
   });
 });
@@ -70,10 +72,10 @@ test("generator performs one structured call without fabricating a user message"
   assert.deepEqual(requests[0].conversationHistory, [
     { role: "user", content: history[0].content },
     { role: "assistant", content: history[1].content },
+    { role: "user", content: askedFor },
   ]);
-  assert.match(requests[0].systemPrompt, /pressed the button/u);
-  // The button press used to be described by serialising its stored row, which put two
-  // UUIDs into a prompt that forbids the model from producing IDs at all.
+  assert.match(requests[0].systemPrompt, /current real user message/u);
+  // The prompt forbids the model from producing IDs, so none of ours may appear in it.
   assert.equal(requests[0].systemPrompt.includes(tripId), false);
   assert.match(requests[0].systemPrompt, /成都/u);
   assert.match(requests[0].systemPrompt, /prefecture-level city or autonomous prefecture/u);

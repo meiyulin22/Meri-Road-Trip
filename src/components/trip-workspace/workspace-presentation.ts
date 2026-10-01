@@ -1,6 +1,8 @@
 import type { TripState, TripStateField } from "@/domain/trip-state/trip-state";
 import type { TransportPreference } from "@/domain/trip-draft/trip-draft";
 
+import { tripDatesSummary } from "./trip-dates-model";
+
 export const transportLabels: Record<TransportPreference, string> = {
   self_drive: "自驾",
   no_self_drive: "不自驾",
@@ -12,8 +14,8 @@ export function journeyFieldLabel(field: TripStateField, missingLabel: string): 
   return field.state === "missing" ? missingLabel : field.value;
 }
 
-export function journeyDateLabel(state: TripState): string {
-  if (state.startDate.state === "missing") return "日期待定";
-  if (state.endDate.state === "missing") return state.startDate.value;
-  return `${state.startDate.value} — ${state.endDate.value}`;
+/** The header's date line, written the same way as the brief's 何时 row. */
+export function journeyDateLabel(state: TripState, today: Date = new Date()): string {
+  const { text } = tripDatesSummary(state, today);
+  return text === "—" ? "日期待定" : text;
 }

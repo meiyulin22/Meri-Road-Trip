@@ -8,7 +8,6 @@ import {
 import type { TripMessageRepository } from "@/platform/persistence/trip-message-repository";
 import type { TripService } from "@/capabilities/journey/trip-service";
 import { openingAssistantMessageId } from "./opening-assistant-id";
-import { destinationMissingGuidanceContent, destinationMissingGuidanceMessageId } from "./destination-missing-guidance";
 
 type TripMessageServiceDependencies = {
   readonly tripService: Pick<TripService, "getTripById">;
@@ -70,21 +69,6 @@ export class TripMessageService {
       ...(input.presentation ? { presentation: input.presentation } : {}),
       // A deterministic opening can be saved in the same millisecond as the user message.
       createdAt: new Date(this.now().getTime() + 1).toISOString(),
-    });
-    return this.dependencies.repository.createAssistantIfAbsent(message);
-  }
-
-  async persistDestinationMissingGuidance(input: {
-    readonly tripId: string;
-    readonly ownerGuestId: string;
-  }): Promise<TripMessage> {
-    await this.dependencies.tripService.getTripById(input.tripId, input.ownerGuestId);
-    const message = validateTripMessage({
-      id: destinationMissingGuidanceMessageId(input.tripId),
-      tripId: input.tripId,
-      role: "assistant",
-      content: destinationMissingGuidanceContent,
-      createdAt: this.now().toISOString(),
     });
     return this.dependencies.repository.createAssistantIfAbsent(message);
   }

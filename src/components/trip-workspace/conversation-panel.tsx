@@ -10,7 +10,7 @@ import type { TripMessage } from "@/domain/trip-message/trip-message";
 import type { TripState } from "@/domain/trip-state/trip-state";
 
 import { nextRevealCharacterCount, visibleAssistantText } from "./conversation-reveal";
-import { canUseDestinationGuidance, requestDestinationRecommendationsIfMissing, selectDestinationRecommendation } from "./destination-recommendation-model";
+import { selectDestinationRecommendation } from "./destination-recommendation-model";
 import { DestinationChoicesCard } from "./destination-choices-card";
 import { GeneratePlanAction } from "./generate-plan-action";
 import { formatMessageTimestamp } from "./message-timestamp";
@@ -31,8 +31,6 @@ function browserSnapshot(): boolean { return true; }
 function serverSnapshot(): boolean { return false; }
 
 export function ConversationPanel({
-  destinationGuidanceMessageId,
-  guidanceMessage,
   initialMessages,
   isExpanded,
   onChooseDestination,
@@ -41,8 +39,6 @@ export function ConversationPanel({
   tripId,
   tripState,
 }: {
-  readonly destinationGuidanceMessageId: string;
-  readonly guidanceMessage: TripMessage | null;
   readonly initialMessages: readonly TripMessage[];
   readonly isExpanded: boolean;
   readonly onChooseDestination: () => void;
@@ -52,9 +48,6 @@ export function ConversationPanel({
   readonly tripState: TripState;
 }) {
   const [message, setMessage] = useState("");
-  const [recommendationPending, setRecommendationPending] = useState(false);
-  const [recommendationError, setRecommendationError] = useState(false);
-  const recommendationInFlight = useRef(false);
   const selectionInFlight = useRef(false);
   const [selectionPendingMessageId, setSelectionPendingMessageId] = useState<string | null>(null);
   const [selectionErrorMessageId, setSelectionErrorMessageId] = useState<string | null>(null);
@@ -83,12 +76,6 @@ export function ConversationPanel({
   const hasError = status === "error";
   const latestMessage = messages.at(-1);
   const localNow = useSyncExternalStore(subscribeToBrowser, browserSnapshot, serverSnapshot) ? new Date() : null;
-  const guidanceAvailable = canUseDestinationGuidance(tripState);
-
-  useEffect(() => {
-    if (!guidanceMessage) return;
-    setMessages((current) => appendPersistedMessageIfAbsent(current, guidanceMessage));
-  }, [guidanceMessage, setMessages]);
 
   useEffect(() => {
     const history = messageHistoryRef.current;
@@ -131,7 +118,7 @@ export function ConversationPanel({
   function handleSubmit(event: React.FormEvent<HTMLFormElement>): void {
     event.preventDefault();
     const submittedMessage = message.trim();
-    if (submittedMessage === "" || status !== "ready" || selectionInFlight.current || recommendationInFlight.current) {
+    if (submittedMessage === "" || status !== "ready" || selectionInFlight.current) {
       return;
     }
     closeCurrentOffer();
@@ -140,27 +127,10 @@ export function ConversationPanel({
     void sendMessage({ text: submittedMessage });
   }
 
-  async function handleRecommendationRequest(): Promise<void> {
-    if (!guidanceAvailable || recommendationInFlight.current || selectionInFlight.current || isSubmitting) return;
-    closeCurrentOffer();
-    recommendationInFlight.current = true;
-    setRecommendationPending(true);
-    setRecommendationError(false);
-    try {
-      const persisted = await requestDestinationRecommendationsIfMissing(tripId, tripState);
-      if (persisted) setMessages((current) => appendPersistedMessageIfAbsent(current, persisted));
-    } catch {
-      setRecommendationError(true);
-    } finally {
-      recommendationInFlight.current = false;
-      setRecommendationPending(false);
-    }
-  }
-
   async function handleRecommendationSelection(messageId: string, destinationIds: readonly string[]): Promise<void> {
     const offered = messages.find((item) => item.id === messageId);
     if (!offered || !destinationChoicePresentation(offered) ||
-      !offerIsActive(offered) || isSubmitting || hasError || recommendationInFlight.current ||
+      !offerIsActive(offered) || isSubmitting || hasError ||
       selectionInFlight.current || destinationIds.length === 0) return;
     selectionInFlight.current = true;
     setSelectionPendingMessageId(messageId);
@@ -191,7 +161,8 @@ export function ConversationPanel({
   }
 
   function handleChooseDestination(): void {
-    if (guidanceAvailable) { closeCurrentOffer(); onChooseDestination(); }
+    closeCurrentOffer();
+    onChooseDestination();
   }
 
   function handleMessageKeyDown(
@@ -272,14 +243,6 @@ export function ConversationPanel({
                       </span>
                     ) : null}
                   </p>
-                  {conversationMessage.id === destinationGuidanceMessageId ? (
-                    <div className={styles.guidanceActions}>
-                      <button disabled={recommendationPending || !guidanceAvailable} onClick={() => void handleRecommendationRequest()} type="button">
-                        {recommendationPending ? "正在推荐…" : "帮我推荐"}
-                      </button>
-                      <button disabled={!guidanceAvailable} onClick={handleChooseDestination} type="button">我自己选</button>
-                    </div>
-                  ) : null}
                   {destinationChoicePresentation(conversationMessage) ? (
                     <DestinationChoicesCard
                       active={offerIsActive(conversationMessage)}
@@ -287,7 +250,7 @@ export function ConversationPanel({
                       presentation={destinationChoicePresentation(conversationMessage)!}
                       error={selectionErrorMessageId === conversationMessage.id}
                       onCommit={(destinationIds) => void handleRecommendationSelection(conversationMessage.id, destinationIds)}
-                      pending={selectionPendingMessageId !== null || isSubmitting || hasError || recommendationPending}
+                      pending={selectionPendingMessageId !== null || isSubmitting || hasError}
                     />
                   ) : null}
                 </div>
@@ -308,7 +271,6 @@ export function ConversationPanel({
             ),
           )}
           {selectionNotice ? <p role="alert">{selectionNotice}</p> : null}
-          {recommendationError ? <p role="alert">推荐暂时没有完成，请重试。</p> : null}
           {isSubmitting ? (
             <p className={styles.conversationStatus} role="status">
               Meri 正在理解这条消息…
@@ -346,7 +308,12 @@ export function ConversationPanel({
         </article>
       )}
 
-      <GeneratePlanAction tripId={tripId} tripState={tripState} onRequest={closeCurrentOffer} />
+      <GeneratePlanAction
+        onChooseDestination={handleChooseDestination}
+        onRequest={closeCurrentOffer}
+        tripId={tripId}
+        tripState={tripState}
+      />
 
       <form
         aria-busy={isSubmitting}
@@ -361,7 +328,7 @@ export function ConversationPanel({
           告诉 Meri 你还在想什么
         </label>
         <input
-          disabled={isSubmitting || hasError || recommendationPending || selectionPendingMessageId !== null}
+          disabled={isSubmitting || hasError || selectionPendingMessageId !== null}
           id="workspace-message"
           onChange={(event) => setMessage(event.target.value)}
           onKeyDown={handleMessageKeyDown}
@@ -371,7 +338,7 @@ export function ConversationPanel({
         />
         <button
           aria-label="发送消息"
-          disabled={isSubmitting || hasError || recommendationPending || selectionPendingMessageId !== null || message.trim() === ""}
+          disabled={isSubmitting || hasError || selectionPendingMessageId !== null || message.trim() === ""}
           type="submit"
         >
           {isSubmitting ? (

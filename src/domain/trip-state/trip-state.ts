@@ -11,6 +11,7 @@ import {
   parseDestinationAreas,
   type DestinationArea,
 } from "./destination-areas";
+import { deriveTripDates, tripDateFieldNames } from "./trip-dates";
 
 export type TripFieldSource = "user" | "system";
 
@@ -373,7 +374,11 @@ export function applyTripStatePatch(
   state: TripState,
   patch: TripStatePatch,
 ): TripState {
-  const nextState = { ...state, ...patch };
+  // Start, end and length are one span: whatever the patch set, the untouched one of
+  // the three follows, whether the edit came from the brief or from conversation.
+  const changedDates = new Set(tripDateFieldNames.filter((field) => Object.hasOwn(patch, field)));
+  const patchedState = { ...state, ...patch };
+  const nextState = { ...patchedState, ...deriveTripDates(patchedState, changedDates) };
   if (Object.hasOwn(patch, "name")) {
     return nextState;
   }

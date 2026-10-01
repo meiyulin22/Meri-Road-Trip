@@ -88,16 +88,71 @@
 .meriMessage .messageHeader > span { color: var(--ink); font-size: 12px; font-weight: 600; }
 .messageHeader time { color: #929c94; font-size: 10px; font-weight: 400; white-space: nowrap; }
 .meriMessage p, .userMessage p { margin-top: 5px; font-size: 14px; line-height: 1.85; white-space: pre-wrap; overflow-wrap: anywhere; }
-.guidanceActions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
-.guidanceActions button { padding: 6px 10px; border: 1px solid #b8c9b6; border-radius: 8px; background: #edf2e9; color: #385d4b; font-size: 11px; cursor: pointer; }
-.guidanceActions button:hover:not(:disabled) { background: #dce9d8; }
-.guidanceActions button:disabled { opacity: .55; cursor: not-allowed; }
 .chatGeneratePlan { display: grid; gap: 7px; padding: 0 3px; }
-.chatGeneratePlan button { display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%; min-height: 43px; padding: 10px; border: 1px solid #7f9a80; border-radius: 12px; background: #cfe0c9; color: #2f5140; font-size: 13px; letter-spacing: .01em; cursor: pointer; }
-.chatGeneratePlan button:hover:not(:disabled) { background: #c3d8bd; }
-.chatGeneratePlan button:active:not(:disabled) { background: #b6cfb1; }
-.chatGeneratePlan button:focus-visible { outline: 2px solid #2f5140; outline-offset: 2px; }
-.chatGeneratePlan button:disabled { cursor: wait; opacity: .7; }
+/* Generate plan, after cult-ui's Halo button: a slowly turning rim in the colours of
+   the background art (sage, lake blue, sunlight) around a frosted paper fill. The rim
+   speeds up while checking and goes still and grey while the button cannot be used. */
+@property --halo-angle { syntax: "<angle>"; initial-value: 0deg; inherits: false; }
+.haloButton {
+  position: relative;
+  isolation: isolate;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  min-height: 44px;
+  padding: 10px;
+  border: 1.5px solid transparent;
+  border-radius: 13px;
+  background:
+    linear-gradient(rgba(253, 252, 246, .9), rgba(243, 247, 238, .9)) padding-box,
+    conic-gradient(from var(--halo-angle), #7fa889, #8fc0d6, #e9cb7a, #c9dcb8, #7fa889) border-box;
+  color: #2f5140;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: .01em;
+  cursor: pointer;
+  animation: haloSpin 7s linear infinite;
+  transition: transform .15s ease, box-shadow .2s ease;
+}
+.haloButton::after {
+  content: "";
+  position: absolute;
+  inset: -3px;
+  z-index: -1;
+  border-radius: 16px;
+  background: conic-gradient(from var(--halo-angle), #7fa889, #8fc0d6, #e9cb7a, #c9dcb8, #7fa889);
+  filter: blur(10px);
+  opacity: .28;
+  animation: haloSpin 7s linear infinite;
+  transition: opacity .25s ease;
+}
+.haloButton:hover:not([aria-disabled="true"])::after { opacity: .55; }
+.haloButton:active:not([aria-disabled="true"]) { transform: scale(.985); }
+.haloButton:focus-visible { outline: 2px solid #2f5140; outline-offset: 3px; }
+.haloButton[aria-busy="true"], .haloButton[aria-busy="true"]::after { animation-duration: 1.4s; cursor: wait; }
+.haloButton[aria-disabled="true"]:not([aria-busy="true"]) {
+  background: linear-gradient(#f6f5ef, #f1f2ec) padding-box, linear-gradient(#d9ddd3, #d9ddd3) border-box;
+  color: #8f9a92;
+  cursor: not-allowed;
+  animation: none;
+}
+.haloButton[aria-disabled="true"]:not([aria-busy="true"])::after { opacity: 0; animation: none; }
+/* Each letter lifts in turn on hover, so the label reads as one wave. */
+.haloLabel { display: inline-flex; white-space: pre; }
+.haloLabel > span { display: inline-block; transition: transform .28s cubic-bezier(.3, .7, .4, 1.4); transition-delay: calc(var(--i) * 18ms); }
+.haloButton:hover:not([aria-disabled="true"]) .haloLabel > span { transform: translateY(-2px); }
+@keyframes haloSpin { to { --halo-angle: 360deg; } }
+/* The trigger owns hover, and the hint sits inside it, so moving the pointer up onto
+   the hint keeps it open long enough to press its link. */
+.generatePlanTrigger { position: relative; }
+.generatePlanHint { position: absolute; bottom: 100%; left: 50%; z-index: 4; width: min(340px, 100%); padding-bottom: 8px; transform: translate(-50%, 4px); opacity: 0; visibility: hidden; pointer-events: none; transition: opacity .16s ease, transform .16s ease, visibility .16s; }
+.generatePlanTrigger:hover .generatePlanHint, .generatePlanTrigger:focus-within .generatePlanHint { transform: translate(-50%, 0); opacity: 1; visibility: visible; pointer-events: auto; }
+.generatePlanHint strong { display: block; padding: 12px 14px 4px; border: 1px solid var(--line); border-bottom: 0; border-radius: 12px 12px 0 0; background: #fffdf8; color: #2f5140; font-size: 12px; font-weight: 600; }
+.generatePlanHint ul { margin: 0; padding: 4px 14px 12px 30px; border: 1px solid var(--line); border-top: 0; border-radius: 0 0 12px 12px; background: #fffdf8; box-shadow: 0 10px 24px rgba(52, 62, 46, .14); color: #5d6f66; font-size: 11px; line-height: 1.85; }
+.chatGeneratePlan .generatePlanHint button { display: inline; width: auto; min-height: 0; padding: 0; border: 0; border-radius: 0; background: none; color: #3f7258; font-size: 11px; text-decoration: underline; text-underline-offset: 2px; cursor: pointer; }
+.chatGeneratePlan .generatePlanHint button:hover { background: none; color: #2f5140; }
 .chatGeneratePlan p { margin: 0 2px; color: #385d4b; font-size: 11px; line-height: 1.5; }
 .chatGeneratePlan p[data-ready="false"] { color: #9b5848; }
 .userMessage { align-self: flex-end; max-width: 83%; margin-right: 2px; padding: 12px 16px; border-radius: 15px 4px 15px 15px; background: #e9ecde; }
@@ -130,30 +185,37 @@
 .briefHeader h2 { display: flex; align-items: center; gap: 8px; font-size: 16px; letter-spacing: -.02em; }
 .briefHeader h2 svg { color: var(--green); }
 .briefHeader > button { display: grid; place-items: center; width: 28px; height: 28px; flex-shrink: 0; border: 0; border-radius: 7px; background: transparent; color: var(--muted); cursor: pointer; }
-.briefProgress { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-top: 20px; }
-.briefProgress h3 { font-size: 14px; font-weight: 600; }
-.briefProgress > span { font-size: 15px; color: var(--green); font-variant-numeric: tabular-nums; }
-.briefProgress small { font-size: 10px; color: var(--muted); }
 .briefGuidance { margin: 6px 0 10px; }
 .editingHint { font-size: 10px; color: #8b958c; line-height: 1.6; }
 .briefFields { display: grid; }
 .destinationEditor { align-items: start; }
-.destinationAreaHeading, .destinationCityRow { display: flex; align-items: center; justify-content: space-between; gap: 4px; }
 .destinationEditor button { border: 0; background: transparent; color: #3f6f55; cursor: pointer; font: inherit; }
 .destinationEditor button:disabled { opacity: .52; cursor: default; }
-.destinationAreaList { display: grid; gap: 7px; padding-right: 18px; }
-.destinationAreaList section { min-width: 0; }
-.destinationAreaHeading { font-size: 12px; }
-.destinationAreaList ul { margin: 5px 0 0; padding-left: 12px; list-style: none; }
-.destinationAreaList li { margin-top: 4px; min-width: 0; }
-.destinationCityRow { color: #59665e; font-size: 12px; overflow-wrap: anywhere; }
-.destinationAreaHeading button, .destinationCityRow button, .destinationSpotList button { display: inline-flex; align-items: center; justify-content: center; min-width: 26px; min-height: 26px; }
-.destinationSpotList { display: flex; flex-wrap: wrap; gap: 4px; margin: 3px 0 5px; }
-.destinationSpotList span { display: inline-flex; align-items: center; gap: 2px; color: #74827b; font-size: 11px; overflow-wrap: anywhere; }
-.destinationEmpty, .destinationEmptyCity { margin: 4px 0; color: #929b91; font-size: 12px; }
+/* 去哪: one row per province, its cities and spots as chips, every remove control in
+   one column on the right. */
+.destinationAddCell { justify-self: end; }
+.stateField.destinationEditor .destinationAddToggle { display: inline-flex; width: auto; align-items: center; gap: 4px; min-height: 26px; padding: 3px 9px; border: 1px solid #cfdacb; border-radius: 999px; background: #f6f8f1; color: #3f6f55; font-size: 11px; }
+.stateField.destinationEditor .destinationAddToggle:hover { background: #eaf1e5; }
+.stateField.destinationEditor .destinationAddToggle svg { flex-basis: auto; color: inherit; opacity: 1; }
+.destinationBody { grid-column: 1 / -1; }
+.destinationEmpty { margin: 0; color: #a0a89d; font-size: 12px; }
+.destinationAreaList { display: grid; gap: 4px; }
+.destinationAreaList section { min-width: 0; padding: 8px 10px 9px; border-radius: 10px; background: rgba(240, 243, 233, .55); }
+.destinationAreaHeading { display: flex; align-items: center; justify-content: space-between; gap: 6px; min-height: 24px; }
+.destinationAreaHeading strong { color: #314a3e; font-size: 12px; font-weight: 600; overflow-wrap: anywhere; }
+.stateField.destinationEditor .destinationProvinceRemove { display: grid; place-items: center; width: 24px; height: 24px; border-radius: 6px; color: #8f9a92; }
+.stateField.destinationEditor .destinationProvinceRemove:hover:not(:disabled) { background: rgba(155, 88, 72, .08); color: #9b5848; }
+.destinationChips { display: flex; flex-wrap: wrap; gap: 6px; margin: 6px 0 0; padding: 0; list-style: none; }
+.destinationChips li { display: contents; }
+.destinationChip { display: inline-flex; align-items: center; gap: 3px; max-width: 100%; min-height: 26px; padding: 2px 4px 2px 10px; border-radius: 999px; background: #fffdf8; box-shadow: inset 0 0 0 1px #d5dfd1; color: #2f4a3c; font-size: 12px; overflow-wrap: anywhere; }
+.destinationChip[data-kind="spot"] { gap: 3px; padding-left: 8px; background: transparent; box-shadow: inset 0 0 0 1px #e1e6dc; color: #687a6f; font-size: 11px; }
+.destinationChip[data-kind="province"] { padding: 2px 10px; background: #e3ecdf; box-shadow: none; color: #3f6650; font-weight: 600; }
+.stateField.destinationEditor .destinationChip button { display: grid; place-items: center; flex: none; width: 20px; height: 20px; padding: 0; border-radius: 50%; color: #98a39b; }
+.stateField.destinationEditor .destinationChip button:hover:not(:disabled) { background: rgba(155, 88, 72, .1); color: #9b5848; }
+.destinationWholeProvince { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 6px 0 0; }
+.destinationWholeProvince small { color: #879489; font-size: 11px; }
 .destinationLegacy { margin: 6px 0; padding: 7px; border-radius: 7px; background: #f5efe1; color: #806b51; font-size: 12px; overflow-wrap: anywhere; }
 .destinationLegacy button { display: block; margin-top: 4px; text-decoration: underline; }
-.destinationEmptyCity { padding-left: 12px; }
 .destinationEditorSearch { grid-column: 1 / -1; margin-top: 3px; padding-top: 5px; }
 .destinationEditorSearch label { display: flex; align-items: center; gap: 6px; padding: 6px 8px; border: 1px solid #cdd8c9; border-radius: 8px; background: white; }
 .destinationEditorSearch input { width: 100%; min-width: 0; border: 0; outline: none; background: transparent; color: var(--ink); font: inherit; font-size: 13px; }
@@ -178,20 +240,62 @@
 .stateField:hover { background: rgba(234, 239, 226, .35); }
 .stateField[data-readiness-missing="true"], .stateField[data-readiness-missing="true"]:hover { border-radius: 8px; background: rgba(180, 111, 82, .075); outline: 1px solid rgba(162, 99, 77, .38); outline-offset: -1px; }
 .stateField[data-certainty="missing"] dd { color: #a0a89d; }
+.stateField[data-certainty="approximate"] .fieldLabel svg { color: #b58a35; }
+.stateField[data-certainty="ambiguous"] .fieldLabel svg { color: #b4664a; }
+.stateField[data-certainty="missing"] .fieldLabel svg { color: #b3bab1; }
+.certaintyTag { display: inline-block; margin-left: 6px; padding: 0 6px; border-radius: 999px; font-size: 10px; font-weight: 600; line-height: 1.7; vertical-align: 1px; white-space: nowrap; }
+.certaintyTag[data-certainty="approximate"] { background: #f6ecd4; color: #8c6a24; }
+.certaintyTag[data-certainty="ambiguous"] { background: #f7e3da; color: #9b5848; }
+/* Rows whose answer needs the full width — choices, chips — put it under the label. */
+.stackedField { grid-template-columns: 1fr; gap: 6px; }
+.transportChoices { display: flex; flex-wrap: wrap; gap: 6px; }
+.stateField .transportChoices button { width: auto; min-height: 28px; padding: 3px 12px; border-radius: 999px; background: #fffdf8; box-shadow: inset 0 0 0 1px #d5dfd1; color: #4f6358; font-size: 12px; transition: background-color .15s ease, color .15s ease, box-shadow .15s ease; }
+.stateField .transportChoices button:hover:not(:disabled) { box-shadow: inset 0 0 0 1px #9fb59d; color: #2f4a3c; }
+.stateField .transportChoices button[aria-pressed="true"] { background: #557a5f; box-shadow: none; color: #fffdf8; }
+.stateField .transportChoices button:disabled { cursor: wait; opacity: .7; }
+.fieldNote { margin: 6px 0 0; color: #7a887f; font-size: 11px; }
 .stateField input, .stateField select { width: 100%; min-width: 0; border: 1px solid #91a890; border-radius: 6px; padding: 6px; background: #fffdf8; color: var(--ink); font: inherit; }
 .stateField.destinationEditor { align-items: start; }
 .stateField.destinationEditor > dt { padding-top: 3px; }
-.stateField.destinationEditor > dd { position: relative; }
 .stateField.destinationEditor dd button { width: auto; justify-content: center; }
-.stateField.destinationEditor dd .destinationEditToggle { position: absolute; top: 0; right: 0; min-width: 20px; }
-.stateField.destinationEditor dd .destinationEditToggle svg { flex-basis: 13px; }
-.stateField.destinationEditor .destinationAreaHeading strong { font-weight: 500; overflow-wrap: anywhere; }
-.stateField.destinationEditor .destinationAreaHeading button,
-.stateField.destinationEditor .destinationCityRow button,
-.stateField.destinationEditor .destinationSpotList button { flex: none; padding: 0; min-width: 22px; min-height: 24px; }
 .stateField.destinationEditor .destinationEditorSearch input { border: 0; padding: 0; border-radius: 0; }
 .briefPersistenceError { margin: 8px 0; padding: 9px; border-radius: 8px; color: #995747; background: #fff0e7; font-size: 11px; }
 .destinationPopover { z-index: 20; width: min(342px, calc(100vw - 24px)); max-height: min(440px, calc(100dvh - 24px)); overflow: hidden; padding: 14px; border: 1px solid #d8cfbb; border-radius: 13px; background: #fffdf7; box-shadow: 0 10px 28px rgba(48, 58, 43, .13); color: var(--ink); outline: none; transform-origin: var(--radix-popover-content-transform-origin); }
+/* 何时: react-day-picker themed through its own variables, scoped to this popover. */
+.datesPopover { z-index: 20; width: max-content; max-width: calc(100vw - 24px); max-height: calc(100dvh - 24px); overflow: auto; padding: 14px 16px; border: 1px solid #d8cfbb; border-radius: 13px; background: #fffdf7; box-shadow: 0 10px 28px rgba(48, 58, 43, .13); color: var(--ink); outline: none; }
+.datesHint { margin: -4px 2px 6px; color: #78877c; font-size: 11px; }
+/* Two classes, so these win over the library's own .rdp-root defaults whatever the load order. */
+.datesPopover .datesCalendar {
+  --rdp-accent-color: #557a5f;
+  --rdp-accent-background-color: #e3ecdf;
+  --rdp-day-height: 36px;
+  --rdp-day-width: 36px;
+  --rdp-day_button-height: 34px;
+  --rdp-day_button-width: 34px;
+  --rdp-day_button-border-radius: 10px;
+  --rdp-months-gap: 1.5rem;
+  --rdp-nav-height: 2.25rem;
+  --rdp-nav_button-height: 1.9rem;
+  --rdp-nav_button-width: 1.9rem;
+  --rdp-today-color: #b4664a;
+  font-size: 13px;
+}
+.datesCalendar :global(.rdp-caption_label) { color: #314a3e; font-size: 13px; font-weight: 600; }
+.datesCalendar :global(.rdp-weekday) { color: #8b958c; font-size: 11px; font-weight: 500; }
+.datesCalendar :global(.rdp-chevron) { fill: #557a5f; }
+.datesCalendar :global(.rdp-day_button:hover:not([disabled])) { background: #f1f4ea; }
+.datesLength { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 8px; padding-top: 10px; border-top: 1px solid var(--line); color: #4f6358; font-size: 12px; }
+.datesStepper { display: inline-flex; align-items: center; gap: 4px; }
+.datesStepper button { display: grid; place-items: center; width: 28px; height: 28px; border: 1px solid #d5dfd1; border-radius: 8px; background: #fffdf8; color: #3f6f55; cursor: pointer; }
+.datesStepper button:hover:not(:disabled) { background: #eef3ea; }
+.datesStepper button:disabled { opacity: .45; cursor: default; }
+.datesStepper input { width: 44px; height: 28px; border: 1px solid #d5dfd1; border-radius: 8px; background: #fffdf8; color: var(--ink); font: inherit; font-size: 13px; text-align: center; }
+.datesStepper input:focus { border-color: #62866d; outline: 2px solid rgba(96, 133, 105, .18); }
+.datesNote { margin: 8px 2px 0; color: #8c6a24; font-size: 11px; line-height: 1.5; }
+.datesFooter { display: flex; align-items: center; gap: 10px; margin-top: 10px; color: #78877c; font-size: 11px; }
+.datesFooter button { padding: 0; border: 0; background: none; color: #8f9a92; font: inherit; text-decoration: underline; text-underline-offset: 2px; cursor: pointer; }
+.datesFooter button:hover:not(:disabled) { color: #9b5848; }
+.datesFooter button:disabled { opacity: .5; cursor: default; }
 .destinationPopoverHeading { display: flex; align-items: center; gap: 8px; margin-bottom: 11px; color: #385d4b; font-size: 13px; font-weight: 650; }
 .destinationSearch { display: flex; align-items: center; gap: 8px; min-height: 40px; padding: 0 10px; border: 1px solid #d7d3c4; border-radius: 8px; background: #fcfaf4; color: #779084; }
 .destinationSearch:focus-within { border-color: #62866d; box-shadow: 0 0 0 2px rgba(96, 133, 105, .15); }
@@ -222,13 +326,6 @@
 .locationCandidateCard:disabled:not([data-selected="true"]):not([data-pending="true"]) .locationCandidateAffordance { visibility: hidden; }
 .locationCandidateContext, .locationCandidateAddress { display: block; color: #60736a; font-size: 11px; line-height: 1.5; overflow-wrap: anywhere; }
 .locationCandidateAddress { color: #76867c; }
-.generatePlan { display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%; min-height: 45px; margin-top: 16px; padding: 10px; border: 1px solid #8fa48e; border-radius: 11px; background: #dce5d7; color: #385d4b; cursor: pointer; font-size: 13px; }
-.generatePlan:hover:not(:disabled) { background: #d0dfd0; }
-.generatePlan:active:not(:disabled) { background: #c3d5c2; }
-.generatePlan:focus-visible { outline: 2px solid #385d4b; outline-offset: 2px; }
-.generatePlan:disabled { cursor: wait; opacity: .7; }
-.planReadinessResult { margin: 9px 2px 0; color: #385d4b; font-size: 11px; line-height: 1.5; }
-.planReadinessResult[data-ready="false"] { color: #9b5848; }
 .meriWorld { margin-top: 12px; }
 .companionNote { margin-top: 14px; text-align: center; color: #929b90; font-size: 10px; line-height: 1.7; }
 .companionScene { position: absolute; right: -86px; bottom: -28px; width: 194px; pointer-events: none; }
@@ -324,4 +421,7 @@
 }
 @media (prefers-reduced-motion: reduce) {
   .loadingIcon { animation: none; }
+  .generatePlanHint { transition: none; }
+  .haloButton, .haloButton::after { animation: none; }
+  .haloLabel > span { transition: none; }
 }

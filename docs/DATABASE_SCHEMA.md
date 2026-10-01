@@ -114,8 +114,8 @@ Trip 不再保存 name、origin、destination 或日期列，避免与 TripState
 | `name` | 当前名称及 certainty/source | 列表/Workspace 标题从这里派生 |
 | `origin` | 出发地，known 时可带已选输入建议身份/坐标 | 不等于目的地层级 |
 | `destination` | missing 或 known；known 保存 areas，可带 legacyText | 当前已选省/市/spot 的权威来源 |
-| `startDate`、`endDate` | 日期或近似/歧义原话 | 日期保存在 JSON 字段，不是 Trip 的 SQL date 列 |
-| `duration` | 已知/近似时长 | 与日期分别保存，不由数据库自动推算 |
+| `startDate`、`endDate` | 精确日期 `YYYY-MM-DD`，或近似/歧义原话 | 日期保存在 JSON 字段，不是 Trip 的 SQL date 列 |
+| `duration` | 已知/近似时长；精确值写作 `N天` | 与日期分别保存；数据库不推算，应用在 applyTripStatePatch 中按“任意两项定第三项”补算（见 USER_FLOW_CURRENT 5.1） |
 | `transportPreference` | 自驾/非自驾/公共交通/灵活，或不确定表达 | known 值由领域交通枚举约束 |
 
 普通字段非 missing 时含 state/value/source，missing 只有 `{ "state": "missing" }`。目的地没有独立 value 文本副本。以下为完整的结构示例，不是在线记录：

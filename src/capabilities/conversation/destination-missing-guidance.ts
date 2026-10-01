@@ -1,7 +1,10 @@
 import { createHash } from "node:crypto";
 
-export const destinationMissingGuidanceContent = "还没想好去哪吗？我可以根据你的旅行偏好推荐几个地方。";
-
+/**
+ * Meri no longer writes the 「还没想好去哪吗？」 guidance message, but Journeys created
+ * before that still have it in their saved history under this stable ID. The opening
+ * conversation check needs to recognise and skip it, so only the ID survives.
+ */
 const guidanceNamespace = "58f0d779-45bc-41e1-91e6-36fd066827ee";
 
 export function destinationMissingGuidanceMessageId(tripId: string): string {

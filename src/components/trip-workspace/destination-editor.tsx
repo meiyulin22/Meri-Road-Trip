@@ -1,12 +1,13 @@
 "use client";
 
-import { Check, CircleHelp, Pencil, Search, X } from "lucide-react";
+import { Check, MapPin, Plus, Search, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { z } from "zod";
 
 import { destinationContains, type DestinationRemoval } from "@/domain/trip-state/destination-areas";
 import { validateTripState, type TripState } from "@/domain/trip-state/trip-state";
 
+import { FieldStatusIcon } from "./field-certainty";
 import styles from "./trip-workspace.module.css";
 
 type SearchChoice = { readonly id: string; readonly name: string; readonly province: string;
@@ -16,10 +17,10 @@ const searchResponseSchema = z.object({ choices: z.array(z.object({
   city: z.string().min(1).nullable(), spot: z.string().min(1).nullable(), detail: z.string().nullable(),
 }).refine((choice) => choice.spot === null || choice.city !== null)) });
 
-export function DestinationEditor({ tripId, tripState, onTripStateChange, initiallyOpen = false, highlightMissing = false }: {
+export function DestinationEditor({ tripId, tripState, onTripStateChange, initiallyOpen = false }: {
   readonly tripId: string; readonly tripState: TripState;
   readonly onTripStateChange: (state: TripState) => void;
-  readonly initiallyOpen?: boolean; readonly highlightMissing?: boolean;
+  readonly initiallyOpen?: boolean;
 }) {
   const [open, setOpen] = useState(initiallyOpen);
   const [query, setQuery] = useState("");
@@ -72,46 +73,55 @@ export function DestinationEditor({ tripId, tripState, onTripStateChange, initia
     void mutate("DELETE", removal, `${removal.province}|${removal.place ?? ""}|${removal.spot ?? ""}`);
   }
 
-  return <div className={`${styles.stateField} ${styles.destinationEditor}`} data-certainty={tripState.destination.state}
-    data-readiness-missing={highlightMissing ? "true" : undefined}>
+  return <div className={`${styles.stateField} ${styles.destinationEditor}`} data-certainty={tripState.destination.state}>
     <dt><span className={styles.fieldLabel}>
-      {tripState.destination.state === "known" ? <Check size={14} aria-hidden="true" /> : <CircleHelp size={16} aria-hidden="true" />}
+      <FieldStatusIcon state={tripState.destination.state} />
       目的地
     </span></dt>
-    <dd>
-      <button className={styles.destinationEditToggle} type="button" aria-label="编辑目的地"
-        onClick={() => { setOpen((value) => !value); setChoices([]); setSearchState("idle"); }} aria-expanded={open}>
-        <Pencil size={13} aria-hidden="true" />
+    <dd className={styles.destinationAddCell}>
+      <button className={styles.destinationAddToggle} type="button" aria-expanded={open}
+        aria-label={open ? "收起目的地搜索" : "添加目的地"}
+        onClick={() => { setOpen((value) => !value); setChoices([]); setSearchState("idle"); }}>
+        {open ? <X size={13} aria-hidden="true" /> : <Plus size={13} aria-hidden="true" />}
+        <span>{open ? "收起" : "添加"}</span>
       </button>
+    </dd>
+    <dd className={styles.destinationBody}>
     {tripState.destination.state === "known" && tripState.destination.legacyText ?
       <div className={styles.destinationLegacy}>旧旅程记录：{tripState.destination.legacyText}。这些地点尚需重新确认，添加新地点不会删除这段记录。
         <button type="button" disabled={busy !== null} onClick={() => void mutate("DELETE", { legacy: true }, "legacy")}>清除旧记录</button>
       </div> : null}
     {areas.length === 0 && !(tripState.destination.state === "known" && tripState.destination.legacyText)
-      ? <p className={styles.destinationEmpty}>—</p> :
+      ? <p className={styles.destinationEmpty}>还没有目的地</p> :
       <div className={styles.destinationAreaList}>{areas.map((area) => <section key={area.province}>
         <div className={styles.destinationAreaHeading}>
           <strong>{area.province}</strong>
-          <button type="button" disabled={busy !== null} aria-label={`删除${area.province}`}
-            onClick={() => remove({ province: area.province, place: null, spot: null })}><X size={14} /></button>
+          <button type="button" className={styles.destinationProvinceRemove} disabled={busy !== null} aria-label={`删除${area.province}`}
+            onClick={() => remove({ province: area.province, place: null, spot: null })}><X size={14} aria-hidden="true" /></button>
         </div>
-        {area.places.length === 0 ? <p className={styles.destinationEmptyCity}>尚未选择城市</p> :
-          <ul>{area.places.map((place) => <li key={place.name}>
-            <div className={styles.destinationCityRow}>
-              <span>{place.name === area.province ? "市内" : place.name}</span>
+        {/* A province with no city is a whole-province destination, not an unfinished one. */}
+        {area.places.length === 0 ? <p className={styles.destinationWholeProvince}>
+          <span className={styles.destinationChip} data-kind="province">全省</span>
+          <small>规划时按整省考虑</small>
+        </p> :
+          <ul className={styles.destinationChips}>{area.places.map((place) => <li key={place.name}>
+            <span className={styles.destinationChip} data-kind="city">
+              {place.name === area.province ? "市内" : place.name}
               <button type="button" disabled={busy !== null} aria-label={`删除${area.province}${place.name}`}
-                onClick={() => remove({ province: area.province, place: place.name, spot: null })}><X size={14} /></button>
-            </div>
-            {place.spots.length ? <div className={styles.destinationSpotList}>{place.spots.map((spot) =>
-              <span key={spot}>想去：{spot}<button type="button" disabled={busy !== null}
-                aria-label={`删除景点${spot}`} onClick={() => remove({ province: area.province, place: place.name, spot })}><X size={12} /></button></span>)}</div> : null}
+                onClick={() => remove({ province: area.province, place: place.name, spot: null })}><X size={12} aria-hidden="true" /></button>
+            </span>
+            {place.spots.map((spot) => <span className={styles.destinationChip} data-kind="spot" key={spot} title={`想去：${spot}`}>
+              <MapPin size={11} aria-hidden="true" />{spot}
+              <button type="button" disabled={busy !== null} aria-label={`删除景点${spot}`}
+                onClick={() => remove({ province: area.province, place: place.name, spot })}><X size={11} aria-hidden="true" /></button>
+            </span>)}
           </li>)}</ul>}
       </section>)}</div>}
     {error ? <p className={styles.destinationEditorError} role="alert">{error}</p> : null}
     </dd>
     {open ? <dd className={styles.destinationEditorSearch}>
       <label><Search size={15} aria-hidden="true" />
-        <input aria-label="搜索目的地" autoComplete="off" placeholder="搜索城市或具体景点"
+        <input aria-label="搜索目的地" autoComplete="off" autoFocus={initiallyOpen} placeholder="搜索城市或具体景点"
           value={query} onChange={(event) => { setQuery(event.target.value); setChoices([]);
             setSearchState(event.target.value.trim().length < 2 ? "idle" : "loading"); setError(null); }} />
       </label>

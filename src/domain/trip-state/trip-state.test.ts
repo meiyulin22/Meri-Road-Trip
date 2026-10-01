@@ -76,3 +76,18 @@ test("older free text is retained without assigning an unverified city", () => {
   const old = validateTripState({ ...state, destination: { state:"known", source:"user", value:"梅里雪山", areas:[{province:"云南省",places:["梅里雪山"]}] } });
   assert.deepEqual(old.destination, { state: "known", source: "user", areas: [], legacyText: "梅里雪山" });
 });
+
+test("any patch that sets two of start, end and length fills in the third", () => {
+  const state = initializeTripState(draft);
+  const ranged = applyTripStatePatch(state, {
+    startDate: { state: "known", value: "2026-10-01", source: "user" },
+    endDate: { state: "known", value: "2026-10-07", source: "user" },
+  });
+  assert.deepEqual(ranged.duration, { state: "known", value: "7天", source: "system" });
+  const longer = applyTripStatePatch(ranged, { duration: { state: "known", value: "9天", source: "user" } });
+  assert.deepEqual(longer.endDate, { state: "known", value: "2026-10-09", source: "system" });
+  assert.deepEqual(longer.startDate, ranged.startDate);
+  // Patches that leave the dates alone never rewrite them.
+  const renamed = applyTripStatePatch(longer, { name: { state: "known", value: "国庆", source: "user" } });
+  assert.deepEqual([renamed.startDate, renamed.endDate, renamed.duration], [longer.startDate, longer.endDate, longer.duration]);
+});

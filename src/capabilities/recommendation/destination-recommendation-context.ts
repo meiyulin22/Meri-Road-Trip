@@ -6,29 +6,15 @@ import { conversationHistoryContent } from "@/capabilities/conversation/conversa
 const MAX_MESSAGES = 10;
 const MAX_CHARACTERS = 6_000;
 
+/**
+ * Recommendations are only asked for in conversation now; the source is kept so the
+ * workflow log still says which entry point ran.
+ */
 export type DestinationRecommendationContext = {
+  readonly source: "conversation";
   readonly tripState: TripState;
   readonly conversationHistory: readonly StructuredOutputConversationMessage[];
-} & (
-  /**
-   * Whether the user asked for places by pressing the button or by saying something
-   * that called for them. The prompt reads that difference, and nothing else needs
-   * it, so it is decided by which entry point ran rather than recorded anywhere.
-   */
-  { readonly source: "explicit_action" } |
-  { readonly source: "conversation" }
-);
-
-export function buildDestinationRecommendationContext(
-  tripId: string,
-  tripState: TripState,
-  messages: readonly TripMessage[],
-): DestinationRecommendationContext {
-  if (!isDestinationOpenToRecommendations(tripState.destination)) {
-    throw new Error("Destination recommendation context is not eligible.");
-  }
-  return { source: "explicit_action", tripState, conversationHistory: selectMessages(messages, tripId) };
-}
+};
 
 export function buildConversationalDestinationRecommendationContext(
   tripId: string,

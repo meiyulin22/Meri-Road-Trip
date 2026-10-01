@@ -66,7 +66,9 @@ Current TripState fields are name, origin, destination, start date, end
 date, duration, and transport preference. Ordinary values may be known,
 approximate, ambiguous, or missing. Destination is missing or known and
 stores provinces, cities/prefectures, and named spots under each city. This state is authoritative;
-conversation history and assistant suggestions are not.
+conversation history and assistant suggestions are not. Start date, end date and duration
+describe one span: when any two are exact, the third is derived (counting inclusively), and
+the Journey overview edits them together as 「何时」 with a range calendar.
 
 The implemented destination flow includes:
 
@@ -88,7 +90,11 @@ The implemented destination flow includes:
   extend existing destinations; replacement offers reject changes to their base state.
 - Older free-text destinations remain visible as unverified records until the user
   searches again or explicitly clears them.
-- Planning readiness requires a selected city and no unverified legacy record.
+- Planning readiness requires a saved destination (a whole province is enough) and
+  no unverified legacy record. One Generate plan sits under the conversation; while
+  it cannot proceed it stays disabled and explains how to add a destination.
+- Destination recommendations are requested in conversation; there is no separate
+  recommendation button.
 
 Location identity does not establish access, safety, or travel feasibility.
 The active recommendation workflow does not run access checks, ranking, or image

@@ -55,6 +55,7 @@ flowchart TB
 | React 19.2.8 / TypeScript 5 | UI、状态协调、类型及业务契约 | `src/components/`、`src/domain/`、`tsconfig.json` | 类型检查不能代替运行时校验 |
 | CSS Modules / 全局 CSS | 页面与组件样式、响应式布局 | `*.module.css`、`src/app/globals.css` | 当前没有整套 Tailwind UI 样式框架 |
 | Motion 13 / Radix Popover / Lucide / Embla | 入场与浮层动画、图标、首页最近旅程轮播 | `src/components/ui/`、`src/components/meri-shell/` | 已用现有交互；背景水彩显露尚未实施 |
+| react-day-picker 10 | “何时”范围日历（中文 locale，样式通过 CSS 变量换成 Meri 配色） | `src/components/trip-workspace/trip-dates-editor.tsx` | 已用于日期选择 |
 | Vercel AI SDK 6 / `@ai-sdk/react` 3 | 服务端结构化模型调用、前端 useChat/transport 适配 | `src/platform/llm/ai-sdk-kimi-client.ts`、`workspace-chat-transport.ts` | 当前 API 返回完整 JSON，前端逐字显示不是服务端 token 流 |
 | Kimi / Moonshot（默认 kimi-k2.6） | 草稿、Workspace 解释、opening 和推荐生成 | `src/platform/llm/`、各能力的 `prompts/` | `LLM_MODEL` 可覆盖；默认超时 60 秒、零 SDK 自动重试 |
 | OpenAI SDK 7 | 保留的旧 Kimi 兼容客户端 | `src/platform/llm/kimi-client.ts` | 当前主应用默认走 AI SDK；此文件同时定义共享客户端契约 |
@@ -128,7 +129,7 @@ erDiagram
   }
 ```
 
-TripState 对完整 Journey 必须存在，但表关系不强制每个 Trip 都有状态，因此缺失状态需要专门处理。删除 Trip 通过外键级联删除状态和消息。当前 schema 不包含 `trip_user_actions`；历史迁移 0007 创建该表，0009 定义删除。按钮请求来源只在 context 标为 `explicit_action`。
+TripState 对完整 Journey 必须存在，但表关系不强制每个 Trip 都有状态，因此缺失状态需要专门处理。删除 Trip 通过外键级联删除状态和消息。当前 schema 不包含 `trip_user_actions`；历史迁移 0007 创建该表，0009 定义删除。推荐只从聊天触发，来源只在 context 标为 `conversation`。
 
 ### 4.2 字段与目的地结构
 
@@ -223,9 +224,9 @@ flowchart LR
   select --> verify[高德复核与状态保存]
 ```
 
-最多 12 个建议地点；Discovery 失败降级为空搜索上下文，模型失败仍报错。聊天推荐使用真实本轮原话，按钮入口使用 `explicit_action`，不另存 action、不伪造 user 消息。未接通访问检查、排序或图片补全，workflow 是普通确定性编排，不是 Vercel Workflow runtime 或 Agent 循环。
+最多 12 个建议地点；Discovery 失败降级为空搜索上下文，模型失败仍报错。推荐只从聊天触发，使用真实本轮原话；没有推荐按钮入口，不另存 action、不伪造 user 消息。未接通访问检查、排序或图片补全，workflow 是普通确定性编排，不是 Vercel Workflow runtime 或 Agent 循环。
 
-Generate plan 调用只读 readiness：missing→选目的地，只有空省→继续选城市，有 legacyText→重新确认/清除，至少已选市且无旧文本→准备度通过但规划尚未开放。出发地、日期、时长和交通目前不是硬门槛，准备度通过不证明安全或可行。
+Generate plan 只有一个，位于聊天下方：missing→按钮不可用并在悬停/聚焦时说明添加目的地的途径，有 legacyText→重新确认/清除，其余（包括只有省、没有市）→准备度通过但规划尚未开放。出发地、日期、时长和交通目前不是硬门槛，准备度通过不证明安全或可行。
 
 ## 6. 一致性、错误与可恢复性
 

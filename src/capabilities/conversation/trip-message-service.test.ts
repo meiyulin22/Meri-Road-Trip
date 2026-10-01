@@ -6,8 +6,7 @@ import type { TripMessageRepository } from "@/platform/persistence/trip-message-
 import { TripNotFoundError } from "@/domain/trip/trip-errors";
 
 import { TripMessageService } from "./trip-message-service";
-import { destinationMissingGuidanceContent, destinationMissingGuidanceMessageId } from "./destination-missing-guidance";
-import { openingAssistantMessageId } from "./opening-assistant-id";
+import { destinationMissingGuidanceMessageId } from "./destination-missing-guidance";
 import { locationCandidateSelectionMessageId } from "./destination-selection-message-id";
 
 const tripId = "3d17d2c7-fd9b-4748-b751-3a76a9a920be";
@@ -159,24 +158,6 @@ test("persists one original user message with its exact content", async () => {
   assert.deepEqual(await service.listMessages(tripId, guestA), [message]);
   assert.equal(messageRepository.getMessages().length, 1);
   assert.equal(messageRepository.getCreateTurnCalls(), 0);
-});
-
-test("destination guidance is a single persisted assistant message with a dedicated stable ID", async () => {
-  const messageRepository = createRepository();
-  const service = new TripMessageService({
-    tripService: createTripService(guestA),
-    repository: messageRepository.repository,
-    now: () => new Date("2026-09-22T08:00:00.000Z"),
-  });
-  const first = await service.persistDestinationMissingGuidance({ tripId, ownerGuestId: guestA });
-  const repeated = await service.persistDestinationMissingGuidance({ tripId, ownerGuestId: guestA });
-  assert.strictEqual(repeated, first);
-  assert.equal(first.id, destinationMissingGuidanceMessageId(tripId));
-  assert.notEqual(first.id, openingAssistantMessageId(tripId));
-  assert.equal(first.role, "assistant");
-  assert.equal(first.content, destinationMissingGuidanceContent);
-  assert.deepEqual(messageRepository.getMessages(), [first]);
-  await assert.rejects(service.persistDestinationMissingGuidance({ tripId, ownerGuestId: guestB }), TripNotFoundError);
 });
 
 test("candidate selection persists one assistant message with a stable ID and no user message", async () => {

@@ -1,6 +1,6 @@
 import { validateTripMessage, type TripMessage } from "@/domain/trip-message/trip-message";
 import type { DestinationRecommendationPresentation } from "@/domain/trip-message/trip-message";
-import { isDestinationOpenToRecommendations, validateTripState, type TripState } from "@/domain/trip-state/trip-state";
+import { validateTripState, type TripState } from "@/domain/trip-state/trip-state";
 import { DestinationOfferExpiredError, DestinationSelectionFollowUpError, WorkspaceConversationRequestError } from "./workspace-conversation-model";
 
 type Fetcher = (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>;
@@ -11,10 +11,6 @@ export type RecommendationProvinceGroup = {
   readonly province: string | null;
   readonly destinations: OfferedDestinations;
 };
-
-export function canUseDestinationGuidance(tripState: TripState): boolean {
-  return isDestinationOpenToRecommendations(tripState.destination);
-}
 
 export function canSelectDestinationRecommendation(
   _tripState: TripState,
@@ -41,34 +37,6 @@ export function chosenDestinationPlaces(tripState: TripState): readonly string[]
   const destination = tripState.destination;
   if (destination.state !== "known") return [];
   return destination.areas.flatMap((area) => area.places.map((place) => place.name));
-}
-
-export async function requestDestinationRecommendations(
-  tripId: string,
-  fetcher: Fetcher = fetch,
-): Promise<TripMessage> {
-  const response = await fetcher(`/api/trips/${encodeURIComponent(tripId)}/destination-recommendations`, {
-    method: "POST",
-  });
-  if (!response.ok) throw new Error("Destination recommendations request failed.");
-  const body: unknown = await response.json();
-  if (typeof body !== "object" || body === null || !("message" in body)) {
-    throw new Error("Destination recommendation response is invalid.");
-  }
-  const message = validateTripMessage(body.message);
-  if (message.role !== "assistant" ||
-    (message.presentation !== undefined && message.presentation.type !== "destination_recommendations")) {
-    throw new Error("Destination recommendation response has an invalid presentation.");
-  }
-  return message;
-}
-
-export async function requestDestinationRecommendationsIfMissing(
-  tripId: string, tripState: TripState, fetcher: Fetcher = fetch,
-): Promise<TripMessage | null> {
-  return canUseDestinationGuidance(tripState)
-    ? requestDestinationRecommendations(tripId, fetcher)
-    : null;
 }
 
 /**

@@ -4,7 +4,7 @@ import test from "node:test";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 
-import { canSelectDestinationRecommendation, canUseDestinationGuidance, chosenDestinationPlaces, groupRecommendationsByProvince, requestDestinationRecommendations, requestDestinationRecommendationsIfMissing, selectDestinationRecommendation } from "./destination-recommendation-model";
+import { canSelectDestinationRecommendation, chosenDestinationPlaces, groupRecommendationsByProvince, selectDestinationRecommendation } from "./destination-recommendation-model";
 import { DestinationSelectionFollowUpError } from "./workspace-conversation-model";
 import { getWorkspaceTitle } from "./workspace-title";
 import { journeyFieldLabel } from "./workspace-presentation";
@@ -31,17 +31,14 @@ nodeRequire.extensions[".css"] = (module) => {
   module.exports = { default: new Proxy({}, { get: (_target, key) => String(key) }) };
 };
 
-test("guidance and recommendation selection are available while destination is missing", () => {
-  assert.equal(canUseDestinationGuidance(missingDestination), true);
+test("recommendation selection is available while destination is missing", () => {
   assert.equal(canSelectDestinationRecommendation(missingDestination, message.presentation as never), true);
 });
 
 test("a region the user named still gets recommendations, because 「去哪」 is still open", () => {
   const area: TripState = { ...missingDestination, destination: { state: "known" as const, source: "user", areas: [{ province: "海南省", places: [] }] } };
-  assert.equal(canUseDestinationGuidance(area), true);
   assert.equal(canSelectDestinationRecommendation(area, message.presentation as never), true);
   const chosen: TripState = { ...missingDestination, destination: { state: "known" as const, source: "user", areas: [{ province: "海南省", places: [{ name: "三亚市", spots: [] }] }] } };
-  assert.equal(canUseDestinationGuidance(chosen), false);
   assert.deepEqual(chosenDestinationPlaces(chosen), ["三亚市"]);
   assert.deepEqual(chosenDestinationPlaces(area), []);
 });
@@ -54,19 +51,11 @@ test("the offered places keep their provinces and their order when they are grou
   assert.deepEqual(groupRecommendationsByProvince([]), []);
 });
 
-test("a selected destination disables historical guidance and all recommendation actions", async () => {
+test("a selected destination disables recommendation selection", () => {
   const selected:TripState = { ...missingDestination,
     destination: { state: "known" as const, source: "user", areas: [], legacyText: "迪庆藏族自治州" } };
-  assert.equal(canUseDestinationGuidance(selected), false);
   assert.equal(canSelectDestinationRecommendation(selected), false);
   assert.deepEqual(chosenDestinationPlaces(selected), []);
-  let calls = 0;
-  const result = await requestDestinationRecommendationsIfMissing("trip-1", selected, async () => {
-    calls += 1;
-    return Response.json({ message });
-  });
-  assert.equal(result, null);
-  assert.equal(calls, 0);
 });
 
 test("a fresh narrowing list can extend settled places until the Journey changes", () => {
@@ -104,31 +93,6 @@ test("places already settled come back ticked, and the list stops taking changes
   assert.equal(markup.match(/<input[^>]*disabled=""/gu)?.length, 3);
   assert.match(markup, /已选 2 个/u);
   assert.match(markup, /已选好/u);
-});
-
-test("button client posts without a synthetic user message and validates result", async () => {
-  const received = await requestDestinationRecommendations("trip 1", async (input, init) => {
-    assert.equal(input, "/api/trips/trip%201/destination-recommendations");
-    assert.equal(init?.method, "POST");
-    assert.equal(init?.body, undefined);
-    return Response.json({ message });
-  });
-  assert.deepEqual(received, message);
-});
-
-test("client rejects failed and invalid recommendation responses", async () => {
-  await assert.rejects(requestDestinationRecommendations("trip", async () =>
-    Response.json({ error: "failed" }, { status: 502 })));
-  await assert.rejects(requestDestinationRecommendations("trip", async () =>
-    Response.json({ message: { ...message, presentation: { ...message.presentation, destinations: [] } } })));
-  const oneCard = await requestDestinationRecommendations("trip", async () =>
-    Response.json({ message: { ...message, presentation: { ...message.presentation,
-      destinations: message.presentation.destinations.slice(0, 1) } } }));
-  assert.equal(oneCard.presentation?.type === "destination_recommendations" &&
-    oneCard.presentation.destinations.length, 1);
-  const noCards = await requestDestinationRecommendations("trip", async () =>
-    Response.json({ message: { ...message, presentation: undefined } }));
-  assert.equal(noCards.presentation, undefined);
 });
 
 const selectedState: TripState = {

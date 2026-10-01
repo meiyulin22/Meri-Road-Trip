@@ -1,6 +1,6 @@
 "use client";
 
-import { Check, ChevronDown, ChevronUp, CircleHelp, Map, Pencil, Route } from "lucide-react";
+import { ChevronDown, ChevronUp, Map, Pencil } from "lucide-react";
 import { useRef, useState } from "react";
 
 import {
@@ -12,120 +12,87 @@ import type {
   TripStateField,
   TripStateFieldName,
 } from "@/domain/trip-state/trip-state";
-import type { GeneratePlanReadiness } from "@/domain/trip-state/planning-readiness";
-import type { TripMessage } from "@/domain/trip-message/trip-message";
 
-import { requestDestinationMissingGuidance } from "./destination-missing-guidance-model";
+import { CertaintyTag, certaintyLabels, FieldStatusIcon } from "./field-certainty";
 import { LocationEditor } from "./location-editor";
+import { TripDatesField } from "./trip-dates-editor";
 import { DestinationEditor } from "./destination-editor";
-import { planningReadinessMessage, requestPlanningReadiness, shouldHighlightMissingDestination } from "./planning-readiness-model";
 import {
   createDirectTripStatePatch,
   requestTripStateUpdate,
 } from "./trip-state-persistence-model";
 import styles from "./trip-workspace.module.css";
 
-const certaintyLabels = {
-  known: "已理解",
-  approximate: "大致范围",
-  missing: "暂未确定",
-  ambiguous: "需要确认",
-} as const;
-
 const transportPreferenceLabels: Record<TransportPreference, string> = {
   self_drive: "自驾",
   no_self_drive: "不自驾",
   public_transport: "公共交通",
-  flexible: "交通方式灵活",
+  flexible: "灵活",
 };
 
-const compactBriefFields: TripStateFieldName[] = [
+type DateFieldName = "startDate" | "endDate" | "duration";
+type TextFieldName = Exclude<TripStateFieldName, "origin" | "destination" | "transportPreference" | DateFieldName>;
+/** One brief row: a TripState field, or 何时, which shows the three date fields as one span. */
+type BriefRowKey = Exclude<TripStateFieldName, DateFieldName> | "dates";
+
+const compactBriefFields: BriefRowKey[] = [
   "destination",
-  "startDate",
-  "duration",
+  "dates",
 ];
 
+// Ordered by the questions a plan answers — from where, to where, when, how — with
+// the Journey's own name last, since Meri fills it in and it is rarely the point.
 const allBriefFields: Array<{
-  readonly key: TripStateFieldName;
+  readonly key: BriefRowKey;
   readonly label: string;
 }> = [
-  { key: "name", label: "旅程名称" },
   { key: "origin", label: "出发地" },
   { key: "destination", label: "目的地" },
-  { key: "startDate", label: "开始时间" },
-  { key: "endDate", label: "结束时间" },
-  { key: "duration", label: "行程时长" },
+  { key: "dates", label: "何时" },
   { key: "transportPreference", label: "交通偏好" },
+  { key: "name", label: "旅程名称" },
 ];
 
 export function ExpeditionBriefPanel({
   destinationEditorOpenRequest,
-  onGuidanceMessage,
   onTripStateChange,
   tripId,
   tripState,
 }: {
   readonly destinationEditorOpenRequest: number;
-  readonly onGuidanceMessage: (message: TripMessage) => void;
   readonly onTripStateChange: (state: TripState) => void;
   readonly tripId: string;
   readonly tripState: TripState;
 }) {
   const [isExpanded, setIsExpanded] = useState(true);
   const [persistenceError, setPersistenceError] = useState<string | null>(null);
-  const [readiness, setReadiness] = useState<{
-    readonly destinationKey: string;
-    readonly result: GeneratePlanReadiness;
-  } | null>(null);
-  const [readinessErrorKey, setReadinessErrorKey] = useState<string | null>(null);
-  const [guidanceErrorKey, setGuidanceErrorKey] = useState<string | null>(null);
-  const [isCheckingReadiness, setIsCheckingReadiness] = useState(false);
-  const readinessRequestInFlight = useRef(false);
+  const [isSavingTransport, setIsSavingTransport] = useState(false);
   const isPersistingEdit = useRef(false);
   const [editing, setEditing] = useState<{
-    readonly field: TripStateFieldName;
+    readonly field: TextFieldName;
     readonly value: string;
   } | null>(null);
   const visibleFields = isExpanded
     ? allBriefFields
     : allBriefFields.filter(({ key }) => compactBriefFields.includes(key));
-  const destinationKey = JSON.stringify(tripState.destination);
-  const highlightMissingDestination = shouldHighlightMissingDestination(readiness, destinationKey);
 
-  function handleDestinationStateChange(state: TripState): void {
-    setReadiness(null);
-    setReadinessErrorKey(null);
-    setGuidanceErrorKey(null);
-    onTripStateChange(state);
-  }
-
-  async function checkReadiness(): Promise<void> {
-    if (readinessRequestInFlight.current) return;
-    readinessRequestInFlight.current = true;
-    setIsCheckingReadiness(true);
-    setReadiness(null);
-    setReadinessErrorKey(null);
-    setGuidanceErrorKey(null);
+  async function persistField(field: TextFieldName | "transportPreference", value: string): Promise<boolean> {
+    if (isPersistingEdit.current) return false;
+    isPersistingEdit.current = true;
     try {
-      const result = await requestPlanningReadiness(tripId);
-      setReadiness({ destinationKey, result });
-      if (!result.canProceed && result.reason === "destination_missing") {
-        try {
-          onGuidanceMessage(await requestDestinationMissingGuidance(tripId));
-        } catch {
-          setGuidanceErrorKey(destinationKey);
-        }
-      }
+      const patch = createDirectTripStatePatch(tripState, field, value);
+      onTripStateChange(await requestTripStateUpdate(tripId, patch));
+      setPersistenceError(null);
+      return true;
     } catch {
-      setReadinessErrorKey(destinationKey);
+      setPersistenceError("这次修改暂时没能保存，请重试。");
+      return false;
     } finally {
-      readinessRequestInFlight.current = false;
-      setIsCheckingReadiness(false);
+      isPersistingEdit.current = false;
     }
   }
 
-  function startEditing(field: TripStateFieldName): void {
-    if (field === "destination") return;
+  function startEditing(field: TextFieldName): void {
     const currentField = tripState[field];
     setEditing({
       field,
@@ -134,31 +101,22 @@ export function ExpeditionBriefPanel({
   }
 
   async function confirmEditing(): Promise<void> {
-    if (editing === null || isPersistingEdit.current) {
-      return;
-    }
-
-    isPersistingEdit.current = true;
-    try {
-      const patch = createDirectTripStatePatch(
-        tripState,
-        editing.field,
-        editing.value,
-      );
-      const persistedState = await requestTripStateUpdate(tripId, patch);
-      onTripStateChange(persistedState);
-      setPersistenceError(null);
-      setEditing(null);
-    } catch {
-      setPersistenceError("这次修改暂时没能保存，请重试。");
-    } finally {
-      isPersistingEdit.current = false;
-    }
+    if (editing === null) return;
+    if (await persistField(editing.field, editing.value)) setEditing(null);
   }
 
   function cancelEditing(): void {
     setEditing(null);
     setPersistenceError(null);
+  }
+
+  async function selectTransport(value: TransportPreference | ""): Promise<void> {
+    setIsSavingTransport(true);
+    try {
+      await persistField("transportPreference", value);
+    } finally {
+      setIsSavingTransport(false);
+    }
   }
 
   return (
@@ -190,10 +148,6 @@ export function ExpeditionBriefPanel({
         </button>
       </header>
 
-      <div className={styles.briefProgress}>
-        <h3>Expedition brief</h3>
-        <span>{Object.values(tripState).filter((field) => field.state === "known").length}<small> / 7 已理解</small></span>
-      </div>
       <div className={styles.briefGuidance}>
         <p className={styles.editingHint}>
           Meri 目前理解的旅程。点一下，就能补充或修改。
@@ -209,10 +163,9 @@ export function ExpeditionBriefPanel({
       <dl className={styles.briefFields}>
         {visibleFields.map(({ key, label }) => key === "destination" ? (
           <DestinationEditor
-            highlightMissing={highlightMissingDestination}
             initiallyOpen={destinationEditorOpenRequest > 0}
             key={`${key}-${destinationEditorOpenRequest}`}
-            onTripStateChange={handleDestinationStateChange}
+            onTripStateChange={onTripStateChange}
             tripId={tripId}
             tripState={tripState}
           />
@@ -224,11 +177,26 @@ export function ExpeditionBriefPanel({
             tripId={tripId}
             tripState={tripState}
           />
+        ) : key === "dates" ? (
+          <TripDatesField
+            key={key}
+            label={label}
+            onTripStateChange={onTripStateChange}
+            tripId={tripId}
+            tripState={tripState}
+          />
+        ) : key === "transportPreference" ? (
+          <TransportPreferenceField
+            busy={isSavingTransport}
+            field={tripState.transportPreference}
+            key={key}
+            label={label}
+            onSelect={(value) => void selectTransport(value)}
+          />
         ) : (
           <ExpeditionBriefField
             editValue={editing?.field === key ? editing.value : ""}
             field={tripState[key]}
-            fieldName={key}
             isEditing={editing?.field === key}
             key={key}
             label={label}
@@ -239,39 +207,71 @@ export function ExpeditionBriefPanel({
           />
         ))}
       </dl>
-      <button
-        aria-busy={isCheckingReadiness}
-        className={styles.generatePlan}
-        disabled={isCheckingReadiness}
-        onClick={() => void checkReadiness()}
-        type="button"
-      >
-        <Route size={18} aria-hidden="true" />
-        <span>{isCheckingReadiness ? "正在检查目的地…" : "Generate plan"}</span>
-      </button>
-      {readiness?.destinationKey === destinationKey ? (
-        <p className={styles.planReadinessResult} role="status" data-ready={readiness.result.canProceed}>
-          {planningReadinessMessage(readiness.result)}
-        </p>
-      ) : null}
-      {readinessErrorKey === destinationKey ? (
-        <p className={styles.planReadinessResult} role="alert" data-ready="false">
-          暂时无法完成检查，请重试。
-        </p>
-      ) : null}
-      {guidanceErrorKey === destinationKey ? (
-        <p className={styles.planReadinessResult} role="alert" data-ready="false">
-          Meri 的引导暂时没能保存，请再试一次。
-        </p>
-      ) : null}
     </aside>
+  );
+}
+
+function FieldHeading({ label, state }: { readonly label: string; readonly state: TripStateField["state"] }) {
+  return (
+    <dt>
+      <span className={styles.fieldLabel}>
+        <FieldStatusIcon state={state} />
+        {label}
+      </span>
+      <span className={styles.fieldCertainty}>{certaintyLabels[state]}</span>
+    </dt>
+  );
+}
+
+/**
+ * Transport is a choice among four known answers, so it is one tap rather than a
+ * dropdown. Tapping the chosen answer again clears it. A rough answer Meri heard in
+ * conversation (「可能自驾吧」) stays visible underneath until the user picks one.
+ */
+function TransportPreferenceField({
+  busy,
+  field,
+  label,
+  onSelect,
+}: {
+  readonly busy: boolean;
+  readonly field: TripStateField;
+  readonly label: string;
+  readonly onSelect: (value: TransportPreference | "") => void;
+}) {
+  const selected = field.state === "known" ? field.value : null;
+
+  return (
+    <div className={`${styles.stateField} ${styles.stackedField}`} data-certainty={field.state}>
+      <FieldHeading label={label} state={field.state} />
+      <dd>
+        <div aria-label={label} className={styles.transportChoices} role="group">
+          {transportPreferences.map((preference) => (
+            <button
+              aria-pressed={selected === preference}
+              disabled={busy}
+              key={preference}
+              onClick={() => onSelect(selected === preference ? "" : preference)}
+              type="button"
+            >
+              {transportPreferenceLabels[preference]}
+            </button>
+          ))}
+        </div>
+        {field.state === "approximate" || field.state === "ambiguous" ? (
+          <p className={styles.fieldNote}>
+            Meri 记下：{field.value}
+            <CertaintyTag state={field.state} />
+          </p>
+        ) : null}
+      </dd>
+    </div>
   );
 }
 
 interface ExpeditionBriefFieldProps {
   readonly label: string;
   readonly field: TripStateField;
-  readonly fieldName: TripStateFieldName;
   readonly isEditing: boolean;
   readonly editValue: string;
   readonly onEdit: () => void;
@@ -283,7 +283,6 @@ interface ExpeditionBriefFieldProps {
 function ExpeditionBriefField({
   label,
   field,
-  fieldName,
   isEditing,
   editValue,
   onEdit,
@@ -291,15 +290,6 @@ function ExpeditionBriefField({
   onConfirm,
   onCancel,
 }: ExpeditionBriefFieldProps) {
-  const value =
-    field.state === "missing"
-      ? "—"
-      : fieldName === "transportPreference" &&
-          field.state === "known" &&
-          transportPreferences.includes(field.value as TransportPreference)
-        ? transportPreferenceLabels[field.value as TransportPreference]
-        : field.value;
-
   function handleKeyDown(event: React.KeyboardEvent<HTMLElement>): void {
     if (event.key === "Escape") {
       event.preventDefault();
@@ -314,45 +304,24 @@ function ExpeditionBriefField({
 
   return (
     <div className={styles.stateField} data-certainty={field.state}>
-      <dt>
-        <span className={styles.fieldLabel}>
-          {field.state === "known" ? <Check size={14} aria-hidden="true" /> : <CircleHelp size={16} aria-hidden="true" />}
-          {label}
-        </span>
-        <span className={styles.fieldCertainty}>{certaintyLabels[field.state]}</span>
-      </dt>
+      <FieldHeading label={label} state={field.state} />
       <dd>
         {isEditing ? (
-          fieldName === "transportPreference" ? (
-            <select
-              aria-label={`编辑${label}`}
-              autoFocus
-              onBlur={onConfirm}
-              onChange={(event) => onChange(event.target.value)}
-              onKeyDown={handleKeyDown}
-              value={editValue}
-            >
-              <option value="">暂未确定</option>
-              {transportPreferences.map((preference) => (
-                <option key={preference} value={preference}>
-                  {transportPreferenceLabels[preference]}
-                </option>
-              ))}
-            </select>
-          ) : (
-            <input
-              aria-label={`编辑${label}`}
-              autoFocus
-              onBlur={onConfirm}
-              onChange={(event) => onChange(event.target.value)}
-              onKeyDown={handleKeyDown}
-              type="text"
-              value={editValue}
-            />
-          )
+          <input
+            aria-label={`编辑${label}`}
+            autoFocus
+            onBlur={onConfirm}
+            onChange={(event) => onChange(event.target.value)}
+            onKeyDown={handleKeyDown}
+            type="text"
+            value={editValue}
+          />
         ) : (
           <button aria-label={`编辑${label}`} onClick={onEdit} type="button">
-            <span>{value}</span>
+            <span>
+              {field.state === "missing" ? "—" : field.value}
+              <CertaintyTag state={field.state} />
+            </span>
             <Pencil aria-hidden="true" size={13} />
           </button>
         )}

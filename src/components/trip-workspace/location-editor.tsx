@@ -1,12 +1,13 @@
 "use client";
 
-import { Check, CircleHelp, MapPin, Pencil, Search } from "lucide-react";
+import { MapPin, Pencil, Search } from "lucide-react";
 import { useEffect, useId, useRef, useState } from "react";
 
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/animated-popover";
 import type { LocationSuggestion } from "@/domain/location/location-suggestion";
 import type { TripState } from "@/domain/trip-state/trip-state";
 
+import { CertaintyTag, certaintyLabels, FieldStatusIcon } from "./field-certainty";
 import { createSelectedLocationPatch, normalizeSuggestionQuery, parseSuggestionResponse } from "./location-editor-model";
 import { requestTripStateUpdate } from "./trip-state-persistence-model";
 import styles from "./trip-workspace.module.css";
@@ -140,17 +141,18 @@ export function LocationEditor({
       >
         <dt>
           <span className={styles.fieldLabel}>
-            {location.state === "known" ? <Check size={14} aria-hidden="true" /> : <CircleHelp size={16} aria-hidden="true" />}
+            <FieldStatusIcon state={location.state} />
             {label}
           </span>
-          <span className={styles.fieldCertainty}>
-            {location.state === "known" ? "已理解" : location.state === "missing" ? "暂未确定" : location.state === "approximate" ? "大致范围" : "需要确认"}
-          </span>
+          <span className={styles.fieldCertainty}>{certaintyLabels[location.state]}</span>
         </dt>
         <dd>
           <PopoverTrigger asChild>
             <button aria-label={`编辑${label}`} type="button">
-              <span>{location.state === "missing" ? "—" : location.value}</span>
+              <span>
+                {location.state === "missing" ? "—" : location.value}
+                <CertaintyTag state={location.state} />
+              </span>
               <Pencil aria-hidden="true" size={13} />
             </button>
           </PopoverTrigger>

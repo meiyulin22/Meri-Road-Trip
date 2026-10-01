@@ -10,7 +10,6 @@ import { readGuestId } from "@/platform/identity/guest-identity";
 import { TripStateNotFoundError } from "@/capabilities/journey/journey-errors";
 import { journeyService } from "@/capabilities/journey/journey-service-instance";
 import { tripMessageService } from "@/capabilities/conversation/trip-message-service-instance";
-import { destinationMissingGuidanceMessageId } from "@/capabilities/conversation/destination-missing-guidance";
 
 import styles from "@/components/trip-workspace/trip-workspace.module.css";
 
@@ -60,7 +59,6 @@ export default async function TripWorkspacePage({
 
   return (
     <TripWorkspace
-      destinationGuidanceMessageId={destinationMissingGuidanceMessageId(journey.trip.id)}
       initialMessages={initialMessages}
       initialTripState={journey.tripState}
       tripId={journey.trip.id}

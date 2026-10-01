@@ -48,7 +48,7 @@
 | `src/domain/location/` | 地点候选、建议、合理匹配规则和推荐校验 | 地点领域模型及纯规则 |
 | `src/capabilities/` | 围绕具体能力组织服务、用例、prompt 和流程编排 | 应用层（application layer），回答“完成一个操作需要哪些步骤” |
 | `src/capabilities/journey/` | 创建、加载、更新、删除 Journey 和草稿提取 | Journey 应用用例 |
-| `src/capabilities/conversation/` | 模型解释、开场、历史上下文、消息保存和固定引导 | 对话应用用例 |
+| `src/capabilities/conversation/` | 模型解释、开场、历史上下文和消息保存 | 对话应用用例 |
 | `src/capabilities/destination/` | 高德查询协调、层级映射、候选准备、提交复核 | 目的地应用用例 |
 | `src/capabilities/recommendation/` | 搜索启发、结构化推荐、省份过滤和消息编排 | 推荐应用用例；确定性 workflow |
 | `src/platform/` | 提供外部调用接口和具体实现 | 基础设施/集成层（infrastructure layer），端口与适配器 |
@@ -95,7 +95,7 @@ UI 同步状态；刷新从数据库恢复
 | TripMessage | 用户/助手原文，助手可附受限 presentation | 真实历史和待选卡，不等于已保存偏好 |
 | JourneySummary | 从 Trip + TripState 投影出的列表信息 | 读模型，不是另一份可写事实来源 |
 
-当前数据库 schema 有 `trips`、`trip_states`、`trip_messages`。显式推荐按钮以请求入口决定 `source=explicit_action`，不伪造用户消息，也不再写独立 action 表。历史迁移 `0007` 曾创建 `trip_user_actions`，`0009` 已定义删除该表；仓库文件不能证明任何环境已经实际执行迁移。
+当前数据库 schema 有 `trips`、`trip_states`、`trip_messages`。推荐只从聊天触发（`source=conversation`），没有推荐按钮入口，也不写独立 action 表。历史迁移 `0007` 曾创建 `trip_user_actions`，`0009` 已定义删除该表；仓库文件不能证明任何环境已经实际执行迁移。
 
 普通字段可以 known/approximate/ambiguous/missing。destination 只有 missing/known，known 保存 `areas: [{ province, places: [{ name, spots: string[] }] }]`，可能带待确认旧文本 `legacyText`。展示文案从结构派生；spot 目前是想去的名称，不是精确 POI ID 或坐标。
 
@@ -121,7 +121,7 @@ LLM 解释自然语言并提出受限 JSON；应用校验、决定是否执行�
 4. 已确认卡片和后续对话之前的旧卡只读。服务端也检查过期，安全的同组选项重试复用确认消息；不能让旧卡恢复后来删除的地点。
 5. CAS（比较并交换）以读取的状态为前提更新。生产 PostgreSQL 用原始 JSONB 作为条件；JourneyService 最多重试 3 次。目的地操作带 expectedDestination，冲突拒绝套用旧目的地；普通字段重试重算，保留并发变更。
 6. 状态更新与会话保存仍是分开的步骤，不是跨全部流程的一笔事务。选卡状态成功而确认消息失败时，返回实际 TripState 和 `follow_up_unavailable`；普通聊天失败则需刷新核对。
-7. 旧自由文本保留 `legacyText`，不伪造行政身份。准备度要求已选城市且无待确认旧记录；只有空省不能开始规划。未来研究应从当前 TripState 取偏好，不能从旧聊天恢复删除项。
+7. 旧自由文本保留 `legacyText`，不伪造行政身份。准备度只要求已有目的地且无待确认旧记录；只有省、没有市也可以开始规划。未来研究应从当前 TripState 取偏好，不能从旧聊天恢复删除项。
 8. 通用 state PATCH 当前接受领域校验后的 patch，仍能包含 destination；它并非所有目的地请求都统一高德核验的入口。专用目的地接口有更明确的核验/并发边界。state route 的错误映射当前也未将 TripStateConflictError 单独映射成 409。这些是实现边界，本文没有顺带修改代码。
 9. `workspace-turn-branch.ts` 和旧 `destination-recommendation-picker.tsx` 仍在仓库并有测试，但当前主聊天链路不使用它们；实际聊天分支在 messages route，当前卡片在 `destination-choices-card.tsx`。
 
@@ -137,7 +137,7 @@ LLM 解释自然语言并提出受限 JSON；应用校验、决定是否执行�
 | 卡片合并、过期或安全重试 | choice identity、verified choice、selection route、selection message ID、UI adapter、choices card、conversation panel | 第 4 节及第 7.2–7.3 节 |
 | 推荐生成与搜索降级 | recommendation context/generator/prompt/workflow/use case、Discovery Search/Bocha | 第 4.1 节 |
 | 日期/交通/出发地直接编辑 | brief panel、location editor/model、trip-state persistence model、state/suggestions routes | 第 5.1 节 |
-| Generate plan 准备度 | planning-readiness、readiness route/model、generate-plan action、missing-guidance | 第 5.4 节 |
+| Generate plan 准备度 | planning-readiness、readiness route/model、generate-plan action | 第 5.4 节 |
 | 保存、并发、列表或删除 | Journey/Trip services、repository 接口、Postgres 实现、schema、my-journeys 和相关页面 | 第 1.1、2.3、7 节 |
 | 视觉或动画 | 对应 TSX/CSS、现有 UI 组件及引用的 public 资源 | 涉及操作变化时同步相应业务章节 |
 
@@ -190,11 +190,9 @@ LLM 解释自然语言并提出受限 JSON；应用校验、决定是否执行�
 | [src/app/api/trip-drafts/route.ts](../src/app/api/trip-drafts/route.ts) | HTTP 接口层 | POST /api/trip-drafts 校验原话，调用模型草稿提取，返回草稿或模型错误；不创建 Journey。 |
 | [src/app/api/trip-workspace/messages/route.ts](../src/app/api/trip-workspace/messages/route.ts) | HTTP 接口层 | POST 聊天的实际编排：归属/历史、模型解释、普通字段保存、地点 edit/推荐、保存真实消息及错误映射。 |
 | [src/app/api/trips/[id]/conversation/initialize/route.ts](../src/app/api/trips/%5Bid%5D/conversation/initialize/route.ts) | HTTP 接口层 | POST opening 重试：检查访客和 Journey，返回保存的开场或初始化合资格开场。 |
-| [src/app/api/trips/[id]/destination-missing-guidance/route.ts](../src/app/api/trips/%5Bid%5D/destination-missing-guidance/route.ts) | HTTP 接口层 | POST 缺目的地时保存/返回固定引导助手消息，检查当前资格。 |
 | [src/app/api/trips/[id]/destination-recommendation-selection/route.ts](../src/app/api/trips/%5Bid%5D/destination-recommendation-selection/route.ts) | HTTP 接口层 | POST 多选确认：取持久化 offer、验证选择和过期、复核高德、合并/替换、保存确认，处理安全重试和半成功。 |
-| [src/app/api/trips/[id]/destination-recommendations/route.ts](../src/app/api/trips/%5Bid%5D/destination-recommendations/route.ts) | HTTP 接口层 | POST 显式推荐：按当前状态判断资格，构造 explicit_action 上下文，保存助手建议；不保存独立 action。 |
 | [src/app/api/trips/[id]/destinations/route.ts](../src/app/api/trips/%5Bid%5D/destinations/route.ts) | HTTP 接口层 | GET 手动搜索、POST 重查并添加、DELETE 完整元组/旧记录；归属检查、目标核验及目的地并发控制。 |
-| [src/app/api/trips/[id]/planning-readiness/route.ts](../src/app/api/trips/%5Bid%5D/planning-readiness/route.ts) | HTTP 接口层 | GET 读取新鲜 TripState，返回 missing/area_only/unverified/selected 准备度；不生成计划。 |
+| [src/app/api/trips/[id]/planning-readiness/route.ts](../src/app/api/trips/%5Bid%5D/planning-readiness/route.ts) | HTTP 接口层 | GET 读取新鲜 TripState，返回 missing/unverified/selected 准备度；不生成计划。 |
 | [src/app/api/trips/[id]/route.ts](../src/app/api/trips/%5Bid%5D/route.ts) | HTTP 接口层 | DELETE /api/trips/[id] 只删除当前访客拥有的 Trip，数据库级联清理状态和消息。 |
 | [src/app/api/trips/[id]/state/route.ts](../src/app/api/trips/%5Bid%5D/state/route.ts) | HTTP 接口层 | GET 状态/PATCH 领域校验后的 patch；调用 JourneyService，不自行做高德核验，冲突错误当前未单独映射 409。 |
 | [src/app/globals.css](../src/app/globals.css) | 页面/框架入口 | 全站基础样式与通用视觉变量。 |
@@ -238,34 +236,36 @@ LLM 解释自然语言并提出受限 JSON；应用校验、决定是否执行�
 | [src/components/trip-workspace/conversation-reveal.ts](../src/components/trip-workspace/conversation-reveal.ts) | 表现层 | 已提交助手正文的客户端可见字符数/显示节奏纯函数；不是服务端 token 流。 |
 | [src/components/trip-workspace/destination-choices-card.test.tsx](../src/components/trip-workspace/destination-choices-card.test.tsx) | 测试（对应模块边界） | 验证同市新 spot 可添加、replace 可选已有市、重复 POI 归并及历史/已确认卡禁用。 |
 | [src/components/trip-workspace/destination-choices-card.tsx](../src/components/trip-workspace/destination-choices-card.tsx) | 表现层 | 当前聊天多选卡，按省归组、同偏好归并、统一提交，处理已在行程（勾选锁定）/只读/pending/失败状态。 |
-| [src/components/trip-workspace/destination-editor.tsx](../src/components/trip-workspace/destination-editor.tsx) | 表现层 | 右侧省→市→spot 编辑器，展示/搜索/显式添加/精确删除及旧记录清除，处理 busy 和错误。 |
-| [src/components/trip-workspace/destination-missing-guidance-model.test.ts](../src/components/trip-workspace/destination-missing-guidance-model.test.ts) | 测试（对应模块边界） | 验证 focused POST 和返回消息校验，不把本地占位当数据库消息。 |
-| [src/components/trip-workspace/destination-missing-guidance-model.ts](../src/components/trip-workspace/destination-missing-guidance-model.ts) | 表现层 | 调用缺目的地引导 API，校验返回的持久化助手消息。 |
-| [src/components/trip-workspace/destination-recommendation-model.test.ts](../src/components/trip-workspace/destination-recommendation-model.test.ts) | 测试（对应模块边界） | 验证推荐资格、省分组、统一提交请求及旧 Picker 渲染兼容。 |
-| [src/components/trip-workspace/destination-recommendation-model.ts](../src/components/trip-workspace/destination-recommendation-model.ts) | 表现层 | 推荐请求、提交选卡、按省归组及资格等前端辅助规则；存在兼容 helper，是否生效按调用方核对。 |
+| [src/components/trip-workspace/destination-editor.tsx](../src/components/trip-workspace/destination-editor.tsx) | 表现层 | 右侧目的地行：“＋ 添加”展开搜索；每省一块，城市/景点为可删除标签，无城市的省显示“全省”；搜索/显式添加/精确删除及旧记录清除，处理 busy 和错误。 |
+| [src/components/trip-workspace/destination-recommendation-model.test.ts](../src/components/trip-workspace/destination-recommendation-model.test.ts) | 测试（对应模块边界） | 验证推荐卡选择资格、省分组、统一提交请求及旧 Picker 渲染兼容。 |
+| [src/components/trip-workspace/destination-recommendation-model.ts](../src/components/trip-workspace/destination-recommendation-model.ts) | 表现层 | 提交推荐选卡、按省归组及选择资格等前端辅助规则。 |
 | [src/components/trip-workspace/destination-recommendation-picker.module.css](../src/components/trip-workspace/destination-recommendation-picker.module.css) | 表现层 | 目的地候选/推荐多选列表的分组、checkbox、确认及状态样式。 |
 | [src/components/trip-workspace/destination-recommendation-picker.tsx](../src/components/trip-workspace/destination-recommendation-picker.tsx) | 表现层 | 保留的旧推荐多选组件及测试入口；当前 ConversationPanel 使用 DestinationChoicesCard。 |
-| [src/components/trip-workspace/expedition-brief-panel.tsx](../src/components/trip-workspace/expedition-brief-panel.tsx) | 表现层 | Journey overview 字段面板，组合目的地/出发地编辑、日期时长交通和 Generate plan。 |
-| [src/components/trip-workspace/generate-plan-action.tsx](../src/components/trip-workspace/generate-plan-action.tsx) | 表现层 | Generate plan 客户端按钮和结果展示，按当前准备度引导选择目的地，规划尚未开放。 |
+| [src/components/trip-workspace/expedition-brief-panel.tsx](../src/components/trip-workspace/expedition-brief-panel.tsx) | 表现层 | Journey overview 字段面板，按出发地、目的地、何时、交通偏好、旅程名称排列；交通一键点选，名称文本编辑。 |
+| [src/components/trip-workspace/field-certainty.tsx](../src/components/trip-workspace/field-certainty.tsx) | 表现层 | 字段把握程度的共享展示：known/approximate/ambiguous/missing 的图标、屏幕阅读器文字和“大致/待确认”标签。 |
+| [src/components/trip-workspace/generate-plan-action.tsx](../src/components/trip-workspace/generate-plan-action.tsx) | 表现层 | 唯一的 Generate plan，Halo 式旋转渐变边框按钮，位于聊天下方并始终可见；不可用时保持可聚焦并在悬停/聚焦时说明添加目的地的途径（可打开右侧搜索），规划尚未开放。 |
 | [src/components/trip-workspace/location-editor-model.test.ts](../src/components/trip-workspace/location-editor-model.test.ts) | 测试（对应模块边界） | 验证 query 长度、完整建议解析及已选地点 patch 身份/坐标。 |
 | [src/components/trip-workspace/location-editor-model.ts](../src/components/trip-workspace/location-editor-model.ts) | 表现层 | 输入 query 标准化、建议响应校验和出发地 selection patch 构造。 |
-| [src/components/trip-workspace/location-editor.tsx](../src/components/trip-workspace/location-editor.tsx) | 表现层 | 当前用于 origin 的输入建议编辑控件，防抖查询、显式选中并保存普通字段。 |
+| [src/components/trip-workspace/location-editor.tsx](../src/components/trip-workspace/location-editor.tsx) | 表现层 | 当前用于 origin 的输入建议编辑控件，防抖查询、显式选中并保存普通字段；状态图标/标签来自 field-certainty。 |
 | [src/components/trip-workspace/meri-world.tsx](../src/components/trip-workspace/meri-world.tsx) | 表现层 | 旅程信息下方的 Companion 插画和陪伴提示语。 |
 | [src/components/trip-workspace/message-timestamp.ts](../src/components/trip-workspace/message-timestamp.ts) | 表现层 | 按本地今天/昨天/更早日期格式化聊天时间标签。 |
-| [src/components/trip-workspace/planning-readiness-model.test.ts](../src/components/trip-workspace/planning-readiness-model.test.ts) | 测试（对应模块边界） | 验证只读 readiness 请求、缺失/仅省/旧文本处理及结果与当前目的地关联。 |
-| [src/components/trip-workspace/planning-readiness-model.ts](../src/components/trip-workspace/planning-readiness-model.ts) | 表现层 | 准备度请求、固定说明、请求资格及 missing 高亮规则。 |
+| [src/components/trip-workspace/planning-readiness-model.test.ts](../src/components/trip-workspace/planning-readiness-model.test.ts) | 测试（对应模块边界） | 验证只读 readiness 请求、响应校验及缺失/旧文本说明文案。 |
+| [src/components/trip-workspace/planning-readiness-model.ts](../src/components/trip-workspace/planning-readiness-model.ts) | 表现层 | 准备度请求、响应校验和固定说明文案。 |
+| [src/components/trip-workspace/trip-dates-editor.tsx](../src/components/trip-workspace/trip-dates-editor.tsx) | 表现层 | “何时”行：一行概括日期与时长，点开为 react-day-picker 范围日历（宽屏两月）和天数步进器；两次点击定起止后保存，支持清除。 |
+| [src/components/trip-workspace/trip-dates-model.test.ts](../src/components/trip-workspace/trip-dates-model.test.ts) | 测试（对应模块边界） | 验证“何时”概括文案、近似原话的标记、日历日与存储日互转不偏移时区，以及 patch 只含用户所选值。 |
+| [src/components/trip-workspace/trip-dates-model.ts](../src/components/trip-workspace/trip-dates-model.ts) | 表现层 | “何时”纯辅助：概括文案与整体 certainty、日历 Date 与 YYYY-MM-DD 互转、日期 patch 构造。 |
 | [src/components/trip-workspace/trip-message-ui-adapter.test.ts](../src/components/trip-workspace/trip-message-ui-adapter.test.ts) | 测试（对应模块边界） | 验证消息顺序、ID/角色/正文不变、时间格式、历史卡适配和去重追加。 |
 | [src/components/trip-workspace/trip-message-ui-adapter.ts](../src/components/trip-workspace/trip-message-ui-adapter.ts) | 表现层 | TripMessage → UIMessage，读取时间/presentation，将历史卡转换为统一 choices，按 ID 避免重复追加。 |
 | [src/components/trip-workspace/trip-state-persistence-model.test.ts](../src/components/trip-workspace/trip-state-persistence-model.test.ts) | 测试（对应模块边界） | 验证确定性状态/来源保留、清空字段、目的地拒绝及服务端响应检查。 |
 | [src/components/trip-workspace/trip-state-persistence-model.ts](../src/components/trip-workspace/trip-state-persistence-model.ts) | 表现层 | 普通字段直接编辑的 user patch 与 state PATCH 请求/响应校验，前端拒绝直接 destination 编辑。 |
 | [src/components/trip-workspace/trip-workspace.module.css](../src/components/trip-workspace/trip-workspace.module.css) | 表现层 | Workspace 主布局、字段行、聊天、角色区及移动端样式。 |
-| [src/components/trip-workspace/trip-workspace.tsx](../src/components/trip-workspace/trip-workspace.tsx) | 表现层 | Workspace 客户端容器，协调权威状态、聊天、右侧编辑、准备度和界面区域。 |
+| [src/components/trip-workspace/trip-workspace.tsx](../src/components/trip-workspace/trip-workspace.tsx) | 表现层 | Workspace 客户端容器，协调权威状态、聊天、右侧编辑和界面区域，并把“打开目的地搜索”请求从聊天传到右侧。 |
 | [src/components/trip-workspace/workspace-chat-transport.test.ts](../src/components/trip-workspace/workspace-chat-transport.test.ts) | 测试（对应模块边界） | 验证实际 JSON 契约、临时/持久化消息 ID、presentation 和成功后状态同步。 |
 | [src/components/trip-workspace/workspace-chat-transport.ts](../src/components/trip-workspace/workspace-chat-transport.ts) | 表现层 | 把完整聊天 JSON 响应适配为 AI SDK ChatTransport 事件，同步已提交 ID 和状态。 |
 | [src/components/trip-workspace/workspace-conversation-model.test.ts](../src/components/trip-workspace/workspace-conversation-model.test.ts) | 测试（对应模块边界） | 验证合法/非法响应、浏览器 fetch 接收者及失败提示，不把未确认发送当已保存。 |
 | [src/components/trip-workspace/workspace-conversation-model.ts](../src/components/trip-workspace/workspace-conversation-model.ts) | 表现层 | 请求聊天、解析响应及 selection 相关错误类型，校验服务端返回状态和消息。 |
-| [src/components/trip-workspace/workspace-header.tsx](../src/components/trip-workspace/workspace-header.tsx) | 表现层 | 品牌/返回首页、旅程标题、日期/出发地/交通摘要；保存标签为当前 UI 展示。 |
-| [src/components/trip-workspace/workspace-presentation.ts](../src/components/trip-workspace/workspace-presentation.ts) | 表现层 | 页头使用的字段、日期和交通显示转换。 |
+| [src/components/trip-workspace/workspace-header.tsx](../src/components/trip-workspace/workspace-header.tsx) | 表现层 | 品牌/返回首页、旅程标题、日期/出发地/交通摘要；日期与“何时”同一写法；保存标签为当前 UI 展示。 |
+| [src/components/trip-workspace/workspace-presentation.ts](../src/components/trip-workspace/workspace-presentation.ts) | 表现层 | 页头使用的字段、日期（复用 tripDatesSummary）和交通显示转换。 |
 | [src/components/trip-workspace/workspace-title.ts](../src/components/trip-workspace/workspace-title.ts) | 表现层 | 从当前 name 字段派生 Workspace 标题，缺失时显示默认标题。 |
 
 ### 6.6 基础 UI 组件
@@ -301,10 +301,12 @@ LLM 解释自然语言并提出受限 JSON；应用校验、决定是否执行�
 | [src/domain/trip-state/destination-areas.ts](../src/domain/trip-state/destination-areas.ts) | 领域层 | 省市/spot 类型和纯函数：格式化、计数、包含、去重添加、级联删除、唯一匹配及结构读取。 |
 | [src/domain/trip-state/destination-edit.ts](../src/domain/trip-state/destination-edit.ts) | 领域层 | none/add/set/remove 契约、严格模型 JSON Schema、表达数量/长度/去重校验。 |
 | [src/domain/trip-state/destination-legacy-read.test.ts](../src/domain/trip-state/destination-legacy-read.test.ts) | 测试（对应模块边界） | 验证旧自由文本保留为 legacyText，不把未核验名称假装成市。 |
-| [src/domain/trip-state/planning-readiness.test.ts](../src/domain/trip-state/planning-readiness.test.ts) | 测试（对应模块边界） | 验证缺目的地、空省、旧文本和已选城市的准备度；其他字段不是硬门槛。 |
-| [src/domain/trip-state/planning-readiness.ts](../src/domain/trip-state/planning-readiness.ts) | 领域层 | 纯准备度规则：missing、area_only、unverified 或 selected；仅检查状态，不研究可行性。 |
-| [src/domain/trip-state/trip-state.test.ts](../src/domain/trip-state/trip-state.test.ts) | 测试（对应模块边界） | 验证草稿初始化、显式目的地选择、默认名称/用户名称保护、patch 校验与字段状态。 |
-| [src/domain/trip-state/trip-state.ts](../src/domain/trip-state/trip-state.ts) | 领域层 | 七类权威字段、certainty/source、初始化/patch、目的地展示与推荐资格、旧 destination 读取兼容。 |
+| [src/domain/trip-state/planning-readiness.test.ts](../src/domain/trip-state/planning-readiness.test.ts) | 测试（对应模块边界） | 验证缺目的地、只有省、省市混合、旧文本和已选城市的准备度；其他字段不是硬门槛。 |
+| [src/domain/trip-state/planning-readiness.ts](../src/domain/trip-state/planning-readiness.ts) | 领域层 | 纯准备度规则：missing、unverified 或 selected（只有省也算 selected）；仅检查状态，不研究可行性。 |
+| [src/domain/trip-state/trip-dates.test.ts](../src/domain/trip-state/trip-dates.test.ts) | 测试（对应模块边界） | 验证含首尾计数、任意两项补算第三项、修改哪项决定补算哪项、跨月跨年/闰日，以及近似/非法值不参与。 |
+| [src/domain/trip-state/trip-dates.ts](../src/domain/trip-state/trip-dates.ts) | 领域层 | 开始/结束/时长纯规则：解析精确日期与 N天，按本次修改的字段补算第三项（含首尾计数），近似值与结束早于开始时不补算。 |
+| [src/domain/trip-state/trip-state.test.ts](../src/domain/trip-state/trip-state.test.ts) | 测试（对应模块边界） | 验证草稿初始化、显式目的地选择、默认名称/用户名称保护、patch 校验与字段状态，以及 patch 时日期三项补算。 |
+| [src/domain/trip-state/trip-state.ts](../src/domain/trip-state/trip-state.ts) | 领域层 | 七类权威字段、certainty/source、初始化/patch（patch 时按 trip-dates 补算日期三项）、目的地展示与推荐资格、旧 destination 读取兼容。 |
 | [src/domain/trip-state/workspace-conversation.test.ts](../src/domain/trip-state/workspace-conversation.test.ts) | 测试（对应模块边界） | 验证目的地不混入普通 patch、certainty/source、无修改、非法字段及重复修改拒绝。 |
 | [src/domain/trip-state/workspace-conversation.ts](../src/domain/trip-state/workspace-conversation.ts) | 领域层 | 四项模型解释契约，校验 changes/目的地 edit/reply/推荐意图，普通 changes 转 user patch。 |
 | [src/domain/trip/trip-errors.ts](../src/domain/trip/trip-errors.ts) | 领域层 | Trip 输入非法与未找到错误，供服务及 route 区分业务失败。 |
@@ -326,7 +328,7 @@ LLM 解释自然语言并提出受限 JSON；应用校验、决定是否执行�
 | [src/capabilities/journey/my-journeys.ts](../src/capabilities/journey/my-journeys.ts) | 应用层/用例装配 | 用既有访客身份读取 JourneySummary，缺身份返回空列表，不创建新身份。 |
 | [src/capabilities/journey/prompts/trip-draft-prompt.test.ts](../src/capabilities/journey/prompts/trip-draft-prompt.test.ts) | 测试（对应模块边界） | 验证草稿 prompt 的不确定性/原话保留及共享字段语义。 |
 | [src/capabilities/journey/prompts/trip-draft-prompt.ts](../src/capabilities/journey/prompts/trip-draft-prompt.ts) | 应用层/用例装配 | 首页草稿提取系统 prompt，带参考日期和时区，约束 certainty 与目的地操作。 |
-| [src/capabilities/journey/prompts/trip-state-field-guidance.ts](../src/capabilities/journey/prompts/trip-state-field-guidance.ts) | 应用层/用例装配 | 草稿与 Workspace 共享的普通字段 certainty 和业务语义提示块。 |
+| [src/capabilities/journey/prompts/trip-state-field-guidance.ts](../src/capabilities/journey/prompts/trip-state-field-guidance.ts) | 应用层/用例装配 | 草稿与 Workspace 共享的普通字段 certainty 和业务语义提示块；精确日期写 YYYY-MM-DD、精确天数写 N天，并说明应用会补算第三项。 |
 | [src/capabilities/journey/trip-draft-extractor.test.ts](../src/capabilities/journey/trip-draft-extractor.test.ts) | 测试（对应模块边界） | 验证有效提取不创建 Trip、空输入先拒绝、模型请求/非法输出和截断错误。 |
 | [src/capabilities/journey/trip-draft-extractor.ts](../src/capabilities/journey/trip-draft-extractor.ts) | 应用层/用例装配 | 首页提取 JSON Schema 和结构化模型调用，处理请求/截断/输出错误并校验草稿。 |
 | [src/capabilities/journey/trip-service-instance.ts](../src/capabilities/journey/trip-service-instance.ts) | 应用层/用例装配 | 将 PostgresTripRepository 与数据库装配成生产 TripService。 |
@@ -339,8 +341,7 @@ LLM 解释自然语言并提出受限 JSON；应用校验、决定是否执行�
 | 文件地址 | 层/类别 | 做什么 |
 | --- | --- | --- |
 | [src/capabilities/conversation/conversation-history-content.ts](../src/capabilities/conversation/conversation-history-content.ts) | 应用层/用例装配 | 将保存的 presentation 写成“展示过的卡片”上下文，明确待选卡不是用户决定。 |
-| [src/capabilities/conversation/destination-missing-guidance-route.test.ts](../src/capabilities/conversation/destination-missing-guidance-route.test.ts) | 测试（对应模块边界） | 验证引导 route 的 UUID/owner、缺目的地保存、重试复用和已有目的地拒绝。 |
-| [src/capabilities/conversation/destination-missing-guidance.ts](../src/capabilities/conversation/destination-missing-guidance.ts) | 应用层/用例装配 | 缺目的地固定引导正文和稳定消息 ID，不调用模型生成引导。 |
+| [src/capabilities/conversation/destination-missing-guidance.ts](../src/capabilities/conversation/destination-missing-guidance.ts) | 应用层/用例装配 | 已停用的缺目的地引导消息的稳定 ID；Meri 不再写该消息，只用于在旧历史中识别并跳过它。 |
 | [src/capabilities/conversation/destination-selection-message-id.test.ts](../src/capabilities/conversation/destination-selection-message-id.test.ts) | 测试（对应模块边界） | 验证历史身份不变、卡片/类型不冲突、选择顺序无关及 UUID 合法。 |
 | [src/capabilities/conversation/destination-selection-message-id.ts](../src/capabilities/conversation/destination-selection-message-id.ts) | 应用层/用例装配 | 从 Trip、offer 和排序后的选择组合派生稳定确认 UUID，兼容旧候选身份。 |
 | [src/capabilities/conversation/opening-assistant-id.test.ts](../src/capabilities/conversation/opening-assistant-id.test.ts) | 测试（对应模块边界） | 验证开场 UUID 稳定、合法及按 Trip 区分。 |
@@ -368,7 +369,7 @@ LLM 解释自然语言并提出受限 JSON；应用校验、决定是否执行�
 | [src/capabilities/destination/apply-destination-edit.ts](../src/capabilities/destination/apply-destination-edit.ts) | 应用层/用例装配 | none/add/set/remove 执行：准备待选卡或唯一删除，报告部分失败；add/set 不直接写目的地。 |
 | [src/capabilities/destination/destination-choice-flow.test.ts](../src/capabilities/destination/destination-choice-flow.test.ts) | 测试（对应模块边界） | 跨模块验证核验→候选→显式提交不提前写目的地，以及提交复核身份/spot 保留。 |
 | [src/capabilities/destination/destination-recommendation-selection-route.test.ts](../src/capabilities/destination/destination-recommendation-selection-route.test.ts) | 测试（对应模块边界） | 验证只有保存的 offer 可提交、owner/ID 校验、提供方失败及选择接口状态边界。 |
-| [src/capabilities/destination/destination-selection-reply.test.ts](../src/capabilities/destination/destination-selection-reply.test.ts) | 测试（对应模块边界） | 验证确认包含城市/spot、已知/近似字段不重复追问及准备度文案。 |
+| [src/capabilities/destination/destination-selection-reply.test.ts](../src/capabilities/destination/destination-selection-reply.test.ts) | 测试（对应模块边界） | 验证确认包含城市/spot、已知/近似字段不重复追问，只有省也可规划、旧文本需重新确认。 |
 | [src/capabilities/destination/destination-selection-reply.ts](../src/capabilities/destination/destination-selection-reply.ts) | 应用层/用例装配 | 从已保存 TripState 构造城市/spot 确认和补充信息邀请，固定正文无 LLM 调用。 |
 | [src/capabilities/destination/destination-selection-v2.test.ts](../src/capabilities/destination/destination-selection-v2.test.ts) | 测试（对应模块边界） | 验证多省追加、旧 replace 冲突、已确认/过期卡、安全重试及不恢复已删除目的地。 |
 | [src/capabilities/destination/location-service.test.ts](../src/capabilities/destination/location-service.test.ts) | 测试（对应模块边界） | 验证空表达不调用、原话查询、无结果和提供方异常归一化。 |
@@ -383,16 +384,15 @@ LLM 解释自然语言并提出受限 JSON；应用校验、决定是否执行�
 
 | 文件地址 | 层/类别 | 做什么 |
 | --- | --- | --- |
-| [src/capabilities/recommendation/destination-recommendation-context.ts](../src/capabilities/recommendation/destination-recommendation-context.ts) | 应用层/用例装配 | 从当前状态和最多 10 条/6000 字符历史构造 context，区分 conversation 与 explicit_action。 |
-| [src/capabilities/recommendation/destination-recommendation-generator.test.ts](../src/capabilities/recommendation/destination-recommendation-generator.test.ts) | 测试（对应模块边界） | 验证调用来源、真实历史/展示卡上下文、JSON/schema 校验及推荐生成错误。 |
+| [src/capabilities/recommendation/destination-recommendation-context.ts](../src/capabilities/recommendation/destination-recommendation-context.ts) | 应用层/用例装配 | 从当前状态和最多 10 条/6000 字符历史构造聊天触发（conversation）的推荐 context。 |
+| [src/capabilities/recommendation/destination-recommendation-generator.test.ts](../src/capabilities/recommendation/destination-recommendation-generator.test.ts) | 测试（对应模块边界） | 验证聊天触发的上下文、真实历史/展示卡、JSON/schema 校验及推荐生成错误。 |
 | [src/capabilities/recommendation/destination-recommendation-generator.ts](../src/capabilities/recommendation/destination-recommendation-generator.ts) | 应用层/用例装配 | 推荐模型 JSON Schema、AI SDK 调用及领域校验，输出省/市/理由，非法结果抛专用错误。 |
 | [src/capabilities/recommendation/destination-recommendation-model-client.test.ts](../src/capabilities/recommendation/destination-recommendation-model-client.test.ts) | 测试（对应模块边界） | 验证显式按钮调用不伪造 user 消息，AI SDK 只发一次模型请求。 |
-| [src/capabilities/recommendation/destination-recommendation-route.test.ts](../src/capabilities/recommendation/destination-recommendation-route.test.ts) | 测试（对应模块边界） | 验证显式推荐 route 复用 workflow、助手建议持久化、空结果/错误及已有目的地拒绝。 |
 | [src/capabilities/recommendation/destination-recommendation-use-case.test.ts](../src/capabilities/recommendation/destination-recommendation-use-case.test.ts) | 测试（对应模块边界） | 验证普通/地点操作不混入推荐，空省推荐资格，模型/工作流回复及消息一次保存。 |
 | [src/capabilities/recommendation/destination-recommendation-use-case.ts](../src/capabilities/recommendation/destination-recommendation-use-case.ts) | 应用层/用例装配 | 自动推荐资格、上下文及回复选择，并将本轮用户/助手消息保存一次。 |
 | [src/capabilities/recommendation/destination-recommendation-workflow.test.ts](../src/capabilities/recommendation/destination-recommendation-workflow.test.ts) | 测试（对应模块边界） | 验证省份/顺序保留、搜索失败降级、已定省过滤和空结果固定正文。 |
 | [src/capabilities/recommendation/destination-recommendation-workflow.ts](../src/capabilities/recommendation/destination-recommendation-workflow.ts) | 应用层/用例装配 | Discovery Search→模型生成→省份过滤→卡项 ID 的确定性流程；搜索故障降级，无排序/图片/访问检查。 |
-| [src/capabilities/recommendation/prompts/destination-recommendation-prompt.ts](../src/capabilities/recommendation/prompts/destination-recommendation-prompt.ts) | 应用层/用例装配 | 受限省市推荐 prompt，含触发来源、真实上下文和未核验搜索启发。 |
+| [src/capabilities/recommendation/prompts/destination-recommendation-prompt.ts](../src/capabilities/recommendation/prompts/destination-recommendation-prompt.ts) | 应用层/用例装配 | 受限省市推荐 prompt，含聊天触发说明、真实上下文和未核验搜索启发。 |
 
 ### 6.12 外部集成：身份、模型、地图、搜索和日志
 

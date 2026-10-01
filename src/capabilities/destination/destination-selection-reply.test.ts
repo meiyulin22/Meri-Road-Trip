@@ -11,9 +11,9 @@ test("known and approximate details are not requested again",()=>{
  const reply=destinationSelectionReply({...selected,origin:{state:"known",value:"上海",source:"user"},startDate:{state:"approximate",value:"十一月左右",source:"user"},duration:{state:"known",value:"三天",source:"user"}});
  assert.match(reply,/行程时长也已经记下/);assert.doesNotMatch(reply,/继续补充/);
 });
-test("province-only and legacy destinations do not claim readiness",()=>{
+test("a whole province is ready to plan, while a legacy destination is not",()=>{
  const province=destinationSelectionReply({...base,destination:{state:"known",source:"user",areas:[{province:"云南省",places:[]}]}});
- assert.match(province,/城市/);assert.doesNotMatch(province,/Generate plan|可以开始生成/);
+ assert.match(province,/云南省/);assert.match(province,/可以开始生成/);
  const legacy=destinationSelectionReply({...base,destination:{state:"known",source:"user",areas:[],legacyText:"梅里雪山"}});
  assert.match(legacy,/重新搜索确认/);assert.doesNotMatch(legacy,/可以开始生成/);
  assert.throws(()=>destinationSelectionReply(base));

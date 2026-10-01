@@ -18,6 +18,7 @@ export const tripStateFieldGuidance = `Field guidance:
 - origin is where the user will depart from. Destination expressions belong in destinationEdit, not a text field.
 - startDate and endDate use YYYY-MM-DD only when known. Approximate date expressions remain in the user's natural language.
 - Resolve sufficiently definite relative dates, such as "明天", using the reference date and timezone.
-- duration preserves expressions such as "一周" or "大概一周".
+- duration: an exact whole number of days is known and written as N天 with Arabic digits ("玩七天" → "7天", "7天6晚" → "7天"). Anything else preserves the user's expression, such as "一周" or "大概一周".
+- The application derives the remaining one of startDate, endDate and duration when two are exact; counting is inclusive (2026-10-01 to 2026-10-07 is 7天).
 - transportPreference may be known only as one of: ${transportPreferences.join(", ")}.
 - A concise trip name may be inferred only from clearly supplied trip details.`;

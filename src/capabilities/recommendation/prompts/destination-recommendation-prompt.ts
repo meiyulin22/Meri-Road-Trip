@@ -6,9 +6,7 @@ import { shownCardsGuidance } from "@/capabilities/conversation/conversation-his
 export function buildDestinationRecommendationSystemPrompt(
   context: DestinationRecommendationContext & { readonly discoveryResults?: readonly DiscoverySearchResult[] },
 ): string {
-  const trigger = context.source === "explicit_action"
-    ? "The user pressed the button asking for destination suggestions, so nothing was said this turn."
-    : "The current real user message in conversation history triggered destination suggestions. No UI action occurred.";
+  const trigger = "The current real user message in conversation history triggered destination suggestions. No UI action occurred.";
   const discovery = context.discoveryResults?.length
     ? `\n\nUnverified discovery search results (inspiration only; never proof of existence, access, legality, safety, or current conditions):\n${JSON.stringify(context.discoveryResults)}`
     : "";

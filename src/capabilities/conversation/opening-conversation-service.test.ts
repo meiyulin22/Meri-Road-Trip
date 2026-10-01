@@ -6,7 +6,7 @@ import type { TripState } from "@/domain/trip-state/trip-state";
 import { TripNotFoundError } from "@/domain/trip/trip-errors";
 import { selectRecentConversationMessages } from "./workspace-conversation-context";
 import { openingAssistantMessageId } from "./opening-assistant-id";
-import { destinationMissingGuidanceContent, destinationMissingGuidanceMessageId } from "./destination-missing-guidance";
+import { destinationMissingGuidanceMessageId } from "./destination-missing-guidance";
 import {
   isPendingOpeningConversation,
   OpeningConversationNotEligibleError,
@@ -142,7 +142,7 @@ test("destination guidance does not make a failed opening response permanently u
   await assert.rejects(setup.service.initialize(input));
   const guidance: TripMessage = {
     id: destinationMissingGuidanceMessageId(tripId), tripId, role: "assistant",
-    content: destinationMissingGuidanceContent, createdAt: "2026-09-25T01:00:02.000Z",
+    content: "还没想好去哪吗？我可以根据你的旅行偏好推荐几个地方。", createdAt: "2026-09-25T01:00:02.000Z",
   };
   setup.messages.push(guidance);
   assert.equal(isPendingOpeningConversation(setup.messages), true);
