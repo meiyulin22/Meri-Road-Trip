@@ -9,6 +9,13 @@ The layer contracts and request flows live in
 [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md). This file covers how to run the
 project and how to find your way around it.
 
+The complete Chinese directory/layer and file guide lives in
+[docs/CODEBASE_GUIDE.md](docs/CODEBASE_GUIDE.md). Detailed user operations, state
+changes, APIs, and failure boundaries live in
+[docs/USER_FLOW_CURRENT.md](docs/USER_FLOW_CURRENT.md).
+The database table/field directory and relationships live in
+[docs/DATABASE_SCHEMA.md](docs/DATABASE_SCHEMA.md).
+
 ## Run locally
 
 ```bash
@@ -36,7 +43,7 @@ Optional. Recommendation degrades without it rather than failing:
 
 | Variable | Missing means |
 | --- | --- |
-| `BOCHA_API_KEY` | Candidates are generated without discovery results, every access check returns `uncertain`, and cards fall back to their local image |
+| `BOCHA_API_KEY` | Recommendations are generated without discovery search context; access checks and image enrichment are not connected to the current workflow |
 
 The remaining variables in `.env.example` override defaults:
 `LLM_MODEL`, `MOONSHOT_BASE_URL`, `MERI_TIMEZONE`, `LLM_DEBUG_OUTPUT`, and
@@ -80,9 +87,10 @@ Two rules hold the layers apart:
   the certainty of each field (`known`, `approximate`, `ambiguous`, `missing`),
   and it validates anything arriving from outside. It never calls a network or a
   database.
-- **Only `src/platform/` reaches an external system.** Everything above it
-  depends on a port declared there, never on a provider SDK. Swapping Amap or
-  Moonshot means writing one new adapter, not editing application logic.
+- **`src/platform/` implements external integrations.** Application services use
+  ports and normalized results; production factories and some route handlers
+  assemble the concrete adapters. Browser components also request Meri's own APIs.
+  Provider-specific HTTP/SDK handling belongs in adapters, not domain rules.
 
 `src/capabilities/` is named after what the code does, not where it runs, and
 holds one directory per capability, so a whole flow reads top to bottom in one
@@ -92,14 +100,14 @@ place. It contains no React components.
 src/capabilities/journey/         Creating, loading, and updating a Journey
 src/capabilities/conversation/    Interpreting a Workspace message and wording the reply
 src/capabilities/destination/     Confirming a destination names a real place
-src/capabilities/recommendation/  Turning a stated preference into ranked destination cards
+src/capabilities/recommendation/  Turning preferences into validated, province-filtered suggestions
 ```
 
 ```text
 src/platform/llm/                Structured-output port, Moonshot adapter
 src/platform/location-provider/  Location and suggestion ports, Amap adapters
 src/platform/search/             Search ports, one shared Bocha Web Search
-                                 request and its three adapters
+                                 request and the Discovery Search adapter
 src/platform/persistence/        Repository ports at the top, with the Postgres
                                  and in-memory adapters and the Drizzle schema
                                  beneath them

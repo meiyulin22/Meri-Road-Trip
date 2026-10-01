@@ -1,245 +1,269 @@
-# Meri — Technical Architecture
+# Meri 技术架构
 
-This document separates the architecture running in the current v0.1
-product from planned capabilities. Meri owns its domain model; model,
-provider, and UI frameworks remain replaceable implementation details.
+> 核对日期：2026-10-01。本文描述当前仓库架构，并将未来方向单独列出。Meri 是以 Journey 为中心的 Next.js 全栈应用，采用按能力分模块的分层结构。详细业务操作见 [USER_FLOW_CURRENT.md](USER_FLOW_CURRENT.md)，目录与逐文件职责见 [CODEBASE_GUIDE.md](CODEBASE_GUIDE.md)。
 
-> Deterministic when possible, agentic when necessary.
+## 1. 架构总览
 
-## 1. System overview
+### 1.1 当前系统结构
 
-### Current implemented architecture
+```mermaid
+flowchart TB
+  subgraph browser[浏览器：表现层]
+    home[Home：新建与最近旅程]
+    workspace[Workspace：聊天与直接编辑]
+    ui[React 组件与前端请求模型]
+    home --> ui
+    workspace --> ui
+  end
+  subgraph server[Next.js 服务端]
+    entry[页面加载 / HTTP route / guest 检查]
+    usecase[应用用例：Journey / Conversation / Destination / Recommendation]
+    domain[领域纯规则：校验 / 状态变换 / 准备度]
+    ports[外部端口：Repository / 模型 / Location / Search]
+    adapters[具体适配器与生产实例装配]
+    entry --> usecase
+    usecase --> domain
+    usecase --> ports
+    ports --> adapters
+  end
+  ui -->|HTTP 请求| entry
+  adapters --> db[(Neon PostgreSQL)]
+  adapters --> kimi[Kimi / Moonshot]
+  adapters --> amap[高德地点与输入建议]
+  adapters --> bocha[Bocha Discovery Search]
+```
 
-Meri is a Next.js and React PWA backed by a TypeScript application layer
-and PostgreSQL. A guest owns each persistent Journey. The current path
-is:
+页面服务端读取和 API 共用应用服务；客户端通过本应用 API 修改状态。部分编排目前仍在 route 中，端口定义在 `platform`，`*-instance.ts` 装配具体实现。这是实际职责划分，不宣称已严格实现全部 Clean Architecture 依赖约束，也不是微服务。
 
-User + current TripState + recent real conversation
-→ Workspace/Home LLM interpretation
-→ validated, deterministic application workflow
-→ Location Provider validation when a destination is proposed
-→ authoritative TripState update
-→ persisted Conversation and supported Gen UI presentation
+**主原则：**确定步骤和核心规则由代码执行；模型理解语言并提出数据。TripState 是用户当前决定的权威来源，聊天、建议卡和模型输出都不是另一份状态。
 
-The LLM supplies semantic judgments and proposed data. Application code
-validates its structured output, enforces business rules, calls the
-Location Provider, persists state and messages, and renders approved UI.
-Normal conversation does not run an Agent.
+### 1.2 当前能力与未来能力
 
-### Planned architecture
-
-The active recommendation workflow includes discovery, candidate generation,
-validation, and province filtering. A later Generate Plan phase may use a Research Agent
-whose tool choices depend on observed results. That Agent is not implemented.
-
-## 2. Core model and authority
-
-A Trip is the stable Journey identity, guest ownership, and lifecycle
-root. TripState contains evolving Journey values. A JourneySummary is a
-read model for list cards, not another source of truth.
-
-Current TripState fields are:
-
-- Name
-- Origin
-- Destination
-- Start date and end date
-- Duration
-- Transport preference
-
-Ordinary fields can be known, approximate, ambiguous, or missing. Destination
-is missing or known: areas contain provinces and city/prefecture places, each
-with named spots. The display text is derived rather than stored a second time. Established
-values retain their user or system source. TripState is authoritative
-for Journey decisions; conversation history, assistant suggestions,
-recommendation cards, and model output are not.
-
-The user can provide only part of a Journey. Origin, dates, duration,
-and transport preference are not prerequisites for resolving a
-destination. An assistant suggestion never silently changes an
-established field.
-
-A TripMessage records the real user or assistant conversation. An
-assistant message may carry a narrow presentation. The current
-presentations include destination_choices and destination_recommendations.
-Historical location_candidates remain readable through adapters. These are persisted with message content and restored
-when the Journey reopens.
-
-A TripUserAction records the explicit destination recommendation button
-press. It is distinct from a TripMessage. A conversational
-recommendation intent uses the real user turn and does not invent an
-action or another user message.
-
-## 3. Major current modules
-
-| Area | Responsibility |
+| 状态 | 能力 |
 | --- | --- |
-| Domain | Trip, TripState, messages, validated changes, and location/recommendation shapes. |
-| Journey services | Create and load owned Journeys; apply valid TripState updates. |
-| AI interpretation | Extract a TripDraft or interpret a Workspace turn with a constrained structured output. |
-| Location services | Normalize provider results, preserve distinct POIs, and verify offered choices before saving. |
-| Recommendation use case | Discover context, generate validated candidates, filter settled provinces, and build up to 12 suggestions. |
-| Message services | Persist opening and conversation turns and read history for refresh. |
-| UI and API | Submit user actions, show persisted state and conversation, render supported cards, and accept explicit selections. |
-| Persistence and provider adapters | Store domain records in PostgreSQL and keep Amap-specific behavior at the boundary. |
+| 已实现 | 访客所属 Journey、自然语言创建、持久化会话、普通字段编辑、目的地省/市/spot、显式多选确认、推荐与准备度检查 |
+| 已实现但有范围限制 | PWA manifest/图标，无离线缓存；推荐使用搜索启发，无访问检查、排序或图片补全 |
+| 未实现 | 真正 Generate Plan、Research Agent、实时天气/路线研究、证据系统、后台监控、Adaptive Workspace |
 
-External model and provider responses are untrusted. Validate them
-before they affect domain state or presentation. Keep provider-specific
-fields out of general TripState rules except for an explicitly selected,
-validated location identity.
+## 2. 技术栈与接入位置
 
-## 4. Current Journey and conversation flow
+版本以 [package.json](../package.json) 和 [package-lock.json](../package-lock.json) 为准。下表写关键版本或版本系列，不把 npm 的 `^` 声明当作固定安装版本。
 
-Journey creation interprets the initial idea into a TripDraft containing ordinary
-fields and destinationEdit. It saves the owned Journey and original user message.
-A destination edit is verified and saved as an assistant offer; destination remains
-missing until explicit selection. Without an edit, opening mode replies without
-proposing further changes. Opening reply failure leaves the Journey recoverable.
+| 技术/工具 | 当前用途 | 接入位置 | 边界/状态 |
+| --- | --- | --- | --- |
+| Next.js 16.3.5 / App Router | 页面、服务端组件、HTTP route、metadata/manifest | `src/app/`、`next.config.ts` | 开发前读安装包内相关 Next.js 指南 |
+| React 19.2.8 / TypeScript 5 | UI、状态协调、类型及业务契约 | `src/components/`、`src/domain/`、`tsconfig.json` | 类型检查不能代替运行时校验 |
+| CSS Modules / 全局 CSS | 页面与组件样式、响应式布局 | `*.module.css`、`src/app/globals.css` | 当前没有整套 Tailwind UI 样式框架 |
+| Motion 13 / Radix Popover / Lucide / Embla | 入场与浮层动画、图标、首页最近旅程轮播 | `src/components/ui/`、`src/components/meri-shell/` | 已用现有交互；背景水彩显露尚未实施 |
+| Vercel AI SDK 6 / `@ai-sdk/react` 3 | 服务端结构化模型调用、前端 useChat/transport 适配 | `src/platform/llm/ai-sdk-kimi-client.ts`、`workspace-chat-transport.ts` | 当前 API 返回完整 JSON，前端逐字显示不是服务端 token 流 |
+| Kimi / Moonshot（默认 kimi-k2.6） | 草稿、Workspace 解释、opening 和推荐生成 | `src/platform/llm/`、各能力的 `prompts/` | `LLM_MODEL` 可覆盖；默认超时 60 秒、零 SDK 自动重试 |
+| OpenAI SDK 7 | 保留的旧 Kimi 兼容客户端 | `src/platform/llm/kimi-client.ts` | 当前主应用默认走 AI SDK；此文件同时定义共享客户端契约 |
+| Zod 4 / 自定义领域校验 | 推荐结构校验及其他输入/模型/状态契约验证 | `src/domain/` | 不把外部 JSON 直接当可信业务数据 |
+| Neon PostgreSQL / Neon serverless | 跨请求持久化身份、状态与消息 | `src/platform/persistence/database/db.ts` | HTTP 数据库客户端；数据不依赖 Web 实例内存 |
+| Drizzle ORM 0.45 / Drizzle Kit | schema、查询、JSONB 条件更新与迁移 | `src/platform/persistence/`、`drizzle/`、`drizzle.config.ts` | 迁移文件存在不代表在线环境已执行 |
+| 高德 Web API | 地点关键词核验与 InputTips 建议 | `src/platform/location-provider/` | 身份核验不证明开放、安全、交通或可达 |
+| Bocha Web Search | 推荐的启发性搜索上下文 | `src/platform/search/` | 最多 8 条；失败降级，不当作已核验证据 |
+| Pino 10 | 结构化事件与错误日志 | `src/platform/observability/` | requestId 关联请求；错误序列化脱敏 |
+| Node test runner / tsx / ESLint 9 / tsc | 相邻单元/边界测试、lint、类型检查 | `*.test.ts(x)`、`package.json`、`eslint.config.mjs` | mock 回归不代表真实外部接口验收 |
 
-Workspace interpretation returns presentationIntent, changes, destinationEdit,
-and reply. There is no separate intent or destinationDisambiguation field.
-Ordinary changes receive user authority through domain validation. Destination
-changes go through applyDestinationEdit:
+## 3. 分层职责与依赖
 
-- set/add queries expressions, preserves distinct provider IDs during resolution,
-  then groups offers by province/city/named preference;
-  neither silently writes destination.
-- remove matches current saved names. An exact match wins; a prefix must be unique.
-  City removal cascades spots and retains the province.
-- failed lookup and ambiguous removal produce a factual reply without claiming success.
+各层采用固定栏目：**职责 → 代码位置 → 依赖/输出 → 限制**。
 
-The server persists one real user message and one assistant message with its supported
-presentation. Refresh reads these records; it does not regenerate offers.
+| 层 | 职责 | 代码位置 | 依赖/输出 | 当前限制 |
+| --- | --- | --- | --- | --- |
+| 页面/接口入口 | URL、cookie、请求校验、HTTP 错误及服务端初始读取 | `src/app/`、`src/app/api/` | 应用服务；输出页面或 JSON | 聊天等 route 仍承担部分流程编排 |
+| 表现层 | 渲染、编辑、暂选、pending/error、同步保存结果 | `src/components/` | 领域类型、展示纯函数、本应用 API | UI 提示不能替代服务端资格检查 |
+| 领域层 | Trip/State/Message 等契约，合法状态和纯规则 | `src/domain/` | 不调用网络或数据库；输出规范对象/状态变换 | 不解释未知提供方身份，不生成 UI 代码 |
+| 应用层 | 为一次用户操作编排校验、查询、保存及回复 | `src/capabilities/` | 领域规则和外部端口 | 不是通用 Agent runtime |
+| 基础设施层 | 模型、地图、搜索、身份、日志、数据库适配 | `src/platform/` | provider SDK/HTTP、Neon/Drizzle；返回规范化结果 | 端口和实现目前同属 platform，并非完全强制隔离 |
 
-## 5. Destination authority and selection
+### 3.1 应用能力模块
 
-DestinationEditor renders province → city/prefecture → spot. Its search uses
-GET /api/trips/[id]/destinations and explicit addition uses POST with query and
-provider ID. The server searches again and saves the verified pick. DELETE names
-an exact saved province/city/spot; an explicit legacy flag clears old unverified text.
+| 模块 | 输入 | 核心职责 | 输出与持久化 |
+| --- | --- | --- | --- |
+| `journey` | TripDraft、owner、patch | 创建/加载/更新/删除、失败补偿、列表投影 | Trip + TripState；创建时可保存原话和固定开场 |
+| `conversation` | 当前状态、原话、真实历史 | 结构化解释、opening、上下文裁剪、消息服务 | 修改提案/正文及持久化 TripMessage |
+| `destination` | 地点表达、当前目的地或保存的 choice | 查询协调、行政归属/spot 映射、候选/唯一删除、提交复核 | 待选 choices 或验证后的 pick，不把提案自动保存 |
+| `recommendation` | 当前状态、真实历史、调用来源 | 搜索→生成→校验→省份过滤，判断自动推荐资格 | 助手建议 presentation，不直接改目的地 |
 
-Chat selection uses the owned persisted assistant offer and its choice IDs through
-POST /api/trips/[id]/destination-recommendation-selection. Amap rechecks chosen
-identities. Add merges with existing areas, including a new spot under an existing
-city. Replace compares the offer’s baseDestination with current state and returns
-409 if it changed. Only the latest conversation message can offer a new selection. The server checks
-history before verification and again before writing; expired offers return 409.
-Consumed cards cannot change their selection or restore a removed destination.
-Same-choice retries reuse the persisted follow-up when the saved target still matches,
-without writing state again.
-State-save success followed by reply failure returns the saved TripState and
-follow_up_unavailable, allowing the UI to show the actual saved state.
+## 4. 数据模型与持久化
 
-New chat offers show city/prefecture names with optional named spot preferences.
-Multiple POIs for the same province/city/spot become one preference choice. Its ID
-represents that preference, and submission revalidates the same target against
-reasonable provider matches. It does not confirm one exact POI or coordinate.
-Different city/province targets and different spot names remain separate. Older
-offers retain their original IDs when grouped for display. Exact POI selection
-and access checks remain future planning work.
+### 4.1 权威模型
 
-The saved spots currently retain names, not provider coordinates. They express
-user preferences for later planning. Historical free-text destinations remain in
-legacyText for review; they are not converted into invented city identities.
-Location identity verification does not verify opening, safety, or reachability.
+| 模型 | 内容 | 存储/来源 | 权威边界 |
+| --- | --- | --- | --- |
+| Trip | ID、ownerGuestId、status、时间戳 | `trips` | Journey 身份与生命周期根 |
+| TripState | name、origin、destination、startDate、endDate、duration、transportPreference | `trip_states.state` JSONB | 当前用户决定的权威状态 |
+| TripMessage | user/assistant、正文、可选 presentation、时间戳 | `trip_messages` | 真实历史，待选卡不是用户决定 |
+| JourneySummary | 列表用标题、目的地、日期等摘要 | Trip + TripState 查询投影 | 读模型，不可作为更新基底 |
+| TripDraft / Interpretation | 草稿或四项聊天 JSON | 本次调用中校验 | 模型提案，不是持久化状态 |
 
-## 6. Conversation and Gen UI
+当前数据库关系（完整字段目录、约束和读写路径见 [DATABASE_SCHEMA.md](DATABASE_SCHEMA.md)）：
 
-presentationIntent is none or destination_recommendations. The application honors
-recommendations only when destination is missing or consists of provinces with no
-selected city, and destinationEdit is none. A destination edit occupies that turn
-with verified choices or a failure reply. The model does not generate UI code.
+```mermaid
+erDiagram
+  TRIPS ||--o| TRIP_STATES : "按 trip_id 保存状态"
+  TRIPS ||--o{ TRIP_MESSAGES : "保存会话"
+  TRIPS {
+    uuid id PK
+    uuid owner_guest_id
+    enum status
+    timestamp created_at
+    timestamp updated_at
+  }
+  TRIP_STATES {
+    uuid trip_id PK, FK
+    jsonb state
+    timestamp created_at
+    timestamp updated_at
+  }
+  TRIP_MESSAGES {
+    uuid id PK
+    uuid trip_id FK
+    enum role
+    text content
+    jsonb presentation
+    timestamp created_at
+  }
+```
 
-Both conversational recommendations and the explicit recommendation button use the
-shared workflow. Conversational context contains the real user turn and history;
-the button separately records TripUserAction. Suggestions do not modify TripState.
-Historical presentations adapt into the unified choice UI.
+TripState 对完整 Journey 必须存在，但表关系不强制每个 Trip 都有状态，因此缺失状态需要专门处理。删除 Trip 通过外键级联删除状态和消息。当前 schema 不包含 `trip_user_actions`；历史迁移 0007 创建该表，0009 定义删除。按钮请求来源只在 context 标为 `explicit_action`。
 
-Chat choices are grouped by province with checkboxes and a single batch submit.
-Confirmed cards and cards preceding later conversation become read-only. The client
-also closes the current card when another chat action starts; only new offers are actionable.
-DestinationEditor uses the same field-row layout as dates and origin, with an
-indented province/city/spot value and a pencil to expand manual search. The manual
-search result's Add action remains an explicit selection boundary.
+### 4.2 字段与目的地结构
 
-## 7. Recommendation Workflow v0.1
+普通字段支持 known/approximate/ambiguous/missing，保留 user/system 来源。destination 为 missing 或 known，known 保存省→市/自治州→spots，并从结构派生展示文本：
 
-Journey-local context → Bocha Discovery Search → structured LLM generation →
-validation and de-duplication → settled-province filtering → persisted suggestions →
-explicit selection → Amap verification → saved destination.
+```text
+destination.areas[]
+  province
+  places[]
+    name          市/自治州
+    spots[]       用户想去的景点名称
+```
 
-Discovery failure degrades to no search context. Search results are unverified
-inspiration. The workflow supports up to 12 places and does not call access checking,
-ranking or image enrichment. It is ordinary application orchestration, not an Agent
-loop or Vercel Workflow runtime. Generate Plan remains a readiness check; city
-selection is required and legacy records must be reviewed first.
+最终 spots 只存名称，不存精确 POI/坐标。旧自由文本保留在 `legacyText`，不编造行政身份。删除市级联 spots 并保留空省；单删 spot 保留市；删省移除全部子项。
 
-## 8. Workflow and Agent boundary
+## 5. 关键请求流程
 
-Use a workflow when steps and constraints are known: interpret,
-validate, enrich, persist, and render. Use deterministic code for
-critical business rules, including destination authority, provider
-validation, presentation eligibility, and explicit selection.
+### 5.1 Home 创建 Journey
 
-An Agent is appropriate when the next action cannot be fixed in advance
-and depends on earlier observations, conflicting evidence, or failed
-tool calls. An LLM judgment inside a workflow does not by itself make
-the workflow an Agent.
+```mermaid
+flowchart TD
+  idea[用户原话] --> draft[POST /api/trip-drafts：结构化提取与校验]
+  draft --> create[POST /api/journeys：访客身份与创建协调]
+  create --> edit{有原话及地点 edit？}
+  edit -->|有| resolve[高德核验：准备固定正文与候选]
+  edit -->|无| save[保存 Trip / 初始 TripState / 原话 / 可选固定开场]
+  resolve --> save
+  save --> opening{已有固定开场？}
+  opening -->|有| workspace[进入 Workspace]
+  opening -->|无| model[Kimi opening：只生成 reply]
+  model -->|成功| workspace
+  model -->|失败| retry[保留 Journey，可重试开场或先进入]
+```
 
-There is no Agent in the current normal conversation or destination
-recommendation flow. Do not add a generic runtime, skill registry, tool
-registry, or model router merely because a future Agent may need one.
+初始 destination 为 missing，即使唯一核验也先出卡。状态/初始消息保存失败尝试删除 Trip，这是补偿回滚；清理失败保留创建与清理错误。普通 opening 不允许 changes、目的地 edit 或推荐意图；稳定助手 ID 和现有消息检查支持重试，不重新创建 Journey。
 
-## 9. Later planned phase: Generate Plan and Research Agent
+### 5.2 Workspace 聊天与分支
 
-This phase is planned, not implemented:
+```mermaid
+flowchart TD
+  input[真实用户消息] --> load[检查 owner，读取当前状态与历史]
+  load --> llm[Kimi 输出：presentationIntent / changes / destinationEdit / reply]
+  llm --> validate[领域校验，普通 changes 转 user patch]
+  validate --> save[先保存普通字段]
+  save --> edit{destinationEdit}
+  edit -->|add/set| offer[高德查询，待选 choices 或失败事实；不写目的地]
+  edit -->|remove| remove[当前状态唯一匹配，带 expectedDestination 删除]
+  edit -->|none| eligible{推荐信号且状态允许？}
+  eligible -->|是| recommend[推荐工作流]
+  eligible -->|否| reply[使用模型 reply]
+  offer --> messages[保存真实用户与助手消息，含可选 presentation]
+  remove --> messages
+  recommend --> messages
+  reply --> messages
+  messages --> response[完整 JSON：interpretation / TripState / messages]
+```
 
-Generate Plan
-→ Research Agent inspects the current Journey and TripState
-→ uses tools as needed for weather, routes, transportation, opening/access restrictions, risks, and POIs or destination facts
-→ observes results and decides whether more research is needed
-→ produces a research result
-→ generates the final Plan
+地点 edit 占据本轮，只有 none 才考虑推荐；推荐资格要求目的地 missing 或只有未选城市的省范围。历史最多 5 轮/6000 字符，合并连续助手消息；建议不是已选。实际分支在 messages route，未调用 `workspace-turn-branch.ts`。候选/查询失败/删除歧义等正文由应用事实决定；普通对话和成功无失败项删除可用模型 reply。
 
-The Agent may need to compare sources, respond to uncertainty, and
-choose a different tool after each result. Its eventual execution should
-have explicit stopping conditions, tool and time budgets, permission
-boundaries, and recoverable errors. These are design constraints for
-future implementation, not current runtime features.
+### 5.3 候选多选与确认
 
-Important external conclusions should retain evidence, source freshness,
-and uncertainty. Future research should not silently overwrite
-user-established TripState. The domain should remain independent of any
-particular Agent framework.
+```mermaid
+flowchart TD
+  card[保存的助手 offer] --> pick[用户多选并统一提交 messageId + choiceIds]
+  pick --> guard[检查 owner、offer、选择 ID、未消费/过期及 replace 基底]
+  guard --> verify[高德复核选择身份/省市景点偏好]
+  verify --> fresh[重读最新状态与消息，复查提交资格]
+  fresh --> same{已有同组确认且目标仍匹配？}
+  same -->|是| reuse[复用保存的确认，不写状态]
+  same -->|否| current{仍是有效新提交？}
+  current -->|否| conflict[409 拒绝过期或冲突提交]
+  current -->|是| cas[add 合并 / replace 一次替换，CAS 保存]
+  cas --> followup[保存固定确认助手消息]
+  followup -->|成功| done[返回当前状态与确认]
+  followup -->|失败| partial[返回已保存状态 + follow_up_unavailable]
+```
 
-## 10. Reliability and deferred decisions
+客户端也把已确认卡和后面有新对话的旧卡设为只读；服务器资格检查不能省略。同省/市/spot 的重复 POI 按偏好归并，历史原 ID 保留；不同目标仍独立。新增偏好不是精确 POI 消歧。已核验省范围有专门的选择路径，并非所有 card 都重新查询坐标。
 
-JourneyService applies patches against freshly loaded state and uses repository
-compareAndUpdate, retrying up to three times. Production PostgreSQL compares the
-raw JSONB state in the UPDATE condition. Destination mutations also supply an
-expected destination; a changed destination yields 409 rather than applying a
-stale replacement. Ordinary field retries preserve concurrent destination writes.
+手动搜索独立使用 `GET/POST/DELETE /api/trips/[id]/destinations`：添加时重新查询并匹配 provider ID，删除完整省/市/spot 元组，旧文本通过显式 legacy 操作清除。
 
-State mutation and conversation persistence are still separate steps. A chat
-request may fail after state was saved; the client asks the user to refresh and
-check the result. Selection follow-up failure returns the saved state explicitly.
-See [USER_FLOW_CURRENT](USER_FLOW_CURRENT.md) for detailed API and error paths.
+### 5.4 推荐与准备度
 
-- Preserve the distinction between user intent, model proposals,
-  provider evidence, and authoritative state.
-- Validate structured model output and external data. Invalid output
-  must not directly mutate TripState.
-- Keep provider adapters replaceable and normalize errors. When
-  verification fails, expose uncertainty rather than inventing a result.
-- Persist assistant content with its supported presentation so a refresh
-  restores the same cards.
-- POST retry idempotency for ordinary conversation and recommendation
-  generation is a follow-up concern; no generic run system or message
-  identity redesign has been added for it.
-- Add weather, route, evidence, memory, background monitoring, and
-  offline capabilities only as concrete product use requires them.
-- Keep high-impact future actions, such as booking or messaging, behind
-  explicit user approval.
-- Prefer focused services and explicit inputs over speculative
-  frameworks. A vector store, generic adaptive UI layer, and Agent
-  harness are deferred until real requirements justify them.
+```mermaid
+flowchart LR
+  context[当前状态与真实上下文] --> search[Bocha 搜索启发]
+  search --> generate[Kimi 省市/理由 JSON]
+  generate --> validate[领域校验与去重]
+  validate --> filter[已定省份过滤]
+  filter --> persist[保存建议 presentation]
+  persist --> select[用户选择]
+  select --> verify[高德复核与状态保存]
+```
+
+最多 12 个建议地点；Discovery 失败降级为空搜索上下文，模型失败仍报错。聊天推荐使用真实本轮原话，按钮入口使用 `explicit_action`，不另存 action、不伪造 user 消息。未接通访问检查、排序或图片补全，workflow 是普通确定性编排，不是 Vercel Workflow runtime 或 Agent 循环。
+
+Generate plan 调用只读 readiness：missing→选目的地，只有空省→继续选城市，有 legacyText→重新确认/清除，至少已选市且无旧文本→准备度通过但规划尚未开放。出发地、日期、时长和交通目前不是硬门槛，准备度通过不证明安全或可行。
+
+## 6. 一致性、错误与可恢复性
+
+| 边界 | 当前机制 | 仍需准确说明的限制 |
+| --- | --- | --- |
+| 所有权 | guest cookie + owner-scoped Trip 查询，缺失/他人 Journey 返回相同 not-found | 无账号协作权限系统 |
+| 外部输入 | 模型 JSON、请求体、提供方数据和数据库读取经过校验 | 不能靠 TypeScript 断言信任外部数据 |
+| 状态更新 | 最新状态应用 patch，CAS 最多 3 次；Postgres UPDATE 比较原始 JSONB | 无 CAS 的测试替身允许退回 update，不能代表生产保护 |
+| 目的地并发 | 专用操作带 expectedDestination，冲突拒绝旧 patch；普通字段重读重算 | 通用 state PATCH 仍接受 destination，未统一高德核验，冲突错误当前未单独映射 409 |
+| 保存与会话 | 保存真实正文及 presentation，刷新重读；选卡半成功返回真实状态 | 状态与会话不是跨所有步骤的一笔事务，普通聊天失败需刷新核对 |
+| 重试 | 开场/同组选卡确认使用稳定身份；过期卡不能恢复删除项 | 普通聊天和推荐 POST 没有全局幂等保证 |
+| 旧数据 | 旧目的地/卡片读取适配，无法核验文本保留 legacyText | 不静默丢弃或将景点假装成市；spot 同名不能只靠状态区分 POI |
+| 提供方故障 | Kimi 错误/超时归一化；Bocha 搜索可降级；高德故障不编造地点 | 手动 destinations 归属加载当前将异常统一视为 not-found |
+| 日志 | Pino 事件、requestId、耗时、错误脱敏 | 不输出密钥；调试输出按环境配置 |
+
+准确 HTTP 状态、请求体及每个操作的失败恢复见 USER_FLOW_CURRENT。上述限制是现有实现记录，本轮文档更新不顺带修复代码或增加事务框架。
+
+## 7. 未来方向（未实现）
+
+未来 Generate Plan 可能基于当前 TripState 研究天气、路线、交通、开放/访问和风险，再产出可保存计划。Research Agent 只有在下一步需依据观察结果决定时才有意义；模型参与固定步骤不自动构成 Agent。
+
+后续研究需保留来源、新鲜度、不确定性和可恢复错误，明确停止条件、调用/时间预算与权限边界。不能从聊天恢复已删除偏好，不能静默覆盖用户决定。当前不选择通用 Agent、模型路由、向量库或 UI 决策框架。
+
+Adaptive Workspace 的简短方向见 [product/adaptive-workspace.md](product/adaptive-workspace.md)，只保留设计意图，不作为当前实施任务。新增能力应由实际产品需求推动。
+
+## 8. 验证与运行边界
+
+`npm run lint`、`npm run typecheck`、`npm test`、`npm run build` 分别检查规则、类型、Node 测试和生产构建。测试按文件邻近组织，覆盖领域规则、应用分支、提供方适配、并发与错误；外部系统多为 mock，`scripts/verify-*.ts` 是需配置的人工真实调用，不和单测通过混为一谈。
+
+运行配置见 README 和 `.env.example`：数据库/Kimi/高德在服务端读取密钥，Bocha 缺失可降级。页面有 manifest 和图标，未实现 service worker/offline cache。文档记录仓库支持标准 Next.js 部署，不证明已部署到任何指定平台。
+
+## 9. 本文更新格式
+
+后续新增技术/能力时，按现有栏目补充，不另造一份平行架构说明：
+
+1. **技术栈表：**技术/工具、当前用途、接入位置、边界/状态；版本核对 package 和 lock。
+2. **模块职责：**输入、职责、输出/持久化；明确入口、应用、领域及适配器各做什么。
+3. **流程图：**只画实际调用，标出校验、外部调用、保存、显式确认和关键失败分支。
+4. **数据与可靠性：**注明权威来源、写入方式、所有权、并发、重试和半成功恢复。
+5. **未来方向：**单独标“未实现”，不放进当前运行图，也不因写进文档自动授权实施。
+6. **关联文档：**同步 CODEBASE_GUIDE 的文件索引、DATABASE_SCHEMA 的表/字段关系和 USER_FLOW_CURRENT 的详细操作，保留向用户讲解的细节。

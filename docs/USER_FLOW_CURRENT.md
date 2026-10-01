@@ -1,6 +1,6 @@
 # Meri 当前用户操作流程与回复来源
 
-> 按 2026-09-30 工作区源码更新，包含未提交的 destination 重构和 UI 调整。沿用原有章节、流程图、操作表及代码索引，供业务追踪与面试讲解。本文描述实际调用路径；输入示例是按规则推导，未来能力明确标为计划。Home 指 `/`，Workspace 指 `/trips/[id]`，Journey 是持久化旅程。
+> 按 2026-10-01 工作区源码核对，包含已落地的 destination 重构和 UI 调整。沿用原有章节、流程图、操作表及代码索引，用于业务追踪与向用户讲解。本文描述实际调用路径；输入示例是按规则推导，未来能力明确标为计划。Home 指 `/`，Workspace 指 `/trips/[id]`，Journey 是持久化旅程。完整目录、分层与逐文件说明见 [CODEBASE_GUIDE.md](CODEBASE_GUIDE.md)。
 
 ## 先看全局
 
@@ -246,11 +246,11 @@ add/set 使用 Promise.all 查询表达。解析层保留不同 provider ID，�
 
 **聊天自动触发：**presentationIntent=destination_recommendations 只是模型信号。[shouldCreateConversationalRecommendations](../src/capabilities/recommendation/destination-recommendation-use-case.ts)还要求 destinationEdit=none，且 [isDestinationOpenToRecommendations](../src/domain/trip-state/trip-state.ts)允许当前状态：missing 或没有选城市的省范围。已定城市不能因推荐信号被替换；legacyText 不作为已验证省范围。
 
-**显式按钮：**右侧 Generate plan 在 destination_missing 时保存固定引导，提供“帮我推荐 / 我自己选”。推荐调用 [destination-recommendations API](../src/app/api/trips/[id]/destination-recommendations/route.ts)，先记录 TripUserAction，再保存助手消息，不伪造用户聊天；自己选打开编辑器。[引导模板](../src/capabilities/conversation/destination-missing-guidance.ts)和 [引导 API](../src/app/api/trips/[id]/destination-missing-guidance/route.ts)按当前状态限制入口。
+**显式按钮：**右侧 Generate plan 在 destination_missing 时保存固定引导，提供“帮我推荐 / 我自己选”。推荐调用 [destination-recommendations API](../src/app/api/trips/[id]/destination-recommendations/route.ts)，按请求入口构造 source=explicit_action 的推荐上下文，再保存助手消息，不另存 action 记录、不伪造用户聊天；自己选打开编辑器。[引导模板](../src/capabilities/conversation/destination-missing-guidance.ts)和 [引导 API](../src/app/api/trips/[id]/destination-missing-guidance/route.ts)按当前状态限制入口。
 
 **实际推荐流水线：**
 
-1. [构造上下文](../src/capabilities/recommendation/destination-recommendation-context.ts)：TripState、最多 10 条/6000 字符对话、当前真实原话或显式 action。
+1. [构造上下文](../src/capabilities/recommendation/destination-recommendation-context.ts)：TripState、最多 10 条/6000 字符对话；聊天入口追加当前真实原话并使用 source=conversation，按钮入口使用 source=explicit_action，来源标记只存在于本次调用上下文。
 2. [Discovery Search](../src/platform/search/discovery-search.ts)：Bocha 取最多 8 条启发信息，失败退化为空搜索上下文。
 3. [推荐生成器](../src/capabilities/recommendation/destination-recommendation-generator.ts)：Kimi 输出省、市/州和理由。
 4. [领域校验](../src/domain/location/destination-recommendations.ts)：形状校验、去重、最多 12 个地点。
@@ -409,7 +409,7 @@ add/set 使用 Promise.all 查询表达。解析层保留不同 provider ID，�
 | remove 歧义/无匹配 | route 固定说明 | 当前保存状态匹配结果 |
 | 聊天推荐有卡 | 本轮解释 Kimi reply | 另一次 Kimi 推荐生成、Bocha 上下文及应用过滤 |
 | 聊天推荐无卡 | workflow 固定失败正文 | 无可展示建议 |
-| 显式推荐按钮 | workflow content | action 和助手建议 |
+| 显式推荐按钮 | workflow content | explicit_action 上下文与保存的助手建议，不另存 action |
 | 聊天选卡提交成功 | destinationSelectionReply 固定确认 | 保存后状态和准备度 |
 | 右侧直接编辑/搜索/删除 | 固定加载、按钮、错误提示 | 不新增聊天正文 |
 | 缺目的地引导 | destinationMissingGuidance 固定句 | 按钮 presentation |
@@ -426,7 +426,7 @@ add/set 使用 Promise.all 查询表达。解析层保留不同 provider ID，�
 - Trip：Journey 身份、owner、生命周期。
 - TripState：当前七类字段，目的地省市/景点；不包含 UI 布局决定。
 - TripMessage：真实用户/助手文本，助手可带受限 presentation，刷新重读。
-- TripUserAction：显式推荐按钮操作，与用户聊天消息区分。
+- 显式推荐操作：本次上下文使用 source=explicit_action，未定义当前独立持久化实体；历史 `trip_user_actions` 表由 [0007](../drizzle/0007_trip_user_actions.sql) 创建、[0009](../drizzle/0009_drop_trip_user_actions.sql) 定义删除，当前 schema 不包含该表。具体环境是否执行迁移需另行检查。
 - JourneySummary：列表投影，不能作为修改基底。
 
 数据库定义：[schema](../src/platform/persistence/database/schema/index.ts)。状态仓库：[postgres-trip-state-repository](../src/platform/persistence/postgres/postgres-trip-state-repository.ts)。
@@ -455,6 +455,7 @@ add/set 使用 Promise.all 查询表达。解析层保留不同 provider ID，�
 - 最终 spot 按名称保存/去重，不能单靠 TripState 区分两个同名 POI，未来须再核验。
 - 手动搜索的同名不可区分项仍禁用；聊天只确认省市及景点偏好，精确 POI/地图消歧留到规划阶段。
 - 未实现删除撤销、省内限定搜索、Research Agent 或真正计划生成。
+- 通用 [state PATCH](../src/app/api/trips/[id]/state/route.ts) 仍接受领域校验通过的 destination patch，没有统一地点核验；前端普通字段模型拒绝直接编辑目的地，不等于服务端限制。该 route 当前也未将 TripStateConflictError 单独映射为 409；专用目的地 route 的并发响应不能泛化到它。
 
 ### 7.4 下一版 Generate Plan 的交接边界（计划）
 
@@ -495,4 +496,4 @@ add/set 使用 Promise.all 查询表达。解析层保留不同 provider ID，�
 | 原子数据库更新 | [postgres state repository](../src/platform/persistence/postgres/postgres-trip-state-repository.ts) | 原始 JSONB 条件更新 |
 | 模型 SDK | [ai-sdk-kimi-client](../src/platform/llm/ai-sdk-kimi-client.ts) | 模型配置、超时、日志 |
 
-面试讲解建议按“用户入口 → 模型 JSON → 领域校验 → 地点核验/推荐 → 显式选择 → 状态保存 → UI 恢复”展开。每层说明业务规则、权威来源和失败边界，区分提案、候选与已保存决定。
+“用户入口 → 模型 JSON → 领域校验 → 地点核验/推荐 → 显式选择 → 状态保存 → UI 恢复”展开。每层说明业务规则、权威来源和失败边界，区分提案、候选与已保存决定。
