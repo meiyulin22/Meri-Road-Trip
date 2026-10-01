@@ -6,6 +6,7 @@ import type { DestinationChoicesPresentation } from "@/domain/trip-message/trip-
 import { groupDestinationChoices } from "@/domain/trip-message/destination-choice-identity";
 import { destinationContains, type DestinationArea } from "@/domain/trip-state/destination-areas";
 
+import { AnimatedCheckbox } from "../ui/animated-checkbox";
 import styles from "./destination-recommendation-picker.module.css";
 
 export function DestinationChoicesCard({ presentation, areas, active, pending, error, onCommit }: {
@@ -39,21 +40,25 @@ export function DestinationChoicesCard({ presentation, areas, active, pending, e
       <h3>{province}</h3>
       <ul>{choices.map((choice) => {
         const selected = isAdded(choice);
+        // Current TripState decides the check: add cards lock saved places, and read-only
+        // cards still show which of their places are in the Journey now.
+        const inJourney = selected && (presentation.mode === "add" || !active);
+        const checked = inJourney || selectedIds.includes(choice.id);
         return <li key={choice.id}>
           <div className={styles.choiceRow}>
-            <label className={styles.place} data-picked={picked.includes(choice.id)}>
-              <input type="checkbox" checked={selectedIds.includes(choice.id)} disabled={!active || pending ||
+            <label className={styles.place} data-state={inJourney ? "in-journey" : checked ? "picked" : undefined}>
+              <AnimatedCheckbox checked={checked} disabled={!active || pending ||
                 (presentation.mode === "add" && selected) || choice.legacyUnverified}
                 onChange={() => { if (!active || pending) return; setPicked((current) => current.includes(choice.id)
                   ? current.filter((id) => id !== choice.id) : [...current, choice.id]); }} />
               <span className={styles.name}>{choice.city ?? choice.name}
+                {inJourney ? <span className={styles.inJourneyBadge}>已在行程</span> : null}
                 {choice.spot ? <small className={styles.choiceRegion}>想去：{choice.spot}（具体位置将在规划时确认）</small> : null}
                 {!choice.city && choice.detail ? <small className={styles.choiceRegion}>{choice.detail}</small> : null}
               </span>
               {choice.reason ? <span className={styles.reason}>{choice.reason}</span> : null}
             </label>
-            {choice.legacyUnverified || (presentation.mode === "add" && selected)
-              ? <span className={styles.choiceStatus}>{choice.legacyUnverified ? "请重新搜索" : "已添加"}</span> : null}
+            {choice.legacyUnverified ? <span className={styles.choiceStatus}>请重新搜索</span> : null}
           </div>
         </li>;
       })}</ul>

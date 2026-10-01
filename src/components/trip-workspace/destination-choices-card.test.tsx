@@ -61,3 +61,23 @@ test("a historical replacement card has disabled checkboxes and submission", asy
  assert.match(markup,/历史选项，仅供查看/);
  assert.match(markup,/想去：梅里雪山/);
 });
+
+test("a place already in the Journey stays checked and marked after the batch is added", async () => {
+  const { DestinationChoicesCard } = await import("./destination-choices-card");
+  const areas = [{ province: "云南省", places: [{ name: "昆明市", spots: [] }] }];
+  const presentation = { type: "destination_choices", mode: "add", choices: [
+    { id: "kunming", name: "昆明市", province: "云南省", city: "昆明市" },
+    { id: "dali", name: "大理白族自治州", province: "云南省", city: "大理白族自治州" },
+  ] } as const;
+  for (const active of [true, false]) {
+    const markup = renderToStaticMarkup(createElement(DestinationChoicesCard, {
+      areas, active, pending: false, error: false, onCommit: () => {}, presentation,
+    }));
+    const [kunming, dali] = markup.match(/<input[^>]*>/g) ?? [];
+    assert.match(kunming ?? "", /checked/);
+    assert.match(kunming ?? "", /disabled/);
+    assert.doesNotMatch(dali ?? "", /checked/);
+    assert.equal((markup.match(/已在行程/g) ?? []).length, 1);
+    assert.doesNotMatch(markup, /已添加/);
+  }
+});

@@ -39,7 +39,7 @@
 | `src/components/` | React UI 和前端请求/展示模型 | 表现层（presentation layer） |
 | `src/components/meri-shell/` | 首页外壳、创建输入、最近旅程 | 首页表现层 |
 | `src/components/trip-workspace/` | 聊天、右侧字段编辑、目的地卡、状态同步、准备度按钮 | Workspace 表现层 |
-| `src/components/ui/` | 已使用的基础 UI：动画 Popover、像素标题 | UI 基础组件 |
+| `src/components/ui/` | 已使用的基础 UI：动画 Popover、动画复选框、像素标题 | UI 基础组件 |
 | `src/domain/` | 数据类型、校验、状态变换、纯业务规则，无网络/数据库 IO | 领域层（domain layer），回答“什么是合法业务状态” |
 | `src/domain/trip/` | Trip 身份、访客归属、生命周期及错误 | Journey 根实体 |
 | `src/domain/trip-state/` | 权威旅程字段、目的地层级、删除规则、准备度及聊天修改契约 | 状态与领域规则 |
@@ -237,7 +237,7 @@ LLM 解释自然语言并提出受限 JSON；应用校验、决定是否执行�
 | [src/components/trip-workspace/conversation-reveal.test.ts](../src/components/trip-workspace/conversation-reveal.test.ts) | 测试（对应模块边界） | 验证只对已提交文本按字符步进显示，不越界或改写正文。 |
 | [src/components/trip-workspace/conversation-reveal.ts](../src/components/trip-workspace/conversation-reveal.ts) | 表现层 | 已提交助手正文的客户端可见字符数/显示节奏纯函数；不是服务端 token 流。 |
 | [src/components/trip-workspace/destination-choices-card.test.tsx](../src/components/trip-workspace/destination-choices-card.test.tsx) | 测试（对应模块边界） | 验证同市新 spot 可添加、replace 可选已有市、重复 POI 归并及历史/已确认卡禁用。 |
-| [src/components/trip-workspace/destination-choices-card.tsx](../src/components/trip-workspace/destination-choices-card.tsx) | 表现层 | 当前聊天多选卡，按省归组、同偏好归并、统一提交，处理已添加/只读/pending/失败状态。 |
+| [src/components/trip-workspace/destination-choices-card.tsx](../src/components/trip-workspace/destination-choices-card.tsx) | 表现层 | 当前聊天多选卡，按省归组、同偏好归并、统一提交，处理已在行程（勾选锁定）/只读/pending/失败状态。 |
 | [src/components/trip-workspace/destination-editor.tsx](../src/components/trip-workspace/destination-editor.tsx) | 表现层 | 右侧省→市→spot 编辑器，展示/搜索/显式添加/精确删除及旧记录清除，处理 busy 和错误。 |
 | [src/components/trip-workspace/destination-missing-guidance-model.test.ts](../src/components/trip-workspace/destination-missing-guidance-model.test.ts) | 测试（对应模块边界） | 验证 focused POST 和返回消息校验，不把本地占位当数据库消息。 |
 | [src/components/trip-workspace/destination-missing-guidance-model.ts](../src/components/trip-workspace/destination-missing-guidance-model.ts) | 表现层 | 调用缺目的地引导 API，校验返回的持久化助手消息。 |
@@ -274,6 +274,8 @@ LLM 解释自然语言并提出受限 JSON；应用校验、决定是否执行�
 | 文件地址 | 层/类别 | 做什么 |
 | --- | --- | --- |
 | [src/components/ui/animated-popover.tsx](../src/components/ui/animated-popover.tsx) | 表现层 | Radix Popover + Motion 封装，提供受控开关、浮层入退场及减少动态效果支持。 |
+| [src/components/ui/animated-checkbox.module.css](../src/components/ui/animated-checkbox.module.css) | 表现层 | 动画复选框的方框、选中、聚焦、禁用与减少动态效果样式。 |
+| [src/components/ui/animated-checkbox.tsx](../src/components/ui/animated-checkbox.tsx) | 表现层 | 保留原生 checkbox 语义的复选框，Motion 绘制对勾；用于两个目的地多选卡。 |
 | [src/components/ui/pixel-heading-character.module.css](../src/components/ui/pixel-heading-character.module.css) | 表现层 | 像素标题字符布局、字体和动画相关样式。 |
 | [src/components/ui/pixel-heading-character.tsx](../src/components/ui/pixel-heading-character.tsx) | 表现层 | 像素字符标题组件，处理字体/字符动画模式和减少动态效果。 |
 

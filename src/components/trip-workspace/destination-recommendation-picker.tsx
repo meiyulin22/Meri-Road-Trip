@@ -5,6 +5,7 @@ import { useState } from "react";
 import type { DestinationRecommendationPresentation } from "@/domain/trip-message/trip-message";
 import { groupRecommendationsByProvince } from "./destination-recommendation-model";
 
+import { AnimatedCheckbox } from "../ui/animated-checkbox";
 import styles from "./destination-recommendation-picker.module.css";
 
 /**
@@ -43,11 +44,10 @@ export function DestinationRecommendationPicker({
             {group.destinations.map((destination) => (
               <li key={destination.id}>
                 <label className={styles.place} data-picked={picked.includes(destination.id)}>
-                  <input
+                  <AnimatedCheckbox
                     checked={picked.includes(destination.id)}
                     disabled={locked}
                     onChange={() => toggle(destination.id)}
-                    type="checkbox"
                   />
                   <span className={styles.name}>{destination.name}</span>
                   {destination.reason === undefined
