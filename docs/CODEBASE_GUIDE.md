@@ -35,7 +35,6 @@
 | `src/app/` | Next.js App Router 页面、layout、manifest、HTTP 路由 | 框架入口层；页面是展示入口，API 是接口/控制器入口 |
 | `src/app/api/` | 接收请求、读 cookie、校验输入、调用应用服务、转换 HTTP 响应 | 接口层；部分业务流程编排当前也在 route 中 |
 | `src/app/trips/` | Journey 列表、Workspace 页面和删除入口 | 页面层，含服务端读取与客户端操作组件 |
-| `src/app/playground/companion/` | 角色动画试验页面 | 开发演示页面 |
 | `src/components/` | React UI 和前端请求/展示模型 | 表现层（presentation layer） |
 | `src/components/meri-shell/` | 首页外壳、创建输入、最近旅程 | 首页表现层 |
 | `src/components/trip-workspace/` | 聊天、右侧字段编辑、目的地卡、状态同步、准备度按钮 | Workspace 表现层 |
@@ -200,8 +199,6 @@ LLM 解释自然语言并提出受限 JSON；应用校验、决定是否执行�
 | [src/app/layout.tsx](../src/app/layout.tsx) | 页面/框架入口 | 根布局、字体、全局样式及站点 metadata/图标。 |
 | [src/app/manifest.ts](../src/app/manifest.ts) | 页面/框架入口 | PWA Web App Manifest，声明名称、启动地址、显示方式和图标；不提供离线缓存。 |
 | [src/app/page.tsx](../src/app/page.tsx) | 页面/框架入口 | 首页 / 的服务端页面入口，渲染 MeriAppShell。 |
-| [src/app/playground/companion/companion-playground.module.css](../src/app/playground/companion/companion-playground.module.css) | 页面/框架入口 | 角色试验场景、sprite、拖动区域和控件样式。 |
-| [src/app/playground/companion/page.tsx](../src/app/playground/companion/page.tsx) | 页面/框架入口 | 角色动画演示：方向、idle/walking 切换及拖动/移动试验，不是旅程业务流程。 |
 | [src/app/trips/[id]/error.tsx](../src/app/trips/%5Bid%5D/error.tsx) | 页面/框架入口 | Workspace 页面错误边界，提供失败提示和重试入口。 |
 | [src/app/trips/[id]/page.tsx](../src/app/trips/%5Bid%5D/page.tsx) | 页面/框架入口 | Workspace 服务端加载入口，检查归属、读取状态/消息，区分 404 与缺失状态。 |
 | [src/app/trips/journey-delete-action.tsx](../src/app/trips/journey-delete-action.tsx) | 页面/框架入口 | 列表页客户端删除控件，调用 owner-scoped DELETE 并更新页面。 |
@@ -496,18 +493,7 @@ LLM 解释自然语言并提出受限 JSON；应用校验、决定是否执行�
 | [public/brand/meri-lockup.svg](../public/brand/meri-lockup.svg) | 展示资源 | Workspace 使用的组合品牌标识。 |
 | [public/brand/meri-mark.svg](../public/brand/meri-mark.svg) | 展示资源 | Journey 列表等处使用的独立图形标识。 |
 | [public/brand/meri-wordmark.svg](../public/brand/meri-wordmark.svg) | 展示资源 | Journey 列表/缺状态页面使用的文字标识。 |
-| [public/companion-playground-sprite.png](../public/companion-playground-sprite.png) | 展示资源 | 保留的角色试验 sprite 素材，当前试验页主要读取分方向 idle/walking。 |
 | [public/companion/home-v2-companion.png](../public/companion/home-v2-companion.png) | 展示资源 | 首页、聊天头像和 Workspace Companion 使用的角色图。 |
-| [public/companion/idle/east.png](../public/companion/idle/east.png) | 展示资源 | 角色朝东的 idle 图，试验页通过方向变量读取。 |
-| [public/companion/idle/north-east.png](../public/companion/idle/north-east.png) | 展示资源 | 角色朝东北的 idle 图，试验页通过方向变量读取。 |
-| [public/companion/idle/north-west.png](../public/companion/idle/north-west.png) | 展示资源 | 角色朝西北的 idle 图，试验页通过方向变量读取。 |
-| [public/companion/idle/north.png](../public/companion/idle/north.png) | 展示资源 | 角色朝北的 idle 图，试验页通过方向变量读取。 |
-| [public/companion/idle/south-east.png](../public/companion/idle/south-east.png) | 展示资源 | 角色朝东南的 idle 图，试验页通过方向变量读取。 |
-| [public/companion/idle/south-west.png](../public/companion/idle/south-west.png) | 展示资源 | 角色朝西南的 idle 图，试验页通过方向变量读取。 |
-| [public/companion/idle/south.png](../public/companion/idle/south.png) | 展示资源 | 角色朝南的 idle 图，试验页通过方向变量读取。 |
-| [public/companion/idle/west.png](../public/companion/idle/west.png) | 展示资源 | 角色朝西的 idle 图，试验页通过方向变量读取。 |
-| [public/companion/walking/east.gif](../public/companion/walking/east.gif) | 展示资源 | 角色朝东的 walking 动画，角色试验页使用。 |
-| [public/companion/walking/west.gif](../public/companion/walking/west.gif) | 展示资源 | 角色朝西的 walking 动画，角色试验页使用。 |
 | [public/metadata.json](../public/metadata.json) | 展示资源 | 素材导出的角色信息、方向和原始路径元数据，不是当前业务配置或用户数据。 |
 
 ### 6.17 设计和素材制作
@@ -521,15 +507,6 @@ LLM 解释自然语言并提出受限 JSON；应用校验、决定是否执行�
 | [assets/companion/Logo.png](../assets/companion/Logo.png) | 设计/素材制作 | 角色/品牌制作参考图片，不是业务逻辑。 |
 | [assets/companion/LogoSVG-framework.png](../assets/companion/LogoSVG-framework.png) | 设计/素材制作 | 品牌图形制作参考，不是运行时组件。 |
 | [assets/companion/Meri.png](../assets/companion/Meri.png) | 设计/素材制作 | Meri 角色制作参考原图。 |
-| [assets/companion/idle-original-64x64/east.png](../assets/companion/idle-original-64x64/east.png) | 设计/素材制作 | 角色朝东的原始 64×64 idle 帧，供素材处理追溯。 |
-| [assets/companion/idle-original-64x64/north-east.png](../assets/companion/idle-original-64x64/north-east.png) | 设计/素材制作 | 角色朝东北的原始 64×64 idle 帧，供素材处理追溯。 |
-| [assets/companion/idle-original-64x64/north-west.png](../assets/companion/idle-original-64x64/north-west.png) | 设计/素材制作 | 角色朝西北的原始 64×64 idle 帧，供素材处理追溯。 |
-| [assets/companion/idle-original-64x64/north.png](../assets/companion/idle-original-64x64/north.png) | 设计/素材制作 | 角色朝北的原始 64×64 idle 帧，供素材处理追溯。 |
-| [assets/companion/idle-original-64x64/south-east.png](../assets/companion/idle-original-64x64/south-east.png) | 设计/素材制作 | 角色朝东南的原始 64×64 idle 帧，供素材处理追溯。 |
-| [assets/companion/idle-original-64x64/south-west.png](../assets/companion/idle-original-64x64/south-west.png) | 设计/素材制作 | 角色朝西南的原始 64×64 idle 帧，供素材处理追溯。 |
-| [assets/companion/idle-original-64x64/south.png](../assets/companion/idle-original-64x64/south.png) | 设计/素材制作 | 角色朝南的原始 64×64 idle 帧，供素材处理追溯。 |
-| [assets/companion/idle-original-64x64/west.png](../assets/companion/idle-original-64x64/west.png) | 设计/素材制作 | 角色朝西的原始 64×64 idle 帧，供素材处理追溯。 |
-| [assets/companion/pad-idle-to-84.py](../assets/companion/pad-idle-to-84.py) | 设计/素材制作 | 将 public idle 帧补齐到 84 像素画布的素材工具，并保留原始 64 像素版本。 |
 | [assets/design/trip-workspace-v0.1-concept.png](../assets/design/trip-workspace-v0.1-concept.png) | 设计/素材制作 | Workspace v0.1 设计参考；不代表当前页面完整实现该概念图。 |
 
 ### 6.18 历史目录占位文件

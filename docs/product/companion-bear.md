@@ -7,7 +7,7 @@
 - 素材只有一张大图 [home-v2-companion.png](../../public/companion/home-v2-companion.png)（1536×1024，像素风插画，不是真正的像素网格）。
 - [MeriWorld](../../src/components/trip-workspace/meri-world.tsx)把它放在旅程列底部，旁边气泡说一句话；文案来自 [companionStatus](../../src/components/trip-workspace/companion-status-model.ts)，由 TripState 和聊天活动决定，不调用模型。
 - 动作只是 CSS 对整张图的变形：平时呼吸、思考时摇、可生成时跳、出错时抖。图里的四肢不会动。
-- `public/companion/idle/`、`public/companion/walking/` 和 `/playground/companion` 属于旧角色（人类徒步者），与小熊无关，将来接入小熊精灵图时一并移除。
+- 旧角色（人类徒步者）的分方向 idle/walking 素材和 `/playground/companion` 试验页已于 2026-10-01 删除。[assets/companion/Meri.png](../../assets/companion/Meri.png) 等设计稿保留作参考，其中 idle / thinking / discovery / success 的状态划分可借鉴。
 
 ## 想要的效果
 
