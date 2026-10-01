@@ -1,14 +1,13 @@
 "use client";
 
-import { CalendarDays, CarFront, Check, ChevronDown, ChevronUp, CircleHelp, Map, MapPin, Pencil, Route } from "lucide-react";
-import { useId, useRef, useState } from "react";
+import { Check, ChevronDown, ChevronUp, CircleHelp, Map, Pencil, Route } from "lucide-react";
+import { useRef, useState } from "react";
 
 import {
   transportPreferences,
   type TransportPreference,
 } from "@/domain/trip-draft/trip-draft";
 import type {
-  DestinationField,
   TripState,
   TripStateField,
   TripStateFieldName,
@@ -24,7 +23,6 @@ import {
   createDirectTripStatePatch,
   requestTripStateUpdate,
 } from "./trip-state-persistence-model";
-import { destinationSummaryLabel, journeyDateLabel, journeyFieldLabel, transportLabels } from "./workspace-presentation";
 import styles from "./trip-workspace.module.css";
 
 const certaintyLabels = {
@@ -192,15 +190,6 @@ export function ExpeditionBriefPanel({
         </button>
       </header>
 
-      <div className={styles.briefCover} role="img" aria-label="像素山湖插画，旅程示意封面">
-        <span>旅程印象 · 示意</span>
-      </div>
-      <ul className={styles.briefSummary} aria-label="Journey summary">
-        <li><MapPin size={17} aria-hidden="true" /><DestinationSummary destination={tripState.destination} /></li>
-        <li><CalendarDays size={17} aria-hidden="true" /><span>{journeyDateLabel(tripState)}</span></li>
-        <li><CarFront size={17} aria-hidden="true" /><span>{tripState.transportPreference.state === "known" ? transportLabels[tripState.transportPreference.value] : journeyFieldLabel(tripState.transportPreference, "交通方式待定")}</span></li>
-      </ul>
-
       <div className={styles.briefProgress}>
         <h3>Expedition brief</h3>
         <span>{Object.values(tripState).filter((field) => field.state === "known").length}<small> / 7 已理解</small></span>
@@ -276,24 +265,6 @@ export function ExpeditionBriefPanel({
         </p>
       ) : null}
     </aside>
-  );
-}
-
-/**
- * The summary line answers 「这趟去哪」 at a glance, so it stops at the provinces. The
- * places are one hover or one focus away rather than gone: 「广西壮族自治区 北海市 ·
- * 浙江省 舟山市、台州市」 is what the user picked, and it is still theirs to check.
- */
-function DestinationSummary({ destination }: { readonly destination: DestinationField }) {
-  const { text, detail, placeCount } = destinationSummaryLabel(destination, "目的地待定");
-  const detailId = useId();
-  if (detail === null) return <span>{text}</span>;
-  return (
-    <span aria-describedby={detailId} className={styles.destinationSummary} tabIndex={0}>
-      {text}
-      <small aria-hidden="true">{placeCount} 个地点</small>
-      <span className={styles.destinationSummaryDetail} id={detailId} role="tooltip">{detail}</span>
-    </span>
   );
 }
 

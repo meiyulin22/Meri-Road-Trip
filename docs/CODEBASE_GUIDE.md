@@ -250,7 +250,7 @@ LLM 解释自然语言并提出受限 JSON；应用校验、决定是否执行�
 | [src/components/trip-workspace/location-editor-model.test.ts](../src/components/trip-workspace/location-editor-model.test.ts) | 测试（对应模块边界） | 验证 query 长度、完整建议解析及已选地点 patch 身份/坐标。 |
 | [src/components/trip-workspace/location-editor-model.ts](../src/components/trip-workspace/location-editor-model.ts) | 表现层 | 输入 query 标准化、建议响应校验和出发地 selection patch 构造。 |
 | [src/components/trip-workspace/location-editor.tsx](../src/components/trip-workspace/location-editor.tsx) | 表现层 | 当前用于 origin 的输入建议编辑控件，防抖查询、显式选中并保存普通字段。 |
-| [src/components/trip-workspace/meri-world.tsx](../src/components/trip-workspace/meri-world.tsx) | 表现层 | Companion 场景及尚未开放的雪况/交通/预算快捷按钮；没有实际研究调用。 |
+| [src/components/trip-workspace/meri-world.tsx](../src/components/trip-workspace/meri-world.tsx) | 表现层 | 旅程信息下方的 Companion 插画和陪伴提示语。 |
 | [src/components/trip-workspace/message-timestamp.ts](../src/components/trip-workspace/message-timestamp.ts) | 表现层 | 按本地今天/昨天/更早日期格式化聊天时间标签。 |
 | [src/components/trip-workspace/planning-readiness-model.test.ts](../src/components/trip-workspace/planning-readiness-model.test.ts) | 测试（对应模块边界） | 验证只读 readiness 请求、缺失/仅省/旧文本处理及结果与当前目的地关联。 |
 | [src/components/trip-workspace/planning-readiness-model.ts](../src/components/trip-workspace/planning-readiness-model.ts) | 表现层 | 准备度请求、固定说明、请求资格及 missing 高亮规则。 |
@@ -265,8 +265,7 @@ LLM 解释自然语言并提出受限 JSON；应用校验、决定是否执行�
 | [src/components/trip-workspace/workspace-conversation-model.test.ts](../src/components/trip-workspace/workspace-conversation-model.test.ts) | 测试（对应模块边界） | 验证合法/非法响应、浏览器 fetch 接收者及失败提示，不把未确认发送当已保存。 |
 | [src/components/trip-workspace/workspace-conversation-model.ts](../src/components/trip-workspace/workspace-conversation-model.ts) | 表现层 | 请求聊天、解析响应及 selection 相关错误类型，校验服务端返回状态和消息。 |
 | [src/components/trip-workspace/workspace-header.tsx](../src/components/trip-workspace/workspace-header.tsx) | 表现层 | 品牌/返回首页、旅程标题、日期/出发地/交通摘要；保存标签为当前 UI 展示。 |
-| [src/components/trip-workspace/workspace-presentation.test.ts](../src/components/trip-workspace/workspace-presentation.test.ts) | 测试（对应模块边界） | 验证 missing、旧自由文本、省市/spot 及多省摘要/详情投影。 |
-| [src/components/trip-workspace/workspace-presentation.ts](../src/components/trip-workspace/workspace-presentation.ts) | 表现层 | 字段/日期/交通显示转换，以及省份摘要和展开的目的地详情。 |
+| [src/components/trip-workspace/workspace-presentation.ts](../src/components/trip-workspace/workspace-presentation.ts) | 表现层 | 页头使用的字段、日期和交通显示转换。 |
 | [src/components/trip-workspace/workspace-title.ts](../src/components/trip-workspace/workspace-title.ts) | 表现层 | 从当前 name 字段派生 Workspace 标题，缺失时显示默认标题。 |
 
 ### 6.6 基础 UI 组件
