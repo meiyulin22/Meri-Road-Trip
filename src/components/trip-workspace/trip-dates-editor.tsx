@@ -126,12 +126,12 @@ export function TripDatesField({
         </dt>
         <dd>
           <PopoverTrigger asChild>
-            <button aria-label={`编辑${label}`} type="button">
+            <button aria-label={`编辑${label}`} className={styles.fieldEditTrigger} title={`编辑${label}`} type="button">
               <span>
                 {summary.text}
                 <CertaintyTag state={summary.certainty} />
               </span>
-              <Pencil aria-hidden="true" size={13} />
+              <span aria-hidden="true" className={styles.fieldEditAffordance}><Pencil size={15} /></span>
             </button>
           </PopoverTrigger>
         </dd>

@@ -194,8 +194,8 @@
 /* 去哪: one row per province, its cities and spots as chips, every remove control in
    one column on the right. */
 .destinationAddCell { justify-self: end; }
-.stateField.destinationEditor .destinationAddToggle { display: inline-flex; width: auto; align-items: center; gap: 4px; min-height: 26px; padding: 3px 9px; border: 1px solid #cfdacb; border-radius: 999px; background: #f6f8f1; color: #3f6f55; font-size: 11px; }
-.stateField.destinationEditor .destinationAddToggle:hover { background: #eaf1e5; }
+.stateField.destinationEditor .destinationAddToggle { display: inline-flex; width: 66px; height: 30px; align-items: center; justify-content: center; gap: 4px; min-height: 30px; padding: 0 10px; border: 1px solid #d8e2d2; border-radius: 8px; background: #eef3e9; color: #52745d; font-size: 12px; line-height: 1; white-space: nowrap; transition: background-color .18s ease, border-color .18s ease; }
+.stateField.destinationEditor .destinationAddToggle:hover, .stateField.destinationEditor .destinationAddToggle:focus-visible, .stateField.destinationEditor .destinationAddToggle[aria-expanded="true"] { background: #e1ecdb; border-color: #aec4a6; }
 .stateField.destinationEditor .destinationAddToggle svg { flex-basis: auto; color: inherit; opacity: 1; }
 .destinationBody { grid-column: 1 / -1; }
 .destinationEmpty { margin: 0; color: #a0a89d; font-size: 13px; }
@@ -235,6 +235,27 @@
 .stateField dd button span { min-width: 0; overflow-wrap: anywhere; }
 .stateField dd button svg { flex: 0 0 11px; color: #a1aaa0; opacity: .45; }
 .stateField:hover dd button svg, .stateField:focus-within dd button svg { opacity: 1; }
+/* Keep the value and edit affordance in one accessible trigger, including on touch. */
+.stateField dd .fieldEditTrigger { min-height: 44px; padding: 0; gap: 12px; border-radius: 10px; }
+.stateField dd .fieldEditAffordance { display: grid; place-items: center; flex: 0 0 30px; width: 30px; height: 30px; border-radius: 8px; background: #eef3e9; box-shadow: inset 0 0 0 1px #d8e2d2; color: #52745d; transition: background-color .18s ease, box-shadow .18s ease, transform .18s ease; }
+.stateField dd .fieldEditAffordance svg { flex: none; width: 15px; height: 15px; color: inherit; opacity: 1; }
+.fieldEditTrigger:focus-visible .fieldEditAffordance, .fieldEditTrigger[data-state="open"] .fieldEditAffordance { background: #e1ecdb; box-shadow: inset 0 0 0 1px #aec4a6; }
+@media (hover: hover) {
+  .fieldEditTrigger:hover .fieldEditAffordance { background: #e1ecdb; box-shadow: inset 0 0 0 1px #aec4a6; }
+  .fieldEditTrigger:hover .fieldEditAffordance svg { animation: fieldPencilWrite .38s ease-out; }
+}
+.fieldEditTrigger:active .fieldEditAffordance { transform: scale(.96); }
+@keyframes fieldPencilWrite {
+  0%, 100% { transform: translate(0, 0) rotate(0); }
+  35% { transform: translate(-1px, 1px) rotate(-9deg); }
+  70% { transform: translate(1px, -1px) rotate(4deg); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .stateField.destinationEditor .destinationAddToggle { transition: none; }
+  .stateField dd .fieldEditAffordance { transition: none; }
+  .stateField dd .fieldEditTrigger .fieldEditAffordance svg { animation: none; }
+  .fieldEditTrigger:active .fieldEditAffordance { transform: none; }
+}
 .stateField:hover { background: rgba(234, 239, 226, .35); }
 .stateField[data-readiness-missing="true"], .stateField[data-readiness-missing="true"]:hover { border-radius: 8px; background: rgba(180, 111, 82, .075); outline: 1px solid rgba(162, 99, 77, .38); outline-offset: -1px; }
 .stateField[data-certainty="missing"] dd { color: #a0a89d; }

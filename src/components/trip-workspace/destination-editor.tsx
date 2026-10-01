@@ -1,6 +1,7 @@
 "use client";
 
-import { Check, MapPin, Plus, Search, X } from "lucide-react";
+import { Check, MapPin, Minus, Plus, Search, X } from "lucide-react";
+import { motion, useReducedMotion } from "motion/react";
 import { useEffect, useRef, useState } from "react";
 import { z } from "zod";
 
@@ -23,6 +24,7 @@ export function DestinationEditor({ tripId, tripState, onTripStateChange, initia
   readonly initiallyOpen?: boolean;
 }) {
   const [open, setOpen] = useState(initiallyOpen);
+  const reduceMotion = useReducedMotion();
   const [query, setQuery] = useState("");
   const [choices, setChoices] = useState<readonly SearchChoice[]>([]);
   const [searchState, setSearchState] = useState<"idle" | "loading" | "empty" | "error" | "results">("idle");
@@ -79,12 +81,14 @@ export function DestinationEditor({ tripId, tripState, onTripStateChange, initia
       目的地
     </span></dt>
     <dd className={styles.destinationAddCell}>
-      <button className={styles.destinationAddToggle} type="button" aria-expanded={open}
+      <motion.button className={styles.destinationAddToggle} type="button" aria-expanded={open}
         aria-label={open ? "收起目的地搜索" : "添加目的地"}
+        whileTap={reduceMotion ? undefined : { scale: 0.97 }}
+        transition={{ duration: 0.15, ease: "easeOut" }}
         onClick={() => { setOpen((value) => !value); setChoices([]); setSearchState("idle"); }}>
-        {open ? <X size={13} aria-hidden="true" /> : <Plus size={13} aria-hidden="true" />}
+        {open ? <Minus size={14} aria-hidden="true" /> : <Plus size={14} aria-hidden="true" />}
         <span>{open ? "收起" : "添加"}</span>
-      </button>
+      </motion.button>
     </dd>
     <dd className={styles.destinationBody}>
     {tripState.destination.state === "known" && tripState.destination.legacyText ?

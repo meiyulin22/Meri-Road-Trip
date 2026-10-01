@@ -317,12 +317,12 @@ function ExpeditionBriefField({
             value={editValue}
           />
         ) : (
-          <button aria-label={`编辑${label}`} onClick={onEdit} type="button">
+          <button aria-label={`编辑${label}`} className={styles.fieldEditTrigger} title={`编辑${label}`} onClick={onEdit} type="button">
             <span>
               {field.state === "missing" ? "—" : field.value}
               <CertaintyTag state={field.state} />
             </span>
-            <Pencil aria-hidden="true" size={13} />
+            <span aria-hidden="true" className={styles.fieldEditAffordance}><Pencil size={15} /></span>
           </button>
         )}
       </dd>

@@ -148,12 +148,12 @@ export function LocationEditor({
         </dt>
         <dd>
           <PopoverTrigger asChild>
-            <button aria-label={`编辑${label}`} type="button">
+            <button aria-label={`编辑${label}`} className={styles.fieldEditTrigger} title={`编辑${label}`} type="button">
               <span>
                 {location.state === "missing" ? "—" : location.value}
                 <CertaintyTag state={location.state} />
               </span>
-              <Pencil aria-hidden="true" size={13} />
+              <span aria-hidden="true" className={styles.fieldEditAffordance}><Pencil size={15} /></span>
             </button>
           </PopoverTrigger>
         </dd>
