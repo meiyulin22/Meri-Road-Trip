@@ -6,12 +6,12 @@ import { useChat } from "@ai-sdk/react";
 import type { UIMessage } from "ai";
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 
+import type { ConversationActivity } from "@/components/companion/companion-status-model";
 import type { TripMessage } from "@/domain/trip-message/trip-message";
 import type { TripState } from "@/domain/trip-state/trip-state";
 
 import { nextRevealCharacterCount, visibleAssistantText } from "./conversation-reveal";
 import { selectDestinationRecommendation } from "./destination-recommendation-model";
-import type { ConversationActivity } from "./companion-status-model";
 import { DestinationChoicesCard } from "./destination-choices-card";
 import { GeneratePlanAction } from "./generate-plan-action";
 import { formatMessageTimestamp } from "./message-timestamp";

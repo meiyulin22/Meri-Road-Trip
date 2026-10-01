@@ -23,8 +23,9 @@ For database schema, repository, or migration work, also read
 `docs/DATABASE_SCHEMA.md` for the table/field directory, relationships, constraints,
 and code mappings. Keep it consistent with the actual schema and migration files.
 
-`docs/product/adaptive-workspace.md` and `docs/product/companion-bear.md` describe future
-direction, not an implementation requirement. Historical plans in Git are not the current behavior contract.
+`docs/product/adaptive-workspace.md` describes future direction, not an implementation
+requirement. `docs/product/companion-bear.md` is the bear's design reference; its sprites and
+behaviour are implemented in `src/components/companion/`, and its open items are not tasks. Historical plans in Git are not the current behavior contract.
 
 ## Working rules
 

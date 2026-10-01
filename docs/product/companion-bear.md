@@ -1,13 +1,14 @@
 # Meri 小熊：动画与行为设计
 
-> 2026-10-01 新建。本文件记录小熊的未来动画与行为方向，不描述全部已实现能力，也不授权本轮开发。当前已实现部分见 [USER_FLOW_CURRENT.md](../USER_FLOW_CURRENT.md) 5.5 节。
+> 2026-10-01 新建，同日实现。本文件是小熊的设计说明：精灵图和行为规则已按本文实现，用户可见的当前行为以 [USER_FLOW_CURRENT.md](../USER_FLOW_CURRENT.md) 5.5 节为准；“待定”一节不构成开发任务。
 
 ## 现在是什么样
 
-- 素材只有一张大图 [home-v2-companion.png](../../public/companion/home-v2-companion.png)（1536×1024，像素风插画，不是真正的像素网格）。
-- [MeriWorld](../../src/components/trip-workspace/meri-world.tsx)把它放在旅程列底部，旁边气泡说一句话；文案来自 [companionStatus](../../src/components/trip-workspace/companion-status-model.ts)，由 TripState 和聊天活动决定，不调用模型。
-- 动作只是 CSS 对整张图的变形：平时呼吸、思考时摇、可生成时跳、出错时抖。图里的四肢不会动。
-- 旧角色（人类徒步者）的分方向 idle/walking 素材和 `/playground/companion` 试验页已于 2026-10-01 删除。[assets/companion/Meri.png](../../assets/companion/Meri.png) 等设计稿保留作参考，其中 idle / thinking / discovery / success 的状态划分可借鉴。
+- 原始素材是一张大图 [home-v2-companion.png](../../public/companion/home-v2-companion.png)（1536×1024，像素风插画，不是真正的像素网格）。
+- [生成脚本](../../assets/companion/bear/generate_bear_sprites.py)把它缩成 64px 底图并合成全部帧，写出 [bear-sprites.png](../../public/companion/bear/bear-sprites.png) 和 [bear-sprites.json](../../public/companion/bear/bear-sprites.json)。改帧只需改脚本后重新运行。
+- [MeriWorld](../../src/components/companion/meri-world.tsx)把小熊放在旅程列底部，旁边气泡说一句话；文案来自 [companionStatus](../../src/components/companion/companion-status-model.ts)。
+- [bear-behavior](../../src/components/companion/bear-behavior.ts)按下文“行为逻辑”决定做什么，[CompanionBear](../../src/components/companion/companion-bear.tsx)逐帧播放。
+- 旧角色（人类徒步者）的分方向 idle/walking 素材和 `/playground/companion` 试验页已删除。[assets/companion/Meri.png](../../assets/companion/Meri.png) 等设计稿保留作参考。
 
 ## 想要的效果
 
@@ -23,13 +24,13 @@
 
 | 动作 | 帧数 | 做法 | 预期质量 |
 | --- | --- | --- | --- |
-| 站着（呼吸、眨眼） | 6 | 试验已完成，眨眼待修正 | 好 |
+| 站着（呼吸、眨眼） | 6 | 桌后站着，上半身轻沉、眨眼 | 好；眨眼在正常尺寸下偏不明显 |
 | 坐下 | 3 | 身体分步沉到桌后 | 好 |
 | 看地图（循环） | 4–6 | 原图本来就拿着地图：点头、地图轻晃、眨眼 | 最好 |
 | 放下地图、拿起饭团 | 3 | 地图折到桌上，爪子举起饭团 | 一般：需要新画手臂和食物 |
 | 吃（循环） | 3 | 饭团在嘴边、咀嚼鼓包、掉渣 | 最难：可爱但比原图简单 |
 | 站起来 | 3 | 坐下的倒放 | 好 |
-| 欢呼 / 担心 | 4–6 / 4–6 | 替换现在的 CSS 跳和抖 | 好 |
+| 欢呼 / 担心 | 7 / 4 | 跳两下带星光 / 左右抖带汗滴 | 好 |
 | 小桌 + 碗 | 1 张 | 从零画 | 好 |
 
 合计约 30 帧。输出为一张精灵图 PNG（1 倍尺寸、透明背景）加一份帧清单 JSON（每个动作的行号、帧数、每帧毫秒），页面上按整数倍放大并使用 `image-rendering: pixelated`。若以后找画师精修，只需替换个别帧，帧清单格式不变。
@@ -92,12 +93,12 @@
 
 ## 代码结构（实施时）
 
-- **决定是纯函数**：`nextActivity(current, history, reaction, random) → { goal, steps, durationMs }`。随机数由外部传入，测试可固定它，验证“不连续三次”“60 秒饭后冷却”“不瞬移”“反应优先于自由时间”。
+- **决定是纯函数**：`planNextActivity(memory, reaction, now, random) → { activity, steps }`。随机数由外部传入，测试可固定它，验证“不连续三次”“60 秒饭后冷却”“不瞬移”“反应优先于自由时间”。
 - **播放器只管时间和画面**：拿到步骤（如“站起来 → 欢呼”）后按帧清单播放精灵图对应行。
-- **文件位置**：小熊代码到那时会有行为规则、测试、播放器、帧清单类型等多个文件，届时再新建 `src/components/companion/`，并把现有 `meri-world.tsx`、`companion-status-model.ts` 移过去；素材放 `public/companion/bear/`（`bear-sprites.png` + `bear-sprites.json`）。在此之前不预先建空目录。
+- **文件位置**：代码在 `src/components/companion/`，素材在 `public/companion/bear/`，生成脚本在 `assets/companion/bear/`。实际函数为 `planNextActivity(memory, reaction, now, random)`，记忆（姿势、最近活动、上次吃饭时间、已为哪次旅程状态欢呼）由 `rememberPlan` 更新。
 
 ## 待定
 
-- 食物和家具（暂定饭团 + 营地小桌）。
-- 是否加入“放空 / 打瞌睡”动作。
-- 精灵图试验通过后，是否请画师精修吃东西等新姿势。
+- 放下地图后露出的外套是代码画的平面，略显呆板；盘子上的饭团偏小；眨眼不够明显。可直接改生成脚本，或请画师精修个别帧（帧清单格式不变）。
+- 是否加入真正的“打瞌睡”动画（现在“放空”是静止的看地图姿势）。
+- 用户长时间无操作时是否更常放空。

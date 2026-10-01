@@ -37,6 +37,7 @@
 | `src/app/trips/` | Journey 列表、Workspace 页面和删除入口 | 页面层，含服务端读取与客户端操作组件 |
 | `src/components/` | React UI 和前端请求/展示模型 | 表现层（presentation layer） |
 | `src/components/meri-shell/` | 首页外壳、创建输入、最近旅程 | 首页表现层 |
+| `src/components/companion/` | 小熊：一句话规则、行为规则、精灵图播放器和帧清单 | Companion 表现层 |
 | `src/components/trip-workspace/` | 聊天、右侧字段编辑、目的地卡、状态同步、准备度按钮 | Workspace 表现层 |
 | `src/components/ui/` | 已使用的基础 UI：动画 Popover、动画复选框、像素标题 | UI 基础组件 |
 | `src/domain/` | 数据类型、校验、状态变换、纯业务规则，无网络/数据库 IO | 领域层（domain layer），回答“什么是合法业务状态” |
@@ -177,7 +178,7 @@ LLM 解释自然语言并提出受限 JSON；应用校验、决定是否执行�
 | [docs/PROJECT.md](../docs/PROJECT.md) | 文档/开发约定 | 产品愿景、当前 MVP、用户决定原则、规划方向及当前非目标。 |
 | [docs/USER_FLOW_CURRENT.md](../docs/USER_FLOW_CURRENT.md) | 文档/开发约定 | 向用户讲解的详细业务材料：入口、模型 JSON、每个操作的 API/代码、状态变化、错误、并发与兼容。 |
 | [docs/product/adaptive-workspace.md](../docs/product/adaptive-workspace.md) | 文档/开发约定 | 精简的未来界面方向：按用户决定调整信息重点，保留状态和受控组件边界，不预选框架。 |
-| [docs/product/companion-bear.md](../docs/product/companion-bear.md) | 文档/开发约定 | 小熊未来方向：64px 精灵图素材方案、坐下/看地图/吃饭团等动作清单，以及“反应优先、自由时间随机”的行为逻辑；不是已实现功能。 |
+| [docs/product/companion-bear.md](../docs/product/companion-bear.md) | 文档/开发约定 | 小熊设计说明：营地小桌精灵图方案、动作清单和“反应优先、自由时间随机”的行为逻辑；素材与行为已实现，文中列出仍待定的部分。 |
 
 ### 6.3 App Router 页面与 HTTP 接口
 
@@ -229,8 +230,14 @@ LLM 解释自然语言并提出受限 JSON；应用校验、决定是否执行�
 
 | 文件地址 | 层/类别 | 做什么 |
 | --- | --- | --- |
-| [src/components/trip-workspace/companion-status-model.test.ts](../src/components/trip-workspace/companion-status-model.test.ts) | 测试（对应模块边界） | 验证小熊一句话的优先级（出错 > 思考 > 可生成 > 缺目的地）、可选缺项列举和旧目的地提示。 |
-| [src/components/trip-workspace/companion-status-model.ts](../src/components/trip-workspace/companion-status-model.ts) | 表现层 | 小熊一句话的纯规则：由 TripState 与聊天活动决定情绪和文案，不调用模型。 |
+| [src/components/companion/bear-behavior.test.ts](../src/components/companion/bear-behavior.test.ts) | 测试（对应模块边界） | 用固定随机数模拟数百次计划：验证不瞬移、同一活动不连续三次、饭后 60 秒冷却、坐着偏好、反应优先及每次旅程变化只欢呼一次，并校验帧清单。 |
+| [src/components/companion/bear-behavior.ts](../src/components/companion/bear-behavior.ts) | 表现层 | 小熊行为纯规则：反应（出错/思考/可生成）优先，自由时间按权重随机选看地图/站着/吃饭团/放空，并补上坐下、放下地图等过渡步骤。 |
+| [src/components/companion/bear-sprite-sheet.ts](../src/components/companion/bear-sprite-sheet.ts) | 表现层 | 读取并用 Zod 校验生成的 bear-sprites.json，导出帧尺寸、每个动画的行号/帧数/时长和精灵图地址。 |
+| [src/components/companion/companion-bear.tsx](../src/components/companion/companion-bear.tsx) | 表现层 | 精灵图播放器：按计划逐帧播放，计划结束或反应变化时向行为规则要下一步（过渡中不打断），标签页隐藏时暂停，减少动态效果时只显示一帧。 |
+| [src/components/companion/companion-status-model.test.ts](../src/components/companion/companion-status-model.test.ts) | 测试（对应模块边界） | 验证小熊一句话的优先级（出错 > 思考 > 可生成 > 缺目的地）、可选缺项列举和旧目的地提示。 |
+| [src/components/companion/companion-status-model.ts](../src/components/companion/companion-status-model.ts) | 表现层 | 小熊一句话的纯规则：由 TripState 与聊天活动决定情绪和文案，不调用模型。 |
+| [src/components/companion/companion.module.css](../src/components/companion/companion.module.css) | 表现层 | 小熊区域在旅程列底部的固定位置、对话气泡和像素化精灵图样式。 |
+| [src/components/companion/meri-world.tsx](../src/components/companion/meri-world.tsx) | 表现层 | 旅程列底部的小熊与对话气泡：一句话来自 companionStatus，并把同样的状态作为反应交给 CompanionBear。 |
 | [src/components/trip-workspace/conversation-panel.tsx](../src/components/trip-workspace/conversation-panel.tsx) | 表现层 | 聊天主组件：useChat、已保存消息、候选卡、卡片关闭/只读、确认及消息逐字显示；向外上报 idle/thinking/error 活动供小熊使用。 |
 | [src/components/trip-workspace/conversation-reveal.test.ts](../src/components/trip-workspace/conversation-reveal.test.ts) | 测试（对应模块边界） | 验证只对已提交文本按字符步进显示，不越界或改写正文。 |
 | [src/components/trip-workspace/conversation-reveal.ts](../src/components/trip-workspace/conversation-reveal.ts) | 表现层 | 已提交助手正文的客户端可见字符数/显示节奏纯函数；不是服务端 token 流。 |
@@ -248,7 +255,6 @@ LLM 解释自然语言并提出受限 JSON；应用校验、决定是否执行�
 | [src/components/trip-workspace/location-editor-model.test.ts](../src/components/trip-workspace/location-editor-model.test.ts) | 测试（对应模块边界） | 验证 query 长度、完整建议解析及已选地点 patch 身份/坐标。 |
 | [src/components/trip-workspace/location-editor-model.ts](../src/components/trip-workspace/location-editor-model.ts) | 表现层 | 输入 query 标准化、建议响应校验和出发地 selection patch 构造。 |
 | [src/components/trip-workspace/location-editor.tsx](../src/components/trip-workspace/location-editor.tsx) | 表现层 | 当前用于 origin 的输入建议编辑控件，防抖查询、显式选中并保存普通字段；状态图标/标签来自 field-certainty。 |
-| [src/components/trip-workspace/meri-world.tsx](../src/components/trip-workspace/meri-world.tsx) | 表现层 | 旅程列底部的小熊与对话气泡：一句话来自 companionStatus，按情绪切换 CSS 动作；桌面端固定在列底部。 |
 | [src/components/trip-workspace/message-timestamp.ts](../src/components/trip-workspace/message-timestamp.ts) | 表现层 | 按本地今天/昨天/更早日期格式化聊天时间标签。 |
 | [src/components/trip-workspace/planning-readiness-model.test.ts](../src/components/trip-workspace/planning-readiness-model.test.ts) | 测试（对应模块边界） | 验证只读 readiness 请求、响应校验及缺失/旧文本说明文案。 |
 | [src/components/trip-workspace/planning-readiness-model.ts](../src/components/trip-workspace/planning-readiness-model.ts) | 表现层 | 准备度请求、响应校验和固定说明文案。 |
@@ -493,6 +499,8 @@ LLM 解释自然语言并提出受限 JSON；应用校验、决定是否执行�
 | [public/brand/meri-lockup.svg](../public/brand/meri-lockup.svg) | 展示资源 | Workspace 使用的组合品牌标识。 |
 | [public/brand/meri-mark.svg](../public/brand/meri-mark.svg) | 展示资源 | Journey 列表等处使用的独立图形标识。 |
 | [public/brand/meri-wordmark.svg](../public/brand/meri-wordmark.svg) | 展示资源 | Journey 列表/缺状态页面使用的文字标识。 |
+| [public/companion/bear/bear-sprites.json](../public/companion/bear/bear-sprites.json) | 展示资源 | 小熊精灵图帧清单：帧尺寸、每个动画所在行、帧数和每帧毫秒；由生成脚本写出。 |
+| [public/companion/bear/bear-sprites.png](../public/companion/bear/bear-sprites.png) | 展示资源 | 小熊营地小桌精灵图：9 个动画、42 帧，1 倍尺寸透明背景；由生成脚本写出。 |
 | [public/companion/home-v2-companion.png](../public/companion/home-v2-companion.png) | 展示资源 | 首页、聊天头像和 Workspace Companion 使用的角色图。 |
 | [public/metadata.json](../public/metadata.json) | 展示资源 | 素材导出的角色信息、方向和原始路径元数据，不是当前业务配置或用户数据。 |
 
@@ -504,6 +512,7 @@ LLM 解释自然语言并提出受限 JSON；应用校验、决定是否执行�
 | [assets/brand/meri-lockup-preview.png](../assets/brand/meri-lockup-preview.png) | 设计/素材制作 | 组合品牌标识的设计预览。 |
 | [assets/brand/meri-mark-preview.png](../assets/brand/meri-mark-preview.png) | 设计/素材制作 | 独立品牌图形的设计预览。 |
 | [assets/brand/meri-wordmark-preview.png](../assets/brand/meri-wordmark-preview.png) | 设计/素材制作 | 品牌文字标识的设计预览。 |
+| [assets/companion/bear/generate_bear_sprites.py](../assets/companion/bear/generate_bear_sprites.py) | 设计/素材制作 | 用 Pillow 从 home-v2-companion.png 生成 64px 底图并合成全部小熊帧，写出 public/companion/bear 下的精灵图和帧清单；可加 --preview 输出预览。不是运行时代码。 |
 | [assets/companion/Logo.png](../assets/companion/Logo.png) | 设计/素材制作 | 角色/品牌制作参考图片，不是业务逻辑。 |
 | [assets/companion/LogoSVG-framework.png](../assets/companion/LogoSVG-framework.png) | 设计/素材制作 | 品牌图形制作参考，不是运行时组件。 |
 | [assets/companion/Meri.png](../assets/companion/Meri.png) | 设计/素材制作 | Meri 角色制作参考原图。 |

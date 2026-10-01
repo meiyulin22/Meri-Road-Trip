@@ -5,14 +5,14 @@ import Image from "next/image";
 import Link from "next/link";
 import { useRef, useState, useSyncExternalStore } from "react";
 
+import type { ConversationActivity } from "@/components/companion/companion-status-model";
+import { MeriWorld } from "@/components/companion/meri-world";
 import type { TripMessage } from "@/domain/trip-message/trip-message";
 import type { TripState } from "@/domain/trip-state/trip-state";
 
 import { ConversationPanel } from "./conversation-panel";
 import { ExpeditionBriefPanel } from "./expedition-brief-panel";
-import type { ConversationActivity } from "./companion-status-model";
 import { JourneyGlobe } from "./journey-globe";
-import { MeriWorld } from "./meri-world";
 import { WorkspaceHeader } from "./workspace-header";
 import styles from "./trip-workspace.module.css";
 

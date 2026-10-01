@@ -337,22 +337,6 @@
 .globeRing { stroke: #8fc0d6; }
 .globeNodeBase { fill: #fffdf8; stroke: #d3dbcd; stroke-width: 1; vector-effect: non-scaling-stroke; }
 .globeNodeDot { fill: #557a5f; }
-/* The bear sits at the foot of the Journey column and stays in view while the page
-   scrolls, peeking past the paper edge as before, with its line in a bubble beside it. */
-.meriWorld { position: sticky; bottom: 12px; z-index: 2; margin-top: auto; pointer-events: none; }
-.companionScene { display: flex; align-items: flex-end; justify-content: flex-end; gap: 4px; margin-right: -92px; }
-.companionBubble { position: relative; max-width: 250px; margin: 0 0 58px; padding: 10px 13px; border: 1px solid rgba(70, 81, 65, .14); border-radius: 14px 14px 4px 14px; background: #fffdf8; box-shadow: 0 8px 22px rgba(52, 62, 46, .12); color: #3c5246; font-size: 13px; line-height: 1.55; pointer-events: auto; animation: bubbleIn .28s cubic-bezier(.3, .7, .4, 1.3) both; }
-.companionScene[data-mood="error"] .companionBubble { border-color: rgba(155, 88, 72, .3); color: #8a4f40; }
-.companionScene[data-mood="ready"] .companionBubble { border-color: rgba(85, 122, 95, .35); }
-.companion { display: block; flex: none; width: 170px; height: auto; image-rendering: pixelated; transform-origin: 50% 100%; animation: bearBreathe 2.6s steps(2, jump-none) infinite; }
-.companionScene[data-mood="thinking"] .companion { animation: bearSway 1.6s steps(4, jump-none) infinite; }
-.companionScene[data-mood="ready"] .companion { animation: bearHop .9s steps(6, jump-none) 2, bearBreathe 2.6s steps(2, jump-none) 1.8s infinite; }
-.companionScene[data-mood="error"] .companion { animation: bearShake .45s steps(4, jump-none) 2, bearBreathe 2.6s steps(2, jump-none) .9s infinite; }
-@keyframes bubbleIn { from { opacity: 0; transform: translateY(6px) scale(.96); } to { opacity: 1; transform: none; } }
-@keyframes bearBreathe { 0%, 100% { transform: scale(1, 1); } 50% { transform: scale(1.012, .985); } }
-@keyframes bearSway { 0%, 100% { transform: rotate(-2deg); } 50% { transform: rotate(2deg); } }
-@keyframes bearHop { 0%, 100% { transform: translateY(0); } 40% { transform: translateY(-10px); } 70% { transform: translateY(0) scale(1.02, .97); } }
-@keyframes bearShake { 0%, 100% { transform: translateX(0); } 25% { transform: translateX(-3px); } 75% { transform: translateX(3px); } }
 
 /* Existing navigation remains in a native modal drawer. */
 .sidebarTrigger { position: absolute; top: 15px; right: 26px; z-index: 3; display: grid; place-items: center; width: 36px; height: 36px; border: 1px solid var(--line); border-radius: 11px; background: #fffdf8; color: var(--ink); cursor: pointer; }
@@ -385,8 +369,6 @@
   .conversationDock { margin-left: 20px; margin-right: 8px; }
   .briefColumn { margin-right: 18px; margin-left: 8px; }
   .expeditionBrief { padding: 14px; }
-  .companionScene { margin-right: -24px; }
-  .companion { width: 140px; }
 }
 @media (max-width: 800px) {
   .workspace { padding: 16px 0 40px; }
@@ -401,10 +383,6 @@
   .messageHistory { min-height: 260px; height: 350px; max-height: 450px; }
   .briefColumn { margin: 0 24px 40px; }
   .stateField { grid-template-columns: minmax(120px, 1fr) minmax(0, 1.5fr); }
-  .meriWorld { position: static; }
-  .companionScene { justify-content: center; margin: 0 0 -24px; }
-  .companion { width: 110px; }
-  .companionBubble { margin-bottom: 40px; }
 }
 @media (max-width: 480px) {
   .workspace { padding-top: max(10px, env(safe-area-inset-top)); padding-bottom: max(24px, env(safe-area-inset-bottom)); }
@@ -450,5 +428,4 @@
   .generatePlanHint { transition: none; }
   .haloButton, .haloButton::after { animation: none; }
   .haloLabel > span { transition: none; }
-  .companionScene[data-mood] .companion, .companionBubble { animation: none; }
 }
