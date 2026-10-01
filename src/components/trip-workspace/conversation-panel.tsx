@@ -11,6 +11,7 @@ import type { TripState } from "@/domain/trip-state/trip-state";
 
 import { nextRevealCharacterCount, visibleAssistantText } from "./conversation-reveal";
 import { selectDestinationRecommendation } from "./destination-recommendation-model";
+import type { ConversationActivity } from "./companion-status-model";
 import { DestinationChoicesCard } from "./destination-choices-card";
 import { GeneratePlanAction } from "./generate-plan-action";
 import { formatMessageTimestamp } from "./message-timestamp";
@@ -33,6 +34,7 @@ function serverSnapshot(): boolean { return false; }
 export function ConversationPanel({
   initialMessages,
   isExpanded,
+  onActivityChange,
   onChooseDestination,
   onExpandedChange,
   onTripStateChange,
@@ -41,6 +43,7 @@ export function ConversationPanel({
 }: {
   readonly initialMessages: readonly TripMessage[];
   readonly isExpanded: boolean;
+  readonly onActivityChange: (activity: ConversationActivity) => void;
   readonly onChooseDestination: () => void;
   readonly onExpandedChange: (expanded: boolean) => void;
   readonly onTripStateChange: (state: TripState) => void;
@@ -76,6 +79,13 @@ export function ConversationPanel({
   const hasError = status === "error";
   const latestMessage = messages.at(-1);
   const localNow = useSyncExternalStore(subscribeToBrowser, browserSnapshot, serverSnapshot) ? new Date() : null;
+  const activity: ConversationActivity = hasError || selectionErrorMessageId !== null
+    ? "error"
+    : isSubmitting || selectionPendingMessageId !== null ? "thinking" : "idle";
+
+  useEffect(() => {
+    onActivityChange(activity);
+  }, [activity, onActivityChange]);
 
   useEffect(() => {
     const history = messageHistoryRef.current;

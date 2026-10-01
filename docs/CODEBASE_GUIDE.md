@@ -231,7 +231,9 @@ LLM 解释自然语言并提出受限 JSON；应用校验、决定是否执行�
 
 | 文件地址 | 层/类别 | 做什么 |
 | --- | --- | --- |
-| [src/components/trip-workspace/conversation-panel.tsx](../src/components/trip-workspace/conversation-panel.tsx) | 表现层 | 聊天主组件：useChat、已保存消息、候选卡、卡片关闭/只读、确认及消息逐字显示。 |
+| [src/components/trip-workspace/companion-status-model.test.ts](../src/components/trip-workspace/companion-status-model.test.ts) | 测试（对应模块边界） | 验证小熊一句话的优先级（出错 > 思考 > 可生成 > 缺目的地）、可选缺项列举和旧目的地提示。 |
+| [src/components/trip-workspace/companion-status-model.ts](../src/components/trip-workspace/companion-status-model.ts) | 表现层 | 小熊一句话的纯规则：由 TripState 与聊天活动决定情绪和文案，不调用模型。 |
+| [src/components/trip-workspace/conversation-panel.tsx](../src/components/trip-workspace/conversation-panel.tsx) | 表现层 | 聊天主组件：useChat、已保存消息、候选卡、卡片关闭/只读、确认及消息逐字显示；向外上报 idle/thinking/error 活动供小熊使用。 |
 | [src/components/trip-workspace/conversation-reveal.test.ts](../src/components/trip-workspace/conversation-reveal.test.ts) | 测试（对应模块边界） | 验证只对已提交文本按字符步进显示，不越界或改写正文。 |
 | [src/components/trip-workspace/conversation-reveal.ts](../src/components/trip-workspace/conversation-reveal.ts) | 表现层 | 已提交助手正文的客户端可见字符数/显示节奏纯函数；不是服务端 token 流。 |
 | [src/components/trip-workspace/destination-choices-card.test.tsx](../src/components/trip-workspace/destination-choices-card.test.tsx) | 测试（对应模块边界） | 验证同市新 spot 可添加、replace 可选已有市、重复 POI 归并及历史/已确认卡禁用。 |
@@ -242,12 +244,13 @@ LLM 解释自然语言并提出受限 JSON；应用校验、决定是否执行�
 | [src/components/trip-workspace/destination-recommendation-picker.module.css](../src/components/trip-workspace/destination-recommendation-picker.module.css) | 表现层 | 目的地候选/推荐多选列表的分组、checkbox、确认及状态样式。 |
 | [src/components/trip-workspace/destination-recommendation-picker.tsx](../src/components/trip-workspace/destination-recommendation-picker.tsx) | 表现层 | 保留的旧推荐多选组件及测试入口；当前 ConversationPanel 使用 DestinationChoicesCard。 |
 | [src/components/trip-workspace/expedition-brief-panel.tsx](../src/components/trip-workspace/expedition-brief-panel.tsx) | 表现层 | Journey overview 字段面板，按出发地、目的地、何时、交通偏好、旅程名称排列；交通一键点选，名称文本编辑。 |
-| [src/components/trip-workspace/field-certainty.tsx](../src/components/trip-workspace/field-certainty.tsx) | 表现层 | 字段把握程度的共享展示：known/approximate/ambiguous/missing 的图标、屏幕阅读器文字和“大致/待确认”标签。 |
+| [src/components/trip-workspace/field-certainty.tsx](../src/components/trip-workspace/field-certainty.tsx) | 表现层 | 字段把握程度的共享展示：统一 18px 圆形状态（known 实心绿勾、missing 空圈、approximate 琥珀点、ambiguous “!”）、屏幕阅读器文字和“大致/待确认”标签。 |
 | [src/components/trip-workspace/generate-plan-action.tsx](../src/components/trip-workspace/generate-plan-action.tsx) | 表现层 | 唯一的 Generate plan，Halo 式旋转渐变边框按钮，位于聊天下方并始终可见；不可用时保持可聚焦并在悬停/聚焦时说明添加目的地的途径（可打开右侧搜索），规划尚未开放。 |
+| [src/components/trip-workspace/journey-globe.tsx](../src/components/trip-workspace/journey-globe.tsx) | 表现层 | 装饰地球：改写自 cult-ui Illustration Globe（MIT）的 SVG 线框半球，节点数随已选地点数变化，无地理含义；减少动态效果时静止。 |
 | [src/components/trip-workspace/location-editor-model.test.ts](../src/components/trip-workspace/location-editor-model.test.ts) | 测试（对应模块边界） | 验证 query 长度、完整建议解析及已选地点 patch 身份/坐标。 |
 | [src/components/trip-workspace/location-editor-model.ts](../src/components/trip-workspace/location-editor-model.ts) | 表现层 | 输入 query 标准化、建议响应校验和出发地 selection patch 构造。 |
 | [src/components/trip-workspace/location-editor.tsx](../src/components/trip-workspace/location-editor.tsx) | 表现层 | 当前用于 origin 的输入建议编辑控件，防抖查询、显式选中并保存普通字段；状态图标/标签来自 field-certainty。 |
-| [src/components/trip-workspace/meri-world.tsx](../src/components/trip-workspace/meri-world.tsx) | 表现层 | 旅程信息下方的 Companion 插画和陪伴提示语。 |
+| [src/components/trip-workspace/meri-world.tsx](../src/components/trip-workspace/meri-world.tsx) | 表现层 | 旅程列底部的小熊与对话气泡：一句话来自 companionStatus，按情绪切换 CSS 动作；桌面端固定在列底部。 |
 | [src/components/trip-workspace/message-timestamp.ts](../src/components/trip-workspace/message-timestamp.ts) | 表现层 | 按本地今天/昨天/更早日期格式化聊天时间标签。 |
 | [src/components/trip-workspace/planning-readiness-model.test.ts](../src/components/trip-workspace/planning-readiness-model.test.ts) | 测试（对应模块边界） | 验证只读 readiness 请求、响应校验及缺失/旧文本说明文案。 |
 | [src/components/trip-workspace/planning-readiness-model.ts](../src/components/trip-workspace/planning-readiness-model.ts) | 表现层 | 准备度请求、响应校验和固定说明文案。 |
@@ -259,7 +262,7 @@ LLM 解释自然语言并提出受限 JSON；应用校验、决定是否执行�
 | [src/components/trip-workspace/trip-state-persistence-model.test.ts](../src/components/trip-workspace/trip-state-persistence-model.test.ts) | 测试（对应模块边界） | 验证确定性状态/来源保留、清空字段、目的地拒绝及服务端响应检查。 |
 | [src/components/trip-workspace/trip-state-persistence-model.ts](../src/components/trip-workspace/trip-state-persistence-model.ts) | 表现层 | 普通字段直接编辑的 user patch 与 state PATCH 请求/响应校验，前端拒绝直接 destination 编辑。 |
 | [src/components/trip-workspace/trip-workspace.module.css](../src/components/trip-workspace/trip-workspace.module.css) | 表现层 | Workspace 主布局、字段行、聊天、角色区及移动端样式。 |
-| [src/components/trip-workspace/trip-workspace.tsx](../src/components/trip-workspace/trip-workspace.tsx) | 表现层 | Workspace 客户端容器，协调权威状态、聊天、右侧编辑和界面区域，并把“打开目的地搜索”请求从聊天传到右侧。 |
+| [src/components/trip-workspace/trip-workspace.tsx](../src/components/trip-workspace/trip-workspace.tsx) | 表现层 | Workspace 客户端容器，协调权威状态、聊天、右侧编辑和界面区域，把“打开目的地搜索”请求从聊天传到右侧，并把聊天活动传给小熊。 |
 | [src/components/trip-workspace/workspace-chat-transport.test.ts](../src/components/trip-workspace/workspace-chat-transport.test.ts) | 测试（对应模块边界） | 验证实际 JSON 契约、临时/持久化消息 ID、presentation 和成功后状态同步。 |
 | [src/components/trip-workspace/workspace-chat-transport.ts](../src/components/trip-workspace/workspace-chat-transport.ts) | 表现层 | 把完整聊天 JSON 响应适配为 AI SDK ChatTransport 事件，同步已提交 ID 和状态。 |
 | [src/components/trip-workspace/workspace-conversation-model.test.ts](../src/components/trip-workspace/workspace-conversation-model.test.ts) | 测试（对应模块边界） | 验证合法/非法响应、浏览器 fetch 接收者及失败提示，不把未确认发送当已保存。 |

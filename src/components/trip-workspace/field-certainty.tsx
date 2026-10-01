@@ -1,4 +1,4 @@
-import { Check, CircleAlert, CircleDashed, CircleDot } from "lucide-react";
+import { Check } from "lucide-react";
 
 import styles from "./trip-workspace.module.css";
 
@@ -14,18 +14,14 @@ export const certaintyLabels: Record<FieldCertainty, string> = {
 /**
  * Each brief row says how sure Meri is, not just whether a value exists: 「下个月」 is
  * worth something but is not a date, so it must not look the same as an empty row.
+ * The rough states keep the same circle as the others, with a coloured ring.
  */
 export function FieldStatusIcon({ state }: { readonly state: FieldCertainty }) {
-  switch (state) {
-    case "known":
-      return <Check aria-hidden="true" size={14} />;
-    case "approximate":
-      return <CircleDot aria-hidden="true" size={16} />;
-    case "ambiguous":
-      return <CircleAlert aria-hidden="true" size={16} />;
-    case "missing":
-      return <CircleDashed aria-hidden="true" size={16} />;
-  }
+  return (
+    <span aria-hidden="true" className={styles.statusDot} data-certainty={state}>
+      {state === "known" ? <Check size={12} strokeWidth={3} /> : state === "ambiguous" ? "!" : null}
+    </span>
+  );
 }
 
 /** The visible word beside a value Meri only roughly understood. Screen readers get the

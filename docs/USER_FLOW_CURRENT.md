@@ -336,7 +336,7 @@ add/set 使用 Promise.all 查询表达。解析层保留不同 provider ID，�
 
 [ExpeditionBriefPanel](../src/components/trip-workspace/expedition-brief-panel.tsx)按“从哪出发 → 去哪 → 何时 → 怎么去”排列：出发地、目的地、何时、交通偏好，旅程名称放最后。不再显示“N / 7 已理解”计数、示意封面、重复的目的地/日期/交通摘要和“即将开放”快捷按钮。
 
-每行状态由 [field-certainty](../src/components/trip-workspace/field-certainty.tsx)统一表示：known 绿色勾；approximate 琥珀色圆点并在值后显示“大致”；ambiguous 红褐色感叹号并显示“待确认”；missing 灰色虚线圆。完整状态文字仍以屏幕阅读器可读的隐藏文本提供。
+每行状态由 [field-certainty](../src/components/trip-workspace/field-certainty.tsx)统一为 18px 圆形：known 实心绿圆带勾；missing 空心灰圈；approximate 琥珀色圈内一点，并在值后显示“大致”；ambiguous 红褐色圈内“!”，并显示“待确认”。完整状态文字仍以屏幕阅读器可读的隐藏文本提供。聊天选择卡的复选框保持圆角方形，表示“可勾选”，与状态圆区分。
 
 - 旅程名称：文本编辑，Enter/失焦提交，Escape 取消。
 - 交通偏好：四个选项（自驾、不自驾、公共交通、灵活）一次点选，再点已选项清除为 missing；Meri 从对话记下的近似原话（如“可能自驾吧”）显示在选项下方，直到用户点选。
@@ -421,6 +421,15 @@ add/set 使用 Promise.all 查询表达。解析层保留不同 provider ID，�
 
 [准备度 UI 模型](../src/components/trip-workspace/planning-readiness-model.ts)将结果关联 destination 快照。目的地改变后旧准备度不再展示，避免新决定沿用旧检查结果。
 
+### 5.5 旅程列底部：地球装饰与小熊
+
+右侧列在 Journey overview 下方依次是装饰地球和小熊：
+
+- [JourneyGlobe](../src/components/trip-workspace/journey-globe.tsx)改写自 cult-ui 的 Illustration Globe（MIT），纯 SVG 线框半球，光点沿经线流向节点。节点数等于已选地点数（有市的按市计，只有省的按 1 计，最多 6 个），只为“看着好看”，不表示真实地理位置，没有坐标、没有地图功能。系统要求减少动态效果时只显示静止节点。
+- [MeriWorld](../src/components/trip-workspace/meri-world.tsx)的小熊在桌面端固定在列底部（滚动时保持可见），旁边气泡显示一句话（见第 6 节速查表），`aria-live=polite` 让读屏软件播报变化。聊天面板把当前活动（idle / thinking / error：发送中或选卡保存中为 thinking，发送结果未确认或选卡保存失败为 error）上报给 [TripWorkspace](../src/components/trip-workspace/trip-workspace.tsx)，再传给小熊。
+- 小熊动作目前是对现有像素图的 CSS 动画：平时轻微呼吸，思考时左右摇，可生成时跳两下，出错时抖两下；减少动态效果时全部停止。逐帧精灵图动画尚未实施。
+- 宽度 ≤800px 时小熊不固定，随内容排在列尾。
+
 ## 6. 回复到底是谁写的：速查表
 
 | 场景 | 正文来源 | 卡片/状态来源 |
@@ -437,6 +446,7 @@ add/set 使用 Promise.all 查询表达。解析层保留不同 provider ID，�
 | 聊天选卡提交成功 | destinationSelectionReply 固定确认 | 保存后状态和准备度 |
 | 右侧直接编辑/搜索/删除 | 固定加载、按钮、错误提示 | 不新增聊天正文 |
 | Generate plan | planningReadinessMessage 固定句 | 状态检查，不生成行程 |
+| 右下角小熊的一句话 | [companionStatus](../src/components/trip-workspace/companion-status-model.ts) 固定句 | 由当前 TripState 与聊天活动决定，不调用模型：出错 > 思考中 > 可生成（并列出可选的缺项：出发地、出行时间、交通方式）> 缺目的地/旧目的地待确认 |
 
 [AI SDK 客户端](../src/platform/llm/ai-sdk-kimi-client.ts)默认 kimi-k2.6，LLM_MODEL 可覆盖；MOONSHOT_API_KEY 认证，MOONSHOT_BASE_URL 可覆盖地址。默认超时 60 秒，maxRetries=0。仓库默认配置不等于实时服务保证。
 

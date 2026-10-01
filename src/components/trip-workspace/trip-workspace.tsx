@@ -10,6 +10,8 @@ import type { TripState } from "@/domain/trip-state/trip-state";
 
 import { ConversationPanel } from "./conversation-panel";
 import { ExpeditionBriefPanel } from "./expedition-brief-panel";
+import type { ConversationActivity } from "./companion-status-model";
+import { JourneyGlobe } from "./journey-globe";
 import { MeriWorld } from "./meri-world";
 import { WorkspaceHeader } from "./workspace-header";
 import styles from "./trip-workspace.module.css";
@@ -49,6 +51,7 @@ export function TripWorkspace({
   const [tripState, setTripState] = useState(initialTripState);
   const [conversationExpanded, setConversationExpanded] = useState(true);
   const [destinationEditorOpenRequest, setDestinationEditorOpenRequest] = useState(0);
+  const [conversationActivity, setConversationActivity] = useState<ConversationActivity>("idle");
   const layoutDebugEnabled = useSyncExternalStore(
     subscribeToStaticClientState,
     getLayoutDebugState,
@@ -68,6 +71,7 @@ export function TripWorkspace({
           <ConversationPanel
             initialMessages={initialMessages}
             isExpanded={conversationExpanded}
+            onActivityChange={setConversationActivity}
             onChooseDestination={() => setDestinationEditorOpenRequest((request) => request + 1)}
             onExpandedChange={setConversationExpanded}
             onTripStateChange={setTripState}
@@ -81,7 +85,8 @@ export function TripWorkspace({
               tripId={tripId}
               tripState={tripState}
             />
-            <MeriWorld />
+            <JourneyGlobe destination={tripState.destination} />
+            <MeriWorld activity={conversationActivity} tripState={tripState} />
           </div>
         </div>
       </div>
