@@ -72,7 +72,13 @@ the Journey overview edits them together as 「何时」 with a range calendar.
 
 The implemented destination flow includes:
 
+- Domestic travel only: prompts limit suggestions to China; recommendation output
+  and destination additions check a shared province-level coverage list. City/spot
+  identity still requires Amap verification. Old records remain readable and removable.
 - LLM interpretation into explicit destination edits: set, add, remove, or none.
+- Both set and add produce additive choices, preserving saved provinces, cities
+  and spots. Only explicit removal of named existing places deletes them; new
+  conversation turns no longer create whole-destination replacement offers.
 - Amap verification of place expressions before presenting choices. Even a unique
   match requires explicit selection before it enters TripState. Chat offers use
   checkboxes and one batch confirmation; manual search uses a result's Add action.

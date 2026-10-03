@@ -1,4 +1,5 @@
 import { validateDestinationRecommendations, type DestinationRecommendationGroup } from "@/domain/location/destination-recommendations";
+import { domesticProvinces } from "@/domain/location/domestic-destination-scope";
 import { buildDestinationRecommendationSystemPrompt } from "@/capabilities/recommendation/prompts/destination-recommendation-prompt";
 import type { DiscoverySearchResult } from "@/platform/search/discovery-search";
 import type { DestinationRecommendationContext } from "./destination-recommendation-context";
@@ -23,6 +24,7 @@ export const destinationRecommendationJsonSchema: Record<string, unknown> = {
         properties: {
           province: {
             type: "string", minLength: 1, maxLength: 20,
+            enum: [...domesticProvinces],
             description: "Full province-level name, e.g. 云南省、广西壮族自治区、北京市.",
           },
           places: {

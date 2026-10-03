@@ -2,8 +2,25 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { validateDestinationRecommendations } from "./destination-recommendations";
+import { domesticProvinces, isDomesticProvince } from "./domestic-destination-scope";
 
 const place = (name: string) => ({ name, reason: "适合这次的偏好" });
+
+test("domestic coverage accepts exact province names and common short names, not foreign or invented regions", () => {
+  for (const province of [...domesticProvinces, "云南", "广西", "北京", "香港", "澳门", "台湾"]) {
+    assert.equal(isDomesticProvince(province), true, province);
+  }
+  for (const province of [null, undefined, "", "北海道", "京都府", "安大略省", "云南省海外", "东京市", "中国", "内蒙"]) {
+    assert.equal(isDomesticProvince(province), false, String(province));
+  }
+});
+
+test("foreign provinces invalidate the entire model recommendation batch before cards are created", () => {
+  assert.throws(() => validateDestinationRecommendations({ provinces: [
+    { province: "云南省", places: [place("丽江市")] },
+    { province: "北海道", places: [place("札幌市")] },
+  ] }));
+});
 
 test("places keep their province, their order, and the province spelling the model used", () => {
   assert.deepEqual(validateDestinationRecommendations({ provinces: [

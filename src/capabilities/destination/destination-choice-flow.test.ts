@@ -3,12 +3,43 @@ import test from "node:test";
 
 import { applyDestinationEdit } from "./apply-destination-edit";
 import { verifyDestinationChoice } from "./verified-destination-choice";
-import { resolveDestinationPlace } from "./resolve-destination-place";
+import { picksFromSearch, resolveDestinationPlace } from "./resolve-destination-place";
 import { resolveDestinationCandidates } from "@/domain/location/destination-resolution-policy";
 
 const meriCandidate = { providerId: "amap-meri", name: "梅里雪山", province: "云南省",
   city: "迪庆藏族自治州", district: "德钦县", region: "云南省迪庆藏族自治州德钦县",
   address: "德钦县", longitude: 98.67, latitude: 28.43, coordinateSystem: "GCJ-02" as const };
+
+test("foreign or missing province metadata cannot enter manual search or resolved destination picks", async () => {
+  for (const province of ["北海道", "安大略省", null]) {
+    const candidate = { ...meriCandidate, province };
+    assert.deepEqual(picksFromSearch([candidate]), []);
+    assert.deepEqual(await resolveDestinationPlace(candidate.name, async () => ({ status: "resolved", candidate })),
+      { status: "unresolved" });
+  }
+  assert.deepEqual(picksFromSearch([{ ...meriCandidate, name: "安大略省", province: "安大略省", city: null }]), []);
+  assert.deepEqual(await resolveDestinationPlace("安大略省", async () => ({ status: "area", province: "安大略省" })),
+    { status: "unresolved" });
+  assert.equal((await resolveDestinationPlace("云南", async () => ({ status: "area", province: "云南省" }))).status, "resolved");
+});
+
+test("historical foreign offers cannot bypass coverage through the province shortcut", async () => {
+  for (const choice of [
+    { id: "province:安大略省", name: "安大略省", province: "安大略省" },
+    { id: "foreign-city", name: "札幌市", province: "北海道" },
+  ]) {
+    assert.deepEqual(await verifyDestinationChoice(choice, {
+      search: async () => { throw new Error("out-of-scope offers must be rejected before lookup"); },
+    }), { status: "unresolved" });
+  }
+});
+
+test("a foreign city mislabeled as domestic is still rejected when provider geography disagrees", async () => {
+  assert.deepEqual(await verifyDestinationChoice({ id: "foreign", name: "札幌市", province: "云南省" }, {
+    search: async () => ({ status: "success", candidates: [{ ...meriCandidate,
+      providerId: "foreign", name: "札幌市", province: "北海道", city: "札幌市" }] }),
+  }), { status: "unresolved" });
+});
 
 test("a verified spot becomes an offer and does not mutate destination until selection", async () => {
   const current = { state: "missing" } as const;
@@ -20,7 +51,7 @@ test("a verified spot becomes an offer and does not mutate destination until sel
   assert.equal(result.choices?.presentation.choices[0].name, "迪庆藏族自治州");
   assert.equal(result.choices?.presentation.choices[0].spot, "梅里雪山");
   assert.equal(result.choices?.presentation.choices[0].city, "迪庆藏族自治州");
-  assert.equal(result.choices?.presentation.mode, "replace");
+  assert.equal(result.choices?.presentation.mode, "add");
 });
 
 test("selection rechecks provider identity and preserves the named spot", async () => {

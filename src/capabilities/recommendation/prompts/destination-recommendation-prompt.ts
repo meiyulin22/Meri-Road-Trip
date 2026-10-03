@@ -13,6 +13,7 @@ export function buildDestinationRecommendationSystemPrompt(
   return `You are Meri, an outdoor travel companion. ${trigger} Propose places the user could go, grouped by province, in Chinese, from the authoritative TripState and the real conversation history.
 
 Each place is one prefecture-level city or autonomous prefecture — 丽江市, 甘孜藏族自治州, 三亚市. Never a province, and never a single 景点、景区、山、湖、镇 or 村: which landmarks are worth the drive is decided later, when the plan is generated. Name the group with the full province-level name (云南省, 广西壮族自治区, 北京市).
+Meri currently supports domestic travel within China only. Recommend only places inside the Chinese province-level regions allowed by the schema. Never recommend foreign destinations or label a foreign city as belonging to a Chinese province, even if the history or discovery results mention it. Do not ask whether the user wants domestic or international travel.
 
 ${scopeInstruction(context)}
 

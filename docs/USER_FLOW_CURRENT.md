@@ -168,7 +168,7 @@ flowchart TD
 [destinationEdit schema](../src/domain/trip-state/destination-edit.ts)在严格模型输出里要求 operation、places、broadRegion 都出现；校验后的领域 none 只保留 operation，remove 不保留 broadRegion。places 最多 6 个表达、每个最多 80 字符，trim 后去重。
 
 - add 是追加提议，保留现有目的地。
-- set 是整体替换提议，提交前不会清空旧目的地。
+- set 用于首次提及地点，和 add 一样只生成追加卡；已有目的地时也不能清空旧项。只有用户明确表示不去某个已保存地点，才用 remove 删除对应省/市/spot。
 - remove 是删除当前保存目标。
 - broadRegion 表示潮汕等宽泛区域，places 为模型提出的具体表达，仍需高德验证。
 
@@ -198,7 +198,7 @@ flowchart TD
 | remove 无匹配 | 不删这个表达的项 | 告知当前旅程没有该地点 |
 | 多 remove 部分唯一 | 唯一目标可以删除 | 说明已移除可确认项及未处理项 |
 
-add/set 使用 Promise.all 查询表达。解析层保留不同 provider ID，不把不同 POI 认成同一具体位置；生成旅程选择卡时，按省/市/spot 偏好身份归并。三个梅里雪山记录若归属同一省市且表达同一偏好，只出一个城市选择，附「想去：梅里雪山」。这是目的地偏好的合并，不是具体 POI 消歧成功。不同省市、同市不同 spot 仍分别保留。候选数受消息模型上限约束。set 生成 mode=replace，并记录 baseDestination=JSON.stringify(current)，用于后续过期检查。
+add/set 使用 Promise.all 查询表达。解析层保留不同 provider ID，不把不同 POI 认成同一具体位置；生成旅程选择卡时，按省/市/spot 偏好身份归并。三个梅里雪山记录若归属同一省市且表达同一偏好，只出一个城市选择，附「想去：梅里雪山」。这是目的地偏好的合并，不是具体 POI 消歧成功。不同省市、同市不同 spot 仍分别保留。候选数受消息模型上限约束。set 和 add 均生成 mode=add，提交时合并最新状态。旧版本保存的 mode=replace 卡仍按原基底、过期与幂等规则处理；本版本聊天不再生成整体替换卡。
 
 聊天 remove 先匹配当前 areas 的精确名称，无精确匹配才允许唯一前缀；多匹配不能取第一个。UI 删除提交完整省/市/spot 元组，不用模糊前缀。
 
@@ -231,7 +231,7 @@ add/set 使用 Promise.all 查询表达。解析层保留不同 provider ID，�
 | “我想去云南” | add/set，查询省级 area | 待选省卡；提交后为只有省的目的地，已可规划 |
 | “云南，想爬山” | 地点 edit 占本轮 | 先确认省，之后可省内推荐；本轮不再自动连跑推荐 |
 | 已有浙江福建：“还想去潮汕” | add，broadRegion=潮汕，核验相关市 | 广东城市可多选追加，旧目的地保留 |
-| “改去潮汕” | set，replace 卡 | 一次提交后整体替换，旧卡可能 409 |
+| 已有云南后说“我想去青岛” | add；模型误用 set 也生成 add 卡 | 确认后保留云南并追加山东/青岛 |
 | “想去梅里雪山” | 保留表达并查真实行政归属 | 确认后城市含 spots=[梅里雪山]，名称不被自治州吞掉 |
 | “朝阳”返回多个地点 | ambiguous，保留不同 provider 身份 | 用户区分候选，不自动取第一项 |
 | “不去潮州了” | remove 当前保存名 | 唯一目标删除，最后一个城市删除后省仍在 |
@@ -243,6 +243,8 @@ add/set 使用 Promise.all 查询表达。解析层保留不同 provider ID，�
 ## 4. 推荐卡、候选卡和点击后的动作
 
 ### 4.1 推荐如何触发
+
+**国内服务范围：**当前只提供中国境内旅行建议。草稿、开场、聊天和推荐提示词明确该范围，不主动询问“国内还是国外”；纯境外请求应说明范围且不提出目的地增改或推荐卡。提示词约束不等于普通正文经过地理核验。[domestic-destination-scope](../src/domain/location/domestic-destination-scope.ts)维护 34 个省级行政区的完整名称和常用简称；这是服务范围校验，不是地点归属映射，也不承诺提供方能核验每一个城市/景点。模型推荐 schema 的 province 使用完整名称枚举，运行时校验再次检查名单；含不支持省份的整批输出作为无效模型输出处理，不创建卡片，沿用推荐失败路径。城市名称仍在用户确认时核验，不能仅凭模型写了一个国内省名就保存。
 
 **聊天自动触发：**presentationIntent=destination_recommendations 只是模型信号。[shouldCreateConversationalRecommendations](../src/capabilities/recommendation/destination-recommendation-use-case.ts)还要求 destinationEdit=none，且 [isDestinationOpenToRecommendations](../src/domain/trip-state/trip-state.ts)允许当前状态：missing 或没有选城市的省范围。已定城市不能因推荐信号被替换；legacyText 不作为已验证省范围。
 
@@ -261,7 +263,7 @@ add/set 使用 Promise.all 查询表达。解析层保留不同 provider ID，�
 
 ### 4.2 用户点击卡片
 
-[DestinationChoicesCard](../src/components/trip-workspace/destination-choices-card.tsx)按省分组，逐项勾选后统一提交“添加所选”；replace 卡提交“替换为所选目的地”。没有逐行添加按钮。勾选只改变本地 picked，不写服务器。
+[DestinationChoicesCard](../src/components/trip-workspace/destination-choices-card.tsx)按省分组，逐项勾选后统一提交“添加所选”；历史 replace 卡提交“替换为所选目的地”，新聊天的 set/add 均生成追加卡。没有逐行添加按钮。勾选只改变本地 picked，不写服务器。
 
 | 动作/状态 | UI 判定 | 结果 |
 | --- | --- | --- |
@@ -301,6 +303,8 @@ add/set 使用 Promise.all 查询表达。解析层保留不同 provider ID，�
 3. 检查消息顺序：非最后一条 offer 且没有同组合确认记录，返回 409、code=offer_expired。replace 首次检查 baseDestination；已变化则 409。
 4. [verifyDestinationChoice](../src/capabilities/destination/verified-destination-choice.ts)重新高德查询所选项。新偏好 ID 校验查询结果中是否存在相同省/市/spot 的合理匹配，不能跨行政区保存，也不能把机场等相关 POI 当景点。旧 provider ID 仍核对身份；旧随机推荐 ID 需精确规范名匹配，多个记录若都代表同一个省市且不是景点，可确认该城市。已验证省级合成项有专门分支。
 5. 任一选中项核验失败则整批 409，不部分保存。
+
+   国内范围也在 verifyDestinationChoice 中检查，包括历史卡及省级合成 ID 的快捷分支；不支持省份返回 unresolved，再由接口按核验失败返回 409。新省/市/spot 必须通过范围与现有身份核验，不能借旧卡写入境外地点。
 6. 查询结束重读最新 TripState；同组合已有确认且当前结果仍匹配时返回原确认、不写状态。否则再次读取消息，若有后续消息或该组合已消费，返回 offer_expired，防止查询期间继续聊天后旧卡落库。未过期时：add 合并最新 areas；replace 再检查基底，从空 areas 构造整体替换。
 7. 按 offer 顺序处理，使请求 ID 顺序变化仍一致；省市合并、spot 同名去重。
 8. 带 expectedDestination 保存，避免覆盖查询期间的目的地修改。
@@ -367,6 +371,7 @@ add/set 使用 Promise.all 查询表达。解析层保留不同 provider ID，�
 目的地标题行右侧是“＋ 添加”按钮，采用与铅笔入口同色的浅绿圆角矩形（高 30px、宽 66px、圆角 8px）。展开后显示“− 收起”，宽度不变；悬停、键盘聚焦和展开时底色加深，按下轻缩至 0.97；减少动态效果偏好下关闭动画。其下横跨整行，每个省一块浅底区域：省名在左、删除省的 ✕ 统一在右；城市为带 ✕ 的标签，想去的景点以带定位图标的浅色标签紧跟在所属城市后。没有城市的省显示“全省”标签和“规划时按整省考虑”，表示整省范围的目的地，而不是未完成项。展开后搜索横跨字段行。手动搜索仍用单个结果添加，聊天则多选统一提交。
 
 - 至少 2 字开始查询，250ms 防抖，新输入/收起取消旧请求；已取消响应不得覆盖新列表。
+- [picksFromSearch](../src/capabilities/destination/resolve-destination-place.ts)过滤省份缺失或不在国内名单内的结果；POST 重查后使用同一过滤，无法核验则返回 409，不写入目的地。聊天地点解析也执行相同范围检查。已有历史记录保持可读、可删除，不自动清理或搬到其他省份。
 - [destinations API](../src/app/api/trips/[id]/destinations/route.ts)限制表达 2–80 字符，最多返回 12 项，GET 响应 no-store。
 - 候选提供 id、name、province、city、spot、detail，前端 Zod 校验，spot 必须有 city。
 - 详情可显示规范名称差异、区县及地址；无法区分的同名结果要求细化搜索。
@@ -464,6 +469,8 @@ add/set 使用 Promise.all 查询表达。解析层保留不同 provider ID，�
 - TripMessage：真实用户/助手文本，助手可带受限 presentation，刷新重读。
 - 推荐操作：只从聊天触发（source=conversation），未定义独立持久化实体；历史 `trip_user_actions` 表由 [0007](../drizzle/0007_trip_user_actions.sql) 创建、[0009](../drizzle/0009_drop_trip_user_actions.sql) 定义删除，当前 schema 不包含该表。具体环境是否执行迁移需另行检查。
 - JourneySummary：列表投影，不能作为修改基底。
+
+当前的短期上下文来自最近 5 轮/6000 字符（推荐上下文最多 10 条/6000 字符）和当前 TripState。数据库里的完整聊天记录可刷新恢复，但并非每次全部发送给模型；尚未实现跨旅程长期偏好记忆、对话摘要记忆或检索式 memory。本轮国内范围变更未扩大历史窗口。
 
 数据库定义：[schema](../src/platform/persistence/database/schema/index.ts)。状态仓库：[postgres-trip-state-repository](../src/platform/persistence/postgres/postgres-trip-state-repository.ts)。
 

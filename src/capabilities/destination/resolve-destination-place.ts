@@ -1,4 +1,5 @@
 import type { LocationCandidate } from "@/domain/location/location";
+import { isDomesticProvince } from "@/domain/location/domestic-destination-scope";
 import type { DestinationPick } from "@/domain/trip-state/destination-areas";
 
 import type { LocationResolveResult } from "./location-service";
@@ -31,6 +32,7 @@ export async function resolveDestinationPlace(
   const result = await resolveExpression(expression);
   switch (result.status) {
     case "area":
+      if (!isDomesticProvince(result.province)) return { status: "unresolved" };
       return { status: "resolved", pick: { id: `province:${result.province}`, province: result.province, place: null, spot: null } };
     case "resolved": {
       const pick = pickFromCandidate(result.candidate, expression);
@@ -61,6 +63,7 @@ export function picksFromSearch(candidates: readonly LocationCandidate[]): reado
   const seen = new Set<string>();
   const results: (IdentifiedPick & { readonly label: string })[] = [];
   for (const candidate of candidates) {
+    if (!isDomesticProvince(candidate.province)) continue;
     const pick = isProvinceCandidate(candidate)
       ? { id: candidate.providerId, province: candidate.province ?? candidate.name, place: null, spot: null }
       : pickFromCandidate(candidate, candidate.name);
@@ -78,7 +81,7 @@ export function picksFromSearch(candidates: readonly LocationCandidate[]): reado
 function pickFromCandidate(candidate: LocationCandidate, expression: string): IdentifiedPick | null {
   const province = candidate.province?.trim();
   const place = cityOf(candidate);
-  if (!province || place === null) return null;
+  if (!province || !isDomesticProvince(province) || place === null) return null;
   const detail = candidateDetail(candidate, expression);
   return { id: candidate.providerId, province, place, spot: spotOf(candidate, place, expression),
     ...(detail ? { detail } : {}) };

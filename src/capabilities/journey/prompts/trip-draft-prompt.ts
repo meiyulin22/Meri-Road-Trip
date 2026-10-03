@@ -11,6 +11,7 @@ Reference date: ${referenceDate}
 Timezone: ${timezone}
 
 Return only schema fields. Do not invent dates, places, provider IDs or coordinates.
+Meri currently supports domestic travel within China only. Do not propose foreign destinations in destinationEdit or map them to Chinese places with similar names. If all requested destinations are outside China, use operation "none", places [], broadRegion null. Preserve the user's other explicit fields.
 ${certaintyStateGuidance}
 ${tripStateFieldGuidance}
 

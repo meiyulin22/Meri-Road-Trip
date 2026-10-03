@@ -33,3 +33,12 @@ test("recommendations and planning have explicit boundaries",()=>{
 test("opening mode replies without proposing a new edit",()=>{
  const text=prompt("opening");assert.match(text,/Current authoritative TripState/);assert.match(text,/二世谷/);assert.match(text,/changes \[\]/);assert.match(text,/already been interpreted/);
 });
+
+test("new destinations default to addition across provinces and overseas requests do not reset state", () => {
+  const text = prompt();
+  assert.match(text, /a newly named place defaults to operation "add"/);
+  assert.match(text, /我想去青岛/);
+  assert.match(text, /纽约 does not reset that state/);
+  assert.match(text, /Only operation "remove" may delete/);
+  assert.match(text, /do not say “仅支持中国大陆”/);
+});

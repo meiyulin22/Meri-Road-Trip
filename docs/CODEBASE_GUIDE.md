@@ -116,7 +116,7 @@ LLM 解释自然语言并提出受限 JSON；应用校验、决定是否执行�
 ## 4. 必须保留的业务边界与实现局限
 
 1. 同省/市/spot 的多个 POI 可在聊天卡中合并成一个偏好选择；不同省市或不同 spot 仍独立。合并偏好不等于精确 POI 消歧。
-2. add/set 只生成待选卡；唯一匹配也不静默保存。add 保留已有目的地，replace 一次提交所选组合，并核对出卡时的基底。
+2. add/set 均生成追加待选卡；唯一匹配也不静默保存。用户明确不去某个地点才通过 remove 删除对应项。历史 replace 卡仍按原基底和过期规则处理，新聊天不再生成整体替换卡。
 3. 删除 city 同时删除其 spots，并保留 province；删除 spot 保留 city；删除 province 删除全部子项。聊天删除用当前状态的精确名称或唯一前缀，手动删除传完整省/市/spot 元组。
 4. 已确认卡片和后续对话之前的旧卡只读。服务端也检查过期，安全的同组选项重试复用确认消息；不能让旧卡恢复后来删除的地点。
 5. CAS（比较并交换）以读取的状态为前提更新。生产 PostgreSQL 用原始 JSONB 作为条件；JourneyService 最多重试 3 次。目的地操作带 expectedDestination，冲突拒绝套用旧目的地；普通字段重试重算，保留并发变更。
@@ -290,7 +290,8 @@ LLM 解释自然语言并提出受限 JSON；应用校验、决定是否执行�
 | 文件地址 | 层/类别 | 做什么 |
 | --- | --- | --- |
 | [src/domain/location/destination-recommendations.test.ts](../src/domain/location/destination-recommendations.test.ts) | 测试（对应模块边界） | 验证省份拼写、顺序、同名变体去重及最多 12 个地点等结构边界。 |
-| [src/domain/location/destination-recommendations.ts](../src/domain/location/destination-recommendations.ts) | 领域层 | Zod 推荐省份/城市/理由校验，控制总量并规范化去重。 |
+| [src/domain/location/destination-recommendations.ts](../src/domain/location/destination-recommendations.ts) | 领域层 | Zod 推荐省份/城市/理由校验，检查国内省级范围、控制总量并规范化去重。 |
+| [src/domain/location/domestic-destination-scope.ts](../src/domain/location/domestic-destination-scope.ts) | 领域层 | 国内目的地省级行政区完整名/简称名单，共用范围校验；不替代城市/景点的提供方身份核验。 |
 | [src/domain/location/destination-resolution-policy.test.ts](../src/domain/location/destination-resolution-policy.test.ts) | 测试（对应模块边界） | 验证行政/景区后缀、同名歧义、省范围、重复身份及不合理/无效坐标候选。 |
 | [src/domain/location/destination-resolution-policy.ts](../src/domain/location/destination-resolution-policy.ts) | 领域层 | 合理名称匹配和候选解析纯规则，返回 resolved/ambiguous/area/unresolved，保留不同 POI 身份。 |
 | [src/domain/location/location-suggestion.ts](../src/domain/location/location-suggestion.ts) | 领域层 | 输入建议 LocationSuggestion 类型，包含可能缺失的身份/坐标，与最终目的地确认分开；本文件不执行校验。 |

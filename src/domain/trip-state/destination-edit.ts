@@ -5,8 +5,9 @@
  * provider can look up and which silently dropped whatever the model forgot to copy.
  * Now it names only what changed, and the application applies that to the structure.
  *
- * `set` replaces the destination (「改去青岛吧」); `add` keeps it and adds
- * (「我还想去梅里雪山」); `remove` drops what was named (「不去潮州了」).
+ * `set` names initial destinations and safely adds if destinations already exist;
+ * `add` extends them. Only `remove` drops explicitly named existing places
+ * (「不去潮州了」); naming a new place never removes any saved destination.
  *
  * `broadRegion` is set when the user named a region wider than one 市, such as 潮汕 or
  * 川西. `places` then lists the 市 it covers, and they are offered as choices instead
@@ -32,7 +33,8 @@ export const destinationEditJsonSchema: Record<string, unknown> = {
   additionalProperties: false,
   required: ["operation", "places", "broadRegion"],
   properties: {
-    operation: { type: "string", enum: ["none", "set", "add", "remove"] },
+    operation: { type: "string", enum: ["none", "set", "add", "remove"],
+      description: "set and add preserve all existing destinations. Only remove deletes places the user explicitly no longer wants." },
     places: {
       type: "array",
       maxItems: maxPlaces,

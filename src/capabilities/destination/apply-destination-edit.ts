@@ -54,7 +54,9 @@ export async function applyDestinationEdit(
     unresolved: resolutions.filter((item) => item.resolution.status === "unresolved").map((item) => item.expression),
     lookupFailed: resolutions.filter((item) => item.resolution.status === "provider_error").map((item) => item.expression),
   };
-  const mode = edit.operation === "set" ? "replace" : "add";
+  // Naming a destination never authorizes deleting saved places, even if the
+  // model calls it set. Deletions go through the explicit remove branch above.
+  const mode = "add";
 
   // A broad region is answered with the 市 it covers, for the user to pick from.
   if (edit.broadRegion !== null) {
