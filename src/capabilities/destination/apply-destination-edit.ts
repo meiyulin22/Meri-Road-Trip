@@ -1,7 +1,10 @@
 import {
+  addToDestination,
+  destinationContains,
   matchingDestinationRemovals,
   removeFromDestination,
   type DestinationArea,
+  type DestinationPick,
 } from "@/domain/trip-state/destination-areas";
 import type { DestinationEdit } from "@/domain/trip-state/destination-edit";
 import { destinationPreferenceId } from "@/domain/trip-message/destination-choice-identity";
@@ -18,6 +21,8 @@ import type { IdentifiedPick, PlaceResolution } from "./resolve-destination-plac
 export interface DestinationEditResult {
   readonly destination: DestinationField;
   readonly changed: boolean;
+  /** Places the user named that the provider matched exactly, already written in. */
+  readonly added: readonly DestinationPick[];
   /** Places to pick from, and the words they answer: 「潮汕」, or an ambiguous 「朝阳」. */
   readonly choices: { readonly presentation: DestinationChoicesPresentation; readonly answering: string } | null;
   /** Names the provider could not place anywhere. */
@@ -31,13 +36,20 @@ export interface DestinationEditResult {
 
 export type ResolvePlace = (expression: string) => Promise<PlaceResolution>;
 
+/**
+ * `userWords` is what the user actually typed. The model writes the names it hands
+ * over, and it has rewritten a typo into a different real place (大莲 → 大理), which
+ * then matched exactly; a name the user never wrote is the model's guess, so it is
+ * offered for a click however exactly the provider matched it.
+ */
 export async function applyDestinationEdit(
   current: DestinationField,
   edit: DestinationEdit,
   resolvePlace: ResolvePlace,
+  userWords: string,
 ): Promise<DestinationEditResult> {
   const unchanged: DestinationEditResult = {
-    destination: current, changed: false, choices: null, unresolved: [], lookupFailed: [], notInDestination: [],
+    destination: current, changed: false, added: [], choices: null, unresolved: [], lookupFailed: [], notInDestination: [],
     ambiguousRemovals: [],
   };
   const currentAreas = current.state === "missing" ? [] : current.areas;
@@ -65,13 +77,36 @@ export async function applyDestinationEdit(
     return { ...unchanged, ...failures, choices: choicesFrom(offered, mode, edit.broadRegion, current) };
   }
 
-  const offered = resolutions.flatMap(({ resolution }) => resolution.status === "resolved" ? [resolution.pick]
+  // A name the user typed that the provider matched exactly is their own choice,
+  // stated in their own words: a card holding that one place would only ask them to
+  // repeat it. Anything the provider had to interpret is still offered for a click.
+  const said = compact(userWords);
+  const isCertain = ({ expression, resolution }: (typeof resolutions)[number]) =>
+    resolution.status === "resolved" && resolution.exact && said.includes(compact(expression));
+  const exact = resolutions.flatMap((item) =>
+    item.resolution.status === "resolved" && isCertain(item) ? [item.resolution.pick] : []);
+  const uncertain = resolutions.filter((item) =>
+    item.resolution.status === "ambiguous" || (item.resolution.status === "resolved" && !isCertain(item)));
+  const offered = uncertain.flatMap(({ resolution }) => resolution.status === "resolved" ? [resolution.pick]
     : resolution.status === "ambiguous" ? resolution.options : []);
+  const added = exact.filter((pick) => !destinationContains(currentAreas, pick));
+  const areas = added.reduce<readonly DestinationArea[]>((result, pick) => addToDestination(result, pick), currentAreas);
+  const destination: DestinationField = added.length === 0 ? current : {
+    state: "known", source: "user", areas,
+    ...(current.state === "known" && current.legacyText ? { legacyText: current.legacyText } : {}),
+  };
   return {
     ...unchanged,
     ...failures,
-    choices: choicesFrom(offered, mode, edit.places.join("、"), current),
+    destination,
+    changed: added.length > 0,
+    added: added.map(({ province, place, spot }) => ({ province, place, spot })),
+    choices: choicesFrom(offered, mode, uncertain.map((item) => item.expression).join("、"), destination),
   };
+}
+
+function compact(value: string): string {
+  return value.normalize("NFKC").replace(/\s+/gu, "");
 }
 
 function removePlaces(
@@ -94,7 +129,7 @@ function removePlaces(
     : { state: "known", source: current.state === "known" ? current.source : "user", areas,
       ...(legacyText ? { legacyText } : {}) };
   return {
-    destination, changed: areas !== currentAreas, choices: null,
+    destination, changed: areas !== currentAreas, added: [], choices: null,
     unresolved: [], lookupFailed: [], notInDestination, ambiguousRemovals,
   };
 }

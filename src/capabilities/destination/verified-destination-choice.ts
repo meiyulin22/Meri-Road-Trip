@@ -1,5 +1,5 @@
 import type { DestinationChoice } from "@/domain/trip-message/trip-message";
-import { isDomesticProvince } from "@/domain/location/domestic-destination-scope";
+import { isChinaProvince } from "@/domain/location/china-destination-scope";
 import { destinationPreferenceId } from "@/domain/trip-message/destination-choice-identity";
 import { resolveDestinationCandidates } from "@/domain/location/destination-resolution-policy";
 import type { DestinationPick } from "@/domain/trip-state/destination-areas";
@@ -16,7 +16,7 @@ export async function verifyDestinationChoice(
   choice: DestinationChoice,
   service: Pick<LocationService, "search">,
 ): Promise<VerifiedChoice> {
-  if (!isDomesticProvince(choice.province)) return { status: "unresolved" };
+  if (!isChinaProvince(choice.province)) return { status: "unresolved" };
   if (choice.id === `province:${choice.province}` && choice.city === undefined && choice.spot === undefined) {
     return { status: "verified", pick: { province: choice.province, place: null, spot: null } };
   }

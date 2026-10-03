@@ -85,8 +85,8 @@ flowchart TB
 | --- | --- | --- | --- |
 | `journey` | TripDraft、owner、patch | 创建/加载/更新/删除、失败补偿、列表投影 | Trip + TripState；创建时可保存原话和固定开场 |
 | `conversation` | 当前状态、原话、真实历史 | 结构化解释、opening、上下文裁剪、消息服务 | 修改提案/正文及持久化 TripMessage |
-| `destination` | 地点表达、当前目的地或保存的 choice | 查询协调、行政归属/spot 映射、候选/唯一删除、提交复核 | 待选 choices 或验证后的 pick，不把提案自动保存 |
-| `recommendation` | 当前状态、真实历史、调用来源 | 搜索→生成→校验→省份过滤，判断自动推荐资格 | 助手建议 presentation，不直接改目的地 |
+| `destination` | 地点表达、当前目的地或保存的 choice | 查询协调、行政归属/spot 映射、候选/唯一删除、提交复核 | 用户原话的精确匹配直接写入，其余为待选 choices；模型改写的名称不自动保存 |
+| `recommendation` | 当前状态、真实历史、调用来源 | 判断推荐范围（within/elsewhere），pending 还原后搜索→生成→校验→省份过滤 | 卡片作为独立助手消息保存，不直接改目的地 |
 
 ## 4. 数据模型与持久化
 
@@ -164,7 +164,7 @@ flowchart TD
   model -->|失败| retry[保留 Journey，可重试开场或先进入]
 ```
 
-初始 destination 为 missing，即使唯一核验也先出卡。状态/初始消息保存失败尝试删除 Trip，这是补偿回滚；清理失败保留创建与清理错误。普通 opening 不允许 changes、目的地 edit 或推荐意图；稳定助手 ID 和现有消息检查支持重试，不重新创建 Journey。
+初始 destination 为 missing；用户原话里的地点被高德精确匹配时直接写入初始状态，其余先出卡。状态/初始消息保存失败尝试删除 Trip，这是补偿回滚；清理失败保留创建与清理错误。普通 opening 不允许 changes、目的地 edit 或推荐意图；稳定助手 ID 和现有消息检查支持重试，不重新创建 Journey。
 
 ### 5.2 Workspace 聊天与分支
 
@@ -175,19 +175,22 @@ flowchart TD
   llm --> validate[领域校验，普通 changes 转 user patch]
   validate --> save[先保存普通字段]
   save --> edit{destinationEdit}
-  edit -->|add/set| offer[高德查询，待选 choices 或失败事实；不写目的地]
+  edit -->|add/set 精确且为用户原话| direct[带 expectedDestination 直接写入]
+  edit -->|add/set 不确定| offer[高德查询，待选 choices 或失败事实；不写目的地]
   edit -->|remove| remove[当前状态唯一匹配，带 expectedDestination 删除]
-  edit -->|none| eligible{推荐信号且状态允许？}
-  eligible -->|是| recommend[推荐工作流]
-  eligible -->|否| reply[使用模型 reply]
+  edit -->|none| eligible{推荐信号且写入后状态允许？}
+  direct --> eligible
+  remove --> eligible
+  eligible -->|within / elsewhere| pending[模型简短引导 + pending 标记]
+  eligible -->|否| reply[destinationEditReply：应用事实句 + 模型 reply]
   offer --> messages[保存真实用户与助手消息，含可选 presentation]
-  remove --> messages
-  recommend --> messages
+  pending --> messages
   reply --> messages
   messages --> response[完整 JSON：interpretation / TripState / messages]
+  response -->|最后一条为 pending| cards[客户端 POST destination-recommendations → 推荐工作流 → 卡片消息]
 ```
 
-地点 edit 占据本轮，只有 none 才考虑推荐；推荐资格要求目的地 missing 或只有未选城市的省范围。历史最多 5 轮/6000 字符，合并连续助手消息；建议不是已选。实际分支在 messages route，未调用 `workspace-turn-branch.ts`。候选/查询失败/删除歧义等正文由应用事实决定；普通对话和成功无失败项删除可用模型 reply。
+地点 edit 出卡或有找不到的表达时本轮不推荐；推荐范围按写入后的状态判断：within 要求目的地 missing 或只有未选城市的省范围，elsewhere（“推荐别的省份”）要求已有省份且只推荐未保存的省份。普通字段先丢弃不改变字段的 change；模型 reply 不得宣称地点已添加或旅程可生成，这些句子由 `turn-reply.ts` 生成，准备度只在首次可规划时说一次。历史最多 5 轮/6000 字符，合并连续助手消息；建议不是已选。实际分支在 messages route，未调用 `workspace-turn-branch.ts`。候选/查询失败/删除歧义等正文由应用事实决定；普通对话和成功无失败项删除可用模型 reply。
 
 ### 5.3 候选多选与确认
 
@@ -220,13 +223,13 @@ flowchart LR
   context[当前状态与真实上下文] --> search[Bocha 搜索启发]
   search --> generate[Kimi 省市/理由 JSON]
   generate --> validate[领域校验与去重]
-  validate --> filter[已定省份过滤]
-  filter --> persist[保存建议 presentation]
+  validate --> filter[within：限已定省份 / elsewhere：排除已保存省份]
+  filter --> persist[以派生 ID 保存卡片消息]
   persist --> select[用户选择]
   select --> verify[高德复核与状态保存]
 ```
 
-最多 12 个建议地点；Discovery 失败降级为空搜索上下文，模型失败仍报错。推荐只从聊天触发，使用真实本轮原话；没有推荐按钮入口，不另存 action、不伪造 user 消息。未接通访问检查、排序或图片补全，workflow 是普通确定性编排，不是 Vercel Workflow runtime 或 Agent 循环。
+最多 12 个建议地点；Discovery 失败降级为空搜索上下文，模型失败仍报错（卡片请求返回 502，界面可重试）。推荐分两个请求：聊天请求只保存模型的简短引导和 `destination_recommendations_pending` 标记，客户端再调用 `POST /api/trips/[id]/destination-recommendations`；该接口从保存的对话还原触发原话，只为仍是最新消息的 pending 生成卡片，卡片消息 ID 由 pending 消息派生，重复请求返回同一条。推荐只从聊天触发，使用真实原话；没有推荐按钮入口，不另存 action、不伪造 user 消息。未接通访问检查、排序或图片补全，workflow 是普通确定性编排，不是 Vercel Workflow runtime 或 Agent 循环。
 
 Generate plan 只有一个，位于聊天下方：missing→按钮不可用并在悬停/聚焦时说明添加目的地的途径，有 legacyText→重新确认/清除，其余（包括只有省、没有市）→准备度通过但规划尚未开放。出发地、日期、时长和交通目前不是硬门槛，准备度通过不证明安全或可行。
 
@@ -239,14 +242,14 @@ Generate plan 只有一个，位于聊天下方：missing→按钮不可用并�
 | 状态更新 | 最新状态应用 patch，CAS 最多 3 次；Postgres UPDATE 比较原始 JSONB | 无 CAS 的测试替身允许退回 update，不能代表生产保护 |
 | 目的地并发 | 专用操作带 expectedDestination，冲突拒绝旧 patch；普通字段重读重算 | 通用 state PATCH 仍接受 destination，未统一高德核验，冲突错误当前未单独映射 409 |
 | 保存与会话 | 保存真实正文及 presentation，刷新重读；选卡半成功返回真实状态 | 状态与会话不是跨所有步骤的一笔事务，普通聊天失败需刷新核对 |
-| 重试 | 开场/同组选卡确认使用稳定身份；过期卡不能恢复删除项 | 普通聊天和推荐 POST 没有全局幂等保证 |
+| 重试 | 开场/同组选卡确认/推荐卡片使用稳定身份；过期卡不能恢复删除项 | 普通聊天 POST 没有全局幂等保证；同一 pending 并发请求可能各跑一次工作流，但只保存一条 |
 | 旧数据 | 旧目的地/卡片读取适配，无法核验文本保留 legacyText | 不静默丢弃或将景点假装成市；spot 同名不能只靠状态区分 POI |
 | 提供方故障 | Kimi 错误/超时归一化；Bocha 搜索可降级；高德故障不编造地点 | 手动 destinations 归属加载当前将异常统一视为 not-found |
 | 日志 | Pino 事件、requestId、耗时、错误脱敏 | 不输出密钥；调试输出按环境配置 |
 
 准确 HTTP 状态、请求体及每个操作的失败恢复见 USER_FLOW_CURRENT。上述限制是现有实现记录，本轮文档更新不顺带修复代码或增加事务框架。
 
-当前仅支持国内旅行：草稿、开场、聊天和推荐提示词说明服务范围；`domestic-destination-scope.ts` 提供省级行政区名单，推荐生成 schema 与运行时校验、地点解析、手动搜索候选和选卡复核共用该范围。名单不是城市/景点归属证明，新增目的地仍需提供方核验。旧状态读取及删除不受新范围阻断。
+目的地限定在中国，用户可以来自任何国家：草稿、开场、聊天和推荐提示词说明服务范围，聊天只在用户提到中国以外的目的地时才说明，不使用“国内/国外”的说法；`china-destination-scope.ts` 提供省级行政区名单，推荐生成 schema 与运行时校验、地点解析、手动搜索候选和选卡复核共用该范围。名单不是城市/景点归属证明，新增目的地仍需提供方核验。旧状态读取及删除不受新范围阻断。
 
 聊天历史和 TripState 已持久化，但没有跨 Journey 长期偏好记忆、摘要记忆或向量检索；历史窗口扩大仍属于上下文选择的调整。
 

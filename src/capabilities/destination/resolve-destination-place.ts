@@ -1,5 +1,5 @@
 import type { LocationCandidate } from "@/domain/location/location";
-import { isDomesticProvince } from "@/domain/location/domestic-destination-scope";
+import { isChinaProvince } from "@/domain/location/china-destination-scope";
 import type { DestinationPick } from "@/domain/trip-state/destination-areas";
 
 import type { LocationResolveResult } from "./location-service";
@@ -11,7 +11,13 @@ export interface IdentifiedPick extends DestinationPick {
 }
 
 export type PlaceResolution =
-  | { readonly status: "resolved"; readonly pick: IdentifiedPick }
+  /**
+   * `exact` says the provider's name is the user's own words plus nothing but an
+   * administrative or scenic-area suffix — 大连 → 大连市, 迪庆 → 迪庆藏族自治州,
+   * 玉龙雪山 → 玉龙雪山风景区. Only then is there nothing left for the user to check,
+   * so only then may a place they named go straight into the Journey.
+   */
+  | { readonly status: "resolved"; readonly pick: IdentifiedPick; readonly exact: boolean }
   /** The name fits several different 市 — 朝阳 is in 北京 and in 辽宁. */
   | { readonly status: "ambiguous"; readonly options: readonly IdentifiedPick[] }
   | { readonly status: "unresolved" }
@@ -32,17 +38,25 @@ export async function resolveDestinationPlace(
   const result = await resolveExpression(expression);
   switch (result.status) {
     case "area":
-      if (!isDomesticProvince(result.province)) return { status: "unresolved" };
-      return { status: "resolved", pick: { id: `province:${result.province}`, province: result.province, place: null, spot: null } };
+      if (!isChinaProvince(result.province)) return { status: "unresolved" };
+      return { status: "resolved", pick: { id: `province:${result.province}`, province: result.province, place: null, spot: null },
+        exact: namesSamePlace(result.province, expression) };
     case "resolved": {
       const pick = pickFromCandidate(result.candidate, expression);
-      return pick === null ? { status: "unresolved" } : { status: "resolved", pick };
+      return pick === null ? { status: "unresolved" }
+        : { status: "resolved", pick, exact: namesSamePlace(result.candidate.name, expression) };
     }
     case "ambiguous": {
       // Two provider records in one city may be different spots. Keep both until
       // the traveler decides which one they meant.
       const options = distinctPicks(result.candidates.map((candidate) => pickFromCandidate(candidate, expression)));
-      if (options.length === 1) return { status: "resolved", pick: options[0] };
+      // 梅里雪山 comes back as the mountain, its national park and a viewpoint, all in
+      // one 市 and all the same wish. They are one place to the traveller.
+      if (options.length > 0 && new Set(options.map(preferenceKey)).size === 1) {
+        const sources = result.candidates.filter((candidate) => options.some((option) => option.id === candidate.providerId));
+        return { status: "resolved", pick: options[0],
+          exact: sources.some((candidate) => namesSamePlace(candidate.name, expression)) };
+      }
       return options.length === 0 ? { status: "unresolved" } : { status: "ambiguous", options };
     }
     case "provider_error":
@@ -63,7 +77,7 @@ export function picksFromSearch(candidates: readonly LocationCandidate[]): reado
   const seen = new Set<string>();
   const results: (IdentifiedPick & { readonly label: string })[] = [];
   for (const candidate of candidates) {
-    if (!isDomesticProvince(candidate.province)) continue;
+    if (!isChinaProvince(candidate.province)) continue;
     const pick = isProvinceCandidate(candidate)
       ? { id: candidate.providerId, province: candidate.province ?? candidate.name, place: null, spot: null }
       : pickFromCandidate(candidate, candidate.name);
@@ -81,7 +95,7 @@ export function picksFromSearch(candidates: readonly LocationCandidate[]): reado
 function pickFromCandidate(candidate: LocationCandidate, expression: string): IdentifiedPick | null {
   const province = candidate.province?.trim();
   const place = cityOf(candidate);
-  if (!province || !isDomesticProvince(province) || place === null) return null;
+  if (!province || !isChinaProvince(province) || place === null) return null;
   const detail = candidateDetail(candidate, expression);
   return { id: candidate.providerId, province, place, spot: spotOf(candidate, place, expression),
     ...(detail ? { detail } : {}) };
@@ -123,6 +137,10 @@ function isProvinceCandidate(candidate: LocationCandidate): boolean {
   return ["省", "自治区", "特别行政区"].some((suffix) => normalize(candidate.name).endsWith(suffix));
 }
 
+function preferenceKey(pick: IdentifiedPick): string {
+  return JSON.stringify([pick.province, pick.place, pick.spot]);
+}
+
 function distinctPicks(picks: readonly (IdentifiedPick | null)[]): readonly IdentifiedPick[] {
   const seen = new Set<string>();
   return picks.filter((pick): pick is IdentifiedPick => {
@@ -132,6 +150,22 @@ function distinctPicks(picks: readonly (IdentifiedPick | null)[]): readonly Iden
     seen.add(key);
     return true;
   });
+}
+
+const administrativeSuffix = /^(?:[\p{Script=Han}]{1,3}?族)*(?:特别行政区|自治区|自治州|自治县|地区|省|市|县|区|盟)$/u;
+const scenicSuffix = /^(?:风景名胜区|风景区|景区|旅游区|国家公园|国家级自然保护区|自然保护区)$/u;
+
+/**
+ * Whether a provider name is the user's expression and nothing more than a suffix
+ * that does not change which place it is. A typo, a partial name or a different
+ * place all fail, and are offered as choices instead.
+ */
+export function namesSamePlace(providerName: string, expression: string): boolean {
+  const name = normalize(providerName);
+  const said = normalize(expression);
+  if (said.length < 2 || !name.startsWith(said)) return false;
+  const rest = name.slice(said.length);
+  return rest === "" || administrativeSuffix.test(rest) || scenicSuffix.test(rest);
 }
 
 function normalize(value: string): string {

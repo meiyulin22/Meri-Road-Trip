@@ -37,13 +37,15 @@ export async function runDestinationRecommendationWorkflow(
   dependencies: DestinationRecommendationWorkflowDependencies = destinationRecommendationWorkflowDependencies(),
 ): Promise<DestinationRecommendationWorkflowResult> {
   const startedAt = performance.now();
-  logger.info({ event: "recommendation.workflow.started", requestId, source: context.source },
+  logger.info({ event: "recommendation.workflow.started", requestId, source: context.source, scope: context.scope },
     "Destination recommendation workflow started");
 
   const discovery = await searchJourneyDiscovery(context, dependencies.discovery);
   const proposed = await dependencies.generate(
     discovery.length ? { ...context, discoveryResults: discovery } : context, requestId);
-  const groups = withinSettledProvinces(proposed, settledAreas(context));
+  const groups = context.scope === "elsewhere"
+    ? outsideSavedProvinces(proposed, settledAreas(context))
+    : withinSettledProvinces(proposed, settledAreas(context));
   const destinations = groups.flatMap((group) => group.places.map((place) => ({
     id: dependencies.generateId(), name: place.name, province: group.province, reason: place.reason,
   })));
@@ -54,7 +56,9 @@ export async function runDestinationRecommendationWorkflow(
     durationMs: Math.round(performance.now() - startedAt) }, "Destination recommendation workflow completed");
 
   if (!destinations.length) {
-    return { content: "这次没有筛出合适的目的地。你可以调整一下偏好，我们再找找其他方向。" };
+    return { content: context.scope === "elsewhere"
+      ? "这次没有在其他省份筛出合适的地方。你可以说说想要什么样的风景，我们再找找。"
+      : "这次没有筛出合适的目的地。你可以调整一下偏好，我们再找找其他方向。" };
   }
   return {
     content: "我按省份列了几个可以去的地方，你想去哪些都可以选上，选好之后我们再往下定。",
@@ -73,6 +77,19 @@ function settledAreas(context: DestinationRecommendationContext): readonly Desti
  * wins over the model's, so that picking a place adds it to the area the destination
  * already carries instead of opening a second province beside it.
  */
+/**
+ * Widening a trip means places it does not have yet. A province already saved is
+ * dropped even if the model proposes it, because a card there would quietly turn
+ * 「别的省份」 back into more of the same.
+ */
+function outsideSavedProvinces(
+  groups: readonly DestinationRecommendationGroup[],
+  saved: readonly DestinationArea[] | undefined,
+): readonly DestinationRecommendationGroup[] {
+  const provinces = new Set((saved ?? []).map((area) => normalizeRecommendationRegion(area.province)));
+  return groups.filter((group) => !provinces.has(normalizeRecommendationRegion(group.province)));
+}
+
 function withinSettledProvinces(
   groups: readonly DestinationRecommendationGroup[],
   settled: readonly DestinationArea[] | undefined,

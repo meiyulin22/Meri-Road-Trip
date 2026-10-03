@@ -44,3 +44,12 @@ export function destinationRecommendationSelectionMessageId(
     `${tripId}:${recommendationMessageId}:${[...destinationIds].sort().join(",")}:destination-recommendation-selection`,
   );
 }
+
+/**
+ * The cards a pending reply promised get one id per reply, so a reload or a retry
+ * while they are being chosen returns the message already written instead of
+ * adding a second list.
+ */
+export function destinationRecommendationCardsMessageId(tripId: string, pendingMessageId: string): string {
+  return selectionMessageId(`${tripId}:${pendingMessageId}:destination-recommendation-cards`);
+}

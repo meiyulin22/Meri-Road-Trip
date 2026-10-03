@@ -1,8 +1,6 @@
-import type { TripMessage } from "@/domain/trip-message/trip-message";
-import { isDestinationOpenToRecommendations, type TripState, type TripStatePatch } from "@/domain/trip-state/trip-state";
+import type { RecommendationScope, TripMessage } from "@/domain/trip-message/trip-message";
+import { isDestinationOpenToRecommendations, type TripState } from "@/domain/trip-state/trip-state";
 import type { WorkspaceConversationInterpretation } from "@/domain/trip-state/workspace-conversation";
-import type { TripMessageService } from "@/capabilities/conversation/trip-message-service";
-import { logEvents, logger } from "@/platform/observability/logger";
 import { buildConversationalDestinationRecommendationContext, type DestinationRecommendationContext } from "./destination-recommendation-context";
 import { runDestinationRecommendationWorkflow, type DestinationRecommendationWorkflowResult } from "./destination-recommendation-workflow";
 
@@ -10,92 +8,73 @@ export interface DestinationRecommendationUseCaseDependencies {
   readonly runWorkflow: (context: DestinationRecommendationContext, requestId: string) => Promise<DestinationRecommendationWorkflowResult>;
 }
 
-/**
- * 「我想去云南，想爬山」 names a province, and only the provider knows that: the model
- * proposes a plain known destination and the write turns it into an area with no place
- * chosen inside. So openness is read from the state the write produced, never from the
- * proposal — reading the proposal closed 「去哪」 on the exact turn that opened it.
- * A destination the user named that failed to land is the turn's news instead, and
- * cards would take the place of the sentence saying so.
- */
-export function shouldCreateConversationalRecommendations(
-  interpretation: WorkspaceConversationInterpretation,
-  stateAfterWrite: TripState,
-  destinationChange: { readonly proposed: boolean; readonly written: boolean },
-): boolean {
-  if (destinationChange.proposed && !destinationChange.written) return false;
-  return interpretation.presentationIntent === "destination_recommendations" &&
-    isDestinationOpenToRecommendations(stateAfterWrite.destination) &&
-    interpretation.destinationEdit.operation === "none";
-}
-
-export async function createDestinationRecommendationReply(
-  context: DestinationRecommendationContext,
-  requestId: string,
-  dependencies: DestinationRecommendationUseCaseDependencies,
-): Promise<DestinationRecommendationWorkflowResult> {
-  return dependencies.runWorkflow(context, requestId);
-}
-
 export function destinationRecommendationDependencies(): DestinationRecommendationUseCaseDependencies {
   return { runWorkflow: runDestinationRecommendationWorkflow };
 }
 
 /**
- * The model writes its reply before the workflow runs, so it assumed cards would
- * follow. When they do, its reply is the one written about what the user actually
- * said and it stands. When the workflow found nothing, that assumption failed and
- * only the workflow can say so.
+ * Which cards, if any, a turn may promise. 「我想去云南，想爬山」 names a province, and only
+ * the provider knows that: the turn adds 云南省 with no place inside it. So openness is
+ * read from the state the turn left, never from the proposal — reading the proposal
+ * closed 「去哪」 on the exact turn that opened it.
+ *
+ * Asking to widen a trip that has nothing saved yet is just asking where to go, so it
+ * is answered the same way.
  */
-function recommendationTurnContent(
-  modelReply: string,
-  result: DestinationRecommendationWorkflowResult,
-): string {
-  return result.presentation ? modelReply : result.content;
+export function recommendationScopeForTurn(
+  interpretation: WorkspaceConversationInterpretation,
+  stateAfterWrite: TripState,
+): RecommendationScope | null {
+  const destination = stateAfterWrite.destination;
+  switch (interpretation.presentationIntent) {
+    case "none":
+      return null;
+    case "destination_recommendations":
+      return isDestinationOpenToRecommendations(destination, "within") ? "within" : null;
+    case "destination_recommendations_elsewhere":
+      if (isDestinationOpenToRecommendations(destination, "elsewhere")) return "elsewhere";
+      return isDestinationOpenToRecommendations(destination, "within") ? "within" : null;
+  }
 }
 
-export async function persistConversationalRecommendationTurn(input: {
-  readonly tripId: string;
-  readonly ownerGuestId: string;
-  readonly tripState: TripState;
-  readonly interpretation: WorkspaceConversationInterpretation;
-  /** What the model proposed, and what the write actually committed of it. */
-  readonly patch: TripStatePatch | null;
-  readonly persistedPatch: TripStatePatch | null;
-  readonly previousMessages: readonly TripMessage[];
-  readonly currentUserText: string;
-  readonly requestId: string;
-}, dependencies: DestinationRecommendationUseCaseDependencies & {
-  readonly persistTurn: Pick<TripMessageService, "persistSuccessfulTurn">["persistSuccessfulTurn"];
-}): Promise<readonly [TripMessage, TripMessage] | null> {
-  if (!shouldCreateConversationalRecommendations(input.interpretation, input.tripState, {
-    proposed: input.patch?.destination !== undefined,
-    written: input.persistedPatch?.destination !== undefined,
-  })) {
-    // The model asked for cards on a turn that cannot offer them, so its reply is
-    // the whole turn. That is legitimate, but it is also how a weak reply reaches
-    // the user, and it is invisible without this line.
-    if (input.interpretation.presentationIntent === "destination_recommendations") {
-      logger.warn({
-        event: logEvents.recommendationIntentDeclined,
-        requestId: input.requestId,
-        tripId: input.tripId,
-        destinationState: input.tripState.destination.state,
-        patchDestinationState: input.patch?.destination?.state ?? null,
-        writtenDestinationState: input.persistedPatch?.destination?.state ?? null,
-        destinationOperation: input.interpretation.destinationEdit.operation,
-      }, "Destination recommendations were requested on a turn that cannot offer them");
-    }
-    return null;
+/** What the cards for a pending reply are built from, read back out of the stored conversation. */
+export type PendingRecommendationRequest =
+  | { readonly status: "found"; readonly scope: RecommendationScope; readonly userText: string;
+    readonly earlierMessages: readonly TripMessage[] }
+  | { readonly status: "not_found" };
+
+/**
+ * The cards answer the user message the pending reply answered, with the conversation
+ * as it stood before it. Nothing about the request is sent by the browser: what it
+ * asked for is whatever was stored, so a reload or a retry asks for the same cards.
+ */
+export function pendingRecommendationRequest(
+  messages: readonly TripMessage[],
+  pendingMessageId: string,
+): PendingRecommendationRequest {
+  const index = messages.findIndex((message) => message.id === pendingMessageId);
+  const pending = messages[index];
+  const user = messages[index - 1];
+  if (pending?.role !== "assistant" || pending.presentation?.type !== "destination_recommendations_pending" ||
+    user?.role !== "user") {
+    return { status: "not_found" };
   }
-  const context = buildConversationalDestinationRecommendationContext(
-    input.tripId, input.tripState, input.previousMessages, input.currentUserText);
-  const reply = await createDestinationRecommendationReply(context, input.requestId, dependencies);
-  return dependencies.persistTurn({
-    tripId: input.tripId,
-    ownerGuestId: input.ownerGuestId,
-    userContent: input.currentUserText,
-    assistantContent: recommendationTurnContent(input.interpretation.reply, reply),
-    ...(reply.presentation ? { assistantPresentation: reply.presentation } : {}),
-  });
+  return { status: "found", scope: pending.presentation.scope, userText: user.content,
+    earlierMessages: messages.slice(0, index - 1) };
+}
+
+/**
+ * The state may have moved on since the reply promised cards — a place picked on the
+ * right — and cards for a question that is no longer open would argue with that.
+ */
+export async function createPendingRecommendations(input: {
+  readonly tripId: string;
+  readonly tripState: TripState;
+  readonly request: Extract<PendingRecommendationRequest, { status: "found" }>;
+  readonly requestId: string;
+}, dependencies: DestinationRecommendationUseCaseDependencies): Promise<DestinationRecommendationWorkflowResult | null> {
+  if (!isDestinationOpenToRecommendations(input.tripState.destination, input.request.scope)) return null;
+  const context = buildConversationalDestinationRecommendationContext(input.tripId, input.tripState,
+    input.request.earlierMessages, input.request.userText, input.request.scope);
+  return dependencies.runWorkflow(context, input.requestId);
 }

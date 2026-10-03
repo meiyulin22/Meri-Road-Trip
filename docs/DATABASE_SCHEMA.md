@@ -99,7 +99,7 @@ Trip 不再保存 name、origin、destination 或日期列，避免与 TripState
 | `presentation` | `presentation` | jsonb | 可为空 | 助手附带的受限卡片数据；无卡写 SQL NULL |
 | `created_at` | `createdAt` | timestamptz | 非空 | 消息排序及 UI 时间显示 |
 
-当前 presentation 包括 `destination_choices`、`destination_recommendations`，并兼容历史 `location_candidates`。应用只允许助手携带 presentation；数据库列本身没有按 role 限制 JSON 的 CHECK。待选卡保存后可恢复，但不代表其地点已经进入 TripState。
+当前 presentation 包括 `destination_choices`、`destination_recommendations`、`destination_recommendations_pending`（`{type, scope: "within" | "elsewhere"}`，表示这条回复的推荐卡片随后作为下一条消息生成），并兼容历史 `location_candidates`。应用只允许助手携带 presentation；数据库列本身没有按 role 限制 JSON 的 CHECK。待选卡保存后可恢复，但不代表其地点已经进入 TripState。
 
 ### 3.4 索引与约束范围
 
@@ -148,6 +148,8 @@ Trip 不再保存 name、origin、destination 或日期列，避免与 TripState
 ### 4.2 `trip_messages.presentation`
 
 当前 choices 保存 mode、choice IDs、省/市/spot、理由/细节；replace 还保存出卡时目的地的 `baseDestination` 字符串，用于检查提交期间目的地是否变化。它不是另一张表的外键或状态版本列。
+
+pending 标记只保存推荐范围，不保存要推荐什么：卡片请求从同一 Trip 的消息顺序中取 pending 之前的那条用户原话和更早的历史。卡片消息的 `id` 由 tripId 与 pending 消息 ID 派生，`createAssistantIfAbsent` 保证同一 pending 只有一条卡片消息。不需要迁移：`presentation` 本就是 JSONB，新类型只在领域读取边界校验。
 
 选卡请求先取得属于当前 Trip 的持久化消息，检查 choice IDs 和时效，再复核地点；成功后更新状态并保存确认助手消息。消息主键帮助稳定身份的确认去重，但普通聊天/推荐 POST 尚没有全局幂等保证。详细提交及半成功边界见 USER_FLOW_CURRENT 第 4 节。
 

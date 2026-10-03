@@ -61,8 +61,8 @@ export async function POST(request: Request) {
       requestId,
       ...getRequestContext(),
     }, {
-      createJourney: (draft, ownerGuestId, message, openingAssistant) =>
-        journeyService.createJourney(draft, ownerGuestId, message, openingAssistant),
+      createJourney: (draft, ownerGuestId, message, openingAssistant, initialDestination) =>
+        journeyService.createJourney(draft, ownerGuestId, message, openingAssistant, initialDestination),
       resolveDestination: (expression) =>
         new LocationService(new AmapLocationProvider()).resolveExpression(expression),
       initializeOpening: (input) => openingConversationService.initialize(input),

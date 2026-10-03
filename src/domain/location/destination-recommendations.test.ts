@@ -2,16 +2,16 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { validateDestinationRecommendations } from "./destination-recommendations";
-import { domesticProvinces, isDomesticProvince } from "./domestic-destination-scope";
+import { chinaProvinces, isChinaProvince } from "./china-destination-scope";
 
 const place = (name: string) => ({ name, reason: "适合这次的偏好" });
 
-test("domestic coverage accepts exact province names and common short names, not foreign or invented regions", () => {
-  for (const province of [...domesticProvinces, "云南", "广西", "北京", "香港", "澳门", "台湾"]) {
-    assert.equal(isDomesticProvince(province), true, province);
+test("China coverage accepts exact province names and common short names, not foreign or invented regions", () => {
+  for (const province of [...chinaProvinces, "云南", "广西", "北京", "香港", "澳门", "台湾"]) {
+    assert.equal(isChinaProvince(province), true, province);
   }
   for (const province of [null, undefined, "", "北海道", "京都府", "安大略省", "云南省海外", "东京市", "中国", "内蒙"]) {
-    assert.equal(isDomesticProvince(province), false, String(province));
+    assert.equal(isChinaProvince(province), false, String(province));
   }
 });
 

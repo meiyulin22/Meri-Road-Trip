@@ -11,12 +11,12 @@ import type { TripMessage } from "@/domain/trip-message/trip-message";
 import type { TripState } from "@/domain/trip-state/trip-state";
 
 import { nextRevealCharacterCount, visibleAssistantText } from "./conversation-reveal";
-import { selectDestinationRecommendation } from "./destination-recommendation-model";
+import { requestPendingRecommendations, selectDestinationRecommendation } from "./destination-recommendation-model";
 import { DestinationChoicesCard } from "./destination-choices-card";
 import { GeneratePlanAction } from "./generate-plan-action";
 import { formatMessageTimestamp } from "./message-timestamp";
-import { appendPersistedMessageIfAbsent, destinationChoicePresentation, messageCreatedAt, toWorkspaceUIMessages } from "./trip-message-ui-adapter";
-import { DestinationOfferExpiredError, DestinationSelectionFollowUpError } from "./workspace-conversation-model";
+import { appendPersistedMessageIfAbsent, destinationChoicePresentation, messageCreatedAt, pendingRecommendationPresentation, toWorkspaceUIMessages } from "./trip-message-ui-adapter";
+import { DestinationOfferExpiredError, DestinationSelectionFollowUpError, RecommendationsStaleError } from "./workspace-conversation-model";
 import {
   reconcileCommittedUserId,
   WorkspaceChatTransport,
@@ -61,6 +61,11 @@ export function ConversationPanel({
     readonly visibleCharacters: number;
   } | null>(null);
   const messageHistoryRef = useRef<HTMLDivElement>(null);
+  const cardsInFlight = useRef<string | null>(null);
+  const [cardsOutcome, setCardsOutcome] = useState<{
+    readonly messageId: string;
+    readonly status: "failed" | "stale";
+  } | null>(null);
 
   function handleCommittedTurn(turn: CommittedWorkspaceTurn): void {
     onTripStateChange(turn.tripState);
@@ -78,10 +83,16 @@ export function ConversationPanel({
   const isSubmitting = status === "submitted" || status === "streaming";
   const hasError = status === "error";
   const latestMessage = messages.at(-1);
+  // A reply that promised cards and is still the latest message is waiting for them,
+  // whether it was just sent or the Journey was reopened before they arrived.
+  const pendingCardsId = latestMessage?.role === "assistant" && pendingRecommendationPresentation(latestMessage)
+    ? latestMessage.id : null;
+  const cardsFailure = cardsOutcome?.messageId === pendingCardsId ? cardsOutcome.status : null;
+  const cardsLoading = pendingCardsId !== null && cardsFailure === null;
   const localNow = useSyncExternalStore(subscribeToBrowser, browserSnapshot, serverSnapshot) ? new Date() : null;
   const activity: ConversationActivity = hasError || selectionErrorMessageId !== null
     ? "error"
-    : isSubmitting || selectionPendingMessageId !== null ? "thinking" : "idle";
+    : isSubmitting || selectionPendingMessageId !== null || cardsLoading ? "thinking" : "idle";
 
   useEffect(() => {
     onActivityChange(activity);
@@ -112,6 +123,26 @@ export function ConversationPanel({
     return () => window.clearTimeout(timer);
   }, [messages, revealing]);
 
+  useEffect(() => {
+    if (pendingCardsId === null || cardsFailure !== null || isSubmitting ||
+      cardsInFlight.current === pendingCardsId) {
+      return;
+    }
+    cardsInFlight.current = pendingCardsId;
+    requestPendingRecommendations(tripId, pendingCardsId)
+      .then((cards) => {
+        setMessages((current) => appendPersistedMessageIfAbsent(current, cards));
+        setRevealing({ id: cards.id, visibleCharacters: 0 });
+      })
+      .catch((error: unknown) => {
+        setCardsOutcome({ messageId: pendingCardsId,
+          status: error instanceof RecommendationsStaleError ? "stale" : "failed" });
+      })
+      .finally(() => {
+        cardsInFlight.current = null;
+      });
+  }, [cardsFailure, isSubmitting, pendingCardsId, setMessages, tripId]);
+
   function closeCurrentOffer(): void {
     if (latestMessage && destinationChoicePresentation(latestMessage)) {
       setClosedOfferIds((current) => [...new Set([...current, latestMessage.id])]);
@@ -128,7 +159,7 @@ export function ConversationPanel({
   function handleSubmit(event: React.FormEvent<HTMLFormElement>): void {
     event.preventDefault();
     const submittedMessage = message.trim();
-    if (submittedMessage === "" || status !== "ready" || selectionInFlight.current) {
+    if (submittedMessage === "" || status !== "ready" || selectionInFlight.current || cardsLoading) {
       return;
     }
     closeCurrentOffer();
@@ -253,6 +284,20 @@ export function ConversationPanel({
                       </span>
                     ) : null}
                   </p>
+                  {conversationMessage.id === pendingCardsId && cardsLoading ? (
+                    <p className={styles.conversationStatus} role="status">
+                      <LoaderCircle aria-hidden="true" className={styles.loadingIcon} size={14} />
+                      正在挑选推荐的地方…
+                    </p>
+                  ) : null}
+                  {conversationMessage.id === pendingCardsId && cardsFailure === "failed" ? (
+                    <div className={styles.conversationError} role="alert">
+                      <span>推荐暂时没有生成出来。</span>
+                      <button onClick={() => setCardsOutcome(null)} type="button">
+                        重试
+                      </button>
+                    </div>
+                  ) : null}
                   {destinationChoicePresentation(conversationMessage) ? (
                     <DestinationChoicesCard
                       active={offerIsActive(conversationMessage)}
@@ -338,7 +383,7 @@ export function ConversationPanel({
           告诉 Meri 你还在想什么
         </label>
         <input
-          disabled={isSubmitting || hasError || selectionPendingMessageId !== null}
+          disabled={isSubmitting || hasError || selectionPendingMessageId !== null || cardsLoading}
           id="workspace-message"
           onChange={(event) => setMessage(event.target.value)}
           onKeyDown={handleMessageKeyDown}
@@ -348,7 +393,7 @@ export function ConversationPanel({
         />
         <button
           aria-label="发送消息"
-          disabled={isSubmitting || hasError || selectionPendingMessageId !== null || message.trim() === ""}
+          disabled={isSubmitting || hasError || selectionPendingMessageId !== null || cardsLoading || message.trim() === ""}
           type="submit"
         >
           {isSubmitting ? (

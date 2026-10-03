@@ -15,28 +15,49 @@ const draft: TripDraft = {
 const journey: Journey = { trip: { id: "trip-a", status: "idea",
   createdAt: "2026-09-29T00:00:00.000Z", updatedAt: "2026-09-29T00:00:00.000Z" },
 tripState: initializeTripState(draft) };
+const meri = { providerId: "amap-meri", name: "梅里雪山", province: "云南省", city: "迪庆藏族自治州",
+  district: "德钦县", region: "云南省迪庆藏族自治州", address: "德钦",
+  longitude: 98.6, latitude: 28.4, coordinateSystem: "GCJ-02" as const };
 const input = { draft, ownerGuestId: "guest-a", initialUserMessage: "想去梅里雪山",
   requestId: "request-a", referenceDate: "2026-09-29", timezone: "Asia/Shanghai" };
 
-test("first message stores a verified offer and keeps the destination missing", async () => {
-  let savedDraft: unknown;
+test("a first message naming a place the provider matches exactly starts the Journey with it", async () => {
+  let savedDestination: unknown;
   let savedOpening: unknown;
   let openingCalls = 0;
   const result = await createJourneyWithOpening(input, {
-    createJourney: async (value, _owner, _message, opening) => {
-      savedDraft = value; savedOpening = opening; return journey;
+    createJourney: async (_value, _owner, _message, opening, destination) => {
+      savedOpening = opening; savedDestination = destination; return journey;
     },
-    resolveDestination: async () => ({ status: "resolved", candidate: {
-      providerId: "amap-meri", name: "梅里雪山", province: "云南省", city: "迪庆藏族自治州",
-      district: "德钦县", region: "云南省迪庆藏族自治州", address: "德钦",
-      longitude: 98.6, latitude: 28.4, coordinateSystem: "GCJ-02" } }),
+    resolveDestination: async () => ({ status: "resolved", candidate: meri }),
     initializeOpening: async () => { openingCalls += 1; },
   });
   assert.equal(result.opening, "completed");
-  assert.deepEqual(savedDraft, draft);
+  assert.equal(savedOpening, undefined);
+  assert.equal(openingCalls, 1);
+  assert.deepEqual(savedDestination, { state: "known", source: "user", areas: [
+    { province: "云南省", places: [{ name: "迪庆藏族自治州", spots: ["梅里雪山"] }] }] });
+});
+
+test("a first message the provider had to interpret stores an offer and keeps the destination missing", async () => {
+  let savedDraft: unknown;
+  let savedOpening: unknown;
+  let savedDestination: unknown = "unset";
+  let openingCalls = 0;
+  const result = await createJourneyWithOpening({ ...input,
+    draft: { ...draft, destinationEdit: { operation: "set", places: ["梅里"], broadRegion: null } } }, {
+    createJourney: async (value, _owner, _message, opening, destination) => {
+      savedDraft = value; savedOpening = opening; savedDestination = destination; return journey;
+    },
+    resolveDestination: async () => ({ status: "resolved", candidate: meri }),
+    initializeOpening: async () => { openingCalls += 1; },
+  });
+  assert.equal(result.opening, "completed");
+  assert.equal((savedDraft as typeof draft).destinationEdit.operation, "set");
   assert.equal(openingCalls, 0);
-  assert.equal(journey.tripState.destination.state, "missing");
+  assert.equal(savedDestination, undefined);
   assert.equal((savedOpening as { presentation: { type: string } }).presentation.type, "destination_choices");
+  assert.match((savedOpening as { content: string }).content, /找到「梅里」相关的地点了/u);
 });
 
 test("unresolved first destination writes guidance without saving a false location", async () => {

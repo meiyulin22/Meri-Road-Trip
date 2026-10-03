@@ -36,6 +36,7 @@ export const logEvents = {
   locationToolExecuted: "location.tool.executed",
   locationToolCompleted: "location.tool.completed",
   recommendationIntentDeclined: "recommendation.intent.declined",
+  recommendationCardsFailed: "recommendation.cards.failed",
   destinationAccessUncertain: "destination_access.uncertain",
   destinationImageSearchFailed: "destination_image.search.failed",
 } as const;

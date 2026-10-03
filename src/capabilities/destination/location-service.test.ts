@@ -1,3 +1,4 @@
+import { destinationPreferenceId } from "@/domain/trip-message/destination-choice-identity";
 import assert from "node:assert/strict";
 import test from "node:test";
 import {LocationService} from "./location-service";
@@ -12,7 +13,7 @@ const city = { providerId: "shangrila-city", name: "香格里拉市", province: 
 const hotel = { ...city, providerId: "hotel", name: "北京香格里拉饭店", province: "北京市",
  city: "北京市", district: "海淀区" };
 
-test("a hotel-filled bare-name query retries the city name and its offer can be confirmed", async () => {
+test("a hotel-filled bare-name query retries the city name, lands directly, and still reverifies", async () => {
  const queries: string[] = [];
  const service = new LocationService({ async searchByKeyword(query) {
   queries.push(query);
@@ -20,11 +21,12 @@ test("a hotel-filled bare-name query retries the city name and its offer can be 
  } });
  const result = await applyDestinationEdit({ state: "missing" },
   { operation: "add", places: ["香格里拉"], broadRegion: null },
-  (expression) => resolveDestinationPlace(expression, (query) => service.resolveExpression(query)));
+  (expression) => resolveDestinationPlace(expression, (query) => service.resolveExpression(query)), "我还想去香格里拉");
  assert.deepEqual(queries, ["香格里拉", "香格里拉市"]);
- const choice = result.choices!.presentation.choices[0];
- assert.equal(choice.city, "迪庆藏族自治州");
- assert.equal(choice.spot, "香格里拉市");
+ assert.equal(result.choices, null);
+ assert.deepEqual(result.added, [{ province: "云南省", place: "迪庆藏族自治州", spot: "香格里拉市" }]);
+ const choice = { id: destinationPreferenceId("云南省", "迪庆藏族自治州", "香格里拉市"), name: "迪庆藏族自治州",
+  province: "云南省", city: "迪庆藏族自治州", spot: "香格里拉市" };
  assert.deepEqual(await verifyDestinationChoice(choice, service), { status: "verified",
   pick: { province: "云南省", place: "迪庆藏族自治州", spot: "香格里拉市" } });
  assert.equal(queries.at(-1), "香格里拉市");

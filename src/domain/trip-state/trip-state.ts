@@ -1,3 +1,4 @@
+import type { RecommendationScope } from "@/domain/trip-message/trip-message";
 import {
   transportPreferences,
   type TripDraft,
@@ -81,9 +82,15 @@ export function destinationText(destination: DestinationField): string | null {
  * is settled the question has an answer, and offering a list against it would be
  * arguing with the user instead of helping them.
  */
-export function isDestinationOpenToRecommendations(destination: DestinationField): boolean {
-  if (destination.state === "missing") return true;
+export function isDestinationOpenToRecommendations(
+  destination: DestinationField,
+  scope: RecommendationScope = "within",
+): boolean {
+  if (destination.state === "missing") return scope === "within";
   if (destination.legacyText) return false;
+  // Widening is asked for on top of what is saved, so it needs something saved; it
+  // never argues with a choice, because the cards come only from other provinces.
+  if (scope === "elsewhere") return destination.areas.length > 0;
   return destination.areas.every((area) => area.places.length === 0);
 }
 

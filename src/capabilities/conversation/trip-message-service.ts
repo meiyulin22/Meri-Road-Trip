@@ -95,6 +95,29 @@ export class TripMessageService {
     return this.dependencies.repository.createAssistantIfAbsent(message);
   }
 
+  /**
+   * Delivers the recommendation cards a pending reply promised, under the id derived
+   * from that reply, so asking twice returns the one list already written.
+   */
+  async persistRecommendationCards(input: {
+    readonly tripId: string;
+    readonly ownerGuestId: string;
+    readonly messageId: string;
+    readonly content: string;
+    readonly presentation?: TripMessagePresentation;
+  }): Promise<TripMessage> {
+    await this.dependencies.tripService.getTripById(input.tripId, input.ownerGuestId);
+    const message = validateTripMessage({
+      id: input.messageId,
+      tripId: input.tripId,
+      role: "assistant",
+      content: input.content,
+      ...(input.presentation ? { presentation: input.presentation } : {}),
+      createdAt: this.now().toISOString(),
+    });
+    return this.dependencies.repository.createAssistantIfAbsent(message);
+  }
+
   async persistSuccessfulTurn(input: {
     readonly tripId: string;
     readonly ownerGuestId: string;

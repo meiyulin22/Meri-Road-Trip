@@ -1,5 +1,5 @@
 /** Product coverage, not a substitute for provider verification of a place. */
-export const domesticProvinces = [
+export const chinaProvinces = [
   "北京市", "天津市", "河北省", "山西省", "内蒙古自治区",
   "辽宁省", "吉林省", "黑龙江省", "上海市", "江苏省", "浙江省",
   "安徽省", "福建省", "江西省", "山东省", "河南省", "湖北省",
@@ -9,11 +9,11 @@ export const domesticProvinces = [
   "香港特别行政区", "澳门特别行政区",
 ] as const;
 
-const supportedNames = new Set<string>(domesticProvinces.flatMap((province) => [
+const supportedNames = new Set<string>(chinaProvinces.flatMap((province) => [
   province,
   province.replace(/(?:省|市|壮族自治区|回族自治区|维吾尔自治区|自治区|特别行政区)$/u, ""),
 ]));
 
-export function isDomesticProvince(province: string | null | undefined): boolean {
+export function isChinaProvince(province: string | null | undefined): boolean {
   return typeof province === "string" && supportedNames.has(province.normalize("NFKC").trim());
 }

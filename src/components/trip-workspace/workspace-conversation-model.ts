@@ -102,3 +102,11 @@ export class DestinationOfferExpiredError extends WorkspaceConversationRequestEr
     this.name = "DestinationOfferExpiredError";
   }
 }
+
+/** The conversation or the destination moved on before the promised cards were chosen. */
+export class RecommendationsStaleError extends WorkspaceConversationRequestError {
+  constructor() {
+    super("The recommendation request is no longer current.");
+    this.name = "RecommendationsStaleError";
+  }
+}

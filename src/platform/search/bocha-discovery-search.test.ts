@@ -30,10 +30,10 @@ test("one documented web-search request that asks for the fuller page text", asy
     requests.push(JSON.parse(String(init?.body)));
     return Response.json(body([page(1)]));
   } });
-  const results = await search.search("国内 高山 徒步 成熟路线");
+  const results = await search.search("秋季 高山 徒步 成熟路线");
   assert.equal(requests.length, 1);
   assert.deepEqual(requests[0], {
-    query: "国内 高山 徒步 成熟路线", freshness: "noLimit", summary: true, count: 8,
+    query: "秋季 高山 徒步 成熟路线", freshness: "noLimit", summary: true, count: 8,
   });
   assert.deepEqual(results, [{
     source: "Publisher 1", title: "Trail story 1", url: "https://example.test/story/1",

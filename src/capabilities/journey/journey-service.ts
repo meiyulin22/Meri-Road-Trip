@@ -52,6 +52,8 @@ export class JourneyService {
     ownerGuestId: string,
     initialUserMessage?: string,
     openingAssistant?: { readonly content: string; readonly presentation?: TripMessagePresentation },
+    /** Places the first message named that the provider matched exactly. */
+    initialDestination?: DestinationField,
   ): Promise<Journey> {
     const draft = validateTripDraftDomain(draftInput);
     if (initialUserMessage !== undefined &&
@@ -66,7 +68,9 @@ export class JourneyService {
     if (openingAssistant && (!initialUserMessage || !persistOpeningAssistant)) {
       throw new Error("Opening assistant persistence requires an initial user message.");
     }
-    const tripState = initializeTripState(draft);
+    const tripState = initialDestination === undefined
+      ? initializeTripState(draft)
+      : { ...initializeTripState(draft), destination: initialDestination };
     const trip = await this.dependencies.tripService.createTrip({}, ownerGuestId);
 
     try {

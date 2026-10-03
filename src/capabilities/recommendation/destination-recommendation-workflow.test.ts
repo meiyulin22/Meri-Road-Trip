@@ -12,7 +12,7 @@ const state: TripState = {
   duration: { state: "missing" }, transportPreference: { state: "missing" },
 };
 const context: DestinationRecommendationContext = {
-  source: "conversation", tripState: state, conversationHistory: [{ role: "user", content: "成熟的徒步路线" }],
+  source: "conversation", scope: "within", tripState: state, conversationHistory: [{ role: "user", content: "成熟的徒步路线" }],
 };
 const groups: readonly DestinationRecommendationGroup[] = [
   { province: "云南省", places: [
@@ -85,4 +85,27 @@ test("a generation failure reaches the caller rather than becoming an empty list
   await assert.rejects(runDestinationRecommendationWorkflow(context, "request-5", {
     ...deps, async generate() { throw new Error("model unavailable"); },
   }), /model unavailable/u);
+});
+
+test("widening a trip drops every province already saved, whatever spelling the model used", async () => {
+  const saved: DestinationRecommendationContext = { ...context, scope: "elsewhere", tripState: { ...state,
+    destination: { state: "known" as const, source: "user", areas: [
+      { province: "云南省", places: [{ name: "丽江市", spots: ["玉龙雪山"] }] }] } } };
+  const { deps } = dependencies({ generated: [
+    { province: "云南", places: [{ name: "大理白族自治州", reason: "苍山洱海" }] },
+    { province: "四川省", places: [{ name: "甘孜藏族自治州", reason: "川西环线的主要一段" }] },
+  ] });
+  const result = await runDestinationRecommendationWorkflow(saved, "request-6", deps);
+  assert.deepEqual(result.presentation?.destinations,
+    [{ id: "id-1", name: "甘孜藏族自治州", province: "四川省", reason: "川西环线的主要一段" }]);
+});
+
+test("nothing found outside the saved provinces is said as such", async () => {
+  const saved: DestinationRecommendationContext = { ...context, scope: "elsewhere", tripState: { ...state,
+    destination: { state: "known" as const, source: "user", areas: [{ province: "云南省", places: [] },
+      { province: "四川省", places: [] }] } } };
+  const { deps } = dependencies();
+  const result = await runDestinationRecommendationWorkflow(saved, "request-7", deps);
+  assert.equal(result.presentation, undefined);
+  assert.match(result.content, /其他省份/u);
 });

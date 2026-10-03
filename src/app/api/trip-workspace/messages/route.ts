@@ -22,8 +22,8 @@ import {
   InvalidWorkspaceConversationRequestError,
 } from "@/capabilities/conversation/workspace-conversation-interpreter";
 import { selectRecentConversationMessages } from "@/capabilities/conversation/workspace-conversation-context";
-import { destinationRecommendationDependencies, persistConversationalRecommendationTurn } from "@/capabilities/recommendation/destination-recommendation-use-case";
-import { InvalidDestinationRecommendationOutputError } from "@/capabilities/recommendation/destination-recommendation-generator";
+import { recommendationScopeForTurn } from "@/capabilities/recommendation/destination-recommendation-use-case";
+import { destinationEditReply } from "@/capabilities/conversation/turn-reply";
 import { AmapLocationProvider } from "@/platform/location-provider/amap-location-provider";
 import { TripStateNotFoundError, TripStateConflictError } from "@/capabilities/journey/journey-errors";
 import { journeyService } from "@/capabilities/journey/journey-service-instance";
@@ -88,8 +88,7 @@ function mapError(error: unknown): ErrorResponse {
   if (
     error instanceof LlmProviderRequestError ||
     error instanceof InvalidWorkspaceConversationModelOutputError ||
-    error instanceof InvalidWorkspaceConversationInterpretationError ||
-    error instanceof InvalidDestinationRecommendationOutputError
+    error instanceof InvalidWorkspaceConversationInterpretationError
   ) {
     return { status: 502, message: "Workspace conversation failed." };
   }
@@ -161,7 +160,7 @@ export async function POST(request: Request) {
       requestId,
       ...getRequestContext(),
     });
-    const patch = createTripStatePatchFromInterpretation(interpretation);
+    const patch = createTripStatePatchFromInterpretation(interpretation, tripState);
     let persistedTripState = patch
       ? await journeyService.updateTripState(tripId, ownerGuestId, patch)
       : tripState;
@@ -171,36 +170,41 @@ export async function POST(request: Request) {
       interpretation.destinationEdit,
       (expression) => resolveDestinationPlace(expression,
         (query) => locationService.resolveExpression(query)),
+      body.message,
     );
     if (destinationResult.changed) {
       persistedTripState = await journeyService.updateTripState(tripId, ownerGuestId,
         { destination: destinationResult.destination }, persistedTripState.destination);
     }
-    const persistedPatch = patch ?? (destinationResult.changed
-      ? { destination: destinationResult.destination } : null);
-    const recommendationMessages = destinationResult.choices || interpretation.destinationEdit.operation !== "none"
+    const persistedPatch = patch || destinationResult.changed
+      ? { ...(patch ?? {}), ...(destinationResult.changed ? { destination: destinationResult.destination } : {}) }
+      : null;
+    // A card or an unplaced name is this turn's question for the user; cards of a
+    // second kind beside it would ask two things at once.
+    const destinationNeedsUser = destinationResult.choices !== null ||
+      destinationResult.unresolved.length > 0 || destinationResult.lookupFailed.length > 0;
+    const recommendationScope = destinationNeedsUser
       ? null
-      : await persistConversationalRecommendationTurn({
-        tripId, ownerGuestId, tripState: persistedTripState, interpretation, patch, persistedPatch,
-        previousMessages, currentUserText: body.message, requestId,
-      }, {
-        ...destinationRecommendationDependencies(),
-        persistTurn: (input) => tripMessageService.persistSuccessfulTurn(input),
-      });
-    const reply = destinationResult.choices
-      ? `找到「${destinationResult.choices.answering}」相关的地点了。点击添加后才会记入旅程。${
-          destinationResult.unresolved.length ? `「${destinationResult.unresolved.join("、")}」暂时没找到。` : ""}${
-          destinationResult.lookupFailed.length ? `「${destinationResult.lookupFailed.join("、")}」查询暂时不可用。` : ""}`
-      : destinationResult.ambiguousRemovals.length
-        ? `${destinationResult.changed ? "已移除能确认的地点。" : ""}「${destinationResult.ambiguousRemovals.join("、")}」对应多个已保存地点，请说得更具体一些。`
-        : destinationResult.notInDestination.length
-          ? `${destinationResult.changed ? "已移除能确认的地点。" : ""}当前旅程里没有找到「${destinationResult.notInDestination.join("、")}」。`
-      : destinationResult.lookupFailed.length
-        ? "地点查询暂时不可用，目的地没有改变。请稍后重试。"
-        : destinationResult.unresolved.length
-          ? `暂时没找到「${destinationResult.unresolved.join("、")}」的可靠地点，目的地没有因此改变。`
-          : interpretation.reply;
-    const finalInterpretation = { ...interpretation, reply: recommendationMessages?.[1].content ?? reply };
+      : recommendationScopeForTurn(interpretation, persistedTripState);
+    if (recommendationScope === null && interpretation.presentationIntent !== "none") {
+      // The model asked for cards on a turn that cannot offer them, so its reply is
+      // the whole turn. That is legitimate, but it is also how a weak reply reaches
+      // the user, and it is invisible without this line.
+      logger.warn({
+        event: logEvents.recommendationIntentDeclined, ...context, tripId,
+        presentationIntent: interpretation.presentationIntent,
+        destinationState: persistedTripState.destination.state,
+        destinationOperation: interpretation.destinationEdit.operation,
+        destinationNeedsUser,
+      }, "Destination recommendations were requested on a turn that cannot offer them");
+    }
+    const reply = destinationEditReply(destinationResult, interpretation.reply, tripState, persistedTripState);
+    const assistantPresentation = destinationResult.choices
+      ? destinationResult.choices.presentation
+      : recommendationScope
+        ? { type: "destination_recommendations_pending" as const, scope: recommendationScope }
+        : undefined;
+    const finalInterpretation = { ...interpretation, reply };
 
     if (persistedPatch !== null) {
       logger.info(
@@ -214,19 +218,20 @@ export async function POST(request: Request) {
       );
     }
 
-    const messages = recommendationMessages ?? await tripMessageService.persistSuccessfulTurn({
+    const messages = await tripMessageService.persistSuccessfulTurn({
       tripId,
       ownerGuestId,
       userContent: body.message,
       assistantContent: finalInterpretation.reply,
-      ...(destinationResult.choices ? { assistantPresentation: destinationResult.choices.presentation } : {}),
+      ...(assistantPresentation ? { assistantPresentation } : {}),
     });
     logger.info(
       {
         event: logEvents.tripMessageTurnPersisted,
         ...context,
         tripId,
-        branch: destinationResult.choices ? "destination_choices" : recommendationMessages ? "destination_recommendations" : "conversation",
+        branch: destinationResult.choices ? "destination_choices"
+          : recommendationScope ? `destination_recommendations_${recommendationScope}` : "conversation",
         messageIds: messages.map((message) => message.id),
       },
       "Trip conversation turn persisted",

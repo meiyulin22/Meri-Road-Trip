@@ -114,11 +114,15 @@ export function DestinationEditor({ tripId, tripState, onTripStateChange, initia
               <button type="button" disabled={busy !== null} aria-label={`删除${area.province}${place.name}`}
                 onClick={() => remove({ province: area.province, place: place.name, spot: null })}><X size={12} aria-hidden="true" /></button>
             </span>
-            {place.spots.map((spot) => <span className={styles.destinationChip} data-kind="spot" key={spot} title={`想去：${spot}`}>
-              <MapPin size={11} aria-hidden="true" />{spot}
-              <button type="button" disabled={busy !== null} aria-label={`删除景点${spot}`}
-                onClick={() => remove({ province: area.province, place: place.name, spot })}><X size={11} aria-hidden="true" /></button>
-            </span>)}
+            {/* One line per city, its spots beside it: wrapped into one shared row, a
+                spot on the second line read as belonging to whichever city sat above it. */}
+            {place.spots.length > 0 ? <span className={styles.destinationSpots}>
+              {place.spots.map((spot) => <span className={styles.destinationChip} data-kind="spot" key={spot} title={`想去：${spot}`}>
+                <MapPin size={11} aria-hidden="true" />{spot}
+                <button type="button" disabled={busy !== null} aria-label={`删除景点${spot}`}
+                  onClick={() => remove({ province: area.province, place: place.name, spot })}><X size={11} aria-hidden="true" /></button>
+              </span>)}
+            </span> : null}
           </li>)}</ul>}
       </section>)}</div>}
     {error ? <p className={styles.destinationEditorError} role="alert">{error}</p> : null}

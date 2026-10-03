@@ -17,11 +17,15 @@ export function conversationHistoryContent(message: TripMessage): string {
   if (message.role !== "assistant" || !message.presentation) {
     return message.content;
   }
-  return `${message.content}\n${presentationText(message.presentation)}`;
+  const shown = presentationText(message.presentation);
+  return shown === null ? message.content : `${message.content}\n${shown}`;
 }
 
-function presentationText(presentation: TripMessagePresentation): string {
+function presentationText(presentation: TripMessagePresentation): string | null {
   switch (presentation.type) {
+    // The cards it announced arrive as the next message and are written out there.
+    case "destination_recommendations_pending":
+      return null;
     case "destination_choices":
       return `${shownDestinationCardsLabel} ${presentation.choices.map((choice) =>
         `${choice.city ?? choice.name}（${choice.province}）${choice.spot ? `，想去：${choice.spot}` : ""}`).join("｜")}`;

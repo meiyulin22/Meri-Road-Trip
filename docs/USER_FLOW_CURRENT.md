@@ -9,8 +9,9 @@ flowchart TD
   A[首页 /] -->|输入旅行想法| B[Kimi 提取 TripDraft]
   B --> C[校验普通字段及 destinationEdit]
   C --> D{有地点提案？}
-  D -->|有| E[高德核验，准备候选]
-  E --> G[创建 Journey、状态、原话、候选消息]
+  D -->|有| E[高德核验：精确地点写入，其余准备候选]
+  E -->|有候选或失败| G[创建 Journey、状态、原话、候选消息]
+  E -->|全部精确写入| F
   D -->|无| F[创建 Journey 后生成 opening 回复]
   G --> W[Workspace /trips/id]
   F --> W
@@ -19,10 +20,12 @@ flowchart TD
   W -->|聊天| I[Kimi 结构化解释]
   I --> J[应用校验并保存普通字段]
   J --> K{destinationEdit}
-  K -->|add/set| P[核验并保存待选卡，目的地不变]
+  K -->|add/set 精确且是原话| P2[直接写入目的地]
+  K -->|add/set 不确定| P[核验并保存待选卡，目的地不变]
+  P2 --> N
   K -->|remove| R[当前状态匹配，唯一目标删除]
   K -->|none| N{推荐意图且状态允许？}
-  N -->|是| S[Bocha + Kimi 推荐 + 省份过滤]
+  N -->|是| S[先保存模型引导 + pending；卡片由第二个请求 Bocha + Kimi + 省份过滤生成]
   N -->|否| T[模型 reply]
   P --> M[保存真实用户与助手消息]
   R --> M
@@ -96,13 +99,13 @@ flowchart TD
 
 客户端提交 `{draft, initialUserMessage}` 到 [journeys API](../src/app/api/journeys/route.ts)。[createJourneyWithOpening](../src/capabilities/journey/create-journey-with-opening.ts)再次校验草稿；有原话且 destinationEdit 不为 none 时，以 missing 目的地为基底执行地点操作。
 
-- add/set 查询地点并生成待选卡，即使唯一匹配也不直接写 destination。
-- 有候选时保存固定开场和 presentation，告知选好后提交才会记入旅程。
+- add/set 查询地点。**精确匹配**直接作为初始目的地：提供方只返回一个地点（或多条记录都落在同一省/市/spot 偏好），名称等于用户原话或只多出行政/景区后缀（大连→大连市、迪庆→迪庆藏族自治州、玉龙雪山→玉龙雪山风景区），**且这个表达确实出现在用户原话里**。其余（错别字、多个可能、宽泛区域、模型改写过的名称）生成待选卡。
+- 有候选或找不到的表达时，保存应用模板开场（[destinationEditReply](../src/capabilities/conversation/turn-reply.ts)）和 presentation，告知点击添加后才会记入旅程。
 - 没结果或提供方失败时保存事实说明，不写无法验证的地点。
-- 没有上述固定开场时，创建后执行 opening 模式。
+- 没有上述固定开场时（包括地点已精确写入），创建后执行 opening 模式；opening 看到已保存的目的地，不宣称是否可以生成计划，最多问一个问题。
 - 没有 initialUserMessage 的接口调用返回 not_requested；首页正常路径提供原话。
 
-[initializeTripState](../src/domain/trip-state/trip-state.ts)建立初始状态，目的地初始 missing。草稿中的普通字段可保留；正式目的地由后续用户选择提交产生。
+[initializeTripState](../src/domain/trip-state/trip-state.ts)建立初始状态，目的地初始 missing；精确匹配的地点由 [JourneyService.createJourney](../src/capabilities/journey/journey-service.ts) 的 initialDestination 参数写入初始状态。草稿中的普通字段可保留；其余目的地由后续用户选择提交产生。
 
 ### 2.3 保存、回滚与开场重试
 
@@ -124,17 +127,21 @@ flowchart TD
   C --> D[校验输出并生成普通字段 patch]
   D --> E[保存普通字段]
   E --> F[applyDestinationEdit]
-  F -->|add/set| G[候选或失败事实，目的地不变]
+  F -->|add/set 精确且是用户原话| G1[直接写入，带预期目的地保存]
+  F -->|add/set 不确定| G[候选或失败事实，目的地不变]
   F -->|remove| H[唯一目标删除，带预期目的地保存]
   F -->|none| I[判断推荐资格]
-  I -->|允许| J[推荐工作流]
+  G1 --> I
+  H --> I
+  I -->|within / elsewhere| J[正文后挂 pending 标记]
   I -->|不允许| K[模型 reply]
-  G --> L[确定最终正文及 presentation]
-  H --> L
+  G --> L[destinationEditReply 组装正文及 presentation]
   J --> L
   K --> L
   L --> M[保存真实用户和助手消息]
   M --> N[返回 interpretation、tripState、messages]
+  N -->|最后一条是 pending| P[客户端 POST destination-recommendations]
+  P --> Q[推荐工作流 → 卡片作为下一条助手消息]
 ```
 
 ### 3.1 模型实际决定什么
@@ -145,10 +152,10 @@ flowchart TD
 
 | 字段 | 合法值/形状 | 用途 |
 | --- | --- | --- |
-| presentationIntent | none / destination_recommendations | 推荐信号，应用再检查资格 |
+| presentationIntent | none / destination_recommendations / destination_recommendations_elsewhere | 推荐信号，应用再检查资格；elsewhere 表示扩大到尚未保存的省份 |
 | changes | 六类普通字段的修改数组 | field、state、value；不能改 destination 或重复字段 |
 | destinationEdit | none / add / set / remove | 本次用户提及的地点操作，不重写整个旧目的地 |
-| reply | 非空文字 | 暂定自然回复，可能被应用事实覆盖 |
+| reply | 非空文字 | 暂定自然回复；有地点事实时排在应用句子之后，有卡或失败时被省略 |
 
 受限 JSON 示例（按规则构造，不代表某次线上原始输出）：
 
@@ -170,41 +177,50 @@ flowchart TD
 - add 是追加提议，保留现有目的地。
 - set 用于首次提及地点，和 add 一样只生成追加卡；已有目的地时也不能清空旧项。只有用户明确表示不去某个已保存地点，才用 remove 删除对应省/市/spot。
 - remove 是删除当前保存目标。
-- broadRegion 表示潮汕等宽泛区域，places 为模型提出的具体表达，仍需高德验证。
+- broadRegion 表示潮汕等宽泛区域，places 为模型提出的具体表达，仍需高德验证，且总是出卡。
+- places 应保留用户原话，包括错别字（大莲仍是大莲）。模型改写过的名称即使精确匹配也只出卡：应用检查表达是否出现在用户原话里，因为模型曾把“大莲”改写成“大理”并直接写入。
 
-[Workspace prompt](../src/capabilities/conversation/prompts/workspace-conversation-prompt.ts)要求区分明确修改与提问、保留用户决定及具体景点表达、缺目的地时推荐或追问。不允许编造未研究的实时事实或直接写行程。
+[Workspace prompt](../src/capabilities/conversation/prompts/workspace-conversation-prompt.ts)要求区分明确修改与提问、保留用户决定及具体景点表达、缺目的地时推荐或追问。不允许编造未研究的实时事实或直接写行程。其余规则：
+
+- 回复不说地点“已记录/已添加/已加入”，目的地发生了什么由应用的句子说明。
+- 不说旅程能否生成计划；用户问时不回答这一点，只问一个缺失信息（先问出发地）。
+- 天气只可说季节特征（旱季/雨季、冷热、是否可能下雪），并说明是一般情况，不报温度、降雨等数字，建议临近出发查预报；价格、开放时间、人流、路况一律说暂时查不到。
+- 每次回复最多一个问题。
+- 明确要求推荐（“推荐一下”“有什么好地方”）本身就够出卡，不先追问日期或偏好；推荐回合的正文只说要推荐，不点名任何地点、不列举、不承诺数量、不提问。
 
 当前没有 intent、destinationDisambiguation 和旧 resolve_location 前置工具。模型不能生成 providerId、宣称数据库操作成功或生成任意 React/CSS。LLM 判断语义，应用负责执行权限和事实边界。
 
 ### 3.2 应用实际决定什么
 
-**行政地名补查：**[LocationService.resolveExpression](../src/capabilities/destination/location-service.ts)先按原词查询。如果返回了 POI，但没有合理匹配，且原词为 2–12 个汉字、不以省/市/区/县/州/镇/乡/村结尾，最多再查询一次“原词＋市”。补查只接受名称精确匹配且 city 或 district 同名的行政地点；酒店、道路等不能替代城市。空结果、已有明确/歧义结果不补查，提供方失败仍报查询故障。例如“香格里拉”的酒店结果可通过“香格里拉市”补查恢复；仍需国内范围检查和显式确认。县级市在当前结构中归到所属地级市/自治州，偏好名称保留提供方行政全名，确认时用全名重新查询，避免再次落到同名酒店。
+**行政地名补查：**[LocationService.resolveExpression](../src/capabilities/destination/location-service.ts)先按原词查询。如果返回了 POI，但没有合理匹配，且原词为 2–12 个汉字、不以省/市/区/县/州/镇/乡/村结尾，最多再查询一次“原词＋市”。补查只接受名称精确匹配且 city 或 district 同名的行政地点；酒店、道路等不能替代城市。空结果、已有明确/歧义结果不补查，提供方失败仍报查询故障。例如“香格里拉”的酒店结果可通过“香格里拉市”补查恢复；仍需中国范围检查和显式确认。县级市在当前结构中归到所属地级市/自治州，偏好名称保留提供方行政全名，确认时用全名重新查询，避免再次落到同名酒店。
 
-**结构校验：**解释器拒绝空输出、截断输出、非法 JSON；[领域校验](../src/domain/trip-state/workspace-conversation.ts)要求精确四项顶层键，检查字段名、重复字段、状态和值及交通枚举。missing 的 value 必须为 null，其他普通状态必须有非空 value。
+**结构校验：**解释器拒绝空输出、截断输出、非法 JSON；[领域校验](../src/domain/trip-state/workspace-conversation.ts)要求精确四项顶层键，检查字段名、重复字段、状态和值及交通枚举。missing 的 value 必须为 null，其他普通状态必须有非空 value。交通可以清空为 missing；有值时必须是 known 且为支持的四个值之一。
 
-**普通字段：**createTripStatePatchFromInterpretation 将 changes 转成 source=user 的 patch；空数组返回 null。destination 不在普通 changes 中。
+**普通字段：**createTripStatePatchFromInterpretation 以当前 TripState 为参照，先丢弃不会改变字段的 change（重复当前值，或对已经 missing 的字段再写 missing），再转成 source=user 的 patch；剩余为空返回 null。模型习惯重复已有字段，若照写会让旧值覆盖新值。destination 不在普通 changes 中。
 
-**地点执行：**[applyDestinationEdit](../src/capabilities/destination/apply-destination-edit.ts)返回 destination、changed、choices，以及 unresolved、lookupFailed、notInDestination、ambiguousRemovals 等事实，供 route 决定保存和回复。
+**地点执行：**[applyDestinationEdit](../src/capabilities/destination/apply-destination-edit.ts)接收用户原话，返回 destination、changed、added（已直接写入的地点）、choices，以及 unresolved、lookupFailed、notInDestination、ambiguousRemovals 等事实，供 route 决定保存和回复。精确判断由 [resolveDestinationPlace](../src/capabilities/destination/resolve-destination-place.ts) 的 `exact` 与 `namesSamePlace` 给出：提供方名称必须以用户表达开头，余下部分只能是行政后缀（省/市/县/区/自治州/自治区/特别行政区/地区/盟，可带民族名）或景区后缀（风景区/景区/风景名胜区/旅游区/国家公园/自然保护区）。
 
 | 操作/查询结果 | 正式目的地行为 | 用户看到什么 |
 | --- | --- | --- |
 | none | 不变 | 有资格可推荐，否则模型 reply |
-| add/set + resolved | 不变 | 待选卡，唯一地点也需确认 |
-| add/set + area | 不变 | 已核验省级候选；选后保存为只有省的目的地，可直接规划，也可继续选城市 |
-| add/set + ambiguous | 不变 | 按省/市/景点偏好归并；不同省市分别供选择 |
+| add/set + resolved 精确且是用户原话 | 直接写入（已存在则不变） | “已加入…”，首次可规划时附一次准备度句子，再接模型 reply |
+| add/set + resolved 不精确或模型改写 | 不变 | 待选卡（如错别字被提供方纠正） |
+| add/set + area | 精确时直接写入为只有省的目的地；否则不变 | 精确：“已加入云南省”，可直接规划；否则省级候选卡 |
+| add/set + ambiguous 落在同一偏好 | 同 resolved | 三个梅里雪山记录同属迪庆/梅里雪山，按一个地点判断精确 |
+| add/set + ambiguous 跨省市 | 不变 | 按省/市/景点偏好归并；不同省市分别供选择 |
 | add/set + unresolved | 不因该表达改变 | 暂未找到可靠地点 |
 | add/set + provider_error | 不因该表达改变 | 查询暂不可用，可重试 |
-| 多表达部分成功 | 候选仍未保存为目的地 | 展示成功项，并说明失败表达 |
+| 多表达部分成功 | 精确项写入，其余仍为候选 | “已加入…”＋候选卡，并说明失败表达 |
 | remove 唯一匹配 | 删除对应项 | 无失败时可用模型 reply；级联由领域规则执行 |
 | remove 多匹配 | 不删这个表达的项 | 要求说明更具体目标 |
 | remove 无匹配 | 不删这个表达的项 | 告知当前旅程没有该地点 |
 | 多 remove 部分唯一 | 唯一目标可以删除 | 说明已移除可确认项及未处理项 |
 
-add/set 使用 Promise.all 查询表达。解析层保留不同 provider ID，不把不同 POI 认成同一具体位置；生成旅程选择卡时，按省/市/spot 偏好身份归并。三个梅里雪山记录若归属同一省市且表达同一偏好，只出一个城市选择，附「想去：梅里雪山」。这是目的地偏好的合并，不是具体 POI 消歧成功。不同省市、同市不同 spot 仍分别保留。候选数受消息模型上限约束。set 和 add 均生成 mode=add，提交时合并最新状态。旧版本保存的 mode=replace 卡仍按原基底、过期与幂等规则处理；本版本聊天不再生成整体替换卡。
+add/set 使用 Promise.all 查询表达。解析层保留不同 provider ID，不把不同 POI 认成同一具体位置；生成旅程选择卡时，按省/市/spot 偏好身份归并。三个梅里雪山记录若归属同一省市且表达同一偏好，就是一个地点：精确时直接写入迪庆藏族自治州并附 spot「梅里雪山」，否则只出一个城市选择。这是目的地偏好的合并，不是具体 POI 消歧成功。不同省市、同市不同 spot 仍分别保留。候选数受消息模型上限约束。set 和 add 均生成 mode=add，提交时合并最新状态。旧版本保存的 mode=replace 卡仍按原基底、过期与幂等规则处理；本版本聊天不再生成整体替换卡。
 
 聊天 remove 先匹配当前 areas 的精确名称，无精确匹配才允许唯一前缀；多匹配不能取第一个。UI 删除提交完整省/市/spot 元组，不用模糊前缀。
 
-**实际分支顺序：**[messages route](../src/app/api/trip-workspace/messages/route.ts)先保存普通字段，再运行地点 edit；只有 destinationEdit=none 才进入推荐用例。最终正文按“候选 → 删除歧义 → 删除无匹配 → 查询失败 → 无结果 → 模型 reply”选取，候选正文可包含部分失败说明。推荐用例返回已保存消息时不再重复保存一组。
+**实际分支顺序：**[messages route](../src/app/api/trip-workspace/messages/route.ts)先保存普通字段，再运行地点 edit；精确地点带 expectedDestination 写入。地点 edit 出了卡或有找不到/查询失败的表达时，本轮不推荐；否则由 [recommendationScopeForTurn](../src/capabilities/recommendation/destination-recommendation-use-case.ts)按写入后的状态判断推荐范围，因此“我想去云南，想爬山”可以在同一轮写入云南省并推荐省内城市。正文由 [destinationEditReply](../src/capabilities/conversation/turn-reply.ts)组装：已加入 → 候选 → 删除歧义/无匹配 → 查询失败 → 无结果，旅程首次变为可规划时附一次准备度句子；有卡或失败时省略模型 reply，否则接在后面。推荐回合只在助手消息上挂 `destination_recommendations_pending`，卡片由第二个请求生成（见 4.1）。
 
 [workspace-turn-branch](../src/capabilities/conversation/workspace-turn-branch.ts)存在且有单测，但当前 route 没有调用它。这里以实际 route 条件为准，不能把该 helper 描述为正在运行的中央决策器。
 
@@ -228,13 +244,16 @@ add/set 使用 Promise.all 查询表达。解析层保留不同 provider ID，�
 
 | 输入及状态 | 预期结构与路径 | 结果 |
 | --- | --- | --- |
-| 缺目的地：“人少安静，彻底放空” | none + 推荐信号，Bocha/Kimi 推荐 | 有卡用本轮模型 reply，目的地不变 |
+| 缺目的地：“人少安静，彻底放空” | none + 推荐信号 | 先显示模型的简短引导，卡片随后作为下一条消息出现，目的地不变 |
+| 缺目的地：“你推荐一下呗” | none + 推荐信号；明确要求即可 | 同上，不先追问日期 |
 | 缺目的地：“想出去玩” | none，无推荐信号 | Kimi 追问，无状态变化 |
-| “我想去云南” | add/set，查询省级 area | 待选省卡；提交后为只有省的目的地，已可规划 |
-| “云南，想爬山” | 地点 edit 占本轮 | 先确认省，之后可省内推荐；本轮不再自动连跑推荐 |
+| “我想去云南” | add/set，查询省级 area，精确 | 直接写入云南省（全省），首次可规划 |
+| “云南，想爬山” | set 云南 + 推荐信号 | 同一轮写入云南省，再挂 pending，卡片限云南省内 |
+| “我还想去大莲”（错字） | add，places 保留“大莲” | 不直接写入；提供方给出的地点作为卡片供确认，或说明没找到 |
+| 已有城市：“推荐下别的省份” | none + destination_recommendations_elsewhere | 卡片只来自尚未保存的省份，已保存的全部保留 |
 | 已有浙江福建：“还想去潮汕” | add，broadRegion=潮汕，核验相关市 | 广东城市可多选追加，旧目的地保留 |
-| 已有云南后说“我想去青岛” | add；模型误用 set 也生成 add 卡 | 确认后保留云南并追加山东/青岛 |
-| “想去梅里雪山” | 保留表达并查真实行政归属 | 确认后城市含 spots=[梅里雪山]，名称不被自治州吞掉 |
+| 已有云南后说“我想去青岛” | add；模型误用 set 也只追加 | 精确时直接追加山东/青岛，保留云南 |
+| “想去梅里雪山” | 保留表达并查真实行政归属 | 直接写入迪庆藏族自治州，spots=[梅里雪山]，名称不被自治州吞掉 |
 | “朝阳”返回多个地点 | ambiguous，保留不同 provider 身份 | 用户区分候选，不自动取第一项 |
 | “不去潮州了” | remove 当前保存名 | 唯一目标删除，最后一个城市删除后省仍在 |
 | “不去梅里雪山了” | remove 当前 spot | 删除 spot，保留城市和省 |
@@ -246,20 +265,38 @@ add/set 使用 Promise.all 查询表达。解析层保留不同 provider ID，�
 
 ### 4.1 推荐如何触发
 
-**国内服务范围：**当前只提供中国境内旅行建议。草稿、开场、聊天和推荐提示词明确该范围，不主动询问“国内还是国外”；纯境外请求应说明范围且不提出目的地增改或推荐卡。提示词约束不等于普通正文经过地理核验。[domestic-destination-scope](../src/domain/location/domestic-destination-scope.ts)维护 34 个省级行政区的完整名称和常用简称；这是服务范围校验，不是地点归属映射，也不承诺提供方能核验每一个城市/景点。模型推荐 schema 的 province 使用完整名称枚举，运行时校验再次检查名单；含不支持省份的整批输出作为无效模型输出处理，不创建卡片，沿用推荐失败路径。城市名称仍在用户确认时核验，不能仅凭模型写了一个国内省名就保存。
+**中国目的地范围：**Meri 的用户可以来自任何国家，目的地限定在中国境内（含港澳台，仍需提供方核验）。草稿、开场、聊天和推荐提示词明确该范围；聊天只在用户提到中国以外的目的地时简短说明“目前只规划中国境内的旅行”，其余回复不提范围，不使用“国内/国外”的说法，也不询问去中国还是境外。纯境外请求不提出目的地增改或推荐卡。范围在提示词里是有条件的规则而不是固定话术：1.0021 曾让模型照念一句固定话术，结果无关回复（如“我想安静一点的地方”）也以它开头。提示词约束不等于普通正文经过地理核验。[china-destination-scope](../src/domain/location/china-destination-scope.ts)维护 34 个省级行政区的完整名称和常用简称；这是服务范围校验，不是地点归属映射，也不承诺提供方能核验每一个城市/景点。模型推荐 schema 的 province 使用完整名称枚举，运行时校验再次检查名单；含范围外省份的整批输出作为无效模型输出处理，不创建卡片，沿用推荐失败路径。城市名称仍在用户确认时核验，不能仅凭模型写了一个中国省名就保存。
 
-**聊天自动触发：**presentationIntent=destination_recommendations 只是模型信号。[shouldCreateConversationalRecommendations](../src/capabilities/recommendation/destination-recommendation-use-case.ts)还要求 destinationEdit=none，且 [isDestinationOpenToRecommendations](../src/domain/trip-state/trip-state.ts)允许当前状态：missing 或没有选城市的省范围。已定城市不能因推荐信号被替换；legacyText 不作为已验证省范围。
+**聊天自动触发：**presentationIntent 只是模型信号。[recommendationScopeForTurn](../src/capabilities/recommendation/destination-recommendation-use-case.ts)按本轮写入后的状态和 [isDestinationOpenToRecommendations](../src/domain/trip-state/trip-state.ts)决定范围：
+
+- `destination_recommendations` → within：目的地 missing 或只有没选城市的省，卡片限已保存省份内。
+- `destination_recommendations_elsewhere` → elsewhere：已有至少一个省份时扩大范围，卡片只来自尚未保存的省份，已保存的全部保留；什么都没保存时按 within 处理。
+- 已定城市时的普通偏好（“想找个人少的地方”）仍是 none，不提供替代地点；legacyText 不作为已验证省范围。
+- 本轮地点 edit 出了卡或有找不到的表达时不推荐。模型要推荐但被拒绝时记录 `recommendation.intent.declined`。
 
 **没有推荐按钮：**推荐只从聊天触发。缺目的地时，聊天下方的 Generate plan 不可用，悬停或聚焦时提示用户：在对话里说出想去的地方、对 Meri 说“帮我推荐几个地方”，或点击提示里的链接打开右侧目的地搜索（见 5.4）。旧版“帮我推荐 / 我自己选”引导消息及其 API 已删除；旧旅程历史里保存的那条引导消息仍按普通助手消息显示，不再带按钮，[其稳定 ID](../src/capabilities/conversation/destination-missing-guidance.ts) 只用于开场判断时跳过它。
 
+**先回复，后出卡：**推荐需要一次 Bocha 搜索和第二次 Kimi 调用。为了不让用户等待两次模型调用才看到任何字，聊天请求只保存模型的简短引导，并在助手消息上挂 `{type:"destination_recommendations_pending", scope}`。[ConversationPanel](../src/components/trip-workspace/conversation-panel.tsx)发现最后一条消息是 pending 时显示“正在挑选推荐的地方…”、小熊进入思考状态、输入框暂停，并调用 `POST /api/trips/[id]/destination-recommendations`（body 只有 `{messageId}`）。重新打开 Journey 时如果最后一条仍是 pending，会自动再请求一次。
+
+[该 route](../src/app/api/trips/%5Bid%5D/destination-recommendations/route.ts)从保存的对话中读出 pending 消息之前的那条用户原话和更早历史（[pendingRecommendationRequest](../src/capabilities/recommendation/destination-recommendation-use-case.ts)），浏览器不提供推荐内容。卡片消息 ID 由 pending 消息派生（[destinationRecommendationCardsMessageId](../src/capabilities/conversation/destination-selection-message-id.ts)），通过 createAssistantIfAbsent 保存，重复请求返回同一条。
+
+| 情况 | HTTP | 结果 |
+| --- | --- | --- |
+| 卡片已存在 | 200 | 返回已保存的卡片消息，不再运行工作流 |
+| pending 仍是最新消息且状态仍允许该范围 | 200 | 运行工作流，保存卡片或“没有筛出”说明 |
+| 用户之后又发了消息 | 409 recommendations_stale | 不出卡，界面不再等待 |
+| 期间目的地已定城市等 | 409 recommendations_stale | 同上 |
+| 不是 pending 消息 / 请求体错误 / 无 owner | 404 / 400 / 404 | 不写入 |
+| 工作流失败 | 502 | 不写入；界面显示“推荐暂时没有生成出来”和重试按钮 |
+
 **实际推荐流水线：**
 
-1. [构造上下文](../src/capabilities/recommendation/destination-recommendation-context.ts)：TripState、最多 10 条/6000 字符对话；追加当前真实原话并使用 source=conversation（唯一入口），来源标记只存在于本次调用上下文。
+1. [构造上下文](../src/capabilities/recommendation/destination-recommendation-context.ts)：TripState、scope、最多 10 条/6000 字符对话；追加触发推荐的真实原话并使用 source=conversation（唯一入口），来源标记只存在于本次调用上下文。
 2. [Discovery Search](../src/platform/search/discovery-search.ts)：Bocha 取最多 8 条启发信息，失败退化为空搜索上下文。
 3. [推荐生成器](../src/capabilities/recommendation/destination-recommendation-generator.ts)：Kimi 输出省、市/州和理由。
 4. [领域校验](../src/domain/location/destination-recommendations.ts)：形状校验、去重、最多 12 个地点。
-5. [workflow](../src/capabilities/recommendation/destination-recommendation-workflow.ts)：withinSettledProvinces 按规范化省名限制已定省，并采用用户保存的省名拼写，给卡项赋 ID。
-6. 保存 destination_recommendations presentation，UI 适配为统一多选卡。卡项仍是建议，提交时才高德复核。
+5. [workflow](../src/capabilities/recommendation/destination-recommendation-workflow.ts)：within 用 withinSettledProvinces 按规范化省名限制已定省，并采用用户保存的省名拼写；elsewhere 用 outsideSavedProvinces 丢弃所有已保存省份，即使模型换了写法。给卡项赋 ID。
+6. 卡片作为 pending 之后的下一条助手消息保存 destination_recommendations presentation，正文是工作流的固定句子，UI 适配为统一多选卡。卡项仍是建议，提交时才高德复核。地点名称只出现在这条卡片消息里，因此不会再出现正文列举的地点和卡片不一致。
 
 该执行链没有访问检查、风险排序或图片补全。搜索上下文不能证明开放、安全或可达。搜索失败可降级，模型失败仍可能令请求失败。
 
@@ -306,11 +343,11 @@ add/set 使用 Promise.all 查询表达。解析层保留不同 provider ID，�
 4. [verifyDestinationChoice](../src/capabilities/destination/verified-destination-choice.ts)重新高德查询所选项。新偏好 ID 校验查询结果中是否存在相同省/市/spot 的合理匹配，不能跨行政区保存，也不能把机场等相关 POI 当景点。旧 provider ID 仍核对身份；旧随机推荐 ID 需精确规范名匹配，多个记录若都代表同一个省市且不是景点，可确认该城市。已验证省级合成项有专门分支。
 5. 任一选中项核验失败则整批 409，不部分保存。
 
-   国内范围也在 verifyDestinationChoice 中检查，包括历史卡及省级合成 ID 的快捷分支；不支持省份返回 unresolved，再由接口按核验失败返回 409。新省/市/spot 必须通过范围与现有身份核验，不能借旧卡写入境外地点。
+   中国范围也在 verifyDestinationChoice 中检查，包括历史卡及省级合成 ID 的快捷分支；不支持省份返回 unresolved，再由接口按核验失败返回 409。新省/市/spot 必须通过范围与现有身份核验，不能借旧卡写入境外地点。
 6. 查询结束重读最新 TripState；同组合已有确认且当前结果仍匹配时返回原确认、不写状态。否则再次读取消息，若有后续消息或该组合已消费，返回 offer_expired，防止查询期间继续聊天后旧卡落库。未过期时：add 合并最新 areas；replace 再检查基底，从空 areas 构造整体替换。
 7. 按 offer 顺序处理，使请求 ID 顺序变化仍一致；省市合并、spot 同名去重。
 8. 带 expectedDestination 保存，避免覆盖查询期间的目的地修改。
-9. [destinationSelectionReply](../src/capabilities/destination/destination-selection-reply.ts)按保存后的准备度生成固定确认，保存助手消息。
+9. [destinationSelectionReply](../src/capabilities/destination/destination-selection-reply.ts)按保存前后的准备度生成固定确认：这次选择使旅程首次可规划时，附准备度句子和可补充的信息；之后的选择只说“好，目的地现在是…”。保存助手消息。
 10. 返回 `{tripState,assistantMessage}`，客户端同步聊天与右侧。
 
 #### 重试、过期与保存一半
@@ -370,10 +407,10 @@ add/set 使用 Promise.all 查询表达。解析层保留不同 provider ID，�
 
 ### 5.2 目的地搜索、核验、保存
 
-目的地标题行右侧是“＋ 添加”按钮，采用与铅笔入口同色的浅绿圆角矩形（高 30px、宽 66px、圆角 8px）。展开后显示“− 收起”，宽度不变；悬停、键盘聚焦和展开时底色加深，按下轻缩至 0.97；减少动态效果偏好下关闭动画。其下横跨整行，每个省一块浅底区域：省名在左、删除省的 ✕ 统一在右；城市为带 ✕ 的标签，想去的景点以带定位图标的浅色标签紧跟在所属城市后。没有城市的省显示“全省”标签和“规划时按整省考虑”，表示整省范围的目的地，而不是未完成项。展开后搜索横跨字段行。手动搜索仍用单个结果添加，聊天则多选统一提交。
+目的地标题行右侧是“＋ 添加”按钮，采用与铅笔入口同色的浅绿圆角矩形（高 30px、宽 66px、圆角 8px）。展开后显示“− 收起”，宽度不变；悬停、键盘聚焦和展开时底色加深，按下轻缩至 0.97；减少动态效果偏好下关闭动画。其下横跨整行，每个省一块浅底区域：省名在左、删除省的 ✕ 统一在右；每个城市占一行：城市是带 ✕ 的标签，想去的景点以带定位图标的浅色标签排在同一行城市右侧，景点多时只在右侧区域内换行（例如“丽江市 · 玉龙雪山”一行、“迪庆藏族自治州 · 香格里拉市 · 梅里雪山”一行）。以前所有标签挤在一行里换行，第二行的景点看起来像属于上一行的城市。没有城市的省显示“全省”标签和“规划时按整省考虑”，表示整省范围的目的地，而不是未完成项。展开后搜索横跨字段行。手动搜索仍用单个结果添加，聊天则多选统一提交。
 
 - 至少 2 字开始查询，250ms 防抖，新输入/收起取消旧请求；已取消响应不得覆盖新列表。
-- [picksFromSearch](../src/capabilities/destination/resolve-destination-place.ts)过滤省份缺失或不在国内名单内的结果；POST 重查后使用同一过滤，无法核验则返回 409，不写入目的地。聊天地点解析也执行相同范围检查。已有历史记录保持可读、可删除，不自动清理或搬到其他省份。
+- [picksFromSearch](../src/capabilities/destination/resolve-destination-place.ts)过滤省份缺失或不在中国省级名单内的结果；POST 重查后使用同一过滤，无法核验则返回 409，不写入目的地。聊天地点解析也执行相同范围检查。已有历史记录保持可读、可删除，不自动清理或搬到其他省份。
 - [destinations API](../src/app/api/trips/[id]/destinations/route.ts)限制表达 2–80 字符，最多返回 12 项，GET 响应 no-store。
 - 候选提供 id、name、province、city、spot、detail，前端 Zod 校验，spot 必须有 city。
 - 详情可显示规范名称差异、区县及地址；无法区分的同名结果要求细化搜索。
@@ -434,7 +471,7 @@ add/set 使用 Promise.all 查询表达。解析层保留不同 provider ID，�
 右侧列在 Journey overview 下方依次是装饰地球和小熊：
 
 - [JourneyGlobe](../src/components/trip-workspace/journey-globe.tsx)改写自 cult-ui 的 Illustration Globe（MIT），纯 SVG 线框半球，光点沿经线流向节点。节点数等于已选地点数（有市的按市计，只有省的按 1 计，最多 6 个），只为“看着好看”，不表示真实地理位置，没有坐标、没有地图功能。系统要求减少动态效果时只显示静止节点。
-- [MeriWorld](../src/components/companion/meri-world.tsx)的小熊在桌面端固定在列底部（滚动时保持可见），旁边气泡显示一句话（见第 6 节速查表），`aria-live=polite` 让读屏软件播报变化。聊天面板把当前活动（idle / thinking / error：发送中或选卡保存中为 thinking，发送结果未确认或选卡保存失败为 error）上报给 [TripWorkspace](../src/components/trip-workspace/trip-workspace.tsx)，再传给小熊。
+- [MeriWorld](../src/components/companion/meri-world.tsx)的小熊在桌面端固定在列底部（滚动时保持可见），旁边气泡显示一句话（见第 6 节速查表），`aria-live=polite` 让读屏软件播报变化。聊天面板把当前活动（idle / thinking / error：发送中、选卡保存中或推荐卡片生成中为 thinking，发送结果未确认或选卡保存失败为 error）上报给 [TripWorkspace](../src/components/trip-workspace/trip-workspace.tsx)，再传给小熊。
 - 小熊是坐在营地小桌（格子桌布）后的像素精灵图：[bear-sprites.png](../public/companion/bear/bear-sprites.png) 含站着、坐下、看地图、放下/拿起地图、吃饭团、站起来、欢呼、担心 9 个动画共 42 帧，由 [生成脚本](../assets/companion/bear/generate_bear_sprites.py)从同一张插画合成，以 2 倍整数缩放显示。
 - 做什么由 [bear-behavior](../src/components/companion/bear-behavior.ts)决定：气泡的状态同时作为“反应”——出错时站起来担心，Meri 回复时坐着认真看地图（站着则原地等），可以生成计划时站起来欢呼一次（旅程内容再变化才会再欢呼）。其余时间按权重随机：看地图 45、站着 25、吃饭团 20、放空 10，同一活动最多连续两次，吃完 60 秒内不再吃，坐着时更愿意继续坐着。姿势变化总是播放过渡（坐下、放下地图等），不瞬移；新反应在下一帧接管，但不打断正在进行的过渡。
 - [CompanionBear](../src/components/companion/companion-bear.tsx)负责计时播放；标签页隐藏时暂停、回来接着播；系统要求减少动态效果时只显示坐着看地图的一帧。
@@ -445,15 +482,18 @@ add/set 使用 Promise.all 查询表达。解析层保留不同 provider ID，�
 | 场景 | 正文来源 | 卡片/状态来源 |
 | --- | --- | --- |
 | Home 普通开场 | Kimi opening reply | 初始 TripState |
-| Home 地点候选/失败 | createJourneyWithOpening 固定模板 | 高德及 applyDestinationEdit |
+| Home 地点候选/失败 | destinationEditReply 固定模板 | 高德及 applyDestinationEdit |
+| Home 地点精确写入 | Kimi opening reply | 初始 TripState 已含该地点 |
 | 普通提问、闲聊、普通字段修改 | Kimi reply | 校验后的普通 patch |
-| 地点 add/set 候选 | messages route 固定说明 | 高德候选，正式目的地不变 |
+| 地点 add/set 精确写入 | destinationEditReply“已加入…”（首次可规划时加一次准备度句）＋ Kimi reply | 直接写入的目的地 |
+| 地点 add/set 候选 | destinationEditReply 固定说明 | 高德候选，正式目的地不变 |
 | 地点未找到/查询失败 | route 固定事实说明 | 无结果/故障事实 |
 | remove 成功无失败项 | Kimi reply | 实际删除；成功措辞仍依赖模型 |
 | remove 歧义/无匹配 | route 固定说明 | 当前保存状态匹配结果 |
-| 聊天推荐有卡 | 本轮解释 Kimi reply | 另一次 Kimi 推荐生成、Bocha 上下文及应用过滤 |
+| 聊天推荐回合 | 本轮解释 Kimi reply（不点名地点）＋ pending 标记 | 无卡；客户端随后请求卡片 |
+| 推荐卡片消息 | workflow 固定句 | 另一次 Kimi 推荐生成、Bocha 上下文及应用过滤，第二个请求生成 |
 | 聊天推荐无卡 | workflow 固定失败正文 | 无可展示建议 |
-| 聊天选卡提交成功 | destinationSelectionReply 固定确认 | 保存后状态和准备度 |
+| 聊天选卡提交成功 | destinationSelectionReply 固定确认（首次可规划时才附准备度） | 保存前后状态和准备度 |
 | 右侧直接编辑/搜索/删除 | 固定加载、按钮、错误提示 | 不新增聊天正文 |
 | Generate plan | planningReadinessMessage 固定句 | 状态检查，不生成行程 |
 | 右下角小熊的一句话 | [companionStatus](../src/components/companion/companion-status-model.ts) 固定句 | 由当前 TripState 与聊天活动决定，不调用模型：出错 > 思考中 > 可生成（并列出可选的缺项：出发地、出行时间、交通方式）> 缺目的地/旧目的地待确认 |
@@ -521,13 +561,15 @@ add/set 使用 Promise.all 查询表达。解析层保留不同 provider ID，�
 | 层级纯函数 | [destination-areas](../src/domain/trip-state/destination-areas.ts) | 合并、包含、唯一匹配、级联 |
 | 城市与景点偏好归并 | [destination-choice-identity](../src/domain/trip-message/destination-choice-identity.ts) | 目标身份、同省市同偏好合并、历史原 ID 保留 |
 | 聊天模型解释 | [interpreter](../src/capabilities/conversation/workspace-conversation-interpreter.ts) | 四项 JSON、opening 限制 |
-| 普通字段校验 | [workspace-conversation](../src/domain/trip-state/workspace-conversation.ts) | changes → user patch |
+| 普通字段校验 | [workspace-conversation](../src/domain/trip-state/workspace-conversation.ts) | changes → user patch，丢弃不改变字段的 change |
 | 实际聊天分支 | [messages route](../src/app/api/trip-workspace/messages/route.ts) | 保存顺序、固定正文、错误 |
 | 历史上下文 | [conversation-context](../src/capabilities/conversation/workspace-conversation-context.ts) | 5 轮/6000 字符、助手合并 |
-| 地点操作执行 | [apply-destination-edit](../src/capabilities/destination/apply-destination-edit.ts) | 候选、不自动保存、部分失败 |
+| 地点操作执行 | [apply-destination-edit](../src/capabilities/destination/apply-destination-edit.ts) | 精确且为用户原话才写入、其余候选、部分失败 |
 | 高德层级映射 | [resolve-destination-place](../src/capabilities/destination/resolve-destination-place.ts) | 省市、spot、不同 POI 保留 |
 | 提供方解析 | [location-service](../src/capabilities/destination/location-service.ts)、[Amap adapter](../src/platform/location-provider/amap-location-provider.ts) | 解析状态、规范化错误 |
-| 推荐资格 | [recommendation-use-case](../src/capabilities/recommendation/destination-recommendation-use-case.ts) | 自动/显式来源、消息一次保存 |
+| 推荐资格与 pending | [recommendation-use-case](../src/capabilities/recommendation/destination-recommendation-use-case.ts) | within/elsewhere 范围、pending 请求还原 |
+| 推荐卡片请求 | [destination-recommendations route](../src/app/api/trips/[id]/destination-recommendations/route.ts) | 最新消息检查、派生 ID、幂等 |
+| 应用自己的句子 | [turn-reply](../src/capabilities/conversation/turn-reply.ts) | 已加入/候选/失败正文、准备度只说一次 |
 | 推荐流水线 | [workflow](../src/capabilities/recommendation/destination-recommendation-workflow.ts) | 搜索、生成、省范围过滤 |
 | 统一选卡提交 | [selection route](../src/app/api/trips/[id]/destination-recommendation-selection/route.ts) | offer 校验、整批核验、替换、重试 |
 | 提交身份复核 | [verified-choice](../src/capabilities/destination/verified-destination-choice.ts) | provider ID 与历史规范名 |

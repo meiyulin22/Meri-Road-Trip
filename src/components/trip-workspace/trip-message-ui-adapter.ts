@@ -1,6 +1,6 @@
 import type { UIMessage } from "ai";
 
-import type { DestinationChoicesPresentation, DestinationRecommendationPresentation, LocationCandidatesPresentation, TripMessage } from "@/domain/trip-message/trip-message";
+import type { DestinationChoicesPresentation, DestinationRecommendationPresentation, DestinationRecommendationsPendingPresentation, LocationCandidatesPresentation, TripMessage } from "@/domain/trip-message/trip-message";
 import { picksFromSearch } from "@/capabilities/destination/resolve-destination-place";
 
 export function toWorkspaceUIMessages(messages: readonly TripMessage[]): UIMessage[] {
@@ -57,4 +57,12 @@ export function appendPersistedMessageIfAbsent(
   return messages.some((message) => message.id === persisted.id)
     ? messages
     : [...messages, ...toWorkspaceUIMessages([persisted])];
+}
+
+/** A reply whose recommendation cards are still on their way. */
+export function pendingRecommendationPresentation(message: UIMessage): DestinationRecommendationsPendingPresentation | undefined {
+  const metadata = message.metadata;
+  if (typeof metadata !== "object" || metadata === null || !("presentation" in metadata)) return undefined;
+  const presentation = metadata.presentation as TripMessage["presentation"];
+  return presentation?.type === "destination_recommendations_pending" ? presentation : undefined;
 }

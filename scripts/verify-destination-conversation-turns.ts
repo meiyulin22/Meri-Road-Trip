@@ -5,9 +5,8 @@ import { interpretWorkspaceConversation } from "@/capabilities/conversation/work
 
 /**
  * Every unit test mocks the model, so a prompt rewrite goes green while Meri's
- * actual behaviour changes. These thirteen turns are the ones the destination rules
- * decide: whether an open destination still gets cards, whether a settled one stops
- * getting them, and whether the model keeps off the two sentences it must not write
+ * actual behaviour changes. These turns are the ones the destination rules decide:
+ * whether an open destination still gets cards, whether a settled one stops getting them, and whether the model keeps off the two sentences it must not write
  * — the itinerary, and whether a plan is ready.
  *
  * Each case says what to look for, so two runs can be compared by eye.
@@ -68,7 +67,7 @@ const cases = {
     ],
   },
   "5": {
-    expect: 'destinationEdit set on destination, presentationIntent none',
+    expect: 'destinationEdit set on destination, presentationIntent none; reply must NOT claim it was added — the application says that',
     tripState: empty, message: "我想去海南", conversationHistory: [],
   },
   "6": {
@@ -88,7 +87,7 @@ const cases = {
     tripState: empty, message: "今天天气不错", conversationHistory: [],
   },
   "10": {
-    expect: 'question and none; says research is not connected rather than guessing weather',
+    expect: 'none; may describe the season in general (dry/warm), but NO temperatures or other numbers; suggests checking a forecast',
     tripState: placeSettled, message: "三亚十一月天气怎么样？", conversationHistory: [],
   },
   "11": {
@@ -102,6 +101,26 @@ const cases = {
   "13": {
     expect: 'destination update on 云南 AND destination_recommendations in the same turn — the province narrows the cards instead of closing them',
     tripState: empty, message: "我想去云南，想爬山", conversationHistory: [],
+  },
+  "14": {
+    expect: 'destination_recommendations at once; reply names no place, lists nothing, asks no question; no China-scope line',
+    tripState: empty, message: "你给我推荐一些地方吧，我想安静一点的地方", conversationHistory: [],
+  },
+  "15": {
+    expect: 'destination_recommendations_elsewhere; reply names no place and asks no question; no China-scope line',
+    tripState: placeSettled, message: "想让你推荐下别的地方 别的省份", conversationHistory: [],
+  },
+  "16": {
+    expect: 'none + destinationEdit none; briefly says Meri plans trips within China only, without 国内/国外',
+    tripState: empty, message: "我想去纽约", conversationHistory: [],
+  },
+  "17": {
+    expect: 'destination_recommendations — an explicit request is enough, even with no preference; no question about dates first',
+    tripState: empty, message: "你推荐一下呗", conversationHistory: [],
+  },
+  "18": {
+    expect: 'destinationEdit add with places ["大莲"] exactly as typed — never corrected to 大连 or 大理',
+    tripState: provinceOnly, message: "我还想去大莲", conversationHistory: [],
   },
 } as const;
 

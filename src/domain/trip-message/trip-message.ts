@@ -44,13 +44,31 @@ export interface DestinationRecommendationPresentation {
   readonly baseAreas?: readonly { readonly province: string; readonly places: readonly string[] }[];
 }
 
+/**
+ * Which places recommendation cards may come from: inside the provinces already
+ * saved while 「去哪」 is still open, or outside them when the user asks to widen a
+ * trip that already has its places.
+ */
+export type RecommendationScope = "within" | "elsewhere";
+
+/**
+ * A reply whose recommendation cards are still being chosen. The reply is shown as
+ * soon as the model has written it; the cards follow as their own message, so the
+ * user is not left waiting on a search and a second model call to read anything.
+ */
+export interface DestinationRecommendationsPendingPresentation {
+  readonly type: "destination_recommendations_pending";
+  readonly scope: RecommendationScope;
+}
+
 export interface LocationCandidatesPresentation {
   readonly type: "location_candidates";
   readonly candidates: readonly LocationCandidate[];
 }
 
 export type TripMessagePresentation = DestinationChoicesPresentation |
-  DestinationRecommendationPresentation | LocationCandidatesPresentation;
+  DestinationRecommendationPresentation | LocationCandidatesPresentation |
+  DestinationRecommendationsPendingPresentation;
 
 export interface TripMessage {
   readonly id: string;
@@ -150,6 +168,12 @@ function validatePresentation(value: unknown, role: TripMessageRole): TripMessag
     }
     return { type: "destination_recommendations", destinations,
       ...(baseAreas === undefined ? {} : { baseAreas: baseAreas as DestinationRecommendationPresentation["baseAreas"] }) };
+  }
+  if (value.type === "destination_recommendations_pending") {
+    if (!hasKnownKeys(value, ["type", "scope"], []) || (value.scope !== "within" && value.scope !== "elsewhere")) {
+      throw new InvalidTripMessageError("TripMessage pending recommendation is invalid.");
+    }
+    return { type: "destination_recommendations_pending", scope: value.scope };
   }
   if (value.type === "location_candidates") {
     if (!hasKnownKeys(value, ["type", "candidates"], []) || !Array.isArray(value.candidates) ||

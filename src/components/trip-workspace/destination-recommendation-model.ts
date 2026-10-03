@@ -1,7 +1,7 @@
 import { validateTripMessage, type TripMessage } from "@/domain/trip-message/trip-message";
 import type { DestinationRecommendationPresentation } from "@/domain/trip-message/trip-message";
 import { validateTripState, type TripState } from "@/domain/trip-state/trip-state";
-import { DestinationOfferExpiredError, DestinationSelectionFollowUpError, WorkspaceConversationRequestError } from "./workspace-conversation-model";
+import { DestinationOfferExpiredError, DestinationSelectionFollowUpError, RecommendationsStaleError, WorkspaceConversationRequestError } from "./workspace-conversation-model";
 
 type Fetcher = (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>;
 
@@ -75,4 +75,32 @@ export async function selectDestinationRecommendation(
     throw new WorkspaceConversationRequestError("Destination recommendation selection follow-up is invalid.");
   }
   return { tripState, assistantMessage };
+}
+
+/**
+ * Asks for the cards a reply promised. The server reads what to recommend from the
+ * stored conversation, so the browser only names the reply; asking twice returns the
+ * same message.
+ */
+export async function requestPendingRecommendations(
+  tripId: string, messageId: string, fetcher: Fetcher = fetch,
+): Promise<TripMessage> {
+  const response = await fetcher(
+    `/api/trips/${encodeURIComponent(tripId)}/destination-recommendations`,
+    { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ messageId }) });
+  let body: unknown;
+  try {
+    body = await response.json();
+  } catch {
+    throw new WorkspaceConversationRequestError("Destination recommendations response is invalid.");
+  }
+  if (response.status === 409) throw new RecommendationsStaleError();
+  if (!response.ok || typeof body !== "object" || body === null || !("assistantMessage" in body)) {
+    throw new WorkspaceConversationRequestError("Destination recommendations failed.");
+  }
+  const assistantMessage = validateTripMessage(body.assistantMessage);
+  if (assistantMessage.role !== "assistant" || assistantMessage.tripId !== tripId) {
+    throw new WorkspaceConversationRequestError("Destination recommendations message is invalid.");
+  }
+  return assistantMessage;
 }

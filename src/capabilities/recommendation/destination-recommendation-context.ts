@@ -1,5 +1,6 @@
 import type { TripMessage } from "@/domain/trip-message/trip-message";
 import { isDestinationOpenToRecommendations, type TripState } from "@/domain/trip-state/trip-state";
+import type { RecommendationScope } from "@/domain/trip-message/trip-message";
 import type { StructuredOutputConversationMessage } from "@/platform/llm/kimi-client";
 import { conversationHistoryContent } from "@/capabilities/conversation/conversation-history-content";
 
@@ -12,6 +13,7 @@ const MAX_CHARACTERS = 6_000;
  */
 export type DestinationRecommendationContext = {
   readonly source: "conversation";
+  readonly scope: RecommendationScope;
   readonly tripState: TripState;
   readonly conversationHistory: readonly StructuredOutputConversationMessage[];
 };
@@ -21,12 +23,13 @@ export function buildConversationalDestinationRecommendationContext(
   tripState: TripState,
   messages: readonly TripMessage[],
   currentUserText: string,
+  scope: RecommendationScope,
 ): DestinationRecommendationContext {
-  if (!isDestinationOpenToRecommendations(tripState.destination) || currentUserText.trim() === "") {
+  if (!isDestinationOpenToRecommendations(tripState.destination, scope) || currentUserText.trim() === "") {
     throw new Error("Conversational destination recommendation context is not eligible.");
   }
   const history = selectMessages(messages, tripId, currentUserText.length);
-  return { source: "conversation", tripState,
+  return { source: "conversation", scope, tripState,
     conversationHistory: [...history, { role: "user", content: currentUserText }] };
 }
 

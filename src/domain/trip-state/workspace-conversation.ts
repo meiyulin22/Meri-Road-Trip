@@ -36,8 +36,17 @@ export interface ProposedTripStateChange {
  * it proposes changes, and asking the model to state it twice only gave it a way to
  * contradict itself — which failed the whole turn.
  */
+/**
+ * `destination_recommendations` answers an open 「去哪」 inside the provinces already
+ * saved; `destination_recommendations_elsewhere` widens a trip that has its places
+ * to provinces it does not have yet (「推荐别的省份」).
+ */
+export const presentationIntents = ["none", "destination_recommendations", "destination_recommendations_elsewhere"] as const;
+
+export type PresentationIntent = (typeof presentationIntents)[number];
+
 export interface WorkspaceConversationInterpretation {
-  readonly presentationIntent: "none" | "destination_recommendations";
+  readonly presentationIntent: PresentationIntent;
   readonly changes: readonly ProposedTripStateChange[];
   readonly destinationEdit: DestinationEdit;
   readonly reply: string;
@@ -113,8 +122,10 @@ function parseChange(value: unknown, index: number): ProposedTripStateChange {
     );
   }
 
+  // Clearing transport is as legitimate as clearing any other field; only a value it
+  // holds has to be one the application supports.
   if (
-    value.field === "transportPreference" &&
+    value.field === "transportPreference" && value.state !== "missing" &&
     (value.state !== "known" ||
       typeof value.value !== "string" ||
       !transportPreferences.some((preference) => preference === value.value))
@@ -142,7 +153,7 @@ export function validateWorkspaceConversationInterpretation(
 
   assertExactKeys(value, ["presentationIntent", "changes", "destinationEdit", "reply"], "interpretation");
 
-  if (value.presentationIntent !== "none" && value.presentationIntent !== "destination_recommendations") {
+  if (!presentationIntents.some((intent) => intent === value.presentationIntent)) {
     throw new InvalidWorkspaceConversationInterpretationError("interpretation.presentationIntent is invalid.");
   }
 
@@ -174,7 +185,7 @@ export function validateWorkspaceConversationInterpretation(
       error instanceof Error ? error.message : "destinationEdit is invalid.",
     );
   }
-  return { presentationIntent: value.presentationIntent, changes, destinationEdit, reply: value.reply };
+  return { presentationIntent: value.presentationIntent as PresentationIntent, changes, destinationEdit, reply: value.reply };
 }
 
 /** Whether the turn proposes anything for the Journey at all. */
@@ -196,16 +207,30 @@ function createUserField(
   };
 }
 
+/**
+ * The model sometimes restates fields as they already are — a name it was shown, or
+ * four fields already missing set to missing. Harmless against an empty Journey, but
+ * the same habit is how a stale value would overwrite a newer one, so a change that
+ * would leave the field as it is never becomes part of the patch.
+ */
+function leavesFieldUnchanged(change: ProposedTripStateChange, current: TripState): boolean {
+  const field = current[change.field];
+  if (field.state === "missing") return change.state === "missing";
+  return field.state === change.state && field.value === change.value;
+}
+
 export function createTripStatePatchFromInterpretation(
   interpretation: WorkspaceConversationInterpretation,
+  current: TripState,
 ): TripStatePatch | null {
-  if (interpretation.changes.length === 0) {
+  const changes = interpretation.changes.filter((change) => !leavesFieldUnchanged(change, current));
+  if (changes.length === 0) {
     return null;
   }
 
   const patch: { -readonly [K in keyof TripState]?: TripState[K] } = {};
-  for (const change of interpretation.changes) {
-    if (change.field === "transportPreference") {
+  for (const change of changes) {
+    if (change.field === "transportPreference" && change.state !== "missing") {
       patch.transportPreference = {
         state: "known",
         value: change.value as TransportPreference,

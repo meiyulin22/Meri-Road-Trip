@@ -4,6 +4,7 @@ import {
   proposesJourneyUpdate,
   validateWorkspaceConversationInterpretation,
   type WorkspaceConversationInterpretation,
+  presentationIntents,
 } from "@/domain/trip-state/workspace-conversation";
 import { destinationEditJsonSchema } from "@/domain/trip-state/destination-edit";
 import { createAiSdkKimiClientFromEnvironment } from "@/platform/llm/ai-sdk-kimi-client";
@@ -58,7 +59,7 @@ export const workspaceConversationJsonSchema: Record<string, unknown> = {
   additionalProperties: false,
   required: ["presentationIntent", "changes", "destinationEdit", "reply"],
   properties: {
-    presentationIntent: { type: "string", enum: ["none", "destination_recommendations"] },
+    presentationIntent: { type: "string", enum: [...presentationIntents] },
     changes: {
       type: "array",
       maxItems: conversationFieldNames.length,

@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { isDomesticProvince } from "./domestic-destination-scope";
+import { isChinaProvince } from "./china-destination-scope";
 
 import { normalizeRecommendationName, normalizeRecommendationRegion } from "./recommendation-identity";
 
@@ -20,7 +20,7 @@ const recommendedPlaceSchema = z.strictObject({
  * whose two halves belong to different provinces.
  */
 const recommendationGroupSchema = z.strictObject({
-  province: z.string().trim().min(1).max(20).refine(isDomesticProvince, "Unsupported domestic province."),
+  province: z.string().trim().min(1).max(20).refine(isChinaProvince, "Province is outside Meri's China coverage."),
   places: z.array(recommendedPlaceSchema).min(1).max(6),
 });
 

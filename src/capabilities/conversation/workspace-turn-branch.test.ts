@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {resolveWorkspaceTurn} from "./workspace-turn-branch";
 import type {DestinationEditResult} from "@/capabilities/destination/apply-destination-edit";
-const result:DestinationEditResult={destination:{state:"missing"},changed:false,choices:null,unresolved:[],lookupFailed:[],notInDestination:[],ambiguousRemovals:[]};
+const result:DestinationEditResult={destination:{state:"missing"},changed:false,added:[],choices:null,unresolved:[],lookupFailed:[],notInDestination:[],ambiguousRemovals:[]};
 const input={interpretation:{presentationIntent:"none" as const,changes:[],destinationEdit:{operation:"none" as const},reply:"原回复"},recommendationReply:null,destinationResult:result};
 test("recommendations and verified choice offers have their own reply",()=>{
  assert.deepEqual(resolveWorkspaceTurn({...input,recommendationReply:"推荐回复"}),{branch:"destination_recommendations",reply:"推荐回复"});

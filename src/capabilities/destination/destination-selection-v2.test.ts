@@ -33,12 +33,12 @@ test("Meri then an unsupported request then Qingdao preserves Yunnan for both se
     ] } };
     let state = original;
     const unsupported = await applyDestinationEdit(state.destination, { operation: "none" },
-      async () => { throw new Error("must not resolve an out-of-scope request"); });
+      async () => { throw new Error("must not resolve an out-of-scope request"); }, "我想去纽约");
     assert.equal(unsupported.destination, original.destination);
     const edit = validateDestinationEdit({ operation, places: ["青岛"], broadRegion: null });
     const result = await applyDestinationEdit(state.destination, edit, async () => ({
-      status: "resolved", pick: { id: "qingdao", province: "山东省", place: "青岛市", spot: null },
-    }));
+      status: "resolved", pick: { id: "qingdao", province: "山东省", place: "青岛市", spot: null }, exact: false,
+    }), "我想去青岛");
     assert.equal(result.destination, original.destination);
     assert.equal(result.choices?.presentation.mode, "add");
     const offered = message(result.choices!.presentation);
@@ -55,7 +55,7 @@ test("Meri then an unsupported request then Qingdao preserves Yunnan for both se
       [...(original.destination.state === "known" ? original.destination.areas : []),
         { province: "山东省", places: [{ name: "青岛市", spots: [] }] }]);
     const removal = await applyDestinationEdit(state.destination, { operation: "remove", places: ["云南"] },
-      async () => { throw new Error("deletion uses the current state, not a provider search"); });
+      async () => { throw new Error("deletion uses the current state, not a provider search"); }, "不去云南了");
     assert.deepEqual(removal.destination, { state: "known", source: "user", areas: [
       { province: "山东省", places: [{ name: "青岛市", spots: [] }] },
     ] });

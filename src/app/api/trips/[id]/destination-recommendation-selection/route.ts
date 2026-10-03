@@ -122,7 +122,7 @@ export async function handleDestinationRecommendationSelectionPost(
     try {
       const assistantMessage = await dependencies.persistFollowUp({
         tripId, ownerGuestId, messageId: followUpId,
-        content: destinationSelectionReply(tripState),
+        content: destinationSelectionReply(tripState, currentState),
       });
       return Response.json({ tripState, assistantMessage });
     } catch {
