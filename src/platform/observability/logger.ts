@@ -40,6 +40,7 @@ export const logEvents = {
   workspaceConversationPartsDropped: "workspace.conversation.parts_dropped",
   tripDraftPartsDropped: "trip_draft.parts_dropped",
   placePhotoLookupFailed: "place_photo.lookup.failed",
+  amapRateLimited: "amap.rate_limited",
   destinationAccessUncertain: "destination_access.uncertain",
   destinationImageSearchFailed: "destination_image.search.failed",
 } as const;

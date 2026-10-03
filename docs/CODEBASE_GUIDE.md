@@ -55,7 +55,8 @@
 | `src/platform/llm/` | 模型客户端契约、Kimi 调用、SDK 错误与超时适配 | 模型提供方适配 |
 | `src/platform/location-provider/` | 地点搜索/输入建议接口和高德 HTTP 实现 | 地图提供方适配 |
 | `src/platform/search/` | Discovery Search 接口及 Bocha 请求/响应适配 | 搜索提供方适配 |
-| `src/platform/place-photos/` | 地点照片接口和高德照片实现（https 升级、主机白名单、7 天数据缓存） | 照片提供方适配 |
+| `src/platform/place-photos/` | 地点照片接口和高德照片实现（https 升级、主机白名单、只存真实答案的 7 天缓存） | 照片提供方适配 |
+| `src/platform/amap/` | 所有高德请求共用的节流与限流重试 | 高德提供方共用基础设施 |
 | `src/platform/persistence/` | repository 接口，隔离应用层与数据库实现 | 持久化端口；这里的接口不等于 SQL 实现 |
 | `src/platform/persistence/postgres/` | PostgreSQL repository，读取校验、错误包装、CAS 更新 | 持久化适配器 |
 | `src/platform/persistence/in-memory/` | 内存 repository，用于测试替身 | 持久化测试适配器 |
@@ -424,9 +425,9 @@ LLM 解释自然语言并提出受限 JSON；应用校验、决定是否执行�
 | [src/platform/llm/ai-sdk-kimi-client.ts](../src/platform/llm/ai-sdk-kimi-client.ts) | 基础设施端口/适配器 | Kimi 的 Vercel AI SDK 适配器，结构化输出、finish reason/usage 归一化、60 秒超时、零自动重试和日志。 |
 | [src/platform/llm/kimi-client.ts](../src/platform/llm/kimi-client.ts) | 基础设施端口/适配器 | StructuredOutputModelClient 端口及通用模型错误，同时保留旧 OpenAI SDK Kimi 实现；当前应用入口默认 AI SDK 客户端。 |
 | [src/platform/location-provider/amap-input-tips-provider.test.ts](../src/platform/location-provider/amap-input-tips-provider.test.ts) | 测试（对应模块边界） | mock 验证 query 编码、完整 tips、空/畸形响应及错误安全边界。 |
-| [src/platform/location-provider/amap-input-tips-provider.ts](../src/platform/location-provider/amap-input-tips-provider.ts) | 基础设施端口/适配器 | 高德 InputTips HTTP 适配，规范化输入建议并区分空结果和故障。 |
+| [src/platform/location-provider/amap-input-tips-provider.ts](../src/platform/location-provider/amap-input-tips-provider.ts) | 基础设施端口/适配器 | 高德 InputTips HTTP 适配（经共用节流器），规范化输入建议并区分空结果和故障。 |
 | [src/platform/location-provider/amap-location-provider.test.ts](../src/platform/location-provider/amap-location-provider.test.ts) | 测试（对应模块边界） | mock 验证中文 query 编码、POI/行政层级、坐标和提供方错误归一化。 |
-| [src/platform/location-provider/amap-location-provider.ts](../src/platform/location-provider/amap-location-provider.ts) | 基础设施端口/适配器 | 高德关键词 POI HTTP 适配，编码 query、行政信息/坐标规范化及错误控制；不取照片（照片在 place-photos）。 |
+| [src/platform/location-provider/amap-location-provider.ts](../src/platform/location-provider/amap-location-provider.ts) | 基础设施端口/适配器 | 高德关键词 POI HTTP 适配（经共用节流器），编码 query、行政信息/坐标规范化及错误控制；不取照片（照片在 place-photos）。 |
 | [src/platform/location-provider/location-provider.ts](../src/platform/location-provider/location-provider.ts) | 基础设施端口/适配器 | 地点搜索端口与 success/failure 规范化结果，隔离高德响应格式。 |
 | [src/platform/location-provider/location-suggestion-provider.ts](../src/platform/location-provider/location-suggestion-provider.ts) | 基础设施端口/适配器 | 输入建议端口及规范化错误类型。 |
 | [src/platform/observability/logger.ts](../src/platform/observability/logger.ts) | 基础设施端口/适配器 | 共享 Pino logger 和事件名称，按环境配置日志级别/开发格式。 |
@@ -434,9 +435,11 @@ LLM 解释自然语言并提出受限 JSON；应用校验、决定是否执行�
 | [src/platform/observability/serialize-error.ts](../src/platform/observability/serialize-error.ts) | 基础设施端口/适配器 | 序列化 message/stack/cause 等错误信息并移除提供方凭据。 |
 | [src/platform/search/bocha-discovery-search.test.ts](../src/platform/search/bocha-discovery-search.test.ts) | 测试（对应模块边界） | mock 验证搜索请求、结果字段/数量、摘要回退、故障转换及缺密钥。 |
 | [src/platform/search/bocha-discovery-search.ts](../src/platform/search/bocha-discovery-search.ts) | 基础设施端口/适配器 | 将 Bocha 网页规范化为最多 8 条 DiscoverySearchResult，构造环境适配器。 |
+| [src/platform/amap/amap-fetch.ts](../src/platform/amap/amap-fetch.ts) | 基础设施/适配器 | 高德请求节流：进程内共用的节流器让请求开始时间相隔 ≥350ms，识别 HTTP 200 里的限流 infocode 并等待后重试一次。 |
+| [src/platform/amap/amap-fetch.test.ts](../src/platform/amap/amap-fetch.test.ts) | 测试（对应模块边界） | 验证节流顺序与间隔、限流重试一次、普通失败不重试。 |
 | [src/platform/place-photos/place-photo-provider.ts](../src/platform/place-photos/place-photo-provider.ts) | 基础设施/端口 | 照片查询（按名称或按区域国家级景点）接口与允许的照片主机列表。 |
-| [src/platform/place-photos/amap-place-photo-provider.ts](../src/platform/place-photos/amap-place-photo-provider.ts) | 基础设施/适配器 | 高德 v5 搜索取照片：http 升级 https、主机白名单、`next.revalidate` 7 天缓存、失败返回 null 并记日志。 |
-| [src/platform/place-photos/amap-place-photo-provider.test.ts](../src/platform/place-photos/amap-place-photo-provider.test.ts) | 测试（对应模块边界） | 验证查询参数、缓存选项、https 升级、主机过滤和各种失败。 |
+| [src/platform/place-photos/amap-place-photo-provider.ts](../src/platform/place-photos/amap-place-photo-provider.ts) | 基础设施/适配器 | 高德 v5 搜索取照片：经共用节流器请求、http 升级 https、主机白名单、只缓存真实答案的进程内 7 天缓存（PlacePhotoMemory）、失败返回 null 并记 infocode。 |
+| [src/platform/place-photos/amap-place-photo-provider.test.ts](../src/platform/place-photos/amap-place-photo-provider.test.ts) | 测试（对应模块边界） | 验证查询参数、https 升级、主机过滤、各种失败，以及只缓存真实答案、过期重查。 |
 | [src/platform/search/bocha-web-search.test.ts](../src/platform/search/bocha-web-search.test.ts) | 测试（对应模块边界） | mock 验证 POST/envelope、webPages/images 区段、缺密钥不请求及错误脱敏。 |
 | [src/platform/search/bocha-web-search.ts](../src/platform/search/bocha-web-search.ts) | 基础设施端口/适配器 | 共享 Bocha Web Search HTTP 请求、响应 envelope 检查、日期转换、超时/网络/API 错误脱敏。 |
 | [src/platform/search/discovery-search.ts](../src/platform/search/discovery-search.ts) | 基础设施端口/适配器 | DiscoverySearch 端口、旅程搜索 query、失败降级空上下文和规范化错误。 |

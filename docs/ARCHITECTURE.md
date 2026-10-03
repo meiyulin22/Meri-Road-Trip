@@ -62,8 +62,8 @@ flowchart TB
 | Zod 4 / 自定义领域校验 | 推荐结构校验及其他输入/模型/状态契约验证 | `src/domain/` | 不把外部 JSON 直接当可信业务数据 |
 | Neon PostgreSQL / Neon serverless | 跨请求持久化身份、状态与消息 | `src/platform/persistence/database/db.ts` | HTTP 数据库客户端；数据不依赖 Web 实例内存 |
 | Drizzle ORM 0.45 / Drizzle Kit | schema、查询、JSONB 条件更新与迁移 | `src/platform/persistence/`、`drizzle/`、`drizzle.config.ts` | 迁移文件存在不代表在线环境已执行 |
-| 高德 Web API | 地点关键词核验与 InputTips 建议 | `src/platform/location-provider/` | 身份核验不证明开放、安全、交通或可达 |
-| 高德地点照片（v5 搜索 `show_fields=photos`） | 卡片、照片环、标题图的装饰照片 | `src/platform/place-photos/`、`next.config.ts` 的 images.remotePatterns | http 地址升级为 https；只允许两个照片主机；`fetch` 带 `next.revalidate` 在服务器数据缓存保存 7 天；失败即无图 |
+| 高德 Web API | 地点关键词核验与 InputTips 建议 | `src/platform/location-provider/`、`src/platform/amap/amap-fetch.ts`（所有高德调用共用节流：开始间隔 ≥350ms，限流重试一次） | 身份核验不证明开放、安全、交通或可达 |
+| 高德地点照片（v5 搜索 `show_fields=photos`） | 卡片、照片环、标题图的装饰照片 | `src/platform/place-photos/`、`next.config.ts` 的 images.remotePatterns | http 地址升级为 https；只允许两个照片主机；只缓存真实答案的进程内缓存 7 天（不用 fetch 缓存，因限流也返回 HTTP 200）；失败即无图 |
 | Bocha Web Search | 推荐的启发性搜索上下文 | `src/platform/search/` | 最多 8 条；失败降级，不当作已核验证据 |
 | Pino 10 | 结构化事件与错误日志 | `src/platform/observability/` | requestId 关联请求；错误序列化脱敏 |
 | Node test runner / tsx / ESLint 9 / tsc | 相邻单元/边界测试、lint、类型检查 | `*.test.ts(x)`、`package.json`、`eslint.config.mjs` | mock 回归不代表真实外部接口验收 |

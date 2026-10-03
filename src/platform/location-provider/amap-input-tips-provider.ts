@@ -3,6 +3,7 @@ import type {
   LocationSuggestionProvider,
   LocationSuggestionProviderResult,
 } from "@/platform/location-provider/location-suggestion-provider";
+import { withAmapLimits } from "@/platform/amap/amap-fetch";
 
 const AMAP_INPUT_TIPS_URL = "https://restapi.amap.com/v3/assistant/inputtips";
 
@@ -50,7 +51,11 @@ function isTimeout(error: unknown): boolean {
 }
 
 export class AmapInputTipsProvider implements LocationSuggestionProvider {
-  constructor(private readonly fetcher: typeof fetch = fetch) {}
+  private readonly fetcher: typeof fetch;
+
+  constructor(fetcher: typeof fetch = fetch) {
+    this.fetcher = withAmapLimits(fetcher);
+  }
 
   async suggest(query: string): Promise<LocationSuggestionProviderResult> {
     const apiKey = process.env.AMAP_API_KEY?.trim();

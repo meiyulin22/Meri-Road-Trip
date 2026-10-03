@@ -503,7 +503,11 @@ add/set 使用 Promise.all 查询表达。解析层保留不同 provider ID，�
 - 页面服务端渲染时带上照片（最多等 1.5 秒，超时则不带，浏览器打开后再请求），刷新时不闪烁。目的地变化后，[TripWorkspace](../src/components/trip-workspace/trip-workspace.tsx)调用 `GET /api/trips/[id]/destination-photos` 重新取。
 - 标题左侧缩略图是第一个已选地点的照片（[coverPhoto](../src/components/trip-workspace/destination-photos-model.ts)），只在第一个地点变化时才换；没有地点时仍是默认风景图。
 
-**缓存：**向高德查图的 fetch 带 `next: { revalidate: 604800 }`，由 Next 的数据缓存在服务器上（自托管时在 `.next/cache`）保存 7 天，同一查询所有用户共用，不调用高德。地点搜索/核验仍不缓存。浏览器另有自己的图片缓存。查图失败只记录 `place_photo.lookup.failed`，不影响聊天或保存。
+**缓存：**[PlacePhotoMemory](../src/platform/place-photos/amap-place-photo-provider.ts)在服务器进程内存里保存查询结果 7 天（最多 500 条），**只保存真实答案**（找到照片，或高德确认这里没有照片），被限流、超时、接口错误都不保存。不用 Next 的 `fetch` 缓存（`next.revalidate`），因为高德被限流时仍返回 HTTP 200，fetch 缓存会把“被限流”当成答案保存 7 天。长期运行的服务器（自托管 VPS）缓存持续有效；Vercel 这类短生命周期实例命中率低，代价只是多查一次，卡片照片本身已存在消息里。将来换成 Redis 等共享缓存时，替换的就是这一层，规则不变。地点搜索/核验不缓存。图片文件本身由 next/image 缓存（自托管在 `.next/cache/images`），浏览器另有图片缓存。查图失败记录 `place_photo.lookup.failed`（带高德 infocode），不影响聊天或保存。
+
+**防盗链：**高德的 http 图片地址会检查 Referer，网页里直接用 `<img src="http://...">` 加载常返回 400；https 地址带 Referer 也正常（2026-10-03 实测）。Meri 的照片都经 next/image：浏览器只请求本站的 `/_next/image`，由服务器无 Referer 地去高德取图，所以部署在任何域名都不受防盗链影响。不要在页面里直接使用高德原始图片地址。
+
+**高德限流：**同一个 key 每秒能发起的请求有限，超出时仍是 HTTP 200，但 body 为 `status: "0"`、infocode 10021（`CUQPS_HAS_EXCEEDED_THE_LIMIT`）。实测：并行 12 个请求被拒 5 个；每 0.34 秒一个从不失败，每 0.25 秒或更快会间歇失败。所以所有高德调用（地点核验、输入建议、照片）都经过 [amap-fetch](../src/platform/amap/amap-fetch.ts) 的同一个节流器：两次请求的开始时间至少相隔 350ms，被限流时等 1 秒重试一次，并记录 `amap.rate_limited`。一次推荐 12 张卡的查图约需 4 秒，卡片本来就在回复之后才到；“潮汕”这类同时核验 3 个城市约多 0.7 秒。
 
 | 接口 | 请求 | 结果 |
 | --- | --- | --- |

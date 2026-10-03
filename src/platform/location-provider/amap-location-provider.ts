@@ -3,6 +3,7 @@ import type {
   LocationProvider,
   LocationSearchResult,
 } from "@/platform/location-provider/location-provider";
+import { withAmapLimits } from "@/platform/amap/amap-fetch";
 
 const AMAP_POI_SEARCH_URL = "https://restapi.amap.com/v5/place/text";
 const RESULT_LIMIT = 5;
@@ -66,7 +67,11 @@ function toCandidate(value: unknown): LocationCandidate | null {
 }
 
 export class AmapLocationProvider implements LocationProvider {
-  constructor(private readonly fetcher: typeof fetch = fetch) {}
+  private readonly fetcher: typeof fetch;
+
+  constructor(fetcher: typeof fetch = fetch) {
+    this.fetcher = withAmapLimits(fetcher);
+  }
 
   async searchByKeyword(query: string): Promise<LocationSearchResult> {
     const apiKey = process.env.AMAP_API_KEY?.trim();
