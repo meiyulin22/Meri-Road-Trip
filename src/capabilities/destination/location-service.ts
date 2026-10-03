@@ -16,9 +16,21 @@ export class LocationService {
       return { status: "not_ready", reason: "destination_missing" };
     }
     const search = await this.search(query);
-    return search.status === "success"
-      ? resolveDestinationCandidates(query, search.candidates)
-      : { status: "provider_error" };
+    if (search.status !== "success") return { status: "provider_error" };
+    const resolution = resolveDestinationCandidates(query, search.candidates);
+    const expression = query.normalize("NFKC").trim();
+    // Commercial POIs can fill the first page for a bare city name. One bounded
+    // retry asks for the administrative name; it must be corroborated by metadata.
+    if (resolution.status !== "unresolved" || search.candidates.length === 0 ||
+      !/^[\p{Script=Han}]{2,12}$/u.test(expression) || /(?:省|市|区|县|州|镇|乡|村)$/u.test(expression)) {
+      return resolution;
+    }
+    const cityName = `${expression}市`;
+    const retry = await this.search(cityName);
+    if (retry.status !== "success") return { status: "provider_error" };
+    const administrativeCandidates = retry.candidates.filter((candidate) =>
+      candidate.name === cityName && (candidate.city === cityName || candidate.district === cityName));
+    return resolveDestinationCandidates(expression, administrativeCandidates);
   }
 
   /** The provider's matches for a query as they are, for a list the user picks from. */

@@ -112,6 +112,9 @@ function cityOf(candidate: LocationCandidate): string | null {
 function spotOf(candidate: LocationCandidate, place: string, expression: string): string | null {
   const name = normalize(candidate.name);
   if (name === normalize(place) || normalize(place).startsWith(name)) return null;
+  // County-level cities remain preferences under their prefecture. Use the
+  // provider's full administrative name so confirmation repeats a precise search.
+  if (candidate.district !== null && name === normalize(candidate.district)) return candidate.name;
   const said = normalize(expression);
   return said.length >= 2 && name.startsWith(said) ? expression.trim() : candidate.name;
 }

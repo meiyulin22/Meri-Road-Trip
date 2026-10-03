@@ -178,6 +178,8 @@ flowchart TD
 
 ### 3.2 应用实际决定什么
 
+**行政地名补查：**[LocationService.resolveExpression](../src/capabilities/destination/location-service.ts)先按原词查询。如果返回了 POI，但没有合理匹配，且原词为 2–12 个汉字、不以省/市/区/县/州/镇/乡/村结尾，最多再查询一次“原词＋市”。补查只接受名称精确匹配且 city 或 district 同名的行政地点；酒店、道路等不能替代城市。空结果、已有明确/歧义结果不补查，提供方失败仍报查询故障。例如“香格里拉”的酒店结果可通过“香格里拉市”补查恢复；仍需国内范围检查和显式确认。县级市在当前结构中归到所属地级市/自治州，偏好名称保留提供方行政全名，确认时用全名重新查询，避免再次落到同名酒店。
+
 **结构校验：**解释器拒绝空输出、截断输出、非法 JSON；[领域校验](../src/domain/trip-state/workspace-conversation.ts)要求精确四项顶层键，检查字段名、重复字段、状态和值及交通枚举。missing 的 value 必须为 null，其他普通状态必须有非空 value。
 
 **普通字段：**createTripStatePatchFromInterpretation 将 changes 转成 source=user 的 patch；空数组返回 null。destination 不在普通 changes 中。
