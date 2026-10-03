@@ -1,4 +1,5 @@
 import { destinationText, type TripState } from "@/domain/trip-state/trip-state";
+import { destinationAdditions, destinationAreasText } from "@/domain/trip-state/destination-areas";
 import { capturedDetailsNote, missingDetailsInvitation, planReadyNote } from "@/capabilities/conversation/turn-reply";
 import { evaluateGeneratePlanReadiness } from "@/domain/trip-state/planning-readiness";
 
@@ -19,8 +20,14 @@ export function destinationSelectionReply(tripState: TripState, before: TripStat
   if (!readiness.canProceed) {
     return `好，目的地现在是${text}。${capturedDetailsNote(tripState)}之前保存的地点还需要重新搜索确认。`;
   }
+  const added = destinationAdditions(areasOf(before), areasOf(tripState));
+  const news = added.length === 0 ? "这些地点已经在旅程里了。" : `好，已加入${destinationAreasText(added)}。`;
   if (evaluateGeneratePlanReadiness(before).canProceed) {
-    return `好，目的地现在是${text}。`;
+    return news;
   }
-  return `好，目的地现在是${text}。${capturedDetailsNote(tripState)}${planReadyNote}${missingDetailsInvitation(tripState)}`;
+  return `${news}${capturedDetailsNote(tripState)}${planReadyNote}${missingDetailsInvitation(tripState)}`;
+}
+
+function areasOf(tripState: TripState) {
+  return tripState.destination.state === "known" ? tripState.destination.areas : [];
 }

@@ -238,7 +238,7 @@ Generate plan 只有一个，位于聊天下方：missing→按钮不可用并�
 | 边界 | 当前机制 | 仍需准确说明的限制 |
 | --- | --- | --- |
 | 所有权 | guest cookie + owner-scoped Trip 查询，缺失/他人 Journey 返回相同 not-found | 无账号协作权限系统 |
-| 外部输入 | 模型 JSON、请求体、提供方数据和数据库读取经过校验 | 不能靠 TypeScript 断言信任外部数据 |
+| 外部输入 | 模型 JSON、请求体、提供方数据和数据库读取经过校验；聊天解释和首页草稿逐项挽救，不合格的单项丢弃并记日志，其余照常执行 | 不能靠 TypeScript 断言信任外部数据；没有可用 reply 或不是对象时整轮仍失败 |
 | 状态更新 | 最新状态应用 patch，CAS 最多 3 次；Postgres UPDATE 比较原始 JSONB | 无 CAS 的测试替身允许退回 update，不能代表生产保护 |
 | 目的地并发 | 专用操作带 expectedDestination，冲突拒绝旧 patch；普通字段重读重算 | 通用 state PATCH 仍接受 destination，未统一高德核验，冲突错误当前未单独映射 409 |
 | 保存与会话 | 保存真实正文及 presentation，刷新重读；选卡半成功返回真实状态 | 状态与会话不是跨所有步骤的一笔事务，普通聊天失败需刷新核对 |

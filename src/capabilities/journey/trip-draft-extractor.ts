@@ -1,5 +1,5 @@
 import {
-  validateTripDraft,
+  salvageTripDraft,
   type TripDraft,
 } from "@/domain/trip-draft/trip-draft";
 import { destinationEditJsonSchema } from "@/domain/trip-state/destination-edit";
@@ -138,7 +138,13 @@ export async function extractTripDraft(
       );
     }
 
-    return validateTripDraft(parsed);
+    const { draft, dropped } = salvageTripDraft(parsed);
+    if (dropped.length > 0) {
+      // The Journey is created without these parts; the log is the only place they show.
+      logger.warn({ event: logEvents.tripDraftPartsDropped, requestId: input.requestId, dropped },
+        "Unusable parts of the trip draft were dropped");
+    }
+    return draft;
   } catch (error) {
     logger.warn(
       {

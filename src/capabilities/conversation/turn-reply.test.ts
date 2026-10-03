@@ -3,7 +3,7 @@ import test from "node:test";
 
 import type { TripState } from "@/domain/trip-state/trip-state";
 import type { DestinationEditResult } from "@/capabilities/destination/apply-destination-edit";
-import { destinationEditReply } from "./turn-reply";
+import { destinationEditReply, recommendationLeadIn } from "./turn-reply";
 
 const empty: TripState = {
   name: { state: "missing" }, origin: { state: "missing" }, destination: { state: "missing" },
@@ -40,4 +40,11 @@ test("a card or an unplaced name is the turn's news, and the model's reply is le
     "暂时没找到「大里」的可靠地点，目的地没有因此改变。");
   assert.equal(destinationEditReply({ ...nothing, lookupFailed: ["大连"] }, modelReply, empty, empty),
     "地点查询暂时不可用，目的地没有改变。请稍后重试。");
+});
+
+test("the lead-in above recommendation cards keeps its statements and loses its questions", () => {
+  assert.equal(recommendationLeadIn("从上海出发，想找个安静的地方。我来推荐几处适合放松的。你打算什么时候去，玩多久呢？"),
+    "从上海出发，想找个安静的地方。我来推荐几处适合放松的。");
+  assert.equal(recommendationLeadIn("好的，我来推荐几个地方。"), "好的，我来推荐几个地方。");
+  assert.equal(recommendationLeadIn("想去哪种地方？"), "好，我挑几个地方给你看看。");
 });

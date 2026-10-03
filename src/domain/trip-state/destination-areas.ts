@@ -72,7 +72,32 @@ export function destinationProvinceText(areas: readonly DestinationArea[]): stri
  */
 export function destinationAreasTitle(areas: readonly DestinationArea[]): string {
   const places = areas.flatMap((area) => area.places);
-  return places.length === 1 ? places[0].name : destinationProvinceText(areas);
+  if (places.length === 1) return places[0].name;
+  // Past two provinces the full list stops reading as a name: 「云南省、四川省等4省」.
+  if (areas.length > 2) return `${destinationProvinceText(areas.slice(0, 2))}等${areas.length}省`;
+  return destinationProvinceText(areas);
+}
+
+/**
+ * What `after` holds that `before` did not: new provinces, new 市, and new spots under
+ * a 市 already there. A confirmation names this, not the whole destination — read
+ * out in full after every pick, a four-province trip buried the one thing just added.
+ */
+export function destinationAdditions(
+  before: readonly DestinationArea[],
+  after: readonly DestinationArea[],
+): readonly DestinationArea[] {
+  return after.flatMap((area) => {
+    const previous = before.find((item) => item.province === area.province);
+    if (previous === undefined) return [area];
+    const places = area.places.flatMap((place) => {
+      const existing = previous.places.find((item) => item.name === place.name);
+      if (existing === undefined) return [place];
+      const spots = place.spots.filter((spot) => !existing.spots.includes(spot));
+      return spots.length === 0 ? [] : [{ ...place, spots }];
+    });
+    return places.length === 0 ? [] : [{ ...area, places }];
+  });
 }
 
 export function destinationPlaceCount(areas: readonly DestinationArea[]): number {

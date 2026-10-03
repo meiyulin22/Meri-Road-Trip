@@ -142,50 +142,82 @@ function parseChange(value: unknown, index: number): ProposedTripStateChange {
   };
 }
 
-export function validateWorkspaceConversationInterpretation(
+/**
+ * A model answer with one unusable part is still mostly an answer. Failing the whole
+ * turn over it threw away the user's message along with every valid change in it —
+ * once for a list that was one entry too long, once for clearing transport — so each
+ * part is checked on its own: a bad part becomes "nothing proposed" and is named in
+ * `dropped`, and only an answer with no usable reply fails.
+ */
+export interface SalvagedWorkspaceConversationInterpretation {
+  readonly interpretation: WorkspaceConversationInterpretation;
+  readonly dropped: readonly string[];
+}
+
+export function salvageWorkspaceConversationInterpretation(
   value: unknown,
-): WorkspaceConversationInterpretation {
+): SalvagedWorkspaceConversationInterpretation {
   if (!isRecord(value)) {
     throw new InvalidWorkspaceConversationInterpretationError(
       "Workspace conversation interpretation must be an object.",
     );
   }
-
-  assertExactKeys(value, ["presentationIntent", "changes", "destinationEdit", "reply"], "interpretation");
-
-  if (!presentationIntents.some((intent) => intent === value.presentationIntent)) {
-    throw new InvalidWorkspaceConversationInterpretationError("interpretation.presentationIntent is invalid.");
-  }
-
-  if (!Array.isArray(value.changes)) {
-    throw new InvalidWorkspaceConversationInterpretationError(
-      "interpretation.changes must be an array.",
-    );
-  }
-
   if (typeof value.reply !== "string" || value.reply.trim() === "") {
     throw new InvalidWorkspaceConversationInterpretationError(
       "interpretation.reply must be a non-empty string.",
     );
   }
 
-  const changes = value.changes.map(parseChange);
-  const fields = changes.map((change) => change.field);
-  if (new Set(fields).size !== fields.length) {
-    throw new InvalidWorkspaceConversationInterpretationError(
-      "interpretation.changes contains duplicate fields.",
-    );
+  const dropped: string[] = [];
+  const expectedKeys = ["presentationIntent", "changes", "destinationEdit", "reply"];
+  for (const key of Object.keys(value)) {
+    if (!expectedKeys.includes(key)) dropped.push(`interpretation.${key} is not part of the schema.`);
   }
 
-  let destinationEdit: DestinationEdit;
+  let presentationIntent: PresentationIntent = "none";
+  if (presentationIntents.some((intent) => intent === value.presentationIntent)) {
+    presentationIntent = value.presentationIntent as PresentationIntent;
+  } else {
+    dropped.push("interpretation.presentationIntent is invalid.");
+  }
+
+  const changes: ProposedTripStateChange[] = [];
+  if (Array.isArray(value.changes)) {
+    value.changes.forEach((item, index) => {
+      try {
+        const change = parseChange(item, index);
+        if (changes.some((kept) => kept.field === change.field)) {
+          dropped.push(`changes[${index}] repeats ${change.field}.`);
+        } else {
+          changes.push(change);
+        }
+      } catch (error) {
+        dropped.push(error instanceof Error ? error.message : `changes[${index}] is invalid.`);
+      }
+    });
+  } else {
+    dropped.push("interpretation.changes must be an array.");
+  }
+
+  let destinationEdit: DestinationEdit = { operation: "none" };
   try {
     destinationEdit = validateDestinationEdit(value.destinationEdit);
   } catch (error) {
-    throw new InvalidWorkspaceConversationInterpretationError(
-      error instanceof Error ? error.message : "destinationEdit is invalid.",
-    );
+    dropped.push(error instanceof Error ? error.message : "destinationEdit is invalid.");
   }
-  return { presentationIntent: value.presentationIntent as PresentationIntent, changes, destinationEdit, reply: value.reply };
+
+  return { interpretation: { presentationIntent, changes, destinationEdit, reply: value.reply }, dropped };
+}
+
+/** The same reading with nothing allowed to be dropped, for callers that need an exact answer. */
+export function validateWorkspaceConversationInterpretation(
+  value: unknown,
+): WorkspaceConversationInterpretation {
+  const { interpretation, dropped } = salvageWorkspaceConversationInterpretation(value);
+  if (dropped.length > 0) {
+    throw new InvalidWorkspaceConversationInterpretationError(dropped[0]);
+  }
+  return interpretation;
 }
 
 /** Whether the turn proposes anything for the Journey at all. */

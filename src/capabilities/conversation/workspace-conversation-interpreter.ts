@@ -2,7 +2,7 @@ import type { TripState } from "@/domain/trip-state/trip-state";
 import {
   conversationFieldNames,
   proposesJourneyUpdate,
-  validateWorkspaceConversationInterpretation,
+  salvageWorkspaceConversationInterpretation,
   type WorkspaceConversationInterpretation,
   presentationIntents,
 } from "@/domain/trip-state/workspace-conversation";
@@ -137,7 +137,12 @@ export async function interpretWorkspaceConversation(
       );
     }
 
-    const interpretation = validateWorkspaceConversationInterpretation(parsed);
+    const { interpretation, dropped } = salvageWorkspaceConversationInterpretation(parsed);
+    if (dropped.length > 0) {
+      // The turn goes ahead without these parts; the log is the only place they show.
+      logger.warn({ event: logEvents.workspaceConversationPartsDropped, requestId: input.requestId, dropped },
+        "Unusable parts of the model answer were dropped");
+    }
     if (input.mode === "opening" &&
       (proposesJourneyUpdate(interpretation) || interpretation.presentationIntent !== "none")) {
       throw new InvalidWorkspaceConversationModelOutputError(

@@ -122,6 +122,10 @@ const cases = {
     expect: 'destinationEdit add with places ["大莲"] exactly as typed — never corrected to 大连 or 大理',
     tripState: provinceOnly, message: "我还想去大莲", conversationHistory: [],
   },
+  "19": {
+    expect: 'destination_recommendations on the first ask — describing the kind of place is a preference; must NOT ask for origin instead',
+    tripState: empty, message: "我想安静一点的地方", conversationHistory: [],
+  },
 } as const;
 
 async function run(id: keyof typeof cases): Promise<void> {

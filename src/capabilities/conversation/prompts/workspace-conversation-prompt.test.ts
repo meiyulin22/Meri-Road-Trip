@@ -56,6 +56,7 @@ test("China scope is a conditional rule for travellers from anywhere, not a line
 test("an explicit request gets cards at once, widening has its own intent, and the lead-in names nothing", () => {
   const text = prompt();
   assert.match(text, /An explicit request is enough on its own: never ask for dates/);
+  assert.match(text, /"我想安静一点的地方"/);
   assert.match(text, /"destination_recommendations_elsewhere"/);
   assert.match(text, /推荐别的省份/);
   assert.match(text, /Name no place, list nothing, promise no number, and ask no question/);

@@ -175,3 +175,32 @@ test("opening mode rejects destination recommendation presentation intent", asyn
     InvalidWorkspaceConversationModelOutputError,
   );
 });
+
+test("one unusable part of the answer is dropped and the rest of the turn goes ahead", async () => {
+  const interpretation = await interpretWorkspaceConversation(input, createClient({
+    content: JSON.stringify({
+      presentationIntent: "arbitrary_ui",
+      changes: [
+        { field: "transportPreference", state: "known", value: "teleport" },
+        { field: "origin", state: "known", value: "上海" },
+        { field: "origin", state: "known", value: "北京" },
+      ],
+      destinationEdit: { operation: "add", places: ["富良野"], broadRegion: null, providerId: "invented" },
+      reply: "好的，记下从上海出发。",
+    }),
+    model: "kimi-k2.6",
+    finishReason: "stop",
+  }));
+  assert.equal(interpretation.presentationIntent, "none");
+  assert.deepEqual(interpretation.changes, [{ field: "origin", state: "known", value: "上海" }]);
+  assert.deepEqual(interpretation.destinationEdit, { operation: "none" });
+  assert.equal(interpretation.reply, "好的，记下从上海出发。");
+});
+
+test("an answer without a usable reply still fails the turn", async () => {
+  await assert.rejects(interpretWorkspaceConversation(input, createClient({
+    content: JSON.stringify({ presentationIntent: "none", changes: [], destinationEdit: { operation: "none" }, reply: " " }),
+    model: "kimi-k2.6",
+    finishReason: "stop",
+  })));
+});

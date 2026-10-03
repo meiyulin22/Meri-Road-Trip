@@ -182,6 +182,52 @@ export function validateTripDraft(value: unknown): TripDraft {
   return draft;
 }
 
+/**
+ * The model's reading of a first message, keeping every usable part. One bad field
+ * used to refuse the whole Journey, so the user could not even start; now that field
+ * is left unknown, an unusable destination edit names nothing, and each is reported in
+ * `dropped`. A request body from the browser is still held to `validateTripDraftDomain`.
+ */
+export function salvageTripDraft(value: unknown): { readonly draft: TripDraft; readonly dropped: readonly string[] } {
+  if (!isRecord(value)) {
+    throw new InvalidTripDraftError("TripDraft must be an object.");
+  }
+  const dropped: string[] = [];
+  for (const key of Object.keys(value)) {
+    if (!tripDraftKeys.some((expected) => expected === key)) dropped.push(`TripDraft.${key} is not part of the schema.`);
+  }
+  const record = value;
+  function field<T extends string = string>(key: string, accepts?: (known: string) => boolean): TripDraftField<T> {
+    try {
+      return toTripDraftField<T>(record[key], key, accepts);
+    } catch (error) {
+      dropped.push(error instanceof Error ? error.message : `${key} is invalid.`);
+      return { state: "missing" };
+    }
+  }
+  let destinationEdit: DestinationEdit = { operation: "none" };
+  try {
+    destinationEdit = parseDraftDestinationEdit(value.destinationEdit);
+  } catch (error) {
+    dropped.push(error instanceof Error ? error.message : "destinationEdit is invalid.");
+  }
+  const draft: TripDraft = {
+    destinationEdit,
+    name: field("name"),
+    origin: field("origin"),
+    startDate: field("startDate", isIsoDate),
+    endDate: field("endDate", isIsoDate),
+    duration: field("duration"),
+    transportPreference: field("transportPreference", isTransportPreference),
+  };
+  if (draft.startDate.state === "known" && draft.endDate.state === "known" &&
+    draft.endDate.value < draft.startDate.value) {
+    dropped.push("endDate cannot be before startDate.");
+    return { draft: { ...draft, endDate: { state: "missing" } }, dropped };
+  }
+  return { draft, dropped };
+}
+
 export function validateTripDraftDomain(value: unknown): TripDraft {
   if (!isRecord(value)) {
     throw new InvalidTripDraftError("TripDraft must be an object.");

@@ -46,6 +46,17 @@ export function missingDetailsInvitation(tripState: TripState): string {
 }
 
 /**
+ * The model's words above recommendation cards, without any question in them. The
+ * cards are the question on that turn, and a sentence asking for dates beside them
+ * asked two things at once — the prompt forbids it, but the model still wrote one.
+ */
+export function recommendationLeadIn(modelReply: string): string {
+  const sentences = modelReply.match(/[^。！？!?]+[。！？!?]*/gu) ?? [];
+  const kept = sentences.filter((sentence) => !/[？?]\s*$/u.test(sentence)).join("").trim();
+  return kept === "" ? "好，我挑几个地方给你看看。" : kept;
+}
+
+/**
  * What a destination edit did, said as facts the application established, then the
  * model's own reply when nothing needs the user's attention first. A card or a name
  * that could not be found is the turn's news, and the model wrote its reply before

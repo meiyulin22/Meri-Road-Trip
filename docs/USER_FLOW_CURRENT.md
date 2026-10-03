@@ -95,6 +95,8 @@ flowchart TD
 
 普通字段支持 known、approximate、ambiguous、missing。日期解释使用参考日期和时区；交通 known 值只支持 self_drive、no_self_drive、public_transport、flexible。这一步没有 Journey ID、数据库副作用或助手正文。
 
+模型输出由 [salvageTripDraft](../src/domain/trip-draft/trip-draft.ts)逐项读取：某个字段不合格就按 missing，destinationEdit 不合格（包括自造 providerId）就按 none，结束早于开始时丢弃结束日期，schema 外的键忽略；丢弃项记录 `trip_draft.parts_dropped` 警告。只有输出根本不是对象时才失败。以前一个坏字段就让用户无法创建旅程。浏览器提交到 journeys API 的草稿仍由 validateTripDraftDomain 严格校验。
+
 ### 2.2 创建阶段：地点提案与正式状态分开
 
 客户端提交 `{draft, initialUserMessage}` 到 [journeys API](../src/app/api/journeys/route.ts)。[createJourneyWithOpening](../src/capabilities/journey/create-journey-with-opening.ts)再次校验草稿；有原话且 destinationEdit 不为 none 时，以 missing 目的地为基底执行地点操作。
@@ -194,7 +196,7 @@ flowchart TD
 
 **行政地名补查：**[LocationService.resolveExpression](../src/capabilities/destination/location-service.ts)先按原词查询。如果返回了 POI，但没有合理匹配，且原词为 2–12 个汉字、不以省/市/区/县/州/镇/乡/村结尾，最多再查询一次“原词＋市”。补查只接受名称精确匹配且 city 或 district 同名的行政地点；酒店、道路等不能替代城市。空结果、已有明确/歧义结果不补查，提供方失败仍报查询故障。例如“香格里拉”的酒店结果可通过“香格里拉市”补查恢复；仍需中国范围检查和显式确认。县级市在当前结构中归到所属地级市/自治州，偏好名称保留提供方行政全名，确认时用全名重新查询，避免再次落到同名酒店。
 
-**结构校验：**解释器拒绝空输出、截断输出、非法 JSON；[领域校验](../src/domain/trip-state/workspace-conversation.ts)要求精确四项顶层键，检查字段名、重复字段、状态和值及交通枚举。missing 的 value 必须为 null，其他普通状态必须有非空 value。交通可以清空为 missing；有值时必须是 known 且为支持的四个值之一。
+**结构校验：**解释器拒绝空输出、截断输出、非法 JSON，以及没有可用 reply 的回答。其余部分由 [salvageWorkspaceConversationInterpretation](../src/domain/trip-state/workspace-conversation.ts)逐项检查：字段名、状态和值及交通枚举不合法的 change、重复的字段（保留第一个）、不合法的 presentationIntent（按 none）、不合法的 destinationEdit（按 none，包括模型自造 providerId 的情况）、schema 外的键，都**丢弃这一部分**，其余照常执行，并记录 `workspace.conversation.parts_dropped` 警告。以前任何一部分不合格都会让整轮 502、用户原话丢失；本版本之前已出现过两次（列表多一项、清空交通）。missing 的 value 必须为 null，其他普通状态必须有非空 value。交通可以清空为 missing；有值时必须是 known 且为支持的四个值之一。严格版 validateWorkspaceConversationInterpretation 仍保留，遇到任何丢弃即报错。
 
 **普通字段：**createTripStatePatchFromInterpretation 以当前 TripState 为参照，先丢弃不会改变字段的 change（重复当前值，或对已经 missing 的字段再写 missing），再转成 source=user 的 patch；剩余为空返回 null。模型习惯重复已有字段，若照写会让旧值覆盖新值。destination 不在普通 changes 中。
 
@@ -233,7 +235,7 @@ add/set 使用 Promise.all 查询表达。解析层保留不同 provider ID，�
 | 状态并发冲突 | 409 | 重读后不能安全提交 |
 | 模型配置缺失 | 503 | 未配置服务 |
 | 模型超时 | 504 | 超过请求时间 |
-| 模型请求或输出失败 | 502 | 外部调用/JSON/业务校验失败 |
+| 模型请求或输出失败 | 502 | 外部调用失败、非 JSON、截断或没有可用 reply；单个字段不合格不会到这里 |
 | 其他错误 | 500 | 未分类失败 |
 
 响应带 requestId，可与结构化日志关联。[Transport](../src/components/trip-workspace/workspace-chat-transport.ts)处理完整响应与客户端状态同步。
@@ -277,6 +279,8 @@ add/set 使用 Promise.all 查询表达。解析层保留不同 provider ID，�
 **没有推荐按钮：**推荐只从聊天触发。缺目的地时，聊天下方的 Generate plan 不可用，悬停或聚焦时提示用户：在对话里说出想去的地方、对 Meri 说“帮我推荐几个地方”，或点击提示里的链接打开右侧目的地搜索（见 5.4）。旧版“帮我推荐 / 我自己选”引导消息及其 API 已删除；旧旅程历史里保存的那条引导消息仍按普通助手消息显示，不再带按钮，[其稳定 ID](../src/capabilities/conversation/destination-missing-guidance.ts) 只用于开场判断时跳过它。
 
 **先回复，后出卡：**推荐需要一次 Bocha 搜索和第二次 Kimi 调用。为了不让用户等待两次模型调用才看到任何字，聊天请求只保存模型的简短引导，并在助手消息上挂 `{type:"destination_recommendations_pending", scope}`。[ConversationPanel](../src/components/trip-workspace/conversation-panel.tsx)发现最后一条消息是 pending 时显示“正在挑选推荐的地方…”、小熊进入思考状态、输入框暂停，并调用 `POST /api/trips/[id]/destination-recommendations`（body 只有 `{messageId}`）。重新打开 Journey 时如果最后一条仍是 pending，会自动再请求一次。
+
+推荐回合的引导语由 [recommendationLeadIn](../src/capabilities/conversation/turn-reply.ts)去掉问句：卡片本身就是这一轮的问题，提示词虽然禁止，模型仍会追问日期；全是问句时换成“好，我挑几个地方给你看看。”。
 
 [该 route](../src/app/api/trips/%5Bid%5D/destination-recommendations/route.ts)从保存的对话中读出 pending 消息之前的那条用户原话和更早历史（[pendingRecommendationRequest](../src/capabilities/recommendation/destination-recommendation-use-case.ts)），浏览器不提供推荐内容。卡片消息 ID 由 pending 消息派生（[destinationRecommendationCardsMessageId](../src/capabilities/conversation/destination-selection-message-id.ts)），通过 createAssistantIfAbsent 保存，重复请求返回同一条。
 
@@ -347,7 +351,7 @@ add/set 使用 Promise.all 查询表达。解析层保留不同 provider ID，�
 6. 查询结束重读最新 TripState；同组合已有确认且当前结果仍匹配时返回原确认、不写状态。否则再次读取消息，若有后续消息或该组合已消费，返回 offer_expired，防止查询期间继续聊天后旧卡落库。未过期时：add 合并最新 areas；replace 再检查基底，从空 areas 构造整体替换。
 7. 按 offer 顺序处理，使请求 ID 顺序变化仍一致；省市合并、spot 同名去重。
 8. 带 expectedDestination 保存，避免覆盖查询期间的目的地修改。
-9. [destinationSelectionReply](../src/capabilities/destination/destination-selection-reply.ts)按保存前后的准备度生成固定确认：这次选择使旅程首次可规划时，附准备度句子和可补充的信息；之后的选择只说“好，目的地现在是…”。保存助手消息。
+9. [destinationSelectionReply](../src/capabilities/destination/destination-selection-reply.ts)按保存前后状态生成固定确认，只说这次新增的部分（[destinationAdditions](../src/domain/trip-state/destination-areas.ts)）：“好，已加入浙江省 杭州市、舟山市。”；全部已在旅程里则说“这些地点已经在旅程里了。”。这次选择使旅程首次可规划时，再附准备度句子和可补充的信息。以前每次都念整个目的地，四个省时很长。保存助手消息。
 10. 返回 `{tripState,assistantMessage}`，客户端同步聊天与右侧。
 
 #### 重试、过期与保存一半
@@ -381,7 +385,7 @@ add/set 使用 Promise.all 查询表达。解析层保留不同 provider ID，�
 
 每行状态由 [field-certainty](../src/components/trip-workspace/field-certainty.tsx)统一为 18px 圆形：known 实心绿圆带勾；missing 空心灰圈；approximate 琥珀色圈内一点，并在值后显示“大致”；ambiguous 红褐色圈内“!”，并显示“待确认”。完整状态文字仍以屏幕阅读器可读的隐藏文本提供。聊天选择卡的复选框保持圆角方形，表示“可勾选”，与状态圆区分。
 
-- 旅程名称：文本编辑，Enter/失焦提交，Escape 取消。
+- 旅程名称：文本编辑，Enter/失焦提交，Escape 取消。用户没改过名称时，名称随目的地派生为“…之旅”：只有一个城市用城市名，否则用省名；超过两个省时只列前两个并写总数，如“云南省、四川省等4省之旅”（[destinationAreasTitle](../src/domain/trip-state/destination-areas.ts)）。
 - 出发地、何时和旅程名称共用浅绿圆角铅笔编辑入口：浅绿图形区域 30px、图标 15px；字段值与图标仍是同一个至少 44px 高的按钮，触屏可点整行。悬停显示具体编辑提示并轻微划动一次，按下轻微缩小，键盘聚焦及浮层打开时加深底色；减少动态效果偏好下关闭动画。保留各字段原有编辑与保存方式。
 - 交通偏好：四个选项（自驾、不自驾、公共交通、灵活）一次点选，再点已选项清除为 missing；Meri 从对话记下的近似原话（如“可能自驾吧”）显示在选项下方，直到用户点选。
 - 何时：一行概括开始、结束和时长，例如“10月1日 → 10月7日 · 7天”；近似原话原样显示并标“大致”。点开为范围日历（宽屏两个月、窄屏一个月，今天之前不可选）：第一次点为开始、第二次点为结束，结束早于开始时改为新的开始；选完两端才保存。只选了开始就填天数或关闭浮层，会连同开始一起保存。天数可用 −/+ 或直接输入（1–366）。“清除日期”把三项都设为 missing。
@@ -490,7 +494,7 @@ add/set 使用 Promise.all 查询表达。解析层保留不同 provider ID，�
 | 地点未找到/查询失败 | route 固定事实说明 | 无结果/故障事实 |
 | remove 成功无失败项 | Kimi reply | 实际删除；成功措辞仍依赖模型 |
 | remove 歧义/无匹配 | route 固定说明 | 当前保存状态匹配结果 |
-| 聊天推荐回合 | 本轮解释 Kimi reply（不点名地点）＋ pending 标记 | 无卡；客户端随后请求卡片 |
+| 聊天推荐回合 | 本轮解释 Kimi reply（不点名地点；[recommendationLeadIn](../src/capabilities/conversation/turn-reply.ts)去掉其中的问句）＋ pending 标记 | 无卡；客户端随后请求卡片 |
 | 推荐卡片消息 | workflow 固定句 | 另一次 Kimi 推荐生成、Bocha 上下文及应用过滤，第二个请求生成 |
 | 聊天推荐无卡 | workflow 固定失败正文 | 无可展示建议 |
 | 聊天选卡提交成功 | destinationSelectionReply 固定确认（首次可规划时才附准备度） | 保存前后状态和准备度 |

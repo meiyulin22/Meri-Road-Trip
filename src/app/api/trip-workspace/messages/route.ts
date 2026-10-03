@@ -23,7 +23,7 @@ import {
 } from "@/capabilities/conversation/workspace-conversation-interpreter";
 import { selectRecentConversationMessages } from "@/capabilities/conversation/workspace-conversation-context";
 import { recommendationScopeForTurn } from "@/capabilities/recommendation/destination-recommendation-use-case";
-import { destinationEditReply } from "@/capabilities/conversation/turn-reply";
+import { destinationEditReply, recommendationLeadIn } from "@/capabilities/conversation/turn-reply";
 import { AmapLocationProvider } from "@/platform/location-provider/amap-location-provider";
 import { TripStateNotFoundError, TripStateConflictError } from "@/capabilities/journey/journey-errors";
 import { journeyService } from "@/capabilities/journey/journey-service-instance";
@@ -198,7 +198,9 @@ export async function POST(request: Request) {
         destinationNeedsUser,
       }, "Destination recommendations were requested on a turn that cannot offer them");
     }
-    const reply = destinationEditReply(destinationResult, interpretation.reply, tripState, persistedTripState);
+    const reply = destinationEditReply(destinationResult,
+      recommendationScope ? recommendationLeadIn(interpretation.reply) : interpretation.reply,
+      tripState, persistedTripState);
     const assistantPresentation = destinationResult.choices
       ? destinationResult.choices.presentation
       : recommendationScope

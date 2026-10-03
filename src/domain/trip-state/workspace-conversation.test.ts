@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import type {TripState} from "./trip-state";
 import test from "node:test";
-import {createTripStatePatchFromInterpretation,validateWorkspaceConversationInterpretation as validate,InvalidWorkspaceConversationInterpretationError as Invalid} from "./workspace-conversation";
+import {createTripStatePatchFromInterpretation,salvageWorkspaceConversationInterpretation,validateWorkspaceConversationInterpretation as validate,InvalidWorkspaceConversationInterpretationError as Invalid} from "./workspace-conversation";
 const base={presentationIntent:"none",changes:[],destinationEdit:{operation:"none"},reply:"好的。"};
 const state:TripState={name:{state:"known",value:"假期旅行",source:"system"},origin:{state:"missing"},destination:{state:"missing"},startDate:{state:"missing"},endDate:{state:"missing"},duration:{state:"known",value:"5天",source:"user"},transportPreference:{state:"missing"}};
 test("destination expressions produce an edit and never a direct state patch",()=>{
@@ -35,4 +35,12 @@ test("transport can be cleared, and clearing it when it is already missing chang
  const withTransport:TripState={...state,transportPreference:{state:"known",value:"self_drive",source:"user"}};
  assert.deepEqual(createTripStatePatchFromInterpretation(cleared,withTransport),{transportPreference:{state:"missing"}});
  assert.throws(()=>validate({...base,changes:[{field:"transportPreference",state:"approximate",value:"self_drive"}]}),Invalid);
+});
+test("salvage names every dropped part and keeps everything usable",()=>{
+ const {interpretation,dropped}=salvageWorkspaceConversationInterpretation({...base,extra:1,changes:[{field:"origin",state:"known",value:"上海"},{field:"origin",state:"known",value:"北京"},{field:"startDate",state:"sometime",value:"x"}],destinationEdit:"bad"});
+ assert.deepEqual(interpretation.changes,[{field:"origin",state:"known",value:"上海"}]);
+ assert.deepEqual(interpretation.destinationEdit,{operation:"none"});
+ assert.equal(dropped.length,4);
+ assert.throws(()=>salvageWorkspaceConversationInterpretation({...base,reply:""}),Invalid);
+ assert.throws(()=>salvageWorkspaceConversationInterpretation("text"),Invalid);
 });

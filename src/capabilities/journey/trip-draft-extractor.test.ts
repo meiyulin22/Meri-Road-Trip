@@ -111,9 +111,15 @@ test("broad destination edits retain their expression and suggested cities",asyn
  const result=await extractTripDraft(validInput,createJsonClient({...validModelDraft,destinationEdit:edit}));assert.deepEqual(result.destinationEdit,edit);
 });
 
-test("invalid destination edits and invalid dates cannot partially pass extraction",async()=>{
- await assert.rejects(extractTripDraft(validInput,createJsonClient({...validModelDraft,destinationEdit:{operation:"set",places:["潮州"],broadRegion:null,providerId:"invented"}})),InvalidTripDraftError);
- await assert.rejects(extractTripDraft(validInput,createJsonClient({...validModelDraft,startDate:{state:"known",value:"invalid date"}})),InvalidTripDraftError);
+test("an invalid destination edit or date is dropped, never written, and the rest of the draft survives",async()=>{
+ const invented=await extractTripDraft(validInput,createJsonClient({...validModelDraft,destinationEdit:{operation:"set",places:["潮州"],broadRegion:null,providerId:"invented"}}));
+ assert.deepEqual(invented.destinationEdit,{operation:"none"});
+ assert.deepEqual(invented.duration,{state:"known",value:"两天"});
+ const badDate=await extractTripDraft(validInput,createJsonClient({...validModelDraft,startDate:{state:"known",value:"invalid date"}}));
+ assert.deepEqual(badDate.startDate,{state:"missing"});
+});
+test("a draft that is not an object at all still fails",async()=>{
+ await assert.rejects(extractTripDraft(validInput,createJsonClient("text")),InvalidTripDraftError);
 });
 
 test("unknown draft fields are rejected",()=>{assert.throws(()=>validateTripDraft({...validModelDraft,destination:{state:"known",value:"杭州"}}),InvalidTripDraftError);});
@@ -158,12 +164,7 @@ test("rejects non-JSON model output without repairing it", async () => {
   );
 });
 
-test("rejects JSON that does not satisfy the TripDraft contract", async () => {
-  await assert.rejects(
-    extractTripDraft(
-      validInput,
-      createJsonClient({ ...validModelDraft, destination: null }),
-    ),
-    InvalidTripDraftError,
-  );
+test("a key outside the TripDraft contract is ignored rather than refusing the Journey", async () => {
+  const draft = await extractTripDraft(validInput, createJsonClient({ ...validModelDraft, destination: null }));
+  assert.equal("destination" in draft, false);
 });
