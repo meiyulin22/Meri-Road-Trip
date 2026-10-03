@@ -20,3 +20,29 @@
 .inJourneyBadge { display: inline-block; margin-left: 8px; padding: 1px 7px; border-radius: 999px; background: #dce8d7; color: #46694f; font-size: 10.5px; font-weight: 600; line-height: 1.6; vertical-align: 2px; white-space: nowrap; }
 .choiceStatus { flex: none; margin-right: 14px; color: #778779; font-size: 11px; }
 @media (max-width: 640px) { .place { grid-template-columns: auto 1fr; } .reason { grid-column: 2; } }
+
+/* Place cards: one sideways row per province, photo on top. */
+.groupHeading { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding-right: 10px; }
+.rowArrows { display: inline-flex; gap: 4px; }
+.rowArrows button { display: grid; place-items: center; width: 26px; height: 26px; padding: 0; border: 1px solid #d9ded1; border-radius: 50%; background: #fffdf8; color: #5d7360; cursor: pointer; }
+.rowArrows button:hover:not(:disabled) { background: #eef2e8; }
+.rowArrows button:disabled { opacity: .4; cursor: default; }
+.rowViewport { overflow: hidden; padding: 2px 14px 12px; }
+.track { display: flex; gap: 10px; margin: 0; padding: 0; list-style: none; touch-action: pan-y pinch-zoom; }
+.slide { flex: 0 0 196px; min-width: 0; }
+.placeCard { display: flex; flex-direction: column; height: 100%; overflow: hidden; border: 1px solid #e1e6dc; border-radius: 14px; background: #fffdf8; cursor: pointer; transition: border-color .15s, box-shadow .15s; }
+.placeCard:hover, .placeCard:focus-within { border-color: #b9c8b3; box-shadow: 0 4px 14px rgba(64, 78, 59, .08); }
+.placeCard[data-state="picked"] { border-color: #879c83; box-shadow: 0 0 0 2px #d4e5ce; }
+.placeCard[data-state="in-journey"] { background: #f4f6ef; }
+.placeCard:has(input:disabled) { cursor: default; }
+.placeImage { position: relative; display: block; aspect-ratio: 4 / 3; background: linear-gradient(160deg, #dfe8d9, #c9d8c3); }
+.placeImage img { object-fit: cover; }
+.placeImageFallback { position: absolute; inset: 0; display: grid; place-items: center; color: #7d927b; }
+.placeCheck { position: absolute; top: 8px; left: 8px; display: grid; place-items: center; padding: 3px; border-radius: 8px; background: rgba(255, 253, 248, .92); box-shadow: 0 1px 4px rgba(0, 0, 0, .12); }
+.placeImage .inJourneyBadge { position: absolute; top: 9px; right: 8px; margin: 0; }
+.placeCaption { position: absolute; right: 0; bottom: 0; left: 0; padding: 14px 8px 5px; overflow: hidden; background: linear-gradient(to top, rgba(20, 30, 24, .55), transparent); color: #fff; font-size: 10.5px; white-space: nowrap; text-overflow: ellipsis; }
+.placeBody { display: flex; flex-direction: column; gap: 4px; padding: 9px 11px 11px; }
+.placeBody .reason { display: -webkit-box; overflow: hidden; -webkit-line-clamp: 3; -webkit-box-orient: vertical; }
+.placeBody .choiceStatus { margin: 0; }
+@media (prefers-reduced-motion: reduce) { .placeCard { transition: none; } }
+@media (max-width: 640px) { .slide { flex-basis: 168px; } .rowViewport { padding-inline: 10px; } }

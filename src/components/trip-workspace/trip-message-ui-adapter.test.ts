@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { formatMessageTimestamp } from "./message-timestamp";
-import { appendPersistedMessageIfAbsent, locationCandidatePresentation, messageCreatedAt, recommendationPresentation, toWorkspaceUIMessages } from "./trip-message-ui-adapter";
+import { appendPersistedMessageIfAbsent, destinationChoicePresentation, locationCandidatePresentation, messageCreatedAt, recommendationPresentation, toWorkspaceUIMessages } from "./trip-message-ui-adapter";
 
 function localDate(year: number, month: number, day: number, hour: number, minute: number): string {
   return new Date(year, month - 1, day, hour, minute).toISOString();
@@ -85,4 +85,14 @@ test("candidate selection follow-up appears immediately and matches refreshed hi
   assert.deepEqual(toWorkspaceUIMessages([candidateMessage, followUp]), immediate);
   assert.strictEqual(appendPersistedMessageIfAbsent(immediate, followUp), immediate);
   assert.deepEqual(immediate.map((item) => item.role), ["assistant", "assistant"]);
+});
+
+test("a recommendation's photo reaches the unified card", () => {
+  const image = { url: "https://store.is.autonavi.com/showpic/yl", caption: "玉龙雪山国家级风景名胜区" };
+  const [message] = toWorkspaceUIMessages([{ id: "r1", tripId: "t", role: "assistant", content: "看看这些",
+    createdAt: "2026-10-03T00:00:00.000Z", presentation: { type: "destination_recommendations",
+      destinations: [{ id: "a", name: "丽江市", province: "云南省", reason: "雪山", image }, { id: "b", name: "大理白族自治州", province: "云南省" }] } }]);
+  const choices = destinationChoicePresentation(message)?.choices ?? [];
+  assert.deepEqual(choices[0].image, image);
+  assert.equal("image" in choices[1], false);
 });

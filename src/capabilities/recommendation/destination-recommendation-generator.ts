@@ -34,7 +34,7 @@ export const destinationRecommendationJsonSchema: Record<string, unknown> = {
             items: {
               type: "object",
               additionalProperties: false,
-              required: ["name", "reason"],
+              required: ["name", "reason", "landmark"],
               properties: {
                 name: {
                   type: "string", minLength: 1, maxLength: 30,
@@ -43,6 +43,10 @@ export const destinationRecommendationJsonSchema: Record<string, unknown> = {
                 reason: {
                   type: "string", minLength: 1, maxLength: 120,
                   description: "One short Chinese sentence on why this place may fit the user's stated preferences.",
+                },
+                landmark: {
+                  type: "string", minLength: 1, maxLength: 30,
+                  description: "The one well-known scenic spot inside this place that best shows it, by its common name (玉龙雪山 for 丽江市, 洱海 for 大理白族自治州). Used only to find a photo.",
                 },
               },
             },

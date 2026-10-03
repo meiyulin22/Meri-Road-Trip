@@ -10,6 +10,10 @@ import { readGuestId } from "@/platform/identity/guest-identity";
 import { TripStateNotFoundError } from "@/capabilities/journey/journey-errors";
 import { journeyService } from "@/capabilities/journey/journey-service-instance";
 import { tripMessageService } from "@/capabilities/conversation/trip-message-service-instance";
+import { imagesShownInConversation, selectedPlaceImages, type SelectedPlaceImage } from "@/capabilities/destination/place-images";
+import type { TripMessage } from "@/domain/trip-message/trip-message";
+import type { TripState } from "@/domain/trip-state/trip-state";
+import { AmapPlacePhotoProvider } from "@/platform/place-photos/amap-place-photo-provider";
 
 import styles from "@/components/trip-workspace/trip-workspace.module.css";
 
@@ -60,10 +64,28 @@ export default async function TripWorkspacePage({
   return (
     <TripWorkspace
       initialMessages={initialMessages}
+      initialPlacePhotos={await initialPlacePhotos(journey.tripState, initialMessages)}
       initialTripState={journey.tripState}
       tripId={journey.trip.id}
     />
   );
+}
+
+/**
+ * Photos arrive with the page, so a reload shows them at once. A cold lookup is not
+ * worth holding the whole Journey for, though: past a short wait the page renders
+ * without them and the browser asks once it is open.
+ */
+async function initialPlacePhotos(
+  tripState: TripState,
+  messages: readonly TripMessage[],
+): Promise<readonly SelectedPlaceImage[] | null> {
+  const areas = tripState.destination.state === "known" ? tripState.destination.areas : [];
+  if (areas.length === 0) return [];
+  const lookup = selectedPlaceImages(areas, new AmapPlacePhotoProvider(), imagesShownInConversation(messages))
+    .catch(() => null);
+  const timeout = new Promise<null>((resolve) => setTimeout(() => resolve(null), 1_500));
+  return Promise.race([lookup, timeout]);
 }
 
 function MissingTripState() {

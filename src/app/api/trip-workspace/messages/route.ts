@@ -31,6 +31,8 @@ import { readGuestId } from "@/platform/identity/guest-identity";
 import { LocationService } from "@/capabilities/destination/location-service";
 import { applyDestinationEdit } from "@/capabilities/destination/apply-destination-edit";
 import { resolveDestinationPlace } from "@/capabilities/destination/resolve-destination-place";
+import { withChoiceImages } from "@/capabilities/destination/place-images";
+import { AmapPlacePhotoProvider } from "@/platform/place-photos/amap-place-photo-provider";
 import { logger, logEvents } from "@/platform/observability/logger";
 import { tripMessageService } from "@/capabilities/conversation/trip-message-service-instance";
 import { serializeError } from "@/platform/observability/serialize-error";
@@ -202,7 +204,7 @@ export async function POST(request: Request) {
       recommendationScope ? recommendationLeadIn(interpretation.reply) : interpretation.reply,
       tripState, persistedTripState);
     const assistantPresentation = destinationResult.choices
-      ? destinationResult.choices.presentation
+      ? await withChoiceImages(destinationResult.choices.presentation, new AmapPlacePhotoProvider())
       : recommendationScope
         ? { type: "destination_recommendations_pending" as const, scope: recommendationScope }
         : undefined;

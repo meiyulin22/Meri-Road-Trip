@@ -55,6 +55,7 @@
 | `src/platform/llm/` | 模型客户端契约、Kimi 调用、SDK 错误与超时适配 | 模型提供方适配 |
 | `src/platform/location-provider/` | 地点搜索/输入建议接口和高德 HTTP 实现 | 地图提供方适配 |
 | `src/platform/search/` | Discovery Search 接口及 Bocha 请求/响应适配 | 搜索提供方适配 |
+| `src/platform/place-photos/` | 地点照片接口和高德照片实现（https 升级、主机白名单、7 天数据缓存） | 照片提供方适配 |
 | `src/platform/persistence/` | repository 接口，隔离应用层与数据库实现 | 持久化端口；这里的接口不等于 SQL 实现 |
 | `src/platform/persistence/postgres/` | PostgreSQL repository，读取校验、错误包装、CAS 更新 | 持久化适配器 |
 | `src/platform/persistence/in-memory/` | 内存 repository，用于测试替身 | 持久化测试适配器 |
@@ -103,7 +104,7 @@ UI 同步状态；刷新从数据库恢复
 
 LLM 解释自然语言并提出受限 JSON；应用校验、决定是否执行、核验地点并保存。助手建议即使经过高德核验，仍需要用户显式确认才成为目的地。Gen UI 是受限数据驱动的预写 React 组件，不是模型生成 JSX。
 
-推荐是确定性流程：Discovery Search → Kimi 结构化推荐 → 校验/去重 → 已定省份过滤 → 保存建议 → 显式选中时复核高德。代码没有接通访问检查、排序、图片补全或开放式 Research Agent。Generate plan 当前只检查准备度；PWA 有 manifest 和图标，没有离线 service worker。
+推荐是确定性流程：Discovery Search → Kimi 结构化推荐（含配图用的代表地标）→ 校验/去重 → 省份过滤 → 按地标查高德照片 → 保存建议 → 显式选中时复核高德。代码没有接通访问检查、排序或开放式 Research Agent；照片只是装饰。Generate plan 当前只检查准备度；PWA 有 manifest 和图标，没有离线 service worker。
 
 ### 3.4 两条实际操作链
 
@@ -162,7 +163,7 @@ LLM 解释自然语言并提出受限 JSON；应用校验、决定是否执行�
 | [README.md](../README.md) | 文档/开发约定 | 本地运行、环境变量、检查命令、架构入口和部署说明。 |
 | [drizzle.config.ts](../drizzle.config.ts) | 工程配置 | 加载本地环境，指定 PostgreSQL schema 和迁移目录，检查 DATABASE_URL。 |
 | [eslint.config.mjs](../eslint.config.mjs) | 工程配置 | ESLint flat config，组合 Next.js 和 TypeScript 规则及忽略项。 |
-| [next.config.ts](../next.config.ts) | 工程配置 | Next.js 配置入口；当前保留默认配置对象。 |
+| [next.config.ts](../next.config.ts) | 工程配置 | Next.js 配置入口：允许 next/image 从高德两个照片主机取图。 |
 | [package-lock.json](../package-lock.json) | 工程配置 | 锁定 npm 依赖解析结果，保证安装版本可重现。 |
 | [package.json](../package.json) | 工程配置 | 项目信息、依赖与 dev/build/start/lint/test/typecheck 命令。 |
 | [tsconfig.json](../tsconfig.json) | 工程配置 | TypeScript 编译/检查、路径别名及 Next.js 类型配置。 |
@@ -193,6 +194,7 @@ LLM 解释自然语言并提出受限 JSON；应用校验、决定是否执行�
 | [src/app/api/trips/[id]/conversation/initialize/route.ts](../src/app/api/trips/%5Bid%5D/conversation/initialize/route.ts) | HTTP 接口层 | POST opening 重试：检查访客和 Journey，返回保存的开场或初始化合资格开场。 |
 | [src/app/api/trips/[id]/destination-recommendation-selection/route.ts](../src/app/api/trips/%5Bid%5D/destination-recommendation-selection/route.ts) | HTTP 接口层 | POST 多选确认：取持久化 offer、验证选择和过期、复核高德、合并/替换、保存确认，处理安全重试和半成功。 |
 | [src/app/api/trips/[id]/destination-recommendations/route.ts](../src/app/api/trips/%5Bid%5D/destination-recommendations/route.ts) | HTTP 接口层 | POST 推荐卡片：只接受 `{messageId}`，从保存的对话还原 pending 请求，仅为仍是最新消息的 pending 运行推荐工作流，以派生 ID 保存卡片；已存在则直接返回，过期 409，失败 502。 |
+| [src/app/api/trips/[id]/destination-photos/route.ts](../src/app/api/trips/%5Bid%5D/destination-photos/route.ts) | HTTP 接口层 | GET 已选地点照片：owner 检查，按当前目的地和对话里卡片展示过的照片返回每个地点一张，private/no-store，不写入任何数据。 |
 | [src/app/api/trips/[id]/destinations/route.ts](../src/app/api/trips/%5Bid%5D/destinations/route.ts) | HTTP 接口层 | GET 手动搜索、POST 重查并添加、DELETE 完整元组/旧记录；归属检查、目标核验及目的地并发控制。 |
 | [src/app/api/trips/[id]/planning-readiness/route.ts](../src/app/api/trips/%5Bid%5D/planning-readiness/route.ts) | HTTP 接口层 | GET 读取新鲜 TripState，返回 missing/unverified/selected 准备度；不生成计划。 |
 | [src/app/api/trips/[id]/route.ts](../src/app/api/trips/%5Bid%5D/route.ts) | HTTP 接口层 | DELETE /api/trips/[id] 只删除当前访客拥有的 Trip，数据库级联清理状态和消息。 |
@@ -202,7 +204,7 @@ LLM 解释自然语言并提出受限 JSON；应用校验、决定是否执行�
 | [src/app/manifest.ts](../src/app/manifest.ts) | 页面/框架入口 | PWA Web App Manifest，声明名称、启动地址、显示方式和图标；不提供离线缓存。 |
 | [src/app/page.tsx](../src/app/page.tsx) | 页面/框架入口 | 首页 / 的服务端页面入口，渲染 MeriAppShell。 |
 | [src/app/trips/[id]/error.tsx](../src/app/trips/%5Bid%5D/error.tsx) | 页面/框架入口 | Workspace 页面错误边界，提供失败提示和重试入口。 |
-| [src/app/trips/[id]/page.tsx](../src/app/trips/%5Bid%5D/page.tsx) | 页面/框架入口 | Workspace 服务端加载入口，检查归属、读取状态/消息，区分 404 与缺失状态。 |
+| [src/app/trips/[id]/page.tsx](../src/app/trips/%5Bid%5D/page.tsx) | 页面/框架入口 | Workspace 服务端加载入口，检查归属、读取状态/消息，区分 404 与缺失状态；最多等 1.5 秒带上已选地点照片。 |
 | [src/app/trips/journey-delete-action.tsx](../src/app/trips/journey-delete-action.tsx) | 页面/框架入口 | 列表页客户端删除控件，调用 owner-scoped DELETE 并更新页面。 |
 | [src/app/trips/new/page.tsx](../src/app/trips/new/page.tsx) | 页面/框架入口 | 旧 /trips/new 入口重定向至首页，统一新建入口。 |
 | [src/app/trips/page.tsx](../src/app/trips/page.tsx) | 页面/框架入口 | /trips 服务端列表，按访客读取 JourneySummary，呈现旅程卡和空状态。 |
@@ -243,16 +245,19 @@ LLM 解释自然语言并提出受限 JSON；应用校验、决定是否执行�
 | [src/components/trip-workspace/conversation-reveal.test.ts](../src/components/trip-workspace/conversation-reveal.test.ts) | 测试（对应模块边界） | 验证只对已提交文本按字符步进显示，不越界或改写正文。 |
 | [src/components/trip-workspace/conversation-reveal.ts](../src/components/trip-workspace/conversation-reveal.ts) | 表现层 | 已提交助手正文的客户端可见字符数/显示节奏纯函数；不是服务端 token 流。 |
 | [src/components/trip-workspace/destination-choices-card.test.tsx](../src/components/trip-workspace/destination-choices-card.test.tsx) | 测试（对应模块边界） | 验证同市新 spot 可添加、replace 可选已有市、重复 POI 归并及历史/已确认卡禁用。 |
-| [src/components/trip-workspace/destination-choices-card.tsx](../src/components/trip-workspace/destination-choices-card.tsx) | 表现层 | 当前聊天多选卡，按省归组、同偏好归并、统一提交，处理已在行程（勾选锁定）/只读/pending/失败状态。 |
+| [src/components/trip-workspace/destination-choices-card.tsx](../src/components/trip-workspace/destination-choices-card.tsx) | 表现层 | 当前聊天多选卡：每省一行 Embla 横滑、照片在上的地点卡（失败显示兜底），同偏好归并、统一提交，处理已在行程（勾选锁定）/只读/pending/失败状态，拖动不误勾选。 |
 | [src/components/trip-workspace/destination-editor.tsx](../src/components/trip-workspace/destination-editor.tsx) | 表现层 | 右侧目的地行：“＋ 添加”展开搜索；每省一块，每个城市一行、其景点标签排在同一行右侧，均可删除，无城市的省显示“全省”；搜索/显式添加/精确删除及旧记录清除，处理 busy 和错误。 |
 | [src/components/trip-workspace/destination-recommendation-model.test.ts](../src/components/trip-workspace/destination-recommendation-model.test.ts) | 测试（对应模块边界） | 验证推荐卡选择资格、省分组、统一提交请求及旧 Picker 渲染兼容。 |
 | [src/components/trip-workspace/destination-recommendation-model.ts](../src/components/trip-workspace/destination-recommendation-model.ts) | 表现层 | 提交推荐选卡、请求 pending 回复的推荐卡片、按省归组及选择资格等前端辅助规则。 |
+| [src/components/trip-workspace/destination-photos-model.ts](../src/components/trip-workspace/destination-photos-model.ts) | 表现层 | 请求已选地点照片并丢弃不合法项；封面取第一个地点的照片。 |
+| [src/components/trip-workspace/destination-photos-model.test.ts](../src/components/trip-workspace/destination-photos-model.test.ts) | 测试（对应模块边界） | 验证照片请求解析与封面选择。 |
 | [src/components/trip-workspace/destination-recommendation-picker.module.css](../src/components/trip-workspace/destination-recommendation-picker.module.css) | 表现层 | 目的地候选/推荐多选列表的分组、checkbox、确认及状态样式。 |
 | [src/components/trip-workspace/destination-recommendation-picker.tsx](../src/components/trip-workspace/destination-recommendation-picker.tsx) | 表现层 | 保留的旧推荐多选组件及测试入口；当前 ConversationPanel 使用 DestinationChoicesCard。 |
 | [src/components/trip-workspace/expedition-brief-panel.tsx](../src/components/trip-workspace/expedition-brief-panel.tsx) | 表现层 | Journey overview 字段面板，按出发地、目的地、何时、交通偏好、旅程名称排列；交通一键点选，名称文本编辑。 |
 | [src/components/trip-workspace/field-certainty.tsx](../src/components/trip-workspace/field-certainty.tsx) | 表现层 | 字段把握程度的共享展示：统一 18px 圆形状态（known 实心绿勾、missing 空圈、approximate 琥珀点、ambiguous “!”）、屏幕阅读器文字和“大致/待确认”标签。 |
 | [src/components/trip-workspace/generate-plan-action.tsx](../src/components/trip-workspace/generate-plan-action.tsx) | 表现层 | 唯一的 Generate plan，Halo 式旋转渐变边框按钮，位于聊天下方并始终可见；不可用时保持可聚焦并在悬停/聚焦时说明添加目的地的途径（可打开右侧搜索），规划尚未开放。 |
-| [src/components/trip-workspace/journey-globe.tsx](../src/components/trip-workspace/journey-globe.tsx) | 表现层 | 装饰地球：改写自 cult-ui Illustration Globe（MIT）的 SVG 线框半球，节点数随已选地点数变化，无地理含义；减少动态效果时静止。 |
+| [src/components/trip-workspace/journey-globe.tsx](../src/components/trip-workspace/journey-globe.tsx) | 表现层 | 装饰地球：改写自 cult-ui Illustration Globe（MIT）的 SVG 线框半球，节点数随已选地点数变化，无地理含义；减少动态效果时静止；由 journey-orbit 包裹。 |
+| [src/components/trip-workspace/journey-orbit.tsx](../src/components/trip-workspace/journey-orbit.tsx) | 表现层 | 照片环：已选地点照片绕地球旋转，前大后小、前后遮挡，悬停暂停、点击转到正前方、减少动态效果时静止。 |
 | [src/components/trip-workspace/location-editor-model.test.ts](../src/components/trip-workspace/location-editor-model.test.ts) | 测试（对应模块边界） | 验证 query 长度、完整建议解析及已选地点 patch 身份/坐标。 |
 | [src/components/trip-workspace/location-editor-model.ts](../src/components/trip-workspace/location-editor-model.ts) | 表现层 | 输入 query 标准化、建议响应校验和出发地 selection patch 构造。 |
 | [src/components/trip-workspace/location-editor.tsx](../src/components/trip-workspace/location-editor.tsx) | 表现层 | 当前用于 origin 的输入建议编辑控件，防抖查询、显式选中并保存普通字段；状态图标/标签来自 field-certainty。 |
@@ -267,12 +272,12 @@ LLM 解释自然语言并提出受限 JSON；应用校验、决定是否执行�
 | [src/components/trip-workspace/trip-state-persistence-model.test.ts](../src/components/trip-workspace/trip-state-persistence-model.test.ts) | 测试（对应模块边界） | 验证确定性状态/来源保留、清空字段、目的地拒绝及服务端响应检查。 |
 | [src/components/trip-workspace/trip-state-persistence-model.ts](../src/components/trip-workspace/trip-state-persistence-model.ts) | 表现层 | 普通字段直接编辑的 user patch 与 state PATCH 请求/响应校验，前端拒绝直接 destination 编辑。 |
 | [src/components/trip-workspace/trip-workspace.module.css](../src/components/trip-workspace/trip-workspace.module.css) | 表现层 | Workspace 主布局、字段行、聊天、角色区及移动端样式。 |
-| [src/components/trip-workspace/trip-workspace.tsx](../src/components/trip-workspace/trip-workspace.tsx) | 表现层 | Workspace 客户端容器，协调权威状态、聊天、右侧编辑和界面区域，把“打开目的地搜索”请求从聊天传到右侧，并把聊天活动传给小熊。 |
+| [src/components/trip-workspace/trip-workspace.tsx](../src/components/trip-workspace/trip-workspace.tsx) | 表现层 | Workspace 客户端容器，协调权威状态、聊天、右侧编辑和界面区域，持有已选地点照片并在目的地变化后重新请求，把“打开目的地搜索”请求从聊天传到右侧，并把聊天活动传给小熊。 |
 | [src/components/trip-workspace/workspace-chat-transport.test.ts](../src/components/trip-workspace/workspace-chat-transport.test.ts) | 测试（对应模块边界） | 验证实际 JSON 契约、临时/持久化消息 ID、presentation 和成功后状态同步。 |
 | [src/components/trip-workspace/workspace-chat-transport.ts](../src/components/trip-workspace/workspace-chat-transport.ts) | 表现层 | 把完整聊天 JSON 响应适配为 AI SDK ChatTransport 事件，同步已提交 ID 和状态。 |
 | [src/components/trip-workspace/workspace-conversation-model.test.ts](../src/components/trip-workspace/workspace-conversation-model.test.ts) | 测试（对应模块边界） | 验证合法/非法响应、浏览器 fetch 接收者及失败提示，不把未确认发送当已保存。 |
 | [src/components/trip-workspace/workspace-conversation-model.ts](../src/components/trip-workspace/workspace-conversation-model.ts) | 表现层 | 请求聊天、解析响应及 selection/推荐过期相关错误类型，校验服务端返回状态和消息。 |
-| [src/components/trip-workspace/workspace-header.tsx](../src/components/trip-workspace/workspace-header.tsx) | 表现层 | 品牌/返回首页、旅程标题、日期/出发地/交通摘要；日期与“何时”同一写法；保存标签为当前 UI 展示。 |
+| [src/components/trip-workspace/workspace-header.tsx](../src/components/trip-workspace/workspace-header.tsx) | 表现层 | 品牌/返回首页、旅程标题（左侧缩略图为第一个地点的照片，没有时为默认图）、日期/出发地/交通摘要；日期与“何时”同一写法；保存标签为当前 UI 展示。 |
 | [src/components/trip-workspace/workspace-presentation.ts](../src/components/trip-workspace/workspace-presentation.ts) | 表现层 | 页头使用的字段、日期（复用 tripDatesSummary）和交通显示转换。 |
 | [src/components/trip-workspace/workspace-title.ts](../src/components/trip-workspace/workspace-title.ts) | 表现层 | 从当前 name 字段派生 Workspace 标题，缺失时显示默认标题。 |
 
@@ -297,6 +302,7 @@ LLM 解释自然语言并提出受限 JSON；应用校验、决定是否执行�
 | [src/domain/location/destination-resolution-policy.ts](../src/domain/location/destination-resolution-policy.ts) | 领域层 | 合理名称匹配和候选解析纯规则，返回 resolved/ambiguous/area/unresolved，保留不同 POI 身份。 |
 | [src/domain/location/location-suggestion.ts](../src/domain/location/location-suggestion.ts) | 领域层 | 输入建议 LocationSuggestion 类型，包含可能缺失的身份/坐标，与最终目的地确认分开；本文件不执行校验。 |
 | [src/domain/location/location.ts](../src/domain/location/location.ts) | 领域层 | 规范化 LocationCandidate，包含提供方身份、行政归属、地址和坐标。 |
+| [src/domain/location/place-image.ts](../src/domain/location/place-image.ts) | 领域层 | 地点照片类型（https 链接 + 说明文字）与读取校验，不合法时视为没有照片。 |
 | [src/domain/location/recommendation-identity.test.ts](../src/domain/location/recommendation-identity.test.ts) | 测试（对应模块边界） | 验证等价名称归一化，保留不同山峰/路线/相似地名的独立性。 |
 | [src/domain/location/recommendation-identity.ts](../src/domain/location/recommendation-identity.ts) | 领域层 | 推荐名和地区名标准化，处理空白、全角及受支持后缀，不做地点网络核验。 |
 | [src/domain/trip-draft/trip-draft.test.ts](../src/domain/trip-draft/trip-draft.test.ts) | 测试（对应模块边界） | 验证近似时间原话、不完整草稿、出发地/交通及目的地 edit 的合法性。 |
@@ -304,7 +310,7 @@ LLM 解释自然语言并提出受限 JSON；应用校验、决定是否执行�
 | [src/domain/trip-message/destination-choice-identity.ts](../src/domain/trip-message/destination-choice-identity.ts) | 领域层 | 构造省/市/spot 偏好 ID，把重复 POI 展示合并，同时保留历史提交原 ID。 |
 | [src/domain/trip-message/destination-choice-message.test.ts](../src/domain/trip-message/destination-choice-message.test.ts) | 测试（对应模块边界） | 验证 city/spot/replace 基底的新卡持久化，以及旧候选读取与非法新卡拒绝。 |
 | [src/domain/trip-message/trip-message.test.ts](../src/domain/trip-message/trip-message.test.ts) | 测试（对应模块边界） | 验证消息角色/正文/时间、presentation 形状和历史推荐兼容。 |
-| [src/domain/trip-message/trip-message.ts](../src/domain/trip-message/trip-message.ts) | 领域层 | 用户/助手消息与四类受限 presentation（含推荐 pending 标记及 RecommendationScope）校验，最多 12 个 choices，历史格式保留读取。 |
+| [src/domain/trip-message/trip-message.ts](../src/domain/trip-message/trip-message.ts) | 领域层 | 用户/助手消息与四类受限 presentation（含推荐 pending 标记及 RecommendationScope，卡片可带照片）校验，最多 12 个 choices，历史格式保留读取。 |
 | [src/domain/trip-state/destination-areas-v2.test.ts](../src/domain/trip-state/destination-areas-v2.test.ts) | 测试（对应模块边界） | 验证同市多个 spots、删除市级联但保留省、单删 spot 及新版层级约束。 |
 | [src/domain/trip-state/destination-areas.test.ts](../src/domain/trip-state/destination-areas.test.ts) | 测试（对应模块边界） | 验证省市/spot 文案、保留空省、多项添加/删除和派生展示规则。 |
 | [src/domain/trip-state/destination-areas.ts](../src/domain/trip-state/destination-areas.ts) | 领域层 | 省市/spot 类型和纯函数：格式化、标题（超过两省缩写为“…等N省”）、计数、包含、去重添加、新增部分（destinationAdditions）、级联删除、唯一匹配及结构读取。 |
@@ -384,6 +390,9 @@ LLM 解释自然语言并提出受限 JSON；应用校验、决定是否执行�
 | [src/capabilities/destination/destination-selection-v2.test.ts](../src/capabilities/destination/destination-selection-v2.test.ts) | 测试（对应模块边界） | 验证多省追加、旧 replace 冲突、已确认/过期卡、安全重试及不恢复已删除目的地。 |
 | [src/capabilities/destination/location-service.test.ts](../src/capabilities/destination/location-service.test.ts) | 测试（对应模块边界） | 验证空表达不调用、原话查询、无结果和提供方异常归一化。 |
 | [src/capabilities/destination/location-service.ts](../src/capabilities/destination/location-service.ts) | 应用层/用例装配 | 调用 LocationProvider、规范化错误并执行名称解析；同名商业 POI 干扰时最多补查一次“原词＋市”，要求行政字段佐证；保留原始候选供手动选择。 |
+| [src/capabilities/destination/place-images.ts](../src/capabilities/destination/place-images.ts) | 应用层/用例装配 | 照片查询顺序（景点→县级市境内→地标→市→省的国家级景点）、卡片配图、沿用卡片照片的已选地点照片。 |
+| [src/capabilities/destination/place-images.test.ts](../src/capabilities/destination/place-images.test.ts) | 测试（对应模块边界） | 验证查询顺序、逐个兜底、卡片配图和沿用对话照片。 |
+| [src/capabilities/destination/destination-photos-route.test.ts](../src/capabilities/destination/destination-photos-route.test.ts) | 测试（对应模块边界） | 验证照片接口按当前地点返回、不共享缓存、not-found 与其他失败区分。 |
 | [src/capabilities/destination/location-suggestion-service.test.ts](../src/capabilities/destination/location-suggestion-service.test.ts) | 测试（对应模块边界） | 验证 query 规则、完整建议列表及调用前拒绝非法输入。 |
 | [src/capabilities/destination/location-suggestion-service.ts](../src/capabilities/destination/location-suggestion-service.ts) | 应用层/用例装配 | 输入建议用例，trim/长度校验，调用建议端口并转换错误。 |
 | [src/capabilities/destination/planning-readiness-route.test.ts](../src/capabilities/destination/planning-readiness-route.test.ts) | 测试（对应模块边界） | 验证无 owner 不加载、读取当前权威状态、准备度只读及不调用地点研究。 |
@@ -396,13 +405,13 @@ LLM 解释自然语言并提出受限 JSON；应用校验、决定是否执行�
 | --- | --- | --- |
 | [src/capabilities/recommendation/destination-recommendation-context.ts](../src/capabilities/recommendation/destination-recommendation-context.ts) | 应用层/用例装配 | 从当前状态、推荐范围（within/elsewhere）和最多 10 条/6000 字符历史构造聊天触发（conversation）的推荐 context。 |
 | [src/capabilities/recommendation/destination-recommendation-generator.test.ts](../src/capabilities/recommendation/destination-recommendation-generator.test.ts) | 测试（对应模块边界） | 验证聊天触发的上下文、真实历史/展示卡、JSON/schema 校验及推荐生成错误。 |
-| [src/capabilities/recommendation/destination-recommendation-generator.ts](../src/capabilities/recommendation/destination-recommendation-generator.ts) | 应用层/用例装配 | 推荐模型 JSON Schema、AI SDK 调用及领域校验，输出省/市/理由，非法结果抛专用错误。 |
+| [src/capabilities/recommendation/destination-recommendation-generator.ts](../src/capabilities/recommendation/destination-recommendation-generator.ts) | 应用层/用例装配 | 推荐模型 JSON Schema、AI SDK 调用及领域校验，输出省/市/理由/配图地标，非法结果抛专用错误。 |
 | [src/capabilities/recommendation/destination-recommendation-model-client.test.ts](../src/capabilities/recommendation/destination-recommendation-model-client.test.ts) | 测试（对应模块边界） | 验证显式按钮调用不伪造 user 消息，AI SDK 只发一次模型请求。 |
 | [src/capabilities/recommendation/destination-recommendations-route.test.ts](../src/capabilities/recommendation/destination-recommendations-route.test.ts) | 测试（对应模块边界） | 验证推荐卡片接口：派生 ID、重复请求不重跑、对话或目的地变化后 409、错误请求与工作流失败不写入。 |
 | [src/capabilities/recommendation/destination-recommendation-use-case.test.ts](../src/capabilities/recommendation/destination-recommendation-use-case.test.ts) | 测试（对应模块边界） | 验证推荐范围判断（within/elsewhere/拒绝）、pending 请求还原、状态变化后不出卡及工作流失败传递。 |
 | [src/capabilities/recommendation/destination-recommendation-use-case.ts](../src/capabilities/recommendation/destination-recommendation-use-case.ts) | 应用层/用例装配 | 按写入后状态判断推荐范围；从保存的对话还原 pending 请求；状态仍允许时运行工作流。 |
 | [src/capabilities/recommendation/destination-recommendation-workflow.test.ts](../src/capabilities/recommendation/destination-recommendation-workflow.test.ts) | 测试（对应模块边界） | 验证省份/顺序保留、搜索失败降级、已定省过滤和空结果固定正文。 |
-| [src/capabilities/recommendation/destination-recommendation-workflow.ts](../src/capabilities/recommendation/destination-recommendation-workflow.ts) | 应用层/用例装配 | Discovery Search→模型生成→省份过滤（within 限已定省，elsewhere 排除已保存省）→卡项 ID 的确定性流程；搜索故障降级，无排序/图片/访问检查。 |
+| [src/capabilities/recommendation/destination-recommendation-workflow.ts](../src/capabilities/recommendation/destination-recommendation-workflow.ts) | 应用层/用例装配 | Discovery Search→模型生成→省份过滤（within 限已定省，elsewhere 排除已保存省）→按地标并行配图→卡项 ID 的确定性流程；搜索故障降级，无排序/访问检查。 |
 | [src/capabilities/recommendation/prompts/destination-recommendation-prompt.ts](../src/capabilities/recommendation/prompts/destination-recommendation-prompt.ts) | 应用层/用例装配 | 受限省市推荐 prompt，含聊天触发说明、真实上下文和未核验搜索启发。 |
 
 ### 6.12 外部集成：身份、模型、地图、搜索和日志
@@ -417,7 +426,7 @@ LLM 解释自然语言并提出受限 JSON；应用校验、决定是否执行�
 | [src/platform/location-provider/amap-input-tips-provider.test.ts](../src/platform/location-provider/amap-input-tips-provider.test.ts) | 测试（对应模块边界） | mock 验证 query 编码、完整 tips、空/畸形响应及错误安全边界。 |
 | [src/platform/location-provider/amap-input-tips-provider.ts](../src/platform/location-provider/amap-input-tips-provider.ts) | 基础设施端口/适配器 | 高德 InputTips HTTP 适配，规范化输入建议并区分空结果和故障。 |
 | [src/platform/location-provider/amap-location-provider.test.ts](../src/platform/location-provider/amap-location-provider.test.ts) | 测试（对应模块边界） | mock 验证中文 query 编码、POI/行政层级、坐标和提供方错误归一化。 |
-| [src/platform/location-provider/amap-location-provider.ts](../src/platform/location-provider/amap-location-provider.ts) | 基础设施端口/适配器 | 高德关键词 POI HTTP 适配，编码 query、行政信息/坐标规范化及错误控制；额外提供方字段不表示推荐已使用。 |
+| [src/platform/location-provider/amap-location-provider.ts](../src/platform/location-provider/amap-location-provider.ts) | 基础设施端口/适配器 | 高德关键词 POI HTTP 适配，编码 query、行政信息/坐标规范化及错误控制；不取照片（照片在 place-photos）。 |
 | [src/platform/location-provider/location-provider.ts](../src/platform/location-provider/location-provider.ts) | 基础设施端口/适配器 | 地点搜索端口与 success/failure 规范化结果，隔离高德响应格式。 |
 | [src/platform/location-provider/location-suggestion-provider.ts](../src/platform/location-provider/location-suggestion-provider.ts) | 基础设施端口/适配器 | 输入建议端口及规范化错误类型。 |
 | [src/platform/observability/logger.ts](../src/platform/observability/logger.ts) | 基础设施端口/适配器 | 共享 Pino logger 和事件名称，按环境配置日志级别/开发格式。 |
@@ -425,6 +434,9 @@ LLM 解释自然语言并提出受限 JSON；应用校验、决定是否执行�
 | [src/platform/observability/serialize-error.ts](../src/platform/observability/serialize-error.ts) | 基础设施端口/适配器 | 序列化 message/stack/cause 等错误信息并移除提供方凭据。 |
 | [src/platform/search/bocha-discovery-search.test.ts](../src/platform/search/bocha-discovery-search.test.ts) | 测试（对应模块边界） | mock 验证搜索请求、结果字段/数量、摘要回退、故障转换及缺密钥。 |
 | [src/platform/search/bocha-discovery-search.ts](../src/platform/search/bocha-discovery-search.ts) | 基础设施端口/适配器 | 将 Bocha 网页规范化为最多 8 条 DiscoverySearchResult，构造环境适配器。 |
+| [src/platform/place-photos/place-photo-provider.ts](../src/platform/place-photos/place-photo-provider.ts) | 基础设施/端口 | 照片查询（按名称或按区域国家级景点）接口与允许的照片主机列表。 |
+| [src/platform/place-photos/amap-place-photo-provider.ts](../src/platform/place-photos/amap-place-photo-provider.ts) | 基础设施/适配器 | 高德 v5 搜索取照片：http 升级 https、主机白名单、`next.revalidate` 7 天缓存、失败返回 null 并记日志。 |
+| [src/platform/place-photos/amap-place-photo-provider.test.ts](../src/platform/place-photos/amap-place-photo-provider.test.ts) | 测试（对应模块边界） | 验证查询参数、缓存选项、https 升级、主机过滤和各种失败。 |
 | [src/platform/search/bocha-web-search.test.ts](../src/platform/search/bocha-web-search.test.ts) | 测试（对应模块边界） | mock 验证 POST/envelope、webPages/images 区段、缺密钥不请求及错误脱敏。 |
 | [src/platform/search/bocha-web-search.ts](../src/platform/search/bocha-web-search.ts) | 基础设施端口/适配器 | 共享 Bocha Web Search HTTP 请求、响应 envelope 检查、日期转换、超时/网络/API 错误脱敏。 |
 | [src/platform/search/discovery-search.ts](../src/platform/search/discovery-search.ts) | 基础设施端口/适配器 | DiscoverySearch 端口、旅程搜索 query、失败降级空上下文和规范化错误。 |

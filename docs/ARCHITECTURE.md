@@ -42,7 +42,7 @@ flowchart TB
 | 状态 | 能力 |
 | --- | --- |
 | 已实现 | 访客所属 Journey、自然语言创建、持久化会话、普通字段编辑、目的地省/市/spot、显式多选确认、推荐与准备度检查 |
-| 已实现但有范围限制 | PWA manifest/图标，无离线缓存；推荐使用搜索启发，无访问检查、排序或图片补全 |
+| 已实现但有范围限制 | PWA manifest/图标，无离线缓存；推荐使用搜索启发，无访问检查或排序；地点照片只作装饰 |
 | 未实现 | 真正 Generate Plan、Research Agent、实时天气/路线研究、证据系统、后台监控、Adaptive Workspace |
 
 ## 2. 技术栈与接入位置
@@ -54,7 +54,7 @@ flowchart TB
 | Next.js 16.3.5 / App Router | 页面、服务端组件、HTTP route、metadata/manifest | `src/app/`、`next.config.ts` | 开发前读安装包内相关 Next.js 指南 |
 | React 19.2.8 / TypeScript 5 | UI、状态协调、类型及业务契约 | `src/components/`、`src/domain/`、`tsconfig.json` | 类型检查不能代替运行时校验 |
 | CSS Modules / 全局 CSS | 页面与组件样式、响应式布局 | `*.module.css`、`src/app/globals.css` | 当前没有整套 Tailwind UI 样式框架 |
-| Motion 13 / Radix Popover / Lucide / Embla | 入场与浮层动画、图标、首页最近旅程轮播 | `src/components/ui/`、`src/components/meri-shell/` | 已用现有交互；背景水彩显露尚未实施 |
+| Motion 13 / Radix Popover / Lucide / Embla | 入场与浮层动画、照片环旋转、图标、首页最近旅程轮播、聊天卡片按省横滑 | `src/components/ui/`、`src/components/meri-shell/`、`journey-orbit.tsx`、`destination-choices-card.tsx` | 已用现有交互；背景水彩显露尚未实施 |
 | react-day-picker 10 | “何时”范围日历（中文 locale，样式通过 CSS 变量换成 Meri 配色） | `src/components/trip-workspace/trip-dates-editor.tsx` | 已用于日期选择 |
 | Vercel AI SDK 6 / `@ai-sdk/react` 3 | 服务端结构化模型调用、前端 useChat/transport 适配 | `src/platform/llm/ai-sdk-kimi-client.ts`、`workspace-chat-transport.ts` | 当前 API 返回完整 JSON，前端逐字显示不是服务端 token 流 |
 | Kimi / Moonshot（默认 kimi-k2.6） | 草稿、Workspace 解释、opening 和推荐生成 | `src/platform/llm/`、各能力的 `prompts/` | `LLM_MODEL` 可覆盖；默认超时 60 秒、零 SDK 自动重试 |
@@ -63,6 +63,7 @@ flowchart TB
 | Neon PostgreSQL / Neon serverless | 跨请求持久化身份、状态与消息 | `src/platform/persistence/database/db.ts` | HTTP 数据库客户端；数据不依赖 Web 实例内存 |
 | Drizzle ORM 0.45 / Drizzle Kit | schema、查询、JSONB 条件更新与迁移 | `src/platform/persistence/`、`drizzle/`、`drizzle.config.ts` | 迁移文件存在不代表在线环境已执行 |
 | 高德 Web API | 地点关键词核验与 InputTips 建议 | `src/platform/location-provider/` | 身份核验不证明开放、安全、交通或可达 |
+| 高德地点照片（v5 搜索 `show_fields=photos`） | 卡片、照片环、标题图的装饰照片 | `src/platform/place-photos/`、`next.config.ts` 的 images.remotePatterns | http 地址升级为 https；只允许两个照片主机；`fetch` 带 `next.revalidate` 在服务器数据缓存保存 7 天；失败即无图 |
 | Bocha Web Search | 推荐的启发性搜索上下文 | `src/platform/search/` | 最多 8 条；失败降级，不当作已核验证据 |
 | Pino 10 | 结构化事件与错误日志 | `src/platform/observability/` | requestId 关联请求；错误序列化脱敏 |
 | Node test runner / tsx / ESLint 9 / tsc | 相邻单元/边界测试、lint、类型检查 | `*.test.ts(x)`、`package.json`、`eslint.config.mjs` | mock 回归不代表真实外部接口验收 |

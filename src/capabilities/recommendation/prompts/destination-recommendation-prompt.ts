@@ -17,7 +17,7 @@ Meri plans trips to destinations in China, for travellers from any country. Reco
 
 ${scopeInstruction(context)}
 
-Each reason says in one short Chinese sentence, at most 30 characters, why that place may fit what the user has told us. Do not treat assistant suggestions as confirmed user preferences, and do not invent preferences the user has not expressed. Do not assert access, legality, safety, opening status, weather, route status, prices, or availability: none of that is verified here. Do not generate IDs, coordinates, images, or a reply. No tools or research are available beyond what is given below.
+Each reason says in one short Chinese sentence, at most 30 characters, why that place may fit what the user has told us. Do not treat assistant suggestions as confirmed user preferences, and do not invent preferences the user has not expressed. Do not assert access, legality, safety, opening status, weather, route status, prices, or availability: none of that is verified here. Each landmark is the one well-known scenic spot inside that place that best shows it, by its common name, preferably the one the reason speaks of; it only picks the card's photo. Do not generate IDs, coordinates, image URLs, or a reply. No tools or research are available beyond what is given below.
 
 ${shownCardsGuidance}
 

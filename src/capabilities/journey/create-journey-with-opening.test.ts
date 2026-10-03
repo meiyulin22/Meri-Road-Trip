@@ -30,6 +30,7 @@ test("a first message naming a place the provider matches exactly starts the Jou
       savedOpening = opening; savedDestination = destination; return journey;
     },
     resolveDestination: async () => ({ status: "resolved", candidate: meri }),
+    photos: { async findPhoto() { return null; } },
     initializeOpening: async () => { openingCalls += 1; },
   });
   assert.equal(result.opening, "completed");
@@ -50,6 +51,7 @@ test("a first message the provider had to interpret stores an offer and keeps th
       savedDraft = value; savedOpening = opening; savedDestination = destination; return journey;
     },
     resolveDestination: async () => ({ status: "resolved", candidate: meri }),
+    photos: { async findPhoto() { return null; } },
     initializeOpening: async () => { openingCalls += 1; },
   });
   assert.equal(result.opening, "completed");
@@ -67,6 +69,7 @@ test("unresolved first destination writes guidance without saving a false locati
       openingContent = opening?.content ?? ""; return journey;
     },
     resolveDestination: async () => ({ status: "unresolved" }),
+    photos: { async findPhoto() { return null; } },
     initializeOpening: async () => { throw new Error("must not run"); },
   });
   assert.equal(result.opening, "completed");
@@ -79,6 +82,7 @@ test("a preference-only first message uses the normal opening reply", async () =
     draft: { ...draft, destinationEdit: { operation: "none" } } }, {
     createJourney: async () => journey,
     resolveDestination: async () => { throw new Error("must not search"); },
+    photos: { async findPhoto() { return null; } },
     initializeOpening: async () => { called += 1; },
   });
   assert.equal(result.opening, "completed");
@@ -90,6 +94,7 @@ test("opening model failure leaves the created Journey available for retry", asy
     draft: { ...draft, destinationEdit: { operation: "none" } } }, {
     createJourney: async () => journey,
     resolveDestination: async () => { throw new Error("must not search"); },
+    photos: { async findPhoto() { return null; } },
     initializeOpening: async () => { throw new Error("model down"); },
   });
   assert.equal(result.opening, "failed");

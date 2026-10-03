@@ -12,6 +12,8 @@ import { normalizeRecommendationName, normalizeRecommendationRegion } from "./re
 const recommendedPlaceSchema = z.strictObject({
   name: z.string().trim().min(1).max(30),
   reason: z.string().trim().min(1).max(120),
+  /** Only chooses the card's photo; it is not a plan or a verified fact about the place. */
+  landmark: z.string().trim().min(1).max(30).optional(),
 });
 
 /**

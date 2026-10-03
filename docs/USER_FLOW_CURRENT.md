@@ -299,14 +299,15 @@ add/set 使用 Promise.all 查询表达。解析层保留不同 provider ID，�
 2. [Discovery Search](../src/platform/search/discovery-search.ts)：Bocha 取最多 8 条启发信息，失败退化为空搜索上下文。
 3. [推荐生成器](../src/capabilities/recommendation/destination-recommendation-generator.ts)：Kimi 输出省、市/州和理由。
 4. [领域校验](../src/domain/location/destination-recommendations.ts)：形状校验、去重、最多 12 个地点。
-5. [workflow](../src/capabilities/recommendation/destination-recommendation-workflow.ts)：within 用 withinSettledProvinces 按规范化省名限制已定省，并采用用户保存的省名拼写；elsewhere 用 outsideSavedProvinces 丢弃所有已保存省份，即使模型换了写法。给卡项赋 ID。
-6. 卡片作为 pending 之后的下一条助手消息保存 destination_recommendations presentation，正文是工作流的固定句子，UI 适配为统一多选卡。卡项仍是建议，提交时才高德复核。地点名称只出现在这条卡片消息里，因此不会再出现正文列举的地点和卡片不一致。
+5. 生成器每个地点还给出一个代表地标（`landmark`，如丽江市→玉龙雪山），只用来配图，不当作计划或已核验事实；工作流过滤后并行查图（见 5.6），查不到的卡片照常展示。
+6. [workflow](../src/capabilities/recommendation/destination-recommendation-workflow.ts)：within 用 withinSettledProvinces 按规范化省名限制已定省，并采用用户保存的省名拼写；elsewhere 用 outsideSavedProvinces 丢弃所有已保存省份，即使模型换了写法。给卡项赋 ID。
+7. 卡片作为 pending 之后的下一条助手消息保存 destination_recommendations presentation，正文是工作流的固定句子，UI 适配为统一多选卡。卡项仍是建议，提交时才高德复核。地点名称只出现在这条卡片消息里，因此不会再出现正文列举的地点和卡片不一致。
 
-该执行链没有访问检查、风险排序或图片补全。搜索上下文不能证明开放、安全或可达。搜索失败可降级，模型失败仍可能令请求失败。
+该执行链没有访问检查或风险排序；照片只是装饰（见 5.6）。搜索上下文不能证明开放、安全或可达。搜索失败可降级，模型失败仍可能令请求失败。
 
 ### 4.2 用户点击卡片
 
-[DestinationChoicesCard](../src/components/trip-workspace/destination-choices-card.tsx)按省分组，逐项勾选后统一提交“添加所选”；历史 replace 卡提交“替换为所选目的地”，新聊天的 set/add 均生成追加卡。没有逐行添加按钮。勾选只改变本地 picked，不写服务器。
+[DestinationChoicesCard](../src/components/trip-workspace/destination-choices-card.tsx)按省分组，每个省一行、用 Embla 左右滑（拖动不会误勾选，行宽放不下时出现左右箭头）。每张卡上方是照片（4:3，底部写照片内容，见 5.6），复选框和“已在行程”叠在照片上，下方是地名、想去的景点和推荐理由（最多三行）。逐项勾选后统一提交“添加所选”；历史 replace 卡提交“替换为所选目的地”，新聊天的 set/add 均生成追加卡。没有逐行添加按钮。勾选只改变本地 picked，不写服务器。
 
 | 动作/状态 | UI 判定 | 结果 |
 | --- | --- | --- |
@@ -470,9 +471,11 @@ add/set 使用 Promise.all 查询表达。解析层保留不同 provider ID，�
 
 [准备度 UI 模型](../src/components/trip-workspace/planning-readiness-model.ts)将结果关联 destination 快照。目的地改变后旧准备度不再展示，避免新决定沿用旧检查结果。
 
-### 5.5 旅程列底部：地球装饰与小熊
+### 5.5 旅程列底部：地球装饰、照片环与小熊
 
-右侧列在 Journey overview 下方依次是装饰地球和小熊：
+右侧列在 Journey overview 下方依次是装饰地球（外加照片环）和小熊：
+
+- [JourneyOrbit](../src/components/trip-workspace/journey-orbit.tsx)把已选地点的照片排成绕地球旋转的椭圆环（土星环）：每个地点一张，最多 8 张；转到后方的照片变小、变淡，压在地球线框下面，转到前方的变大、变清晰，盖在地球上面；约 48 秒转一圈，鼠标悬停时暂停，点击某张会沿最短方向转到正前方；系统要求减少动态效果时静止不转；图片加载失败的那张不显示。没有已选地点时只有地球。动画只用免费的 `motion` 包（useAnimationFrame / useTransform），没有使用付费的 Motion+ 组件。
 
 - [JourneyGlobe](../src/components/trip-workspace/journey-globe.tsx)改写自 cult-ui 的 Illustration Globe（MIT），纯 SVG 线框半球，光点沿经线流向节点。节点数等于已选地点数（有市的按市计，只有省的按 1 计，最多 6 个），只为“看着好看”，不表示真实地理位置，没有坐标、没有地图功能。系统要求减少动态效果时只显示静止节点。
 - [MeriWorld](../src/components/companion/meri-world.tsx)的小熊在桌面端固定在列底部（滚动时保持可见），旁边气泡显示一句话（见第 6 节速查表），`aria-live=polite` 让读屏软件播报变化。聊天面板把当前活动（idle / thinking / error：发送中、选卡保存中或推荐卡片生成中为 thinking，发送结果未确认或选卡保存失败为 error）上报给 [TripWorkspace](../src/components/trip-workspace/trip-workspace.tsx)，再传给小熊。
@@ -480,6 +483,31 @@ add/set 使用 Promise.all 查询表达。解析层保留不同 provider ID，�
 - 做什么由 [bear-behavior](../src/components/companion/bear-behavior.ts)决定：气泡的状态同时作为“反应”——出错时站起来担心，Meri 回复时坐着认真看地图（站着则原地等），可以生成计划时站起来欢呼一次（旅程内容再变化才会再欢呼）。其余时间按权重随机：看地图 45、站着 25、吃饭团 20、放空 10，同一活动最多连续两次，吃完 60 秒内不再吃，坐着时更愿意继续坐着。姿势变化总是播放过渡（坐下、放下地图等），不瞬移；新反应在下一帧接管，但不打断正在进行的过渡。
 - [CompanionBear](../src/components/companion/companion-bear.tsx)负责计时播放；标签页隐藏时暂停、回来接着播；系统要求减少动态效果时只显示坐着看地图的一帧。
 - 宽度 ≤800px 时小熊不固定，随内容排在列尾。
+
+### 5.6 地点照片：从哪来、存在哪、怎么缓存
+
+照片只用于装饰卡片、照片环和标题左侧缩略图，不代表地点现状，没有照片是正常情况而不是错误。
+
+**来源：**[AmapPlacePhotoProvider](../src/platform/place-photos/amap-place-photo-provider.ts)调用高德 v5 地点搜索并加 `show_fields=photos`。高德返回的图片地址多为 http，页面是 https 会被浏览器拦截；同一主机支持 https（2026-10-03 实测），所以直接把协议换成 https，不做代理。只接受 [placePhotoHosts](../src/platform/place-photos/place-photo-provider.ts) 列出的两个主机（`store.is.autonavi.com`、`aos-comment.amap.com`），[next.config.ts](../next.config.ts) 也只允许 next/image 从这两个主机取图。图片最宽约 500px，部分来自用户评论。
+
+**查什么：**[photoQueriesFor](../src/capabilities/destination/place-images.ts)按从具体到宽泛的顺序尝试，第一张找到就停：
+
+1. 用户说过的景点（梅里雪山）→ 在所属市内按名称查；景点本身是县级市/县/区名（香格里拉市、大理市）→ 在它境内找国家级景点（普达措、大理古城），因为城镇本身的图最没代表性；
+2. 推荐生成器给出的代表地标（丽江市 → 玉龙雪山）→ 在该市内按名称查；
+3. 该市的国家级景点（高德类别 110202；普通“风景名胜”类别实测会给购物中心、纪念馆）；
+4. 该省的国家级景点（只有省、没有市时也从这一步开始）。
+
+**存在哪：**
+- 卡片（推荐卡、地点候选卡）在出卡时查好，把 `image: {url, caption}` 存进那条消息的 presentation，只存链接和说明文字，不存图片本身。刷新后直接读出，不再查询。历史卡没有 image，显示渐变底和定位图标。存储的 image 不合法时只去掉图片，不让整张卡失效；图片链接失效时卡片显示兜底样式。
+- 已选地点的照片不进 TripState：[selectedPlaceImages](../src/capabilities/destination/place-images.ts)按当前目的地现查，删掉地点照片也随之消失。某地点若在对话的卡片上展示过照片（[imagesShownInConversation](../src/capabilities/destination/place-images.ts)），沿用那张，保证从卡片选进来的丽江仍显示卡片上的玉龙雪山，而不是重新查到的玉水寨。
+- 页面服务端渲染时带上照片（最多等 1.5 秒，超时则不带，浏览器打开后再请求），刷新时不闪烁。目的地变化后，[TripWorkspace](../src/components/trip-workspace/trip-workspace.tsx)调用 `GET /api/trips/[id]/destination-photos` 重新取。
+- 标题左侧缩略图是第一个已选地点的照片（[coverPhoto](../src/components/trip-workspace/destination-photos-model.ts)），只在第一个地点变化时才换；没有地点时仍是默认风景图。
+
+**缓存：**向高德查图的 fetch 带 `next: { revalidate: 604800 }`，由 Next 的数据缓存在服务器上（自托管时在 `.next/cache`）保存 7 天，同一查询所有用户共用，不调用高德。地点搜索/核验仍不缓存。浏览器另有自己的图片缓存。查图失败只记录 `place_photo.lookup.failed`，不影响聊天或保存。
+
+| 接口 | 请求 | 结果 |
+| --- | --- | --- |
+| `GET /api/trips/[id]/destination-photos` | 无 body；guest cookie 决定 owner | 200 `{photos: [{key, label, image}]}`，`Cache-Control: private, no-store`；无 owner/旅程 404；其他失败 500，界面只显示地球 |
 
 ## 6. 回复到底是谁写的：速查表
 
@@ -574,7 +602,9 @@ add/set 使用 Promise.all 查询表达。解析层保留不同 provider ID，�
 | 推荐资格与 pending | [recommendation-use-case](../src/capabilities/recommendation/destination-recommendation-use-case.ts) | within/elsewhere 范围、pending 请求还原 |
 | 推荐卡片请求 | [destination-recommendations route](../src/app/api/trips/[id]/destination-recommendations/route.ts) | 最新消息检查、派生 ID、幂等 |
 | 应用自己的句子 | [turn-reply](../src/capabilities/conversation/turn-reply.ts) | 已加入/候选/失败正文、准备度只说一次 |
-| 推荐流水线 | [workflow](../src/capabilities/recommendation/destination-recommendation-workflow.ts) | 搜索、生成、省范围过滤 |
+| 推荐流水线 | [workflow](../src/capabilities/recommendation/destination-recommendation-workflow.ts) | 搜索、生成、省范围过滤、按地标配图 |
+| 地点照片 | [place-images](../src/capabilities/destination/place-images.ts)、[Amap photo provider](../src/platform/place-photos/amap-place-photo-provider.ts)、[destination-photos route](../src/app/api/trips/[id]/destination-photos/route.ts) | 查询顺序、卡片配图、已选地点照片、7 天缓存 |
+| 照片环与标题图 | [journey-orbit](../src/components/trip-workspace/journey-orbit.tsx)、[photos model](../src/components/trip-workspace/destination-photos-model.ts)、[workspace-header](../src/components/trip-workspace/workspace-header.tsx) | 旋转、暂停、点击转到前方、封面 |
 | 统一选卡提交 | [selection route](../src/app/api/trips/[id]/destination-recommendation-selection/route.ts) | offer 校验、整批核验、替换、重试 |
 | 提交身份复核 | [verified-choice](../src/capabilities/destination/verified-destination-choice.ts) | provider ID 与历史规范名 |
 | 手动搜索/添加/删除 | [destinations route](../src/app/api/trips/[id]/destinations/route.ts) | 精确 body、重查、完整删除元组 |

@@ -8,6 +8,9 @@ import { createBochaDiscoverySearchFromEnvironment } from "@/platform/search/boc
 import { searchJourneyDiscovery, type DiscoverySearch, type DiscoverySearchResult } from "@/platform/search/discovery-search";
 import { logger } from "@/platform/observability/logger";
 import { generateDestinationRecommendations } from "./destination-recommendation-generator";
+import { findPlaceImage } from "@/capabilities/destination/place-images";
+import { AmapPlacePhotoProvider } from "@/platform/place-photos/amap-place-photo-provider";
+import type { PlacePhotoProvider } from "@/platform/place-photos/place-photo-provider";
 import type { DestinationRecommendationContext } from "./destination-recommendation-context";
 
 export type DestinationRecommendationWorkflowResult = {
@@ -21,6 +24,7 @@ export type DestinationRecommendationWorkflowDependencies = {
     readonly discoveryResults?: readonly DiscoverySearchResult[];
   }, requestId: string) => Promise<readonly DestinationRecommendationGroup[]>;
   readonly generateId: () => string;
+  readonly photos: PlacePhotoProvider;
 };
 
 export function destinationRecommendationWorkflowDependencies(): DestinationRecommendationWorkflowDependencies {
@@ -28,6 +32,7 @@ export function destinationRecommendationWorkflowDependencies(): DestinationReco
     discovery: createBochaDiscoverySearchFromEnvironment(),
     generate: generateDestinationRecommendations,
     generateId: randomUUID,
+    photos: new AmapPlacePhotoProvider(),
   };
 }
 
@@ -46,8 +51,12 @@ export async function runDestinationRecommendationWorkflow(
   const groups = context.scope === "elsewhere"
     ? outsideSavedProvinces(proposed, settledAreas(context))
     : withinSettledProvinces(proposed, settledAreas(context));
-  const destinations = groups.flatMap((group) => group.places.map((place) => ({
-    id: dependencies.generateId(), name: place.name, province: group.province, reason: place.reason,
+  // Photos are looked up together, after filtering, so only cards that will show get one.
+  const destinations = await Promise.all(groups.flatMap((group) => group.places.map(async (place) => {
+    const image = await findPlaceImage({ province: group.province, place: place.name, spot: null,
+      landmark: place.landmark ?? null }, dependencies.photos);
+    return { id: dependencies.generateId(), name: place.name, province: group.province, reason: place.reason,
+      ...(image ? { image } : {}) };
   })));
 
   logger.info({ event: "recommendation.workflow.completed", requestId,

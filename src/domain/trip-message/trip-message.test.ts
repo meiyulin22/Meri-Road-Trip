@@ -104,3 +104,16 @@ test("a candidate stored before the administrative levels existed still opens", 
   assert.throws(() => validateTripMessage({ ...message, presentation: { type: "location_candidates",
     candidates: [{ ...stored, prov: "吉林省" }] } }), InvalidTripMessageError);
 });
+
+test("a card keeps an https image with its caption, and a broken stored image is left off, not fatal", () => {
+  const image = { url: "https://store.is.autonavi.com/showpic/abc", caption: "玉龙雪山国家级风景名胜区" };
+  const message = validateTripMessage({ id: "m-img", tripId: "t", role: "assistant", content: "看看这些", createdAt: "2026-10-03T00:00:00.000Z",
+    presentation: { type: "destination_choices", mode: "add", choices: [
+      { id: "a", name: "丽江市", province: "云南省", city: "丽江市", image },
+      { id: "b", name: "大理白族自治州", province: "云南省", city: "大理白族自治州", image: { url: "http://x.example/a.jpg", caption: "x" } },
+    ] } });
+  assert.equal(message.presentation?.type, "destination_choices");
+  if (message.presentation?.type !== "destination_choices") return;
+  assert.deepEqual(message.presentation.choices[0].image, image);
+  assert.equal("image" in message.presentation.choices[1], false);
+});

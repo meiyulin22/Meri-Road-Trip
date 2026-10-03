@@ -63,6 +63,8 @@
   margin: 32px 16px 24px 34px;
 }
 .journeyThumbnail { flex: 0 0 104px; height: 106px; border-radius: 13px; background: url("/backgrounds/workspace-alpine-day.png") 38% 60% / cover; box-shadow: inset 0 0 0 1px rgba(38, 69, 57, .06); }
+.journeyThumbnail { position: relative; overflow: hidden; }
+.journeyThumbnail img { object-fit: cover; }
 .journeyHeadingText { min-width: 0; }
 .journeyEyebrow { margin-bottom: 6px; color: #839087; font-size: 9px; font-weight: 600; letter-spacing: .15em; }
 .journeyHeading h1 { font-size: clamp(23px, 2vw, 30px); line-height: 1.25; letter-spacing: -.035em; font-weight: 650; overflow-wrap: anywhere; }
@@ -354,6 +356,15 @@
 /* Decorative globe under the Journey overview; it fades out at the bottom into the page. */
 .journeyGlobe { width: min(100%, 420px); margin: 4px auto 0; padding: 0 8px; -webkit-mask-image: linear-gradient(to bottom, #000 55%, transparent); mask-image: linear-gradient(to bottom, #000 55%, transparent); }
 .journeyGlobe svg { display: block; width: 100%; height: auto; overflow: visible; }
+.journeyOrbit { position: relative; width: min(100%, 420px); margin: 4px auto 0; padding-bottom: 34px; }
+.journeyOrbitGlobe { position: relative; z-index: 2; pointer-events: none; }
+.journeyOrbitGlobe .journeyGlobe { width: 100%; margin: 0; }
+.orbitPhotos { position: absolute; inset: 0; margin: 0; padding: 0; list-style: none; }
+.orbitPhoto { position: absolute; width: 84px; aspect-ratio: 4 / 3; translate: -50% -50%; }
+.orbitPhoto button { position: relative; display: block; width: 100%; height: 100%; padding: 0; overflow: hidden; border: 2px solid #fffdf8; border-radius: 11px; background: #dfe8d9; box-shadow: 0 6px 16px rgba(38, 69, 57, .18); cursor: pointer; }
+.orbitPhoto button:focus-visible { outline: 2px solid #446a51; outline-offset: 2px; }
+.orbitPhoto img { object-fit: cover; }
+.orbitPhoto span { position: absolute; right: 0; bottom: 0; left: 0; padding: 10px 5px 3px; overflow: hidden; background: linear-gradient(to top, rgba(20, 30, 24, .6), transparent); color: #fff; font-size: 10px; line-height: 1.2; white-space: nowrap; text-overflow: ellipsis; }
 .globeWire { opacity: .85; stroke: #d3dbcd; stroke-width: 1; }
 .globeWire > * { vector-effect: non-scaling-stroke; }
 .globePulseStop { stop-color: #6f9e86; }

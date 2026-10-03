@@ -40,7 +40,8 @@ export function destinationChoicePresentation(message: UIMessage): DestinationCh
   if (presentation?.type === "destination_recommendations") return { type: "destination_choices", mode: "add",
     choices: presentation.destinations.flatMap((item) => item.province === null ? [] :
       [{ id: item.id, name: item.name, province: item.province, reason: item.reason,
-        legacyUnverified: !/(省|市|自治区|特别行政区)$/u.test(item.province) }]) };
+        legacyUnverified: !/(省|市|自治区|特别行政区)$/u.test(item.province),
+        ...(item.image ? { image: item.image } : {}) }]) };
   if (presentation?.type === "location_candidates") return { type: "destination_choices", mode: "add",
     choices: picksFromSearch(presentation.candidates).map((pick) => ({ id: pick.id,
       name: pick.spot ?? pick.place ?? pick.province, province: pick.province,

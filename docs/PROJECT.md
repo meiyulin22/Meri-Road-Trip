@@ -112,8 +112,10 @@ The implemented destination flow includes:
   recommendation button.
 
 Location identity does not establish access, safety, or travel feasibility.
-The active recommendation workflow does not run access checks, ranking, or image
-lookup. Research Agent, generated Plan, live weather intelligence, and route
+The active recommendation workflow does not run access checks or ranking. Cards,
+the photo ring around the Journey globe and the title thumbnail show Amap photos
+chosen by a recommended landmark or a national scenic area; they decorate a place
+and are not evidence about it. Research Agent, generated Plan, live weather intelligence, and route
 research remain planned.
 
 ## 5. Product principles
@@ -153,8 +155,9 @@ appropriate only when the next action depends on observed results.
 
 **Recommendation Workflow v0.1 — implemented:** the deterministic workflow uses
 Discovery Search as context, generates validated province/city suggestions, and
-restricts them to settled provinces. Access checking, ranking and images are not
-connected to this workflow. Explicit selection and identity verification are required.
+restricts them to settled provinces. Each place carries a representative landmark
+used only to pick its photo. Access checking and ranking are not connected to this
+workflow. Explicit selection and identity verification are required.
 
 **Generate Plan and Research:** after recommendation, a later Generate
 Plan action may start a Research Agent. It should inspect the Journey

@@ -1,4 +1,5 @@
 import type { LocationCandidate } from "@/domain/location/location";
+import { parsePlaceImage, type PlaceImage } from "@/domain/location/place-image";
 
 export const tripMessageRoles = ["user", "assistant"] as const;
 
@@ -21,6 +22,7 @@ export interface DestinationChoice {
   readonly reason?: string;
   readonly detail?: string;
   readonly legacyUnverified?: boolean;
+  readonly image?: PlaceImage;
 }
 
 /**
@@ -40,7 +42,7 @@ export interface DestinationChoicesPresentation {
 export interface DestinationRecommendationPresentation {
   readonly type: "destination_recommendations";
   readonly destinations: readonly { readonly id: string; readonly name: string;
-    readonly province: string | null; readonly reason?: string }[];
+    readonly province: string | null; readonly reason?: string; readonly image?: PlaceImage }[];
   readonly baseAreas?: readonly { readonly province: string; readonly places: readonly string[] }[];
 }
 
@@ -145,16 +147,19 @@ function validatePresentation(value: unknown, role: TripMessageRole): TripMessag
       throw new InvalidTripMessageError("TripMessage.presentation is invalid.");
     }
     const destinations = value.destinations.map((item: unknown) => {
-      if (!isRecord(item) || !hasKnownKeys(item, ["id", "name"], ["province", "region", "reason", "imageUrl"]) ||
+      if (!isRecord(item) || !hasKnownKeys(item, ["id", "name"], ["province", "region", "reason", "imageUrl", "image"]) ||
         !isPresentText(item.id) || !isPresentText(item.name) ||
         !(item.province === undefined || item.province === null || isPresentText(item.province)) ||
         !(item.region === undefined || item.region === null || isPresentText(item.region)) ||
         !(item.reason === undefined || isPresentText(item.reason))) {
         throw new InvalidTripMessageError("TripMessage.presentation destination is invalid.");
       }
+      // A stored image that no longer validates is left off rather than losing the card.
+      const image = parsePlaceImage(item.image);
       return { id: item.id as string, name: item.name as string,
         province: (item.province ?? item.region ?? null) as string | null,
-        ...(item.reason === undefined ? {} : { reason: item.reason as string }) };
+        ...(item.reason === undefined ? {} : { reason: item.reason as string }),
+        ...(image ? { image } : {}) };
     });
     if (new Set(destinations.map((item) => item.id)).size !== destinations.length) {
       throw new InvalidTripMessageError("TripMessage.presentation IDs must be distinct.");
@@ -194,7 +199,7 @@ function validatePresentation(value: unknown, role: TripMessageRole): TripMessag
     throw new InvalidTripMessageError("TripMessage.presentation is invalid.");
   }
   const choices = value.choices.map((item: unknown): DestinationChoice => {
-    if (!isRecord(item) || !hasKnownKeys(item, ["id", "name", "province"], ["city", "spot", "reason", "detail", "legacyUnverified"]) ||
+    if (!isRecord(item) || !hasKnownKeys(item, ["id", "name", "province"], ["city", "spot", "reason", "detail", "legacyUnverified", "image"]) ||
       !isPresentText(item.id) || !isPresentText(item.name) || !isPresentText(item.province) ||
       !(item.city === undefined || isPresentText(item.city)) ||
       !(item.spot === undefined || isPresentText(item.spot)) ||
@@ -202,11 +207,13 @@ function validatePresentation(value: unknown, role: TripMessageRole): TripMessag
       !(item.reason === undefined || isPresentText(item.reason))) {
       throw new InvalidTripMessageError("TripMessage.presentation choice is invalid.");
     }
+    const image = parsePlaceImage(item.image);
     return { id: item.id, name: item.name, province: item.province,
       ...(item.city === undefined ? {} : { city: item.city }),
       ...(item.spot === undefined ? {} : { spot: item.spot }),
       ...(item.detail === undefined ? {} : { detail: item.detail }),
-      ...(item.reason === undefined ? {} : { reason: item.reason }) };
+      ...(item.reason === undefined ? {} : { reason: item.reason }),
+      ...(image ? { image } : {}) };
   });
   if (new Set(choices.map((item) => item.id)).size !== choices.length) {
     throw new InvalidTripMessageError("TripMessage.presentation IDs must be distinct.");

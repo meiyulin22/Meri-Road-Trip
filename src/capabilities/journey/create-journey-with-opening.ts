@@ -4,6 +4,8 @@ import type { LocationResolveResult } from "@/capabilities/destination/location-
 import { applyDestinationEdit } from "@/capabilities/destination/apply-destination-edit";
 import { resolveDestinationPlace } from "@/capabilities/destination/resolve-destination-place";
 import { destinationEditReply } from "@/capabilities/conversation/turn-reply";
+import { withChoiceImages } from "@/capabilities/destination/place-images";
+import type { PlacePhotoProvider } from "@/platform/place-photos/place-photo-provider";
 import { initializeTripState, type DestinationField } from "@/domain/trip-state/trip-state";
 
 import type { Journey } from "./journey-service";
@@ -13,6 +15,7 @@ type CreateJourneyWithOpeningDependencies = {
     openingAssistant?: { readonly content: string; readonly presentation?: TripMessagePresentation },
     initialDestination?: DestinationField) => Promise<Journey>;
   readonly resolveDestination: (expression: string) => Promise<LocationResolveResult>;
+  readonly photos: PlacePhotoProvider;
   readonly initializeOpening: (input: {
     readonly tripId: string; readonly ownerGuestId: string; readonly requestId: string;
     readonly referenceDate: string; readonly timezone: string;
@@ -39,7 +42,8 @@ export async function createJourneyWithOpening(
   const createdState = result?.changed ? { ...initialState, destination: result.destination } : initialState;
   const reply = result ? destinationEditReply(result, "", initialState, createdState) : "";
   const openingAssistant = result && reply !== "" && (result.choices || result.unresolved.length || result.lookupFailed.length)
-    ? { content: reply, ...(result.choices ? { presentation: result.choices.presentation } : {}) }
+    ? { content: reply, ...(result.choices
+      ? { presentation: await withChoiceImages(result.choices.presentation, dependencies.photos) } : {}) }
     : undefined;
   const journey = await dependencies.createJourney(draft, input.ownerGuestId, input.initialUserMessage, openingAssistant,
     result?.changed ? result.destination : undefined);

@@ -149,6 +149,8 @@ Trip 不再保存 name、origin、destination 或日期列，避免与 TripState
 
 当前 choices 保存 mode、choice IDs、省/市/spot、理由/细节；replace 还保存出卡时目的地的 `baseDestination` 字符串，用于检查提交期间目的地是否变化。它不是另一张表的外键或状态版本列。
 
+推荐卡与地点候选卡的每个地点可带可选的 `image: {url, caption}`：只存 https 链接和说明文字，不存图片本身，也不进 TripState；读取时不合法的 image 被去掉而不是让消息失效，没有 image 的历史卡照常读取。已选地点的照片不落库，由 `GET /api/trips/[id]/destination-photos` 按当前目的地现查。
+
 pending 标记只保存推荐范围，不保存要推荐什么：卡片请求从同一 Trip 的消息顺序中取 pending 之前的那条用户原话和更早的历史。卡片消息的 `id` 由 tripId 与 pending 消息 ID 派生，`createAssistantIfAbsent` 保证同一 pending 只有一条卡片消息。不需要迁移：`presentation` 本就是 JSONB，新类型只在领域读取边界校验。
 
 选卡请求先取得属于当前 Trip 的持久化消息，检查 choice IDs 和时效，再复核地点；成功后更新状态并保存确认助手消息。消息主键帮助稳定身份的确认去重，但普通聊天/推荐 POST 尚没有全局幂等保证。详细提交及半成功边界见 USER_FLOW_CURRENT 第 4 节。

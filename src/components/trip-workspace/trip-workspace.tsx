@@ -3,16 +3,18 @@
 import { Backpack, CloudSun, Compass, Home, Map, Menu, MountainSnow, Plus, X, type LucideIcon } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
-import { useRef, useState, useSyncExternalStore } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 
 import type { ConversationActivity } from "@/components/companion/companion-status-model";
 import { MeriWorld } from "@/components/companion/meri-world";
+import type { SelectedPlaceImage } from "@/capabilities/destination/place-images";
 import type { TripMessage } from "@/domain/trip-message/trip-message";
 import type { TripState } from "@/domain/trip-state/trip-state";
 
 import { ConversationPanel } from "./conversation-panel";
 import { ExpeditionBriefPanel } from "./expedition-brief-panel";
-import { JourneyGlobe } from "./journey-globe";
+import { coverPhoto, requestDestinationPhotos } from "./destination-photos-model";
+import { JourneyOrbit } from "./journey-orbit";
 import { WorkspaceHeader } from "./workspace-header";
 import styles from "./trip-workspace.module.css";
 
@@ -41,14 +43,35 @@ function getLayoutDebugState(): boolean {
 
 export function TripWorkspace({
   initialMessages,
+  initialPlacePhotos,
   initialTripState,
   tripId,
 }: {
   readonly initialMessages: readonly TripMessage[];
+  /** null when the server did not have them in time; the browser asks instead. */
+  readonly initialPlacePhotos: readonly SelectedPlaceImage[] | null;
   readonly initialTripState: TripState;
   readonly tripId: string;
 }) {
   const [tripState, setTripState] = useState(initialTripState);
+  const [placePhotos, setPlacePhotos] = useState(initialPlacePhotos);
+  const destinationKey = JSON.stringify(tripState.destination);
+  // The destination the photos on screen belong to; null until they are known.
+  const photosFor = useRef<string | null>(initialPlacePhotos === null ? null : JSON.stringify(initialTripState.destination));
+
+  useEffect(() => {
+    if (photosFor.current === destinationKey) return;
+    let current = true;
+    requestDestinationPhotos(tripId)
+      .then((photos) => {
+        if (!current) return;
+        photosFor.current = destinationKey;
+        setPlacePhotos(photos);
+      })
+      // Photos only decorate the Journey; without them the globe stands alone.
+      .catch(() => undefined);
+    return () => { current = false; };
+  }, [destinationKey, tripId]);
   const [conversationExpanded, setConversationExpanded] = useState(true);
   const [destinationEditorOpenRequest, setDestinationEditorOpenRequest] = useState(0);
   const [conversationActivity, setConversationActivity] = useState<ConversationActivity>("idle");
@@ -66,7 +89,7 @@ export function TripWorkspace({
       <div className={styles.background} aria-hidden="true" />
       <div className={styles.workspaceApplication} data-region="workspace-content">
         <WorkspaceSidebar />
-        <WorkspaceHeader tripState={tripState} />
+        <WorkspaceHeader cover={coverPhoto(placePhotos)} tripState={tripState} />
         <div className={styles.workspaceStage} data-region="workspace-stage">
           <ConversationPanel
             initialMessages={initialMessages}
@@ -85,7 +108,7 @@ export function TripWorkspace({
               tripId={tripId}
               tripState={tripState}
             />
-            <JourneyGlobe destination={tripState.destination} />
+            <JourneyOrbit destination={tripState.destination} photos={placePhotos ?? []} />
             <MeriWorld activity={conversationActivity} tripState={tripState} />
           </div>
         </div>
