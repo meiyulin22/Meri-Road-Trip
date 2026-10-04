@@ -50,6 +50,7 @@ async function main(): Promise<void> {
     requestId: randomUUID(),
     referenceDate: new Date().toISOString().slice(0, 10),
     timezone: "Asia/Shanghai",
+    locale: "zh",
   });
   process.stdout.write(`${JSON.stringify(interpretation, null, 2)}\n`);
 }

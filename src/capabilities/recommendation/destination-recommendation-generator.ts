@@ -42,7 +42,7 @@ export const destinationRecommendationJsonSchema: Record<string, unknown> = {
                 },
                 reason: {
                   type: "string", minLength: 1, maxLength: 120,
-                  description: "One short Chinese sentence on why this place may fit the user's stated preferences.",
+                  description: "One short sentence, in the language the instructions name, on why this place may fit the user's stated preferences.",
                 },
                 landmark: {
                   type: "string", minLength: 1, maxLength: 30,

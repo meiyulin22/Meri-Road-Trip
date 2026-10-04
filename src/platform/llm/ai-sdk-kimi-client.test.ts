@@ -112,7 +112,7 @@ test("Workspace uses one structured call with history and a destination edit", a
  const state:TripState={name:{state:"missing"},origin:{state:"missing"},destination:{state:"missing"},startDate:{state:"missing"},endDate:{state:"missing"},duration:{state:"missing"},transportPreference:{state:"missing"}};
  const bodies:Record<string,unknown>[]=[];
  const client=createClient(async(_input,init)=>{bodies.push(JSON.parse(String(init?.body)));return createProviderResponse({content:JSON.stringify({presentationIntent:"none",changes:[],destinationEdit:{operation:"add",places:["梅里雪山"],broadRegion:null},reply:"找到后可以添加。"})});});
- const before=structuredClone(state);const interpretation=await interpretWorkspaceConversation({message:"我还想去梅里雪山",tripState:state,requestId:"one-call",referenceDate:"2026-09-30",timezone:"Asia/Shanghai",conversationHistory:[{role:"assistant",content:"想去哪？"}]},client);
+ const before=structuredClone(state);const interpretation=await interpretWorkspaceConversation({message:"我还想去梅里雪山",tripState:state,requestId:"one-call",referenceDate:"2026-09-30",timezone:"Asia/Shanghai",locale:"zh",conversationHistory:[{role:"assistant",content:"想去哪？"}]},client);
  assert.equal(bodies.length,1);assert.equal(bodies[0].tools,undefined);assert.deepEqual(interpretation.destinationEdit,{operation:"add",places:["梅里雪山"],broadRegion:null});assert.deepEqual(state,before);
  assert.deepEqual(bodies[0].response_format,{type:"json_schema",json_schema:{name:"workspace_conversation_interpretation",strict:true,schema:workspaceConversationJsonSchema}});
 });

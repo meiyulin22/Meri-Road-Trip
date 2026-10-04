@@ -63,8 +63,10 @@ lifecycle; TripState stores evolving values. The user can create a
 Journey from natural language, reopen it, continue a Workspace
 conversation, edit state through supported controls, and review the
 saved conversation. A 「中 | EN」 toggle on the home page switches the
-interface language for every page (home, Workspace, My Journeys); Meri's
-replies are still in Chinese.
+interface language for every page (home, Workspace, My Journeys) and the
+default language of Meri's replies, recommendation reasons and Journey
+titles; when the user clearly writes in the other language, the model may
+follow them. Place names stay in Chinese.
 
 Current TripState fields are name, origin, destination, start date, end
 date, duration, and transport preference. Ordinary values may be known,

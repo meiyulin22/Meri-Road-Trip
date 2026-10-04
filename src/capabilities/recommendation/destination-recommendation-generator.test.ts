@@ -106,6 +106,23 @@ test("a settled province is named in the prompt so the list stays inside it", as
   assert.doesNotMatch(requests[0].systemPrompt, /No destination is settled yet/u);
 });
 
+test("card reasons are written in the language chosen on the landing page, names stay Chinese", async () => {
+  const requests: StructuredOutputModelRequest[] = [];
+  const client: StructuredOutputModelClient = {
+    async generateStructuredOutput(request) {
+      requests.push(request);
+      return { content: JSON.stringify(valid), model: "test", finishReason: "stop" };
+    },
+  };
+  await generateDestinationRecommendations(context(), "request-zh", client);
+  await generateDestinationRecommendations({ ...context(), locale: "en" }, "request-en", client);
+  assert.match(requests[0].systemPrompt, /one short Simplified Chinese sentence, at most 30 characters/u);
+  assert.match(requests[1].systemPrompt, /one short English sentence, at most 15 words/u);
+  assert.match(requests[1].systemPrompt, /Write every reason in English, even when the conversation is in another language/u);
+  assert.match(requests[1].systemPrompt, /Province, place and landmark names stay in Chinese/u);
+  assert.doesNotMatch(requests[1].systemPrompt, /in Chinese, from the authoritative TripState/u);
+});
+
 test("discovery results are marked unverified when they are given to the model", async () => {
   const requests: StructuredOutputModelRequest[] = [];
   const client: StructuredOutputModelClient = {

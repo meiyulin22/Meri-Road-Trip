@@ -157,12 +157,15 @@ export async function POST(request: Request) {
       "Workspace conversation requested",
     );
 
+    // The landing page's language is the default for the model's reply and for Meri's own sentences.
+    const locale = await requestLocale();
     const interpretation = await interpretWorkspaceConversation({
       message: body.message,
       tripState,
       conversationHistory: selectRecentConversationMessages(previousMessages),
       requestId,
       ...getRequestContext(),
+      locale,
     });
     const patch = createTripStatePatchFromInterpretation(interpretation, tripState);
     let persistedTripState = patch
@@ -202,8 +205,7 @@ export async function POST(request: Request) {
         destinationNeedsUser,
       }, "Destination recommendations were requested on a turn that cannot offer them");
     }
-    // The landing page's language words Meri's own sentences; the model's reply is its own.
-    const replies = meriReplies[await requestLocale()];
+    const replies = meriReplies[locale];
     const reply = destinationEditReply(destinationResult,
       recommendationScope ? recommendationLeadIn(interpretation.reply, replies) : interpretation.reply,
       tripState, persistedTripState, replies);

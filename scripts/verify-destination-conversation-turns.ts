@@ -1,6 +1,8 @@
 import { randomUUID } from "node:crypto";
 
+import type { Locale } from "../src/domain/locale/locale";
 import type { TripState } from "../src/domain/trip-state/trip-state";
+import type { StructuredOutputConversationMessage } from "../src/platform/llm/kimi-client";
 import { interpretWorkspaceConversation } from "@/capabilities/conversation/workspace-conversation-interpreter";
 
 /**
@@ -9,7 +11,10 @@ import { interpretWorkspaceConversation } from "@/capabilities/conversation/work
  * whether an open destination still gets cards, whether a settled one stops getting them, and whether the model keeps off the two sentences it must not write
  * — the itinerary, and whether a plan is ready.
  *
- * Each case says what to look for, so two runs can be compared by eye.
+ * Each case says what to look for, so two runs can be compared by eye. A case runs
+ * with the Chinese interface unless it names another locale: cases 20–25 check that
+ * the reply starts in the language chosen on the home page and that following a user
+ * who writes in the other one stays the model's call.
  */
 const empty: TripState = {
   name: { state: "known", value: "假期旅行", source: "user" },
@@ -126,10 +131,39 @@ const cases = {
     expect: 'destination_recommendations on the first ask — describing the kind of place is a preference; must NOT ask for origin instead',
     tripState: empty, message: "我想安静一点的地方", conversationHistory: [],
   },
-} as const;
+  "20": {
+    expect: 'EN interface: destination_recommendations; reply in English, names no place, asks no question',
+    locale: "en", tripState: empty, message: "I love hiking and high mountains", conversationHistory: [],
+  },
+  "21": {
+    expect: 'EN interface: none; reply in English; seasonal character only, NO temperatures or numbers; suggests a forecast',
+    locale: "en", tripState: placeSettled, message: "What's the weather like in Sanya in November?", conversationHistory: [],
+  },
+  "22": {
+    expect: 'EN interface: none; reply in English; must NOT say whether the Journey is ready to generate',
+    locale: "en", tripState: everythingKnown, message: "Everything is set, can you generate the plan now?", conversationHistory: [],
+  },
+  "23": {
+    expect: 'EN interface, user writes Chinese: destinationEdit set ["海南"] as typed, none; reply in Chinese or English — the model\'s call, either is right',
+    locale: "en", tripState: empty, message: "我想去海南", conversationHistory: [],
+  },
+  "24": {
+    expect: 'ZH interface, user writes English: destination_recommendations; reply in English or Chinese — the model\'s call; names no place',
+    tripState: empty, message: "Can you recommend some quiet places?", conversationHistory: [],
+  },
+  "25": {
+    expect: 'EN interface: destinationEdit set with places exactly as typed (Yunnan, Sichuan — not translated to Chinese), none; reply in English',
+    locale: "en", tripState: empty, message: "I want to go to Yunnan and Sichuan", conversationHistory: [],
+  },
+} as const satisfies Record<string, {
+  readonly expect: string; readonly locale?: Locale; readonly tripState: TripState; readonly message: string;
+  readonly conversationHistory: readonly StructuredOutputConversationMessage[];
+}>;
 
 async function run(id: keyof typeof cases): Promise<void> {
-  const { expect, tripState, message, conversationHistory } = cases[id];
+  const testCase: { readonly locale?: Locale } & (typeof cases)[typeof id] = cases[id];
+  const { expect, tripState, message, conversationHistory } = testCase;
+  const locale = testCase.locale ?? "zh";
   const interpretation = await interpretWorkspaceConversation({
     message,
     conversationHistory,
@@ -137,8 +171,9 @@ async function run(id: keyof typeof cases): Promise<void> {
     requestId: randomUUID(),
     referenceDate: new Date().toISOString().slice(0, 10),
     timezone: "Asia/Shanghai",
+    locale,
   });
-  process.stdout.write(`\n=== ${id} 「${message}」\n`);
+  process.stdout.write(`\n=== ${id} [${locale}] 「${message}」\n`);
   process.stdout.write(`expect: ${expect}\n`);
   process.stdout.write(`presentationIntent: ${interpretation.presentationIntent}\n`);
   process.stdout.write(`changes: ${JSON.stringify(interpretation.changes)}\n`);

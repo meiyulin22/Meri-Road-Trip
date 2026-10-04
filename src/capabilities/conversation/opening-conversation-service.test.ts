@@ -31,7 +31,7 @@ const user: TripMessage = {
   content: "I want to go skiing in Japan for a week in October.",
   createdAt: "2026-09-25T01:00:00.000Z",
 };
-const input = { tripId, ownerGuestId, requestId: "request-1", referenceDate: "2026-09-25", timezone: "Asia/Shanghai" };
+const input = { tripId, ownerGuestId, requestId: "request-1", referenceDate: "2026-09-25", timezone: "Asia/Shanghai", locale: "zh" as const };
 
 function fixture(initial: TripMessage[] = [user]) {
   const messages = [...initial];

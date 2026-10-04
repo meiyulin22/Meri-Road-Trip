@@ -1,3 +1,4 @@
+import type { Locale } from "@/domain/locale/locale";
 import {
   salvageTripDraft,
   type TripDraft,
@@ -14,6 +15,8 @@ export interface ExtractTripDraftInput {
   readonly requestId: string;
   readonly referenceDate: string;
   readonly timezone: string;
+  /** The language chosen on the landing page, for the Journey's title. */
+  readonly locale: Locale;
 }
 
 export class InvalidTripDraftRequestError extends Error {
@@ -113,6 +116,7 @@ export async function extractTripDraft(
     systemPrompt: buildTripDraftSystemPrompt({
       referenceDate: input.referenceDate,
       timezone: input.timezone,
+      locale: input.locale,
     }),
     userMessage: input.message,
     jsonSchema: tripDraftJsonSchema,

@@ -1,11 +1,15 @@
+import type { Locale } from "@/domain/locale/locale";
+import { promptLanguageName } from "@/capabilities/conversation/prompts/reply-language-guidance";
 import { certaintyStateGuidance, tripStateFieldGuidance } from "./trip-state-field-guidance";
 
 export interface TripDraftPromptContext {
   readonly referenceDate: string;
   readonly timezone: string;
+  /** The language chosen on the landing page; the Journey's title is written in it. */
+  readonly locale: Locale;
 }
 
-export function buildTripDraftSystemPrompt({ referenceDate, timezone }: TripDraftPromptContext): string {
+export function buildTripDraftSystemPrompt({ referenceDate, timezone, locale }: TripDraftPromptContext): string {
   return `You extract the user's travel idea into the supplied TripDraft JSON schema.
 Reference date: ${referenceDate}
 Timezone: ${timezone}
@@ -22,5 +26,6 @@ The destination is expressed only as destinationEdit, never as a whole TripState
 - Never infer a city from a named attraction in the JSON; put the attraction itself in places. The location provider determines its city and province.
 - If they give alternatives, keep them as separate expressions. The application will ask them to choose.
 
+A trip name you infer is the Journey's title in the interface, so write it in ${promptLanguageName(locale)}, whatever language the message uses. Places in destinationEdit still stay exactly as the user wrote them.
 Preserve approximate wording for dates and duration. A value is concise user-facing information, not an explanation. Return only JSON.`;
 }

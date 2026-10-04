@@ -1,3 +1,4 @@
+import type { Locale } from "@/domain/locale/locale";
 import type { TripMessage } from "@/domain/trip-message/trip-message";
 import type { TripState } from "@/domain/trip-state/trip-state";
 import { openingAssistantMessageId } from "./opening-assistant-id";
@@ -32,6 +33,7 @@ type OpeningConversationDependencies = {
     readonly requestId: string;
     readonly referenceDate: string;
     readonly timezone: string;
+    readonly locale: Locale;
   }) => Promise<string>;
   readonly persistAssistant: (input: {
     readonly tripId: string;
@@ -49,6 +51,8 @@ export class OpeningConversationService {
     readonly requestId: string;
     readonly referenceDate: string;
     readonly timezone: string;
+    /** The language chosen on the landing page, for the model's opening reply. */
+    readonly locale: Locale;
   }): Promise<TripMessage> {
     const tripState = await this.dependencies.loadTripState(input.tripId, input.ownerGuestId);
     const messages = await this.dependencies.listMessages(input.tripId, input.ownerGuestId);
@@ -66,6 +70,7 @@ export class OpeningConversationService {
       requestId: input.requestId,
       referenceDate: input.referenceDate,
       timezone: input.timezone,
+      locale: input.locale,
     });
     const currentMessages = await this.dependencies.listMessages(input.tripId, input.ownerGuestId);
     const winner = existingOpeningAssistant(currentMessages, input.tripId);

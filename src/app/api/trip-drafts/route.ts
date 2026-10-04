@@ -15,6 +15,7 @@ import {
 } from "@/capabilities/journey/trip-draft-extractor";
 import { logger, logEvents } from "@/platform/observability/logger";
 import { serializeError } from "@/platform/observability/serialize-error";
+import { requestLocale } from "@/platform/locale/request-locale";
 
 type ErrorResponse = {
   status: number;
@@ -102,6 +103,7 @@ export async function POST(request: Request) {
       message: body.message,
       requestId,
       ...getRequestContext(),
+      locale: await requestLocale(),
     });
     const durationMs = Math.round(performance.now() - startedAt);
 

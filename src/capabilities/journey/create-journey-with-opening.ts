@@ -4,7 +4,8 @@ import type { LocationResolveResult } from "@/capabilities/destination/location-
 import { applyDestinationEdit } from "@/capabilities/destination/apply-destination-edit";
 import { resolveDestinationPlace } from "@/capabilities/destination/resolve-destination-place";
 import { destinationEditReply } from "@/capabilities/conversation/turn-reply";
-import type { MeriReplies } from "@/capabilities/conversation/meri-replies";
+import { meriReplies } from "@/capabilities/conversation/meri-replies";
+import type { Locale } from "@/domain/locale/locale";
 import { withChoiceImages } from "@/capabilities/destination/place-images";
 import type { PlacePhotoProvider } from "@/platform/place-photos/place-photo-provider";
 import { initializeTripState, type DestinationField } from "@/domain/trip-state/trip-state";
@@ -19,7 +20,7 @@ type CreateJourneyWithOpeningDependencies = {
   readonly photos: PlacePhotoProvider;
   readonly initializeOpening: (input: {
     readonly tripId: string; readonly ownerGuestId: string; readonly requestId: string;
-    readonly referenceDate: string; readonly timezone: string;
+    readonly referenceDate: string; readonly timezone: string; readonly locale: Locale;
   }) => Promise<unknown>;
 };
 
@@ -27,8 +28,8 @@ export async function createJourneyWithOpening(
   input: {
     readonly draft: unknown; readonly ownerGuestId: string; readonly initialUserMessage?: string;
     readonly requestId: string; readonly referenceDate: string; readonly timezone: string;
-    /** Meri's own sentences in the language chosen on the landing page. */
-    readonly replies: MeriReplies;
+    /** The language chosen on the landing page: Meri's own sentences and the model's opening reply. */
+    readonly locale: Locale;
   },
   dependencies: CreateJourneyWithOpeningDependencies,
 ): Promise<{ readonly journey: Journey; readonly opening: "completed" | "failed" | "not_requested";
@@ -43,7 +44,7 @@ export async function createJourneyWithOpening(
   // in the Journey already, and the model's opening greets it like any other state.
   const initialState = initializeTripState(draft);
   const createdState = result?.changed ? { ...initialState, destination: result.destination } : initialState;
-  const reply = result ? destinationEditReply(result, "", initialState, createdState, input.replies) : "";
+  const reply = result ? destinationEditReply(result, "", initialState, createdState, meriReplies[input.locale]) : "";
   const openingAssistant = result && reply !== "" && (result.choices || result.unresolved.length || result.lookupFailed.length)
     ? { content: reply, ...(result.choices
       ? { presentation: await withChoiceImages(result.choices.presentation, dependencies.photos) } : {}) }
@@ -54,7 +55,8 @@ export async function createJourneyWithOpening(
   if (openingAssistant) return { journey, opening: "completed" };
   try {
     await dependencies.initializeOpening({ tripId: journey.trip.id, ownerGuestId: input.ownerGuestId,
-      requestId: input.requestId, referenceDate: input.referenceDate, timezone: input.timezone });
+      requestId: input.requestId, referenceDate: input.referenceDate, timezone: input.timezone,
+      locale: input.locale });
     return { journey, opening: "completed" };
   } catch (openingError) {
     return { journey, opening: "failed", openingError };

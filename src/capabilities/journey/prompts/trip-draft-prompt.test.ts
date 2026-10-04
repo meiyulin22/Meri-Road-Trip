@@ -8,6 +8,7 @@ test("defines Meri TripDraft certainty and preservation semantics", () => {
   const prompt = buildTripDraftSystemPrompt({
     referenceDate: "2026-09-18",
     timezone: "Asia/Shanghai",
+    locale: "zh",
   });
 
   assert.match(prompt, /known:/);
@@ -24,10 +25,18 @@ test("defines Meri TripDraft certainty and preservation semantics", () => {
 });
 
 test("field semantics come from the block the workspace conversation also states", () => {
-  const prompt = buildTripDraftSystemPrompt({ referenceDate: "2026-09-18", timezone: "Asia/Shanghai" });
+  const prompt = buildTripDraftSystemPrompt({ referenceDate: "2026-09-18", timezone: "Asia/Shanghai", locale: "zh" });
 
   assert.ok(prompt.includes(certaintyStateGuidance));
   assert.ok(prompt.includes(tripStateFieldGuidance));
   assert.match(prompt, /startDate and endDate use YYYY-MM-DD only when known/);
   assert.match(prompt, /Resolve sufficiently definite relative dates, such as "明天"/);
+});
+
+test("the inferred trip name is written in the language chosen on the landing page", () => {
+  const english = buildTripDraftSystemPrompt({ referenceDate: "2026-09-18", timezone: "Asia/Shanghai", locale: "en" });
+  const chinese = buildTripDraftSystemPrompt({ referenceDate: "2026-09-18", timezone: "Asia/Shanghai", locale: "zh" });
+
+  assert.match(english, /trip name you infer is the Journey's title in the interface, so write it in English, whatever language the message uses/);
+  assert.match(chinese, /so write it in Simplified Chinese/);
 });

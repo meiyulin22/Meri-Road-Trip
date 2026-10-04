@@ -31,6 +31,7 @@ const validInput = {
   requestId: "request_123",
   referenceDate: "2026-09-13",
   timezone: "Asia/Shanghai",
+  locale: "zh" as const,
 };
 
 function createClient(

@@ -1,3 +1,4 @@
+import type { Locale } from "@/domain/locale/locale";
 import type { TripState } from "@/domain/trip-state/trip-state";
 import {
   conversationFieldNames,
@@ -24,6 +25,8 @@ export interface InterpretWorkspaceConversationInput {
   readonly timezone: string;
   readonly conversationHistory?: readonly StructuredOutputConversationMessage[];
   readonly mode?: "conversation" | "opening";
+  /** The language chosen on the landing page; the model may follow a user who writes in another. */
+  readonly locale: Locale;
 }
 
 export class InvalidWorkspaceConversationRequestError extends Error {
@@ -109,6 +112,7 @@ export async function interpretWorkspaceConversation(
         referenceDate: input.referenceDate,
         timezone: input.timezone,
         mode: input.mode,
+        locale: input.locale,
       }),
       userMessage: input.message,
       conversationHistory: input.conversationHistory,

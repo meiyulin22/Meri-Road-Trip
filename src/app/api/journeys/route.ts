@@ -19,7 +19,6 @@ import { LocationService } from "@/capabilities/destination/location-service";
 import { logger, logEvents } from "@/platform/observability/logger";
 import { serializeError } from "@/platform/observability/serialize-error";
 import { openingConversationService } from "@/capabilities/conversation/opening-conversation-service-instance";
-import { meriReplies } from "@/capabilities/conversation/meri-replies";
 import { requestLocale } from "@/platform/locale/request-locale";
 
 function getRequestContext(): { referenceDate: string; timezone: string } {
@@ -63,7 +62,7 @@ export async function POST(request: Request) {
       initialUserMessage,
       requestId,
       ...getRequestContext(),
-      replies: meriReplies[await requestLocale()],
+      locale: await requestLocale(),
     }, {
       createJourney: (draft, ownerGuestId, message, openingAssistant, initialDestination) =>
         journeyService.createJourney(draft, ownerGuestId, message, openingAssistant, initialDestination),

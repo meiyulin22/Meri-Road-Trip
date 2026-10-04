@@ -18,6 +18,7 @@ import { logger, logEvents } from "@/platform/observability/logger";
 import { serializeError } from "@/platform/observability/serialize-error";
 import { OpeningConversationNotEligibleError } from "@/capabilities/conversation/opening-conversation-service";
 import { openingConversationService } from "@/capabilities/conversation/opening-conversation-service-instance";
+import { requestLocale } from "@/platform/locale/request-locale";
 
 function getRequestContext(): { referenceDate: string; timezone: string } {
   const timezone = process.env.MERI_TIMEZONE?.trim() ||
@@ -49,6 +50,7 @@ export async function POST(
       ownerGuestId,
       requestId,
       ...getRequestContext(),
+      locale: await requestLocale(),
     });
     return NextResponse.json({ message });
   } catch (error) {

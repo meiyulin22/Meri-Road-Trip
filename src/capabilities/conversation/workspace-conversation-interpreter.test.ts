@@ -27,6 +27,7 @@ const input = {
   requestId: "request_workspace_123",
   referenceDate: "2026-09-19",
   timezone: "Asia/Shanghai",
+  locale: "zh" as const,
 };
 
 function createClient(

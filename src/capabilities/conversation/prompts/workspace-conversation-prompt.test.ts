@@ -6,6 +6,8 @@ import {
   certaintyStateGuidance,
   tripStateFieldGuidance,
 } from "@/capabilities/journey/prompts/trip-state-field-guidance";
+import type { Locale } from "@/domain/locale/locale";
+import { replyLanguageGuidance } from "./reply-language-guidance";
 import { buildWorkspaceConversationSystemPrompt } from "./workspace-conversation-prompt";
 
 const tripState: TripState = {
@@ -18,10 +20,21 @@ const tripState: TripState = {
   transportPreference: { state: "missing" },
 };
 
-function prompt(mode: "conversation" | "opening" = "conversation") {
+function prompt(mode: "conversation" | "opening" = "conversation", locale: Locale = "zh") {
   return buildWorkspaceConversationSystemPrompt({ tripState, referenceDate: "2026-09-27",
-    timezone: "Asia/Shanghai", mode });
+    timezone: "Asia/Shanghai", mode, locale });
 }
+
+test("both modes reply in the landing page's language and leave following the user to the model", () => {
+  for (const mode of ["conversation", "opening"] as const) {
+    const english = prompt(mode, "en");
+    assert.ok(english.includes(replyLanguageGuidance("en")));
+    assert.match(english, /the user chose English on Meri's home page, so write the reply in English/);
+    assert.match(english, /clearly written in another language, reply in that language instead/);
+    assert.match(english, /trip name you propose is written in English/);
+    assert.match(prompt(mode, "zh"), /write the reply in Simplified Chinese/);
+  }
+});
 
 
 test("prompt keeps model edits distinct from provider verification and user confirmation",()=>{
