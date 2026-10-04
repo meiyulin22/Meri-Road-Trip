@@ -135,6 +135,23 @@ test("only the user's own words plus an administrative or scenic suffix count as
   }
 });
 
+test("a sight filed under its own 市 is added under the user's word for it; any other prefix is offered", async () => {
+  const westLake = { ...meriCandidate, providerId: "amap-west-lake", name: "杭州西湖风景名胜区", province: "浙江省",
+    city: "杭州市", district: "西湖区" };
+  assert.deepEqual(await resolveDestinationPlace("西湖", async () => ({ status: "resolved", candidate: westLake })),
+    { status: "resolved", exact: true, pick: { id: "amap-west-lake", province: "浙江省", place: "杭州市", spot: "西湖",
+      detail: "杭州西湖风景名胜区 · 西湖区 · 德钦县" } });
+  assert.equal(namesSamePlace("杭州西湖风景名胜区", "西湖", westLake), true);
+  assert.equal(namesSamePlace("杭州西湖风景名胜区", "西湖"), false);
+  // A name that is the 市 itself stays exact with the 市 known: 大连市 is not 「大连」 + 「市」 cut off.
+  assert.equal(namesSamePlace("大连市", "大连", { city: "大连市", district: "中山区", province: "辽宁省" }), true);
+
+  const monastery = { ...meriCandidate, providerId: "amap-songzanlin", name: "噶丹松赞林寺", district: "香格里拉市" };
+  const offered = await resolveDestinationPlace("松赞林寺", async () => ({ status: "resolved", candidate: monastery }));
+  assert.equal(offered.status === "resolved" && offered.exact, false);
+  assert.equal(offered.status === "resolved" ? offered.pick.spot : null, "噶丹松赞林寺");
+});
+
 test("exact names are written straight in while uncertain ones in the same message are offered", async () => {
   const result = await applyDestinationEdit({ state: "known", source: "user", areas: [{ province: "云南省", places: [] }] },
     { operation: "add", places: ["大连", "大里"], broadRegion: null }, async (expression) => expression === "大连"

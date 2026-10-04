@@ -1,4 +1,5 @@
 import type { LocationCandidate } from "@/domain/location/location";
+import { namesWithoutOwnPlace } from "@/domain/location/destination-resolution-policy";
 import { isChinaProvince } from "@/domain/location/china-destination-scope";
 import type { DestinationPick } from "@/domain/trip-state/destination-areas";
 
@@ -44,7 +45,7 @@ export async function resolveDestinationPlace(
     case "resolved": {
       const pick = pickFromCandidate(result.candidate, expression);
       return pick === null ? { status: "unresolved" }
-        : { status: "resolved", pick, exact: namesSamePlace(result.candidate.name, expression) };
+        : { status: "resolved", pick, exact: namesSamePlace(result.candidate.name, expression, result.candidate) };
     }
     case "ambiguous": {
       // Two provider records in one city may be different spots. Keep both until
@@ -55,7 +56,7 @@ export async function resolveDestinationPlace(
       if (options.length > 0 && new Set(options.map(preferenceKey)).size === 1) {
         const sources = result.candidates.filter((candidate) => options.some((option) => option.id === candidate.providerId));
         return { status: "resolved", pick: options[0],
-          exact: sources.some((candidate) => namesSamePlace(candidate.name, expression)) };
+          exact: sources.some((candidate) => namesSamePlace(candidate.name, expression, candidate)) };
       }
       return options.length === 0 ? { status: "unresolved" } : { status: "ambiguous", options };
     }
@@ -130,7 +131,9 @@ function spotOf(candidate: LocationCandidate, place: string, expression: string)
   // provider's full administrative name so confirmation repeats a precise search.
   if (candidate.district !== null && name === normalize(candidate.district)) return candidate.name;
   const said = normalize(expression);
-  return said.length >= 2 && name.startsWith(said) ? expression.trim() : candidate.name;
+  // 杭州西湖风景名胜区 is the 西湖 the user asked for; keep their word for it.
+  return said.length >= 2 && namesWithoutOwnPlace(name, candidate).some((variant) => variant.startsWith(said))
+    ? expression.trim() : candidate.name;
 }
 
 function isProvinceCandidate(candidate: LocationCandidate): boolean {
@@ -157,15 +160,23 @@ const scenicSuffix = /^(?:风景名胜区|风景区|景区|旅游区|国家公�
 
 /**
  * Whether a provider name is the user's expression and nothing more than a suffix
- * that does not change which place it is. A typo, a partial name or a different
- * place all fail, and are offered as choices instead.
+ * that does not change which place it is — or, when the record's own location is
+ * given, its own 市 or 区县 in front (杭州西湖风景名胜区 for 西湖), which only says where
+ * it is. A typo, a partial name, any other prefix (噶丹松赞林寺) or a different place
+ * all fail, and are offered as choices instead.
  */
-export function namesSamePlace(providerName: string, expression: string): boolean {
-  const name = normalize(providerName);
+export function namesSamePlace(
+  providerName: string,
+  expression: string,
+  location?: Pick<LocationCandidate, "city" | "district" | "province">,
+): boolean {
   const said = normalize(expression);
-  if (said.length < 2 || !name.startsWith(said)) return false;
-  const rest = name.slice(said.length);
-  return rest === "" || administrativeSuffix.test(rest) || scenicSuffix.test(rest);
+  const names = location ? namesWithoutOwnPlace(providerName, location) : [normalize(providerName)];
+  return names.some((name) => {
+    if (said.length < 2 || !name.startsWith(said)) return false;
+    const rest = name.slice(said.length);
+    return rest === "" || administrativeSuffix.test(rest) || scenicSuffix.test(rest);
+  });
 }
 
 function normalize(value: string): string {

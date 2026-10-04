@@ -311,8 +311,8 @@ LLM 解释自然语言并提出受限 JSON；应用校验、决定是否执行�
 | [src/domain/location/destination-recommendations.test.ts](../src/domain/location/destination-recommendations.test.ts) | 测试（对应模块边界） | 验证省份拼写、顺序、同名变体去重及最多 12 个地点等结构边界。 |
 | [src/domain/location/destination-recommendations.ts](../src/domain/location/destination-recommendations.ts) | 领域层 | Zod 推荐省份/城市/理由校验，检查中国省级范围、控制总量并规范化去重。 |
 | [src/domain/location/china-destination-scope.ts](../src/domain/location/china-destination-scope.ts) | 领域层 | 中国目的地省级行政区完整名/简称名单，共用范围校验；不替代城市/景点的提供方身份核验。 |
-| [src/domain/location/destination-resolution-policy.test.ts](../src/domain/location/destination-resolution-policy.test.ts) | 测试（对应模块边界） | 验证行政/景区后缀、同名歧义、省范围、重复身份及不合理/无效坐标候选。 |
-| [src/domain/location/destination-resolution-policy.ts](../src/domain/location/destination-resolution-policy.ts) | 领域层 | 合理名称匹配和候选解析纯规则，返回 resolved/ambiguous/area/unresolved，保留不同 POI 身份。 |
+| [src/domain/location/destination-resolution-policy.test.ts](../src/domain/location/destination-resolution-policy.test.ts) | 测试（对应模块边界） | 验证行政/景区后缀、自身市/州前缀、景点旁同名区县让位（行政名之间不让）、兜底前缀匹配（至少 3 字、只在无更严格匹配时）、同名歧义、省范围、重复身份及不合理/无效坐标候选。 |
+| [src/domain/location/destination-resolution-policy.ts](../src/domain/location/destination-resolution-policy.ts) | 领域层 | 合理名称匹配和候选解析纯规则：原话/后缀/自身市区县前缀匹配，同市景点旁的同名区县让位，最后兜底匹配带其他前缀的名称；返回 resolved/ambiguous/area/unresolved，保留不同 POI 身份。 |
 | [src/domain/location/location-suggestion.ts](../src/domain/location/location-suggestion.ts) | 领域层 | 输入建议 LocationSuggestion 类型，包含可能缺失的身份/坐标，与最终目的地确认分开；本文件不执行校验。 |
 | [src/domain/location/location.ts](../src/domain/location/location.ts) | 领域层 | 规范化 LocationCandidate，包含提供方身份、行政归属、地址和坐标。 |
 | [src/domain/location/place-image.ts](../src/domain/location/place-image.ts) | 领域层 | 地点照片类型（https 链接 + 说明文字）与读取校验，不合法时视为没有照片。 |
@@ -397,7 +397,7 @@ LLM 解释自然语言并提出受限 JSON；应用校验、决定是否执行�
 | 文件地址 | 层/类别 | 做什么 |
 | --- | --- | --- |
 | [src/capabilities/destination/apply-destination-edit.ts](../src/capabilities/destination/apply-destination-edit.ts) | 应用层/用例装配 | none/add/set/remove 执行：用户原话中被精确匹配的地点直接追加（added），其余准备待选卡；唯一删除；报告部分失败。 |
-| [src/capabilities/destination/destination-choice-flow.test.ts](../src/capabilities/destination/destination-choice-flow.test.ts) | 测试（对应模块边界） | 跨模块验证核验→候选→显式提交不提前写目的地，以及提交复核身份/spot 保留。 |
+| [src/capabilities/destination/destination-choice-flow.test.ts](../src/capabilities/destination/destination-choice-flow.test.ts) | 测试（对应模块边界） | 跨模块验证核验→候选→显式提交不提前写目的地，以及提交复核身份/spot 保留；自身城市前缀算精确并用原话作景点名，其他前缀出卡。 |
 | [src/capabilities/destination/destination-recommendation-selection-route.test.ts](../src/capabilities/destination/destination-recommendation-selection-route.test.ts) | 测试（对应模块边界） | 验证只有保存的 offer 可提交、owner/ID 校验、提供方失败及选择接口状态边界。 |
 | [src/capabilities/destination/destination-selection-reply.test.ts](../src/capabilities/destination/destination-selection-reply.test.ts) | 测试（对应模块边界） | 验证确认包含城市/spot、已知/近似字段不重复追问，只有省也可规划、旧文本需重新确认。 |
 | [src/capabilities/destination/destination-selection-reply.ts](../src/capabilities/destination/destination-selection-reply.ts) | 应用层/用例装配 | 从保存前后的 TripState 构造只说新增地点的确认，首次可规划时附准备度和补充信息邀请，固定正文无 LLM 调用。 |
@@ -410,7 +410,7 @@ LLM 解释自然语言并提出受限 JSON；应用校验、决定是否执行�
 | [src/capabilities/destination/location-suggestion-service.test.ts](../src/capabilities/destination/location-suggestion-service.test.ts) | 测试（对应模块边界） | 验证 query 规则、完整建议列表及调用前拒绝非法输入。 |
 | [src/capabilities/destination/location-suggestion-service.ts](../src/capabilities/destination/location-suggestion-service.ts) | 应用层/用例装配 | 输入建议用例，trim/长度校验，调用建议端口并转换错误。 |
 | [src/capabilities/destination/planning-readiness-route.test.ts](../src/capabilities/destination/planning-readiness-route.test.ts) | 测试（对应模块边界） | 验证无 owner 不加载、读取当前权威状态、准备度只读及不调用地点研究。 |
-| [src/capabilities/destination/resolve-destination-place.ts](../src/capabilities/destination/resolve-destination-place.ts) | 应用层/用例装配 | 将核验候选映射为 province/place/spot，保留不同 provider 身份及显示细节；同一偏好的多条记录视为一个地点，并给出 exact（namesSamePlace：原话＋行政/景区后缀）。 |
+| [src/capabilities/destination/resolve-destination-place.ts](../src/capabilities/destination/resolve-destination-place.ts) | 应用层/用例装配 | 将核验候选映射为 province/place/spot，保留不同 provider 身份及显示细节；同一偏好的多条记录视为一个地点，并给出 exact（namesSamePlace：原话＋行政/景区后缀，可带记录自身市/区县前缀；其他前缀不算）。 |
 | [src/capabilities/destination/verified-destination-choice.ts](../src/capabilities/destination/verified-destination-choice.ts) | 应用层/用例装配 | 对持久化卡项按偏好 ID/旧 provider 身份重新验证；已核验省范围有专门处理。 |
 
 ### 6.11 Recommendation 应用用例

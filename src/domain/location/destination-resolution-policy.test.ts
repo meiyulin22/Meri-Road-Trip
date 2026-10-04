@@ -114,3 +114,50 @@ test("a scenic area and its city are genuinely different places, so they stay a 
     status: "ambiguous", candidates: [scenic, city],
   });
 });
+
+function located(name: string, providerId: string, city: string, district: string | null = null): LocationCandidate {
+  return { ...candidate(name, providerId), province: "某省", city, district };
+}
+
+test("a sight filed under its own 市 or 州 is still the sight the user named", () => {
+  // Amap's names, checked 2026-10-04: the prefix is only where the sight is.
+  const westLake = located("杭州西湖风景名胜区", "west-lake", "杭州市", "西湖区");
+  assert.deepEqual(resolveDestinationCandidates("西湖", [westLake]), { status: "resolved", candidate: westLake });
+  const daocheng = located("甘孜稻城亚丁景区", "daocheng", "甘孜藏族自治州", "稻城县");
+  assert.deepEqual(resolveDestinationCandidates("稻城亚丁", [daocheng]), { status: "resolved", candidate: daocheng });
+  // A prefix that is not its own place is not stripped: 成都 is not where this one is.
+  assert.deepEqual(resolveDestinationCandidates("西湖", [located("成都西湖酒店", "hotel", "杭州市")]), { status: "unresolved" });
+});
+
+test("beside a sight of the same name in the same 市, a district gives way, but never a 市 or another place", () => {
+  const westLake = located("杭州西湖风景名胜区", "west-lake", "杭州市", "西湖区");
+  const district = located("西湖区", "west-lake-district", "杭州市", "西湖区");
+  assert.deepEqual(resolveDestinationCandidates("西湖", [district, westLake]), { status: "resolved", candidate: westLake });
+
+  const mountain = located("黄山风景区", "huangshan", "黄山市", "黄山区");
+  const city = located("黄山市", "huangshan-city", "黄山市", "屯溪区");
+  const huangshanDistrict = located("黄山区", "huangshan-district", "黄山市", "黄山区");
+  assert.deepEqual(resolveDestinationCandidates("黄山", [mountain, city, huangshanDistrict]),
+    { status: "ambiguous", candidates: [mountain, city] });
+
+  // Only administrative names: 朝阳 stays the user's choice.
+  const chaoyangCity = located("朝阳市", "chaoyang-city", "朝阳市", "双塔区");
+  const chaoyangCounty = located("朝阳县", "chaoyang-county", "朝阳市", "朝阳县");
+  assert.deepEqual(resolveDestinationCandidates("朝阳", [chaoyangCity, chaoyangCounty]),
+    { status: "ambiguous", candidates: [chaoyangCity, chaoyangCounty] });
+});
+
+test("only when nothing else matches, a name with some other prefix is found, from three characters", () => {
+  const monastery = located("噶丹松赞林寺", "songzanlin", "迪庆藏族自治州", "香格里拉市");
+  const parking = located("噶丹松赞林寺停车场", "parking", "迪庆藏族自治州", "香格里拉市");
+  assert.deepEqual(resolveDestinationCandidates("松赞林寺", [monastery, parking]), { status: "resolved", candidate: monastery });
+  // A stricter match wins outright, so a loose one never turns it into a choice…
+  const park = located("人民公园", "park", "成都市");
+  assert.deepEqual(resolveDestinationCandidates("人民公园", [park, located("南湖人民公园", "other", "内江市")]),
+    { status: "resolved", candidate: park });
+  // …while one filed under its own 市 is a second 人民公园, and that is a real choice.
+  const neijiang = located("内江人民公园", "neijiang", "内江市");
+  assert.deepEqual(resolveDestinationCandidates("人民公园", [park, neijiang]), { status: "ambiguous", candidates: [park, neijiang] });
+  // Two characters end far too many names: 西湖 must not find 瘦西湖.
+  assert.deepEqual(resolveDestinationCandidates("西湖", [located("瘦西湖", "slender", "扬州市")]), { status: "unresolved" });
+});

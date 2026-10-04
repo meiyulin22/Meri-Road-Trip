@@ -87,7 +87,10 @@ The implemented destination flow includes:
   conversation turns no longer create whole-destination replacement offers.
 - Amap verification of every place expression. A name the user typed that Amap
   matches exactly — one place, and the provider's name is the user's words plus only
-  an administrative or scenic-area suffix (大连 → 大连市) — is added at once. A typo,
+  an administrative or scenic-area suffix (大连 → 大连市), or with only the place's own
+  city in front (西湖 → 杭州西湖风景名胜区) — is added at once. Beside a sight, a district
+  of the same name in the same city gives way (西湖, not 西湖区). A name found only with
+  some other prefix (松赞林寺 → 噶丹松赞林寺) is offered for confirmation. A typo,
   several possible places, a broad region, or a name the model rewrote is offered
   as choices instead. Chat offers use checkboxes and one batch confirmation; manual
   search uses a result's Add action.
