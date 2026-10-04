@@ -11,15 +11,18 @@ import { groupDestinationChoices } from "@/domain/trip-message/destination-choic
 import { destinationContains, type DestinationArea } from "@/domain/trip-state/destination-areas";
 
 import { AnimatedCheckbox } from "../ui/animated-checkbox";
+import { Skeleton } from "../ui/skeleton";
 import styles from "./destination-recommendation-picker.module.css";
 
-export function DestinationChoicesCard({ presentation, areas, active, pending, error, onCommit }: {
+export function DestinationChoicesCard({ presentation, areas, active, pending, error, onCommit, photoPendingIds = [] }: {
   readonly presentation: DestinationChoicesPresentation;
   readonly areas: readonly DestinationArea[];
   readonly active: boolean;
   readonly pending: boolean;
   readonly error: boolean;
   readonly onCommit: (ids: readonly string[]) => void;
+  /** Places whose photo is still being looked up: they pulse instead of showing the pin. */
+  readonly photoPendingIds?: readonly string[];
 }) {
   const [picked, setPicked] = useState<readonly string[]>([]);
   const rows = groupDestinationChoices(presentation.choices);
@@ -58,6 +61,7 @@ export function DestinationChoicesCard({ presentation, areas, active, pending, e
             disabled={!active || pending || (presentation.mode === "add" && selected) || choice.legacyUnverified === true}
             inJourney={inJourney}
             onToggle={() => toggle(choice.id)}
+            photoPending={photoPendingIds.includes(choice.id)}
           />
         </li>;
       })}
@@ -139,24 +143,34 @@ function ProvinceRow({ province, children }: { readonly province: string; readon
   </div>;
 }
 
-function PlaceCard({ choice, checked, disabled, inJourney, onToggle }: {
+function PlaceCard({ choice, checked, disabled, inJourney, onToggle, photoPending }: {
   readonly choice: DestinationChoicesPresentation["choices"][number];
   readonly checked: boolean;
   readonly disabled: boolean;
   readonly inJourney: boolean;
   readonly onToggle: () => void;
+  readonly photoPending: boolean;
 }) {
   const [imageFailed, setImageFailed] = useState(false);
+  const [loadedUrl, setLoadedUrl] = useState<string | null>(null);
   const image = imageFailed ? undefined : choice.image;
+  // Pulse while the photo is being looked up, and again while its file downloads, so
+  // the photo fades in over the skeleton instead of painting in strips.
+  const waiting = image ? loadedUrl !== image.url : photoPending;
   return <label className={styles.placeCard} data-state={inJourney ? "in-journey" : checked ? "picked" : undefined}>
-    <span className={styles.placeImage}>
-      {image ? <Image alt={image.caption} fill onError={() => setImageFailed(true)} sizes="200px" src={image.url} />
-        : <span aria-hidden="true" className={styles.placeImageFallback}><MapPin size={22} /></span>}
+    <span aria-busy={waiting || undefined} className={styles.placeImage} data-waiting={waiting ? "" : undefined}>
+      {waiting ? <>
+        <Skeleton className={styles.placeImageSkeleton} />
+        <Skeleton className={styles.placeCaptionSkeleton} />
+      </> : null}
+      {image ? <Image alt={image.caption} fill onError={() => setImageFailed(true)} onLoad={() => setLoadedUrl(image.url)}
+        sizes="200px" src={image.url} />
+        : waiting ? null : <span aria-hidden="true" className={styles.placeImageFallback}><MapPin size={22} /></span>}
       <span className={styles.placeCheck}>
         <AnimatedCheckbox checked={checked} disabled={disabled} onChange={onToggle} />
       </span>
       {inJourney ? <span className={styles.inJourneyBadge}>已在行程</span> : null}
-      {image ? <span className={styles.placeCaption}>{image.caption}</span> : null}
+      {image && !waiting ? <span className={styles.placeCaption}>{image.caption}</span> : null}
     </span>
     <span className={styles.placeBody}>
       <span className={styles.name}>{choice.city ?? choice.name}</span>

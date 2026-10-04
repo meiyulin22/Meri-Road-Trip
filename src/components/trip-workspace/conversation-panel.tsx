@@ -11,11 +11,11 @@ import type { TripMessage } from "@/domain/trip-message/trip-message";
 import type { TripState } from "@/domain/trip-state/trip-state";
 
 import { nextRevealCharacterCount, visibleAssistantText } from "./conversation-reveal";
-import { requestPendingRecommendations, selectDestinationRecommendation } from "./destination-recommendation-model";
+import { requestPendingRecommendations, selectDestinationRecommendation, streamRecommendationPhotos } from "./destination-recommendation-model";
 import { DestinationChoicesCard } from "./destination-choices-card";
 import { GeneratePlanAction } from "./generate-plan-action";
 import { formatMessageTimestamp } from "./message-timestamp";
-import { appendPersistedMessageIfAbsent, destinationChoicePresentation, messageCreatedAt, pendingRecommendationPresentation, toWorkspaceUIMessages } from "./trip-message-ui-adapter";
+import { appendPersistedMessageIfAbsent, destinationChoicePresentation, messageCreatedAt, pendingRecommendationPresentation, recommendationIdsAwaitingPhoto, toWorkspaceUIMessages, withRecommendationPhoto } from "./trip-message-ui-adapter";
 import { DestinationOfferExpiredError, DestinationSelectionFollowUpError, RecommendationsStaleError } from "./workspace-conversation-model";
 import {
   reconcileCommittedUserId,
@@ -66,6 +66,10 @@ export function ConversationPanel({
     readonly messageId: string;
     readonly status: "failed" | "stale";
   } | null>(null);
+  const photosInFlight = useRef<string | null>(null);
+  // Card messages whose photo request has finished: a card still without an answer
+  // stops pulsing and shows the pin, and is asked for again on the next load.
+  const [photosSettledIds, setPhotosSettledIds] = useState<readonly string[]>([]);
 
   function handleCommittedTurn(turn: CommittedWorkspaceTurn): void {
     onTripStateChange(turn.tripState);
@@ -142,6 +146,26 @@ export function ConversationPanel({
         cardsInFlight.current = null;
       });
   }, [cardsFailure, isSubmitting, pendingCardsId, setMessages, tripId]);
+
+  // Cards arrive before their photos. Any card message still waiting for photos — just
+  // delivered, or reopened before they were saved — asks for them, one message at a
+  // time because every lookup shares Amap's queue anyway.
+  useEffect(() => {
+    if (photosInFlight.current !== null) return;
+    const waiting = messages.find((item) => !photosSettledIds.includes(item.id) &&
+      recommendationIdsAwaitingPhoto(item).length > 0);
+    if (!waiting) return;
+    const messageId = waiting.id;
+    photosInFlight.current = messageId;
+    streamRecommendationPhotos(tripId, messageId,
+      (photo) => setMessages((current) => withRecommendationPhoto(current, messageId, photo)))
+      // Photos only decorate the cards; a failed request leaves them as they are.
+      .catch(() => undefined)
+      .finally(() => {
+        photosInFlight.current = null;
+        setPhotosSettledIds((current) => [...current, messageId]);
+      });
+  }, [messages, photosSettledIds, setMessages, tripId]);
 
   function closeCurrentOffer(): void {
     if (latestMessage && destinationChoicePresentation(latestMessage)) {
@@ -306,6 +330,8 @@ export function ConversationPanel({
                       error={selectionErrorMessageId === conversationMessage.id}
                       onCommit={(destinationIds) => void handleRecommendationSelection(conversationMessage.id, destinationIds)}
                       pending={selectionPendingMessageId !== null || isSubmitting || hasError}
+                      photoPendingIds={photosSettledIds.includes(conversationMessage.id)
+                        ? undefined : recommendationIdsAwaitingPhoto(conversationMessage)}
                     />
                   ) : null}
                 </div>

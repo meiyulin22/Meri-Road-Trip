@@ -87,7 +87,7 @@ flowchart TB
 | `journey` | TripDraft、owner、patch | 创建/加载/更新/删除、失败补偿、列表投影 | Trip + TripState；创建时可保存原话和固定开场 |
 | `conversation` | 当前状态、原话、真实历史 | 结构化解释、opening、上下文裁剪、消息服务 | 修改提案/正文及持久化 TripMessage |
 | `destination` | 地点表达、当前目的地或保存的 choice | 查询协调、行政归属/spot 映射、候选/唯一删除、提交复核 | 用户原话的精确匹配直接写入，其余为待选 choices；模型改写的名称不自动保存 |
-| `recommendation` | 当前状态、真实历史、调用来源 | 判断推荐范围（within/elsewhere），pending 还原后搜索→生成→校验→省份过滤 | 卡片作为独立助手消息保存，不直接改目的地 |
+| `recommendation` | 当前状态、真实历史、调用来源 | 判断推荐范围（within/elsewhere），pending 还原后搜索→生成→校验→省份过滤；卡片出现后另行查照片并流式返回 | 卡片作为独立助手消息保存，照片随后写回该消息，不直接改目的地 |
 
 ## 4. 数据模型与持久化
 
@@ -188,7 +188,8 @@ flowchart TD
   pending --> messages
   reply --> messages
   messages --> response[完整 JSON：interpretation / TripState / messages]
-  response -->|最后一条为 pending| cards[客户端 POST destination-recommendations → 推荐工作流 → 卡片消息]
+  response -->|最后一条为 pending| cards[客户端 POST destination-recommendations → 推荐工作流 → 卡片消息（带地标、无照片）]
+  cards --> photos[客户端 POST destination-recommendation-photos → 逐张流式返回照片 → 写回卡片消息]
 ```
 
 地点 edit 出卡或有找不到的表达时本轮不推荐；推荐范围按写入后的状态判断：within 要求目的地 missing 或只有未选城市的省范围，elsewhere（“推荐别的省份”）要求已有省份且只推荐未保存的省份。普通字段先丢弃不改变字段的 change；模型 reply 不得宣称地点已添加或旅程可生成，这些句子由 `turn-reply.ts` 生成，准备度只在首次可规划时说一次。历史最多 5 轮/6000 字符，合并连续助手消息；建议不是已选。实际分支在 messages route，未调用 `workspace-turn-branch.ts`。候选/查询失败/删除歧义等正文由应用事实决定；普通对话和成功无失败项删除可用模型 reply。
@@ -230,7 +231,7 @@ flowchart LR
   select --> verify[高德复核与状态保存]
 ```
 
-最多 12 个建议地点；Discovery 失败降级为空搜索上下文，模型失败仍报错（卡片请求返回 502，界面可重试）。推荐分两个请求：聊天请求只保存模型的简短引导和 `destination_recommendations_pending` 标记，客户端再调用 `POST /api/trips/[id]/destination-recommendations`；该接口从保存的对话还原触发原话，只为仍是最新消息的 pending 生成卡片，卡片消息 ID 由 pending 消息派生，重复请求返回同一条。推荐只从聊天触发，使用真实原话；没有推荐按钮入口，不另存 action、不伪造 user 消息。未接通访问检查、排序或图片补全，workflow 是普通确定性编排，不是 Vercel Workflow runtime 或 Agent 循环。
+最多 12 个建议地点；Discovery 失败降级为空搜索上下文，模型失败仍报错（卡片请求返回 502，界面可重试）。推荐分两个请求：聊天请求只保存模型的简短引导和 `destination_recommendations_pending` 标记，客户端再调用 `POST /api/trips/[id]/destination-recommendations`；该接口从保存的对话还原触发原话，只为仍是最新消息的 pending 生成卡片，卡片消息 ID 由 pending 消息派生，重复请求返回同一条。推荐只从聊天触发，使用真实原话；没有推荐按钮入口，不另存 action、不伪造 user 消息。未接通访问检查或排序，workflow 是普通确定性编排，不是 Vercel Workflow runtime 或 Agent 循环。卡片不等照片：每张卡带配图用的地标先保存返回，客户端再调用 `POST /api/trips/[id]/destination-recommendation-photos`，服务器每查到一张照片就以 NDJSON 流式推一行，全部查完后写回该卡片消息的 presentation（消息唯一的更新），卡片在照片到达前显示骨架块。
 
 Generate plan 只有一个，位于聊天下方：missing→按钮不可用并在悬停/聚焦时说明添加目的地的途径，有 legacyText→重新确认/清除，其余（包括只有省、没有市）→准备度通过但规划尚未开放。出发地、日期、时长和交通目前不是硬门槛，准备度通过不证明安全或可行。
 
@@ -242,7 +243,7 @@ Generate plan 只有一个，位于聊天下方：missing→按钮不可用并�
 | 外部输入 | 模型 JSON、请求体、提供方数据和数据库读取经过校验；聊天解释和首页草稿逐项挽救，不合格的单项丢弃并记日志，其余照常执行 | 不能靠 TypeScript 断言信任外部数据；没有可用 reply 或不是对象时整轮仍失败 |
 | 状态更新 | 最新状态应用 patch，CAS 最多 3 次；Postgres UPDATE 比较原始 JSONB | 无 CAS 的测试替身允许退回 update，不能代表生产保护 |
 | 目的地并发 | 专用操作带 expectedDestination，冲突拒绝旧 patch；普通字段重读重算 | 通用 state PATCH 仍接受 destination，未统一高德核验，冲突错误当前未单独映射 409 |
-| 保存与会话 | 保存真实正文及 presentation，刷新重读；选卡半成功返回真实状态 | 状态与会话不是跨所有步骤的一笔事务，普通聊天失败需刷新核对 |
+| 保存与会话 | 保存真实正文及 presentation，刷新重读；选卡半成功返回真实状态；推荐卡照片查完后只替换该消息的 presentation | 状态与会话不是跨所有步骤的一笔事务，普通聊天失败需刷新核对 |
 | 重试 | 开场/同组选卡确认/推荐卡片使用稳定身份；过期卡不能恢复删除项 | 普通聊天 POST 没有全局幂等保证；同一 pending 并发请求可能各跑一次工作流，但只保存一条 |
 | 旧数据 | 旧目的地/卡片读取适配，无法核验文本保留 legacyText | 不静默丢弃或将景点假装成市；spot 同名不能只靠状态区分 POI |
 | 提供方故障 | Kimi 错误/超时归一化；Bocha 搜索可降级；高德故障不编造地点 | 手动 destinations 归属加载当前将异常统一视为 not-found |

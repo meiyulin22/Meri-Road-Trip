@@ -37,6 +37,7 @@ export const logEvents = {
   locationToolCompleted: "location.tool.completed",
   recommendationIntentDeclined: "recommendation.intent.declined",
   recommendationCardsFailed: "recommendation.cards.failed",
+  recommendationPhotosFailed: "recommendation.photos.failed",
   workspaceConversationPartsDropped: "workspace.conversation.parts_dropped",
   tripDraftPartsDropped: "trip_draft.parts_dropped",
   placePhotoLookupFailed: "place_photo.lookup.failed",

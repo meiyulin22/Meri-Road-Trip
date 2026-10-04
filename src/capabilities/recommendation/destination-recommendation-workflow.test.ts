@@ -35,7 +35,6 @@ function dependencies(options: { discoveryFails?: boolean; generated?: readonly 
       return options.generated ?? groups;
     },
     generateId: () => { calls.ids += 1; return `id-${calls.ids}`; },
-    photos: { async findPhoto() { return null; } },
   };
   return { deps, calls };
 }
@@ -111,21 +110,14 @@ test("nothing found outside the saved provinces is said as such", async () => {
   assert.match(result.content, /其他省份/u);
 });
 
-test("each card's photo is looked up by its landmark inside its place, and a card without one still shows", async () => {
+test("cards keep their landmark for the photo and arrive without one", async () => {
   const { deps } = dependencies({ generated: [{ province: "云南省", places: [
     { name: "丽江市", reason: "雪山古城", landmark: "玉龙雪山" },
     { name: "迪庆藏族自治州", reason: "高原草甸" },
   ] }] });
-  const asked: unknown[] = [];
-  const image = { url: "https://store.is.autonavi.com/showpic/yl", caption: "玉龙雪山国家级风景名胜区" };
-  const result = await runDestinationRecommendationWorkflow(context, "request-8", { ...deps, photos: { async findPhoto(query) {
-    asked.push(query);
-    return query.kind === "named" && query.keywords === "玉龙雪山" ? image : null;
-  } } });
+  const result = await runDestinationRecommendationWorkflow(context, "request-8", deps);
   assert.deepEqual(result.presentation?.destinations, [
-    { id: "id-1", name: "丽江市", province: "云南省", reason: "雪山古城", image },
+    { id: "id-1", name: "丽江市", province: "云南省", reason: "雪山古城", landmark: "玉龙雪山" },
     { id: "id-2", name: "迪庆藏族自治州", province: "云南省", reason: "高原草甸" },
   ]);
-  assert.deepEqual(asked, [{ kind: "named", keywords: "玉龙雪山", region: "丽江市" },
-    { kind: "scenic", region: "迪庆藏族自治州" }]);
 });

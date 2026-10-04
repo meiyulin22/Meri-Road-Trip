@@ -125,3 +125,18 @@ test("does not return messages from another Trip", async () => {
 
   assert.deepEqual(await repository.listByTripId(tripId), [user, assistant]);
 });
+
+test("replaces an assistant message's presentation and nothing else", async () => {
+  const repository = new InMemoryTripMessageRepository();
+  const cards: TripMessage = { ...message("a1", "assistant", "看看这些地方", "2026-10-04T00:00:00.000Z"),
+    presentation: { type: "destination_recommendations", destinations: [{ id: "lj", name: "丽江市", province: "云南省" }] } };
+  await repository.createMessage(cards);
+  await repository.createMessage(message("u1", "user", "我想去云南", "2026-10-04T00:00:01.000Z"));
+  const presentation = { type: "destination_recommendations" as const, destinations: [
+    { id: "lj", name: "丽江市", province: "云南省", image: null }] };
+
+  await repository.updateAssistantPresentation(tripId, "a1", presentation);
+  assert.deepEqual((await repository.listByTripId(tripId))[0], { ...cards, presentation });
+  await assert.rejects(repository.updateAssistantPresentation(tripId, "u1", presentation));
+  await assert.rejects(repository.updateAssistantPresentation("another-trip", "a1", presentation));
+});

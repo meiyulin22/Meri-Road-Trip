@@ -1,4 +1,6 @@
+import { parsePlaceImage } from "@/domain/location/place-image";
 import { validateTripMessage, type TripMessage } from "@/domain/trip-message/trip-message";
+import type { RecommendationPhoto } from "@/capabilities/recommendation/recommendation-photos";
 import type { DestinationRecommendationPresentation } from "@/domain/trip-message/trip-message";
 import { validateTripState, type TripState } from "@/domain/trip-state/trip-state";
 import { DestinationOfferExpiredError, DestinationSelectionFollowUpError, RecommendationsStaleError, WorkspaceConversationRequestError } from "./workspace-conversation-model";
@@ -103,4 +105,47 @@ export async function requestPendingRecommendations(
     throw new WorkspaceConversationRequestError("Destination recommendations message is invalid.");
   }
   return assistantMessage;
+}
+
+/** One streamed line, or null when it is not a card's answer. A bad photo is no photo. */
+export function parseRecommendationPhotoLine(line: string): RecommendationPhoto | null {
+  let value: unknown;
+  try {
+    value = JSON.parse(line);
+  } catch {
+    return null;
+  }
+  if (typeof value !== "object" || value === null || !("id" in value) || typeof value.id !== "string" ||
+    !("image" in value)) {
+    return null;
+  }
+  return { id: value.id, image: value.image === null ? null : parsePlaceImage(value.image) };
+}
+
+/**
+ * Reads the photos for cards already on screen as the server finds them, one JSON line
+ * per card, and hands each to `onPhoto` as it arrives. Resolves when every card has
+ * its answer; a card the stream never answered keeps no photo.
+ */
+export async function streamRecommendationPhotos(
+  tripId: string, messageId: string, onPhoto: (photo: RecommendationPhoto) => void, fetcher: Fetcher = fetch,
+): Promise<void> {
+  const response = await fetcher(
+    `/api/trips/${encodeURIComponent(tripId)}/destination-recommendation-photos`,
+    { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ messageId }) });
+  if (!response.ok) throw new WorkspaceConversationRequestError("Recommendation photos failed.");
+  if (!response.body) return;
+  const reader = response.body.pipeThrough(new TextDecoderStream()).getReader();
+  let pending = "";
+  for (;;) {
+    const { value, done } = await reader.read();
+    pending += value ?? "";
+    const complete = pending.split("\n");
+    pending = done ? "" : complete.pop() ?? "";
+    for (const line of complete) {
+      const photo = line.trim() === "" ? null : parseRecommendationPhotoLine(line);
+      if (photo) onPhoto(photo);
+    }
+    if (done) return;
+  }
 }

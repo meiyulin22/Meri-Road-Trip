@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { formatMessageTimestamp } from "./message-timestamp";
-import { appendPersistedMessageIfAbsent, destinationChoicePresentation, locationCandidatePresentation, messageCreatedAt, recommendationPresentation, toWorkspaceUIMessages } from "./trip-message-ui-adapter";
+import { appendPersistedMessageIfAbsent, destinationChoicePresentation, locationCandidatePresentation, messageCreatedAt, recommendationIdsAwaitingPhoto, recommendationPresentation, toWorkspaceUIMessages, withRecommendationPhoto } from "./trip-message-ui-adapter";
 
 function localDate(year: number, month: number, day: number, hour: number, minute: number): string {
   return new Date(year, month - 1, day, hour, minute).toISOString();
@@ -95,4 +95,20 @@ test("a recommendation's photo reaches the unified card", () => {
   const choices = destinationChoicePresentation(message)?.choices ?? [];
   assert.deepEqual(choices[0].image, image);
   assert.equal("image" in choices[1], false);
+});
+
+test("a streamed photo lands on its card, and a card answered with none stops waiting", () => {
+  const messages = toWorkspaceUIMessages([{ id: "r1", tripId: "t", role: "assistant", content: "看看这些",
+    createdAt: "2026-10-04T00:00:00.000Z", presentation: { type: "destination_recommendations", destinations: [
+      { id: "a", name: "丽江市", province: "云南省", landmark: "玉龙雪山" },
+      { id: "b", name: "大理白族自治州", province: "云南省" }] } },
+  { id: "u1", tripId: "t", role: "user", content: "好的", createdAt: "2026-10-04T00:00:01.000Z" }]);
+  assert.deepEqual(recommendationIdsAwaitingPhoto(messages[0]), ["a", "b"]);
+  const image = { url: "https://store.is.autonavi.com/showpic/yl", caption: "玉龙雪山" };
+  const updated = withRecommendationPhoto(withRecommendationPhoto(messages, "r1", { id: "a", image }), "r1", { id: "b", image: null });
+  assert.deepEqual(recommendationIdsAwaitingPhoto(updated[0]), []);
+  assert.deepEqual(destinationChoicePresentation(updated[0])?.choices[0].image, image);
+  assert.equal("image" in (destinationChoicePresentation(updated[0])?.choices[1] ?? {}), false);
+  assert.equal(updated[1], messages[1]);
+  assert.equal(messageCreatedAt(updated[0]), "2026-10-04T00:00:00.000Z");
 });

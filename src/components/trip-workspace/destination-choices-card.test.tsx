@@ -81,3 +81,16 @@ test("a place already in the Journey stays checked and marked after the batch is
     assert.doesNotMatch(markup, /已添加/);
   }
 });
+
+test("a card pulses while its photo is looked up, and shows the pin once there is none", async () => {
+  const { DestinationChoicesCard } = await import("./destination-choices-card");
+  const props = { areas: [], active: true, pending: false, error: false, onCommit: () => {},
+    presentation: { type: "destination_choices" as const, mode: "add" as const, choices: [
+      { id: "lj", name: "丽江市", province: "云南省" }, { id: "dl", name: "大理白族自治州", province: "云南省" }] } };
+  const looking = renderToStaticMarkup(createElement(DestinationChoicesCard, { ...props, photoPendingIds: ["lj"] }));
+  assert.equal((looking.match(/aria-busy="true"/g) ?? []).length, 1);
+  assert.equal((looking.match(/lucide-map-pin/g) ?? []).length, 1);
+  const settled = renderToStaticMarkup(createElement(DestinationChoicesCard, props));
+  assert.doesNotMatch(settled, /aria-busy/);
+  assert.equal((settled.match(/lucide-map-pin/g) ?? []).length, 2);
+});

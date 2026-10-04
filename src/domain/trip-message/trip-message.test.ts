@@ -3,7 +3,9 @@ import test from "node:test";
 
 import {
   InvalidTripMessageError,
+  recommendationsAwaitingPhoto,
   validateTripMessage,
+  type DestinationRecommendationPresentation,
 } from "./trip-message";
 
 const message = {
@@ -116,4 +118,21 @@ test("a card keeps an https image with its caption, and a broken stored image is
   if (message.presentation?.type !== "destination_choices") return;
   assert.deepEqual(message.presentation.choices[0].image, image);
   assert.equal("image" in message.presentation.choices[1], false);
+});
+
+test("a recommendation card keeps its landmark, and its photo is not looked up yet, found, or none", () => {
+  const image = { url: "https://store.is.autonavi.com/showpic/yl", caption: "玉龙雪山" };
+  const message = validateTripMessage({ id: "cards", tripId: "trip", role: "assistant", content: "看看这些地方",
+    createdAt: "2026-10-04T00:00:00.000Z", presentation: { type: "destination_recommendations", destinations: [
+      { id: "a", name: "丽江市", province: "云南省", landmark: "玉龙雪山" },
+      { id: "b", name: "大理白族自治州", province: "云南省", image },
+      { id: "c", name: "怒江傈僳族自治州", province: "云南省", image: null },
+      { id: "d", name: "保山市", province: "云南省", image: { url: "http://insecure.example/x.jpg", caption: "x" } },
+    ] } });
+  const presentation = message.presentation as DestinationRecommendationPresentation;
+  assert.deepEqual(presentation.destinations.map((item) => item.image), [undefined, image, null, null]);
+  assert.equal(presentation.destinations[0].landmark, "玉龙雪山");
+  assert.deepEqual(recommendationsAwaitingPhoto(presentation).map((item) => item.id), ["a"]);
+  assert.throws(() => validateTripMessage({ ...message, presentation: { type: "destination_recommendations",
+    destinations: [{ id: "a", name: "丽江市", province: "云南省", landmark: "x".repeat(31) }] } }));
 });

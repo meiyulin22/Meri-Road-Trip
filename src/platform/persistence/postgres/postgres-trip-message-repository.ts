@@ -1,8 +1,9 @@
-import { asc, eq } from "drizzle-orm";
+import { and, asc, eq } from "drizzle-orm";
 
 import {
   validateTripMessage,
   type TripMessage,
+  type TripMessagePresentation,
 } from "@/domain/trip-message/trip-message";
 import type { TripMessageRepository } from "@/platform/persistence/trip-message-repository";
 import { tripMessages } from "@/platform/persistence/database/schema/trip-messages";
@@ -10,7 +11,8 @@ import { tripMessages } from "@/platform/persistence/database/schema/trip-messag
 type TripMessageDatabase = typeof import("@/platform/persistence/database/db").db;
 type TripMessageRow = typeof tripMessages.$inferSelect;
 
-type PostgresTripMessageOperation = "createMessage" | "createAssistantIfAbsent" | "createTurn" | "listByTripId";
+type PostgresTripMessageOperation = "createMessage" | "createAssistantIfAbsent" | "createTurn" | "listByTripId" |
+  "updateAssistantPresentation";
 
 export class PostgresTripMessageRepositoryError extends Error {
   readonly operation: PostgresTripMessageOperation;
@@ -105,6 +107,29 @@ export class PostgresTripMessageRepository
     } catch (error) {
       throw new PostgresTripMessageRepositoryError(
         "listByTripId",
+        tripId,
+        error,
+      );
+    }
+  }
+
+  async updateAssistantPresentation(
+    tripId: string,
+    messageId: string,
+    presentation: TripMessagePresentation,
+  ): Promise<void> {
+    try {
+      const updated = await this.database
+        .update(tripMessages)
+        .set({ presentation })
+        .where(and(eq(tripMessages.id, messageId), eq(tripMessages.tripId, tripId), eq(tripMessages.role, "assistant")))
+        .returning({ id: tripMessages.id });
+      if (updated.length === 0) {
+        throw new Error(`Assistant message ${messageId} does not exist.`);
+      }
+    } catch (error) {
+      throw new PostgresTripMessageRepositoryError(
+        "updateAssistantPresentation",
         tripId,
         error,
       );

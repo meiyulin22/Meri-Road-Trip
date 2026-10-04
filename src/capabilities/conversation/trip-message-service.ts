@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 
 import {
   validateTripMessage,
+  type DestinationRecommendationPresentation,
   type TripMessage,
   type TripMessagePresentation,
 } from "@/domain/trip-message/trip-message";
@@ -116,6 +117,27 @@ export class TripMessageService {
       createdAt: this.now().toISOString(),
     });
     return this.dependencies.repository.createAssistantIfAbsent(message);
+  }
+
+  /**
+   * Stores the photos found for a recommendation card message after the cards were
+   * shown. Only a message that already holds recommendation cards may be changed, and
+   * only its presentation, so a reload shows the photos without looking them up again.
+   */
+  async saveRecommendationPhotos(input: {
+    readonly tripId: string;
+    readonly ownerGuestId: string;
+    readonly messageId: string;
+    readonly presentation: DestinationRecommendationPresentation;
+  }): Promise<void> {
+    await this.dependencies.tripService.getTripById(input.tripId, input.ownerGuestId);
+    const messages = await this.dependencies.repository.listByTripId(input.tripId);
+    const existing = messages.find((message) => message.id === input.messageId);
+    if (existing?.role !== "assistant" || existing.presentation?.type !== "destination_recommendations") {
+      throw new Error(`Message ${input.messageId} of Trip ${input.tripId} holds no recommendation cards.`);
+    }
+    const updated = validateTripMessage({ ...existing, presentation: input.presentation });
+    await this.dependencies.repository.updateAssistantPresentation(input.tripId, input.messageId, updated.presentation!);
   }
 
   async persistSuccessfulTurn(input: {

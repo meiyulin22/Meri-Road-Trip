@@ -299,15 +299,15 @@ add/set 使用 Promise.all 查询表达。解析层保留不同 provider ID，�
 2. [Discovery Search](../src/platform/search/discovery-search.ts)：Bocha 取最多 8 条启发信息，失败退化为空搜索上下文。
 3. [推荐生成器](../src/capabilities/recommendation/destination-recommendation-generator.ts)：Kimi 输出省、市/州和理由。
 4. [领域校验](../src/domain/location/destination-recommendations.ts)：形状校验、去重、最多 12 个地点。
-5. 生成器每个地点还给出一个代表地标（`landmark`，如丽江市→玉龙雪山），只用来配图，不当作计划或已核验事实；工作流过滤后并行查图（见 5.6），查不到的卡片照常展示。
+5. 生成器每个地点还给出一个代表地标（`landmark`，如丽江市→玉龙雪山），只用来配图，不当作计划或已核验事实。工作流**不再查图**：地标随卡片存进消息，卡片先到，照片随后由浏览器单独请求（见 5.6）。
 6. [workflow](../src/capabilities/recommendation/destination-recommendation-workflow.ts)：within 用 withinSettledProvinces 按规范化省名限制已定省，并采用用户保存的省名拼写；elsewhere 用 outsideSavedProvinces 丢弃所有已保存省份，即使模型换了写法。给卡项赋 ID。
-7. 卡片作为 pending 之后的下一条助手消息保存 destination_recommendations presentation，正文是工作流的固定句子，UI 适配为统一多选卡。卡项仍是建议，提交时才高德复核。地点名称只出现在这条卡片消息里，因此不会再出现正文列举的地点和卡片不一致。
+7. 卡片作为 pending 之后的下一条助手消息保存 destination_recommendations presentation（每张卡带 landmark、还没有 image），正文是工作流的固定句子，UI 适配为统一多选卡。卡项仍是建议，提交时才高德复核。地点名称只出现在这条卡片消息里，因此不会再出现正文列举的地点和卡片不一致。
 
 该执行链没有访问检查或风险排序；照片只是装饰（见 5.6）。搜索上下文不能证明开放、安全或可达。搜索失败可降级，模型失败仍可能令请求失败。
 
 ### 4.2 用户点击卡片
 
-[DestinationChoicesCard](../src/components/trip-workspace/destination-choices-card.tsx)按省分组，每个省一行、用 Embla 左右滑（拖动不会误勾选，行宽放不下时出现左右箭头）。每张卡上方是照片（4:3，底部写照片内容，见 5.6），复选框和“已在行程”叠在照片上，下方是地名、想去的景点和推荐理由（最多三行）。逐项勾选后统一提交“添加所选”；历史 replace 卡提交“替换为所选目的地”，新聊天的 set/add 均生成追加卡。没有逐行添加按钮。勾选只改变本地 picked，不写服务器。
+[DestinationChoicesCard](../src/components/trip-workspace/destination-choices-card.tsx)按省分组，每个省一行、用 Embla 左右滑（拖动不会误勾选，行宽放不下时出现左右箭头）。每张卡上方是照片（4:3，底部写照片内容，见 5.6）；照片还在查、或图片文件还在下载时，照片位置显示呼吸闪烁的骨架块（[Skeleton](../src/components/ui/skeleton.tsx)），照片到了淡入，确实没有照片时显示定位图标。复选框和“已在行程”叠在照片上，下方是地名、想去的景点和推荐理由（最多三行）。逐项勾选后统一提交“添加所选”；历史 replace 卡提交“替换为所选目的地”，新聊天的 set/add 均生成追加卡。没有逐行添加按钮。勾选只改变本地 picked，不写服务器。
 
 | 动作/状态 | UI 判定 | 结果 |
 | --- | --- | --- |
@@ -499,8 +499,20 @@ add/set 使用 Promise.all 查询表达。解析层保留不同 provider ID，�
 
 同一批卡片、以及照片环里，同一张照片只出现一次（[withoutRepeatedImages](../src/capabilities/destination/place-images.ts)）：第一个地点保留，后面重复的不配图，避免两个城市看起来是同一个地方。
 
+**推荐卡：先出卡，照片随后流式补上。**以前推荐接口要等 12 张卡的照片都查完（约 4 秒）才返回卡片；现在：
+
+1. `POST /api/trips/[id]/destination-recommendations` 拿到模型结果就保存并返回卡片，每张卡带 `landmark`，`image` 未设置。
+2. 卡片一出现，[ConversationPanel](../src/components/trip-workspace/conversation-panel.tsx)对这条卡片消息调用 `POST /api/trips/[id]/destination-recommendation-photos`（[streamRecommendationPhotos](../src/components/trip-workspace/destination-recommendation-model.ts)）。还没有答案的卡显示骨架块。
+3. 服务器（[findRecommendationPhotos](../src/capabilities/recommendation/recommendation-photos.ts)）同时开始每张卡的查图，由高德共用队列排开；**每查到一张就推一行 JSON**（`{"id":…,"image":{url,caption}|null}`，NDJSON），浏览器收到就把照片放到对应卡片上淡入。同一批里已经出现过的照片，后到的卡不再用（先到先得）。
+4. 全部查完后，把结果一次写回这条卡片消息的 presentation（[saveRecommendationPhotos](../src/capabilities/conversation/trip-message-service.ts)，只改 presentation），然后结束响应。刷新后直接读出，不再查询。
+
+卡片的 `image` 有三种状态：**未设置**＝还没人查过（显示骨架并会去查）；**照片**；**null**＝查过、没有可用照片（显示定位图标，不再查）。存储的 image 不合法时按 null 处理，不让整张卡失效，也不会每次加载都重查。一次只为一条卡片消息请求照片；打开旅程时，旧的、还没查过照片的推荐卡（包括 1.0025 之前的卡）也会这样补上照片。
+
+浏览器中途离开（刷新、关页）时，服务器照样查完并保存；保存失败只记 `recommendation.photos.failed`，下次打开再查一次。请求失败时卡片保持原样（定位图标），下次加载再试。高德被限流时整个队列暂停，表现为骨架多闪一会儿，不单独提示。
+
 **存在哪：**
-- 卡片（推荐卡、地点候选卡）在出卡时查好，把 `image: {url, caption}` 存进那条消息的 presentation，只存链接和说明文字，不存图片本身。刷新后直接读出，不再查询。历史卡没有 image，显示渐变底和定位图标。存储的 image 不合法时只去掉图片，不让整张卡失效；图片链接失效时卡片显示兜底样式。
+- 推荐卡：见上，`image: {url, caption}` 或 null 存进那条卡片消息的 presentation，只存链接和说明文字，不存图片本身。
+- 地点候选卡（聊天里“潮汕”这类的待选卡，通常 1–3 张）仍在出卡时一并查好，没有 null 状态：没有 image 就显示定位图标。图片链接失效时卡片显示兜底样式。
 - 已选地点的照片不进 TripState：[selectedPlaceImages](../src/capabilities/destination/place-images.ts)按当前目的地现查，删掉地点照片也随之消失。某地点若在对话的卡片上展示过照片（[imagesShownInConversation](../src/capabilities/destination/place-images.ts)），沿用那张，保证从卡片选进来的丽江仍显示卡片上的玉龙雪山，而不是重新查到的玉水寨。
 - 页面服务端渲染时带上照片（最多等 1.5 秒，超时则不带，浏览器打开后再请求），刷新时不闪烁。目的地变化后，[TripWorkspace](../src/components/trip-workspace/trip-workspace.tsx)调用 `GET /api/trips/[id]/destination-photos` 重新取。
 - 标题左侧缩略图是第一个已选地点的照片（[coverPhoto](../src/components/trip-workspace/destination-photos-model.ts)），只在第一个地点变化时才换；没有地点时仍是默认风景图。
@@ -509,11 +521,12 @@ add/set 使用 Promise.all 查询表达。解析层保留不同 provider ID，�
 
 **防盗链：**高德的 http 图片地址会检查 Referer，网页里直接用 `<img src="http://...">` 加载常返回 400；https 地址带 Referer 也正常（2026-10-03 实测）。Meri 的照片都经 next/image：浏览器只请求本站的 `/_next/image`，由服务器无 Referer 地去高德取图，所以部署在任何域名都不受防盗链影响。不要在页面里直接使用高德原始图片地址。
 
-**高德限流：**同一个 key 每秒能发起的请求有限，超出时仍是 HTTP 200，但 body 为 `status: "0"`、infocode 10021（`CUQPS_HAS_EXCEEDED_THE_LIMIT`）。实测：并行 12 个请求被拒 5 个；每 0.34 秒一个从不失败，每 0.25 秒或更快会间歇失败。所以所有高德调用（地点核验、输入建议、照片）都经过 [amap-fetch](../src/platform/amap/amap-fetch.ts) 的同一个队列：两次请求的开始时间至少相隔 350ms。被限流时**整个队列**暂停 1 秒（已经在排队的请求也一起等，避免接着撞上限制），被拒的请求排到队首重试，最多重试 3 次，每次记录 `amap.rate_limited`（带第几次、是否还会重试）。每个请求的超时（核验/建议 8 秒、照片 6 秒）从它**真正发出时**开始计算：以前超时在排队前就开始计时，12 张卡排在队尾的查图还没发出就超时了，最后一张卡因此没有照片。一次推荐 12 张卡的查图约需 4 秒，卡片本来就在回复之后才到；“潮汕”这类同时核验 3 个城市约多 0.7 秒。
+**高德限流：**同一个 key 每秒能发起的请求有限，超出时仍是 HTTP 200，但 body 为 `status: "0"`、infocode 10021（`CUQPS_HAS_EXCEEDED_THE_LIMIT`）。实测：并行 12 个请求被拒 5 个；每 0.34 秒一个从不失败，每 0.25 秒或更快会间歇失败。所以所有高德调用（地点核验、输入建议、照片）都经过 [amap-fetch](../src/platform/amap/amap-fetch.ts) 的同一个队列：两次请求的开始时间至少相隔 350ms。被限流时**整个队列**暂停 1 秒（已经在排队的请求也一起等，避免接着撞上限制），被拒的请求排到队首重试，最多重试 3 次，每次记录 `amap.rate_limited`（带第几次、是否还会重试）。每个请求的超时（核验/建议 8 秒、照片 6 秒）从它**真正发出时**开始计算：以前超时在排队前就开始计时，12 张卡排在队尾的查图还没发出就超时了，最后一张卡因此没有照片。一次推荐 12 张卡的查图约需 4 秒，现在发生在卡片出现之后、逐张补上；“潮汕”这类同时核验 3 个城市约多 0.7 秒。
 
 | 接口 | 请求 | 结果 |
 | --- | --- | --- |
 | `GET /api/trips/[id]/destination-photos` | 无 body；guest cookie 决定 owner | 200 `{photos: [{key, label, image}]}`，`Cache-Control: private, no-store`；无 owner/旅程 404；其他失败 500，界面只显示地球 |
+| `POST /api/trips/[id]/destination-recommendation-photos` | `{messageId}`（只此一个字段），guest cookie 决定 owner | 200 流式 `application/x-ndjson`：每张还没照片的卡一行 `{id, image\|null}`，查完并保存后结束；没有待查的卡时为空响应。带 `X-Accel-Buffering: no`（nginx 反向代理默认缓冲，会把所有行攒到最后），`Cache-Control: private, no-store, no-transform`。body 不合法 400；无 owner、旅程不存在或该消息不是推荐卡 404；读取消息失败 500。保存失败不影响已发出的行 |
 
 ## 6. 回复到底是谁写的：速查表
 
@@ -608,7 +621,8 @@ add/set 使用 Promise.all 查询表达。解析层保留不同 provider ID，�
 | 推荐资格与 pending | [recommendation-use-case](../src/capabilities/recommendation/destination-recommendation-use-case.ts) | within/elsewhere 范围、pending 请求还原 |
 | 推荐卡片请求 | [destination-recommendations route](../src/app/api/trips/[id]/destination-recommendations/route.ts) | 最新消息检查、派生 ID、幂等 |
 | 应用自己的句子 | [turn-reply](../src/capabilities/conversation/turn-reply.ts) | 已加入/候选/失败正文、准备度只说一次 |
-| 推荐流水线 | [workflow](../src/capabilities/recommendation/destination-recommendation-workflow.ts) | 搜索、生成、省范围过滤、按地标配图 |
+| 推荐流水线 | [workflow](../src/capabilities/recommendation/destination-recommendation-workflow.ts) | 搜索、生成、省范围过滤，卡片带地标、不带照片 |
+| 推荐卡照片 | [recommendation-photos](../src/capabilities/recommendation/recommendation-photos.ts)、[photos route](../src/app/api/trips/[id]/destination-recommendation-photos/route.ts)、[stream reader](../src/components/trip-workspace/destination-recommendation-model.ts)、[Skeleton](../src/components/ui/skeleton.tsx) | 卡片出现后逐张流式补照片，查完写回卡片消息 |
 | 地点照片 | [place-images](../src/capabilities/destination/place-images.ts)、[Amap photo provider](../src/platform/place-photos/amap-place-photo-provider.ts)、[destination-photos route](../src/app/api/trips/[id]/destination-photos/route.ts) | 查询顺序、卡片配图、已选地点照片、7 天缓存 |
 | 照片环与标题图 | [journey-orbit](../src/components/trip-workspace/journey-orbit.tsx)、[photos model](../src/components/trip-workspace/destination-photos-model.ts)、[workspace-header](../src/components/trip-workspace/workspace-header.tsx) | 旋转、暂停、点击转到前方、封面 |
 | 统一选卡提交 | [selection route](../src/app/api/trips/[id]/destination-recommendation-selection/route.ts) | offer 校验、整批核验、替换、重试 |

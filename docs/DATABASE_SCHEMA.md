@@ -149,7 +149,9 @@ Trip 不再保存 name、origin、destination 或日期列，避免与 TripState
 
 当前 choices 保存 mode、choice IDs、省/市/spot、理由/细节；replace 还保存出卡时目的地的 `baseDestination` 字符串，用于检查提交期间目的地是否变化。它不是另一张表的外键或状态版本列。
 
-推荐卡与地点候选卡的每个地点可带可选的 `image: {url, caption}`：只存 https 链接和说明文字，不存图片本身，也不进 TripState；读取时不合法的 image 被去掉而不是让消息失效，没有 image 的历史卡照常读取。已选地点的照片不落库，由 `GET /api/trips/[id]/destination-photos` 按当前目的地现查。
+推荐卡与地点候选卡的每个地点可带可选的 `image: {url, caption}`：只存 https 链接和说明文字，不存图片本身，也不进 TripState。推荐卡的地点还带 `landmark`（配图用的代表地标，≤30 字），其 `image` 有三种状态：不存在＝还没查过，对象＝照片，`null`＝查过没有照片；读取时不合法的 image 按 `null` 处理而不是让消息失效。地点候选卡读取时不合法的 image 被去掉，没有 image 的历史卡照常读取。
+
+**消息唯一的更新：**消息插入后内容、角色和时间不再改变；唯一例外是推荐卡的照片——卡片先保存（image 未设置），照片查完后由 `updateAssistantPresentation` 按 `id + trip_id + role = assistant` 整体替换这条消息的 `presentation`（[saveRecommendationPhotos](../src/capabilities/conversation/trip-message-service.ts)先校验它原本就是推荐卡）。两个页面同时补同一条消息时后写覆盖先写，两者内容等价，所以不加条件更新。已选地点的照片不落库，由 `GET /api/trips/[id]/destination-photos` 按当前目的地现查。
 
 pending 标记只保存推荐范围，不保存要推荐什么：卡片请求从同一 Trip 的消息顺序中取 pending 之前的那条用户原话和更早的历史。卡片消息的 `id` 由 tripId 与 pending 消息 ID 派生，`createAssistantIfAbsent` 保证同一 pending 只有一条卡片消息。不需要迁移：`presentation` 本就是 JSONB，新类型只在领域读取边界校验。
 

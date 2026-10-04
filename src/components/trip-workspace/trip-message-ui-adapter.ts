@@ -1,6 +1,7 @@
 import type { UIMessage } from "ai";
 
-import type { DestinationChoicesPresentation, DestinationRecommendationPresentation, DestinationRecommendationsPendingPresentation, LocationCandidatesPresentation, TripMessage } from "@/domain/trip-message/trip-message";
+import { recommendationsAwaitingPhoto, type DestinationChoicesPresentation, type DestinationRecommendationPresentation, type DestinationRecommendationsPendingPresentation, type LocationCandidatesPresentation, type TripMessage } from "@/domain/trip-message/trip-message";
+import type { RecommendationPhoto } from "@/capabilities/recommendation/recommendation-photos";
 import { picksFromSearch } from "@/capabilities/destination/resolve-destination-place";
 
 export function toWorkspaceUIMessages(messages: readonly TripMessage[]): UIMessage[] {
@@ -23,6 +24,26 @@ export function recommendationPresentation(message: UIMessage): DestinationRecom
   if (typeof metadata !== "object" || metadata === null || !("presentation" in metadata)) return undefined;
   const presentation = metadata.presentation as TripMessage["presentation"];
   return presentation?.type === "destination_recommendations" ? presentation : undefined;
+}
+
+/** The cards in this message whose photo no one has looked up yet. */
+export function recommendationIdsAwaitingPhoto(message: UIMessage): readonly string[] {
+  const presentation = recommendationPresentation(message);
+  return presentation ? recommendationsAwaitingPhoto(presentation).map((item) => item.id) : [];
+}
+
+/** Puts one streamed photo onto its card, leaving every other message as it was. */
+export function withRecommendationPhoto(
+  messages: readonly UIMessage[], messageId: string, photo: RecommendationPhoto,
+): UIMessage[] {
+  return messages.map((message) => {
+    const presentation = message.id === messageId ? recommendationPresentation(message) : undefined;
+    if (!presentation) return message;
+    return { ...message, metadata: { ...(message.metadata as Record<string, unknown>), presentation: {
+      ...presentation,
+      destinations: presentation.destinations.map((item) => item.id === photo.id ? { ...item, image: photo.image } : item),
+    } } };
+  });
 }
 
 export function locationCandidatePresentation(message: UIMessage): LocationCandidatesPresentation | undefined {

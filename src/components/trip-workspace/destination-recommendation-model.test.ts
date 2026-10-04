@@ -4,7 +4,7 @@ import test from "node:test";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 
-import { canSelectDestinationRecommendation, chosenDestinationPlaces, groupRecommendationsByProvince, selectDestinationRecommendation } from "./destination-recommendation-model";
+import { canSelectDestinationRecommendation, chosenDestinationPlaces, groupRecommendationsByProvince, selectDestinationRecommendation, streamRecommendationPhotos } from "./destination-recommendation-model";
 import { DestinationSelectionFollowUpError } from "./workspace-conversation-model";
 import { getWorkspaceTitle } from "./workspace-title";
 import { journeyFieldLabel } from "./workspace-presentation";
@@ -170,4 +170,29 @@ test("an expired offer has a distinct error so the UI closes it instead of invit
  const { DestinationOfferExpiredError } = await import("./workspace-conversation-model");
  await assert.rejects(()=>selectDestinationRecommendation("trip", "old-offer", ["choice"],
   async()=>Response.json({code:"offer_expired"},{status:409})),DestinationOfferExpiredError);
+});
+
+test("streamed photos reach the cards one by one, even when a line arrives in pieces", async () => {
+  const image = { url: "https://store.is.autonavi.com/showpic/yl", caption: "玉龙雪山" };
+  const chunks = [`{"id":"a","image":${JSON.stringify(image)}}\n{"id":"b",`, `"image":null}\nnot json\n`,
+    `{"id":"c","image":{"url":"http://insecure.example/x.jpg","caption":"x"}}`];
+  let requested: { url: string; body: unknown } | undefined;
+  const received: unknown[] = [];
+  await streamRecommendationPhotos("trip 1", "message-1", (photo) => received.push(photo), async (input, init) => {
+    requested = { url: String(input), body: JSON.parse(String(init?.body)) };
+    const encoder = new TextEncoder();
+    return new Response(new ReadableStream({ start(controller) {
+      for (const chunk of chunks) controller.enqueue(encoder.encode(chunk));
+      controller.close();
+    } }), { headers: { "Content-Type": "application/x-ndjson" } });
+  });
+  assert.deepEqual(requested, { url: "/api/trips/trip%201/destination-recommendation-photos", body: { messageId: "message-1" } });
+  assert.deepEqual(received, [{ id: "a", image }, { id: "b", image: null }, { id: "c", image: null }]);
+});
+
+test("a refused photo request fails without touching any card", async () => {
+  const received: unknown[] = [];
+  await assert.rejects(streamRecommendationPhotos("trip 1", "message-1", (photo) => received.push(photo),
+    async () => Response.json({ error: "Journey not found." }, { status: 404 })));
+  assert.deepEqual(received, []);
 });

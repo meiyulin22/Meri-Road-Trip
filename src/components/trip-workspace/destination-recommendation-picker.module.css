@@ -36,7 +36,10 @@
 .placeCard[data-state="in-journey"] { background: #f4f6ef; }
 .placeCard:has(input:disabled) { cursor: default; }
 .placeImage { position: relative; display: block; aspect-ratio: 4 / 3; background: linear-gradient(160deg, #dfe8d9, #c9d8c3); }
-.placeImage img { object-fit: cover; }
+.placeImage img { object-fit: cover; transition: opacity .35s ease; }
+.placeImage[data-waiting] img { opacity: 0; }
+.placeImage .placeImageSkeleton { position: absolute; inset: 0; border-radius: 0; }
+.placeImage .placeCaptionSkeleton { position: absolute; bottom: 8px; left: 8px; width: 45%; height: 8px; border-radius: 4px; background: #c4d3bd; }
 .placeImageFallback { position: absolute; inset: 0; display: grid; place-items: center; color: #7d927b; }
 .placeCheck { position: absolute; top: 8px; left: 8px; display: grid; place-items: center; padding: 3px; border-radius: 8px; background: rgba(255, 253, 248, .92); box-shadow: 0 1px 4px rgba(0, 0, 0, .12); }
 .placeImage .inJourneyBadge { position: absolute; top: 9px; right: 8px; margin: 0; }
@@ -44,5 +47,5 @@
 .placeBody { display: flex; flex-direction: column; gap: 4px; padding: 9px 11px 11px; }
 .placeBody .reason { display: -webkit-box; overflow: hidden; -webkit-line-clamp: 3; -webkit-box-orient: vertical; }
 .placeBody .choiceStatus { margin: 0; }
-@media (prefers-reduced-motion: reduce) { .placeCard { transition: none; } }
+@media (prefers-reduced-motion: reduce) { .placeCard, .placeImage img { transition: none; } }
 @media (max-width: 640px) { .slide { flex-basis: 168px; } .rowViewport { padding-inline: 10px; } }

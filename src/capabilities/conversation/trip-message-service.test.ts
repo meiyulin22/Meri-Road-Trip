@@ -34,6 +34,10 @@ function createRepository(initialMessages: TripMessage[] = []) {
     async listByTripId(requestedTripId) {
       return messages.filter((message) => message.tripId === requestedTripId);
     },
+    async updateAssistantPresentation(_requestedTripId, messageId, presentation) {
+      const index = messages.findIndex((message) => message.id === messageId);
+      messages[index] = { ...messages[index], presentation };
+    },
   };
 
   return {
@@ -234,6 +238,9 @@ test("does not leave half a turn when persistence fails", async () => {
     async listByTripId() {
       return storedMessages;
     },
+    async updateAssistantPresentation() {
+      throw new Error("update failed");
+    },
   };
   const service = new TripMessageService({
     tripService: createTripService(guestA),
@@ -251,4 +258,24 @@ test("does not leave half a turn when persistence fails", async () => {
     }),
   );
   assert.deepEqual(storedMessages, []);
+});
+
+test("only a recommendation card message takes photos, and only its owner may store them", async () => {
+  const cards: TripMessage = { id: "cards-1", tripId, role: "assistant", content: "我按省份列了几个地方。",
+    createdAt: "2026-10-04T00:00:00.000Z", presentation: { type: "destination_recommendations", destinations: [
+      { id: "lj", name: "丽江市", province: "云南省", landmark: "玉龙雪山" }] } };
+  const reply: TripMessage = { id: "reply-1", tripId, role: "assistant", content: "好的。", createdAt: "2026-10-04T00:00:01.000Z" };
+  const store = createRepository([cards, reply]);
+  const service = new TripMessageService({ tripService: createTripService(guestA), repository: store.repository });
+  const image = { url: "https://store.is.autonavi.com/showpic/yl", caption: "玉龙雪山" };
+  const presentation = { type: "destination_recommendations" as const, destinations: [
+    { id: "lj", name: "丽江市", province: "云南省", landmark: "玉龙雪山", image }] };
+
+  await service.saveRecommendationPhotos({ tripId, ownerGuestId: guestA, messageId: "cards-1", presentation });
+  assert.deepEqual(store.getMessages()[0], { ...cards, presentation });
+
+  await assert.rejects(service.saveRecommendationPhotos({ tripId, ownerGuestId: guestB, messageId: "cards-1", presentation }),
+    TripNotFoundError);
+  await assert.rejects(service.saveRecommendationPhotos({ tripId, ownerGuestId: guestA, messageId: "reply-1", presentation }),
+    /holds no recommendation cards/u);
 });

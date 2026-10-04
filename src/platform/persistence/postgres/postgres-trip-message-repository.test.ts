@@ -267,3 +267,50 @@ test("opening assistant insert rejects an unrelated ID conflict", async () => {
     PostgresTripMessageRepositoryError,
   );
 });
+
+function createUpdateDouble(updatedIds: { id: string }[]) {
+  const calls = { table: undefined as unknown, set: undefined as unknown, whereCalled: false };
+  const database = {
+    update(table: unknown) {
+      calls.table = table;
+      return {
+        set(values: unknown) {
+          calls.set = values;
+          return {
+            where() {
+              calls.whereCalled = true;
+              return { async returning() { return updatedIds; } };
+            },
+          };
+        },
+      };
+    },
+  } as unknown as TripMessageDatabase;
+  return { database, calls };
+}
+
+test("stores a card message's photos by replacing only its presentation", async () => {
+  const presentation = { type: "destination_recommendations" as const, destinations: [
+    { id: "a", name: "丽江市", province: "云南省", landmark: "玉龙雪山",
+      image: { url: "https://store.is.autonavi.com/showpic/yl", caption: "玉龙雪山" } },
+    { id: "b", name: "迪庆藏族自治州", province: "云南省", image: null },
+  ] };
+  const { database, calls } = createUpdateDouble([{ id: assistantMessage.id }]);
+  await new PostgresTripMessageRepository(database).updateAssistantPresentation(tripId, assistantMessage.id, presentation);
+  assert.equal(calls.table, tripMessages);
+  assert.deepEqual(calls.set, { presentation });
+  assert.equal(calls.whereCalled, true);
+});
+
+test("a photo update that matches no assistant message fails with its operation", async () => {
+  const { database } = createUpdateDouble([]);
+  await assert.rejects(
+    new PostgresTripMessageRepository(database).updateAssistantPresentation(tripId, userMessage.id,
+      { type: "destination_recommendations", destinations: [{ id: "a", name: "丽江市", province: "云南省" }] }),
+    (error: unknown) => {
+      assert.ok(error instanceof PostgresTripMessageRepositoryError);
+      assert.equal(error.operation, "updateAssistantPresentation");
+      return true;
+    },
+  );
+});

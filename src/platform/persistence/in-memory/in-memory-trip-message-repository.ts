@@ -1,4 +1,4 @@
-import type { TripMessage } from "@/domain/trip-message/trip-message";
+import type { TripMessage, TripMessagePresentation } from "@/domain/trip-message/trip-message";
 import type { TripMessageRepository } from "@/platform/persistence/trip-message-repository";
 
 export class InMemoryTripMessageRepository
@@ -37,6 +37,20 @@ export class InMemoryTripMessageRepository
         .filter((message) => message.tripId === tripId)
         .sort(compareMessages),
     );
+  }
+
+  updateAssistantPresentation(
+    tripId: string,
+    messageId: string,
+    presentation: TripMessagePresentation,
+  ): Promise<void> {
+    const index = this.messages.findIndex((message) =>
+      message.id === messageId && message.tripId === tripId && message.role === "assistant");
+    if (index === -1) {
+      return Promise.reject(new Error(`Assistant message ${messageId} does not exist.`));
+    }
+    this.messages[index] = { ...this.messages[index], presentation };
+    return Promise.resolve();
   }
 }
 

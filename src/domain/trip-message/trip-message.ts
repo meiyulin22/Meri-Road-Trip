@@ -38,12 +38,37 @@ export interface DestinationChoicesPresentation {
   readonly baseDestination?: string;
 }
 
+/**
+ * One recommended place. Its photo is looked up after the card is shown, so `image`
+ * has three states: absent while no one has looked yet, a photo once one was found,
+ * and null once the lookup found nothing to show. `landmark` is what the photo
+ * should show (丽江市 → 玉龙雪山); it only picks the photo.
+ */
+export interface DestinationRecommendation {
+  readonly id: string;
+  readonly name: string;
+  readonly province: string | null;
+  readonly reason?: string;
+  readonly landmark?: string;
+  readonly image?: PlaceImage | null;
+}
+
 /** Historical offers remain readable while Journeys move to the new choice UI. */
 export interface DestinationRecommendationPresentation {
   readonly type: "destination_recommendations";
-  readonly destinations: readonly { readonly id: string; readonly name: string;
-    readonly province: string | null; readonly reason?: string; readonly image?: PlaceImage }[];
+  readonly destinations: readonly DestinationRecommendation[];
   readonly baseAreas?: readonly { readonly province: string; readonly places: readonly string[] }[];
+}
+
+/**
+ * The cards whose photo no one has looked up yet. A card without a province is a
+ * record from before provinces were stored; it has nowhere to look inside.
+ */
+export function recommendationsAwaitingPhoto(
+  presentation: DestinationRecommendationPresentation,
+): readonly (DestinationRecommendation & { readonly province: string })[] {
+  return presentation.destinations.filter((item): item is DestinationRecommendation & { readonly province: string } =>
+    item.image === undefined && item.province !== null);
 }
 
 /**
@@ -147,19 +172,22 @@ function validatePresentation(value: unknown, role: TripMessageRole): TripMessag
       throw new InvalidTripMessageError("TripMessage.presentation is invalid.");
     }
     const destinations = value.destinations.map((item: unknown) => {
-      if (!isRecord(item) || !hasKnownKeys(item, ["id", "name"], ["province", "region", "reason", "imageUrl", "image"]) ||
+      if (!isRecord(item) || !hasKnownKeys(item, ["id", "name"], ["province", "region", "reason", "landmark", "imageUrl", "image"]) ||
         !isPresentText(item.id) || !isPresentText(item.name) ||
         !(item.province === undefined || item.province === null || isPresentText(item.province)) ||
         !(item.region === undefined || item.region === null || isPresentText(item.region)) ||
-        !(item.reason === undefined || isPresentText(item.reason))) {
+        !(item.reason === undefined || isPresentText(item.reason)) ||
+        !(item.landmark === undefined || (isPresentText(item.landmark) && item.landmark.length <= 30))) {
         throw new InvalidTripMessageError("TripMessage.presentation destination is invalid.");
       }
-      // A stored image that no longer validates is left off rather than losing the card.
-      const image = parsePlaceImage(item.image);
+      // A stored image that no longer validates counts as no photo rather than losing
+      // the card, and is not looked up again on every load.
+      const image = item.image === undefined ? undefined : parsePlaceImage(item.image);
       return { id: item.id as string, name: item.name as string,
         province: (item.province ?? item.region ?? null) as string | null,
         ...(item.reason === undefined ? {} : { reason: item.reason as string }),
-        ...(image ? { image } : {}) };
+        ...(item.landmark === undefined ? {} : { landmark: item.landmark as string }),
+        ...(image === undefined ? {} : { image }) };
     });
     if (new Set(destinations.map((item) => item.id)).size !== destinations.length) {
       throw new InvalidTripMessageError("TripMessage.presentation IDs must be distinct.");
