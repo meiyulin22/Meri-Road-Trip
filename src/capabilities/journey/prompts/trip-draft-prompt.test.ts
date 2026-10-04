@@ -49,3 +49,11 @@ test("an English first message names its places in Chinese for the provider", ()
   assert.doesNotMatch(english, /put their own place expressions in places/);
   assert.doesNotMatch(english, /stay exactly as the user wrote them/);
 });
+
+test("English approximate values keep the user's words; the Chinese prompt gains nothing", () => {
+  const english = buildTripDraftSystemPrompt({ referenceDate: "2026-09-18", timezone: "Asia/Shanghai", locale: "en" });
+  const chinese = buildTripDraftSystemPrompt({ referenceDate: "2026-09-18", timezone: "Asia/Shanghai", locale: "zh" });
+
+  assert.match(english, /"a week" stays "a week"/);
+  assert.doesNotMatch(chinese, /keep the user's own English words/);
+});

@@ -29,10 +29,11 @@ test("both modes reply in the landing page's language and leave following the us
   for (const mode of ["conversation", "opening"] as const) {
     const english = prompt(mode, "en");
     assert.ok(english.includes(replyLanguageGuidance("en")));
-    assert.match(english, /the user chose English on Meri's home page, so write the reply in English/);
-    assert.match(english, /clearly written in another language, reply in that language instead/);
+    assert.match(english, /decide it from the user's current message alone/);
+    assert.match(english, /if it is written in Chinese sentences, reply in Chinese/);
+    assert.match(english, /reply in English, the language the user chose on Meri's home page/);
     assert.match(english, /trip name you propose is written in English/);
-    assert.match(prompt(mode, "zh"), /write the reply in Simplified Chinese/);
+    assert.match(prompt(mode, "zh"), /reply in Simplified Chinese, the language the user chose/);
   }
 });
 

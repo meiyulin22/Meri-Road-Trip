@@ -1,6 +1,6 @@
 import type { Locale } from "@/domain/locale/locale";
 import { promptLanguageName } from "@/capabilities/conversation/prompts/reply-language-guidance";
-import { certaintyStateGuidance, tripStateFieldGuidance } from "./trip-state-field-guidance";
+import { approximateWordingNote, certaintyStateGuidance, tripStateFieldGuidance } from "./trip-state-field-guidance";
 
 export interface TripDraftPromptContext {
   readonly referenceDate: string;
@@ -35,7 +35,7 @@ Timezone: ${timezone}
 Return only schema fields. Do not invent dates, places, provider IDs or coordinates.
 Meri plans trips to destinations in China, for travellers from any country. Do not propose destinations outside China in destinationEdit or map them to Chinese places with similar names. If all requested destinations are outside China, use operation "none", places [], broadRegion null. Preserve the user's other explicit fields.
 ${certaintyStateGuidance}
-${tripStateFieldGuidance}
+${tripStateFieldGuidance}${approximateWordingNote[locale]}
 
 The destination is expressed only as destinationEdit, never as a whole TripState value.
 ${placeRules[locale]} The application verifies these suggestions with the location provider before showing them. Do not silently choose one.

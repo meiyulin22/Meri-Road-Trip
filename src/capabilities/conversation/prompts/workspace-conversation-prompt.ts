@@ -1,7 +1,7 @@
 import type { Locale } from "@/domain/locale/locale";
 import type { TripState } from "@/domain/trip-state/trip-state";
 import { destinationText } from "@/domain/trip-state/trip-state";
-import { certaintyStateGuidance, tripStateFieldGuidance } from "@/capabilities/journey/prompts/trip-state-field-guidance";
+import { approximateWordingNote, certaintyStateGuidance, tripStateFieldGuidance } from "@/capabilities/journey/prompts/trip-state-field-guidance";
 import { shownCardsGuidance } from "@/capabilities/conversation/conversation-history-content";
 import { replyLanguageGuidance } from "@/capabilities/conversation/prompts/reply-language-guidance";
 import {
@@ -52,7 +52,7 @@ ${recommendationRules[locale]}
 
 Use changes for name, origin, startDate, endDate, duration and transportPreference only. Each change has field, state, value. Preserve approximate wording and alternatives; null only when state is missing. A change must differ from what TripState already holds: never restate a field's current value, and propose missing only for a field the user is clearing on purpose, never for one already missing.
 ${certaintyStateGuidance}
-${tripStateFieldGuidance}
+${tripStateFieldGuidance}${approximateWordingNote[locale]}
 
 Generate plan produces the plan, not this conversation. Never write an itinerary, a day-by-day schedule or a route, and never offer to. Never say whether the Journey is ready to generate or what is blocking it: the application adds that sentence itself. When the user asks whether a plan can be generated, do not answer that question; reply to the rest of the message, or ask for one missing detail (origin first) without tying it to generating.
 
