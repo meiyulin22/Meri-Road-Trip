@@ -79,7 +79,7 @@ export class AmapPlacePhotoProvider implements PlacePhotoProvider {
   private readonly fetcher: typeof fetch;
 
   constructor(fetcher: typeof fetch = fetch, private readonly memory: PlacePhotoMemory = sharedMemory) {
-    this.fetcher = withAmapLimits(fetcher);
+    this.fetcher = withAmapLimits(fetcher, { timeoutMs: 6_000 });
   }
 
   async findPhoto(query: PlacePhotoQuery): Promise<PlaceImage | null> {
@@ -103,7 +103,7 @@ export class AmapPlacePhotoProvider implements PlacePhotoProvider {
       url.searchParams.set("city_limit", "true");
     }
     try {
-      const response = await this.fetcher(url, { cache: "no-store", signal: AbortSignal.timeout(6_000) });
+      const response = await this.fetcher(url, { cache: "no-store" });
       if (!response.ok) return this.failed(query, "http_error");
       const body: unknown = await response.json();
       if (!isRecord(body) || body.status !== "1" || !Array.isArray(body.pois)) {

@@ -54,7 +54,7 @@ export class AmapInputTipsProvider implements LocationSuggestionProvider {
   private readonly fetcher: typeof fetch;
 
   constructor(fetcher: typeof fetch = fetch) {
-    this.fetcher = withAmapLimits(fetcher);
+    this.fetcher = withAmapLimits(fetcher, { timeoutMs: 8_000 });
   }
 
   async suggest(query: string): Promise<LocationSuggestionProviderResult> {
@@ -69,7 +69,6 @@ export class AmapInputTipsProvider implements LocationSuggestionProvider {
       const response = await this.fetcher(url, {
         method: "GET",
         cache: "no-store",
-        signal: AbortSignal.timeout(8_000),
       });
       if (!response.ok) return { status: "failure", reason: "upstream_error" };
 

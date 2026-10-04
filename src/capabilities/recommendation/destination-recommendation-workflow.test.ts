@@ -127,5 +127,5 @@ test("each card's photo is looked up by its landmark inside its place, and a car
     { id: "id-2", name: "迪庆藏族自治州", province: "云南省", reason: "高原草甸" },
   ]);
   assert.deepEqual(asked, [{ kind: "named", keywords: "玉龙雪山", region: "丽江市" },
-    { kind: "scenic", region: "迪庆藏族自治州" }, { kind: "scenic", region: "云南省" }]);
+    { kind: "scenic", region: "迪庆藏族自治州" }]);
 });

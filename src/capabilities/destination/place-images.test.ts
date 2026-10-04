@@ -3,23 +3,22 @@ import test from "node:test";
 
 import type { PlaceImage } from "@/domain/location/place-image";
 import type { PlacePhotoProvider, PlacePhotoQuery } from "@/platform/place-photos/place-photo-provider";
-import { findPlaceImage, imagesShownInConversation, photoQueriesFor, selectedPlaceImages, withChoiceImages } from "./place-images";
+import { findPlaceImage, imagesShownInConversation, photoQueriesFor, selectedPlaceImages, withChoiceImages, withoutRepeatedImages } from "./place-images";
 
 function photos(answers: (query: PlacePhotoQuery) => PlaceImage | null, seen: PlacePhotoQuery[] = []): PlacePhotoProvider {
   return { async findPhoto(query) { seen.push(query); return answers(query); } };
 }
 const picture = (caption: string): PlaceImage => ({ url: `https://store.is.autonavi.com/showpic/${encodeURIComponent(caption)}`, caption });
 
-test("lookups run from the most specific to the province, and an administrative spot is searched inside", () => {
+test("lookups run from the most specific to the 市, never to another place in the province", () => {
   assert.deepEqual(photoQueriesFor({ province: "云南省", place: "迪庆藏族自治州", spot: "梅里雪山", landmark: "普达措" }), [
     { kind: "named", keywords: "梅里雪山", region: "迪庆藏族自治州" },
-    { kind: "scenic", region: "迪庆藏族自治州" }, { kind: "scenic", region: "云南省" }]);
+    { kind: "scenic", region: "迪庆藏族自治州" }]);
   assert.deepEqual(photoQueriesFor({ province: "云南省", place: "迪庆藏族自治州", spot: "香格里拉市" })[0],
     { kind: "scenic", region: "香格里拉市" });
   assert.deepEqual(photoQueriesFor({ province: "云南省", place: "丽江市", spot: null, landmark: "玉龙雪山" })[0],
     { kind: "named", keywords: "玉龙雪山", region: "丽江市" });
-  assert.deepEqual(photoQueriesFor({ province: "云南省", place: "丽江市", spot: null }),
-    [{ kind: "scenic", region: "丽江市" }, { kind: "scenic", region: "云南省" }]);
+  assert.deepEqual(photoQueriesFor({ province: "云南省", place: "丽江市", spot: null }), [{ kind: "scenic", region: "丽江市" }]);
   assert.deepEqual(photoQueriesFor({ province: "云南省", place: null, spot: null }), [{ kind: "scenic", region: "云南省" }]);
 });
 
@@ -67,4 +66,18 @@ test("a place picked from a card keeps the photo that card showed instead of a f
   photos(() => picture("大理古城"), seen), shown);
   assert.deepEqual(result.map((item) => item.image.caption), ["玉龙雪山国家级风景名胜区", "梅里雪山", "大理古城"]);
   assert.equal(seen.length, 1);
+});
+
+test("the same photo never shows under two places; the first keeps it", async () => {
+  const shared = picture("广东第一峰旅游风景区");
+  assert.deepEqual(withoutRepeatedImages([{ name: "广州市", image: shared }, { name: "潮州市", image: shared },
+    { name: "汕头市" }]), [{ name: "广州市", image: shared }, { name: "潮州市" }, { name: "汕头市" }]);
+  const offered = await withChoiceImages({ type: "destination_choices", mode: "add", choices: [
+    { id: "a", name: "广州市", province: "广东省", city: "广州市" },
+    { id: "b", name: "潮州市", province: "广东省", city: "潮州市" },
+  ] }, photos(() => shared));
+  assert.equal("image" in offered.choices[1], false);
+  const selected = await selectedPlaceImages([{ province: "广东省", places: [{ name: "广州市", spots: [] }, { name: "潮州市", spots: [] }] }],
+    photos(() => shared));
+  assert.deepEqual(selected.map((item) => item.label), ["广州市"]);
 });

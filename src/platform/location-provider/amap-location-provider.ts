@@ -70,7 +70,7 @@ export class AmapLocationProvider implements LocationProvider {
   private readonly fetcher: typeof fetch;
 
   constructor(fetcher: typeof fetch = fetch) {
-    this.fetcher = withAmapLimits(fetcher);
+    this.fetcher = withAmapLimits(fetcher, { timeoutMs: 8_000 });
   }
 
   async searchByKeyword(query: string): Promise<LocationSearchResult> {
@@ -88,7 +88,6 @@ export class AmapLocationProvider implements LocationProvider {
       const response = await this.fetcher(url, {
         method: "GET",
         cache: "no-store",
-        signal: AbortSignal.timeout(8_000),
       });
       if (!response.ok) return { status: "failure", reason: "http_error" };
 

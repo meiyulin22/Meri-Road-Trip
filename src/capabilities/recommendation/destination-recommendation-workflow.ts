@@ -8,7 +8,7 @@ import { createBochaDiscoverySearchFromEnvironment } from "@/platform/search/boc
 import { searchJourneyDiscovery, type DiscoverySearch, type DiscoverySearchResult } from "@/platform/search/discovery-search";
 import { logger } from "@/platform/observability/logger";
 import { generateDestinationRecommendations } from "./destination-recommendation-generator";
-import { findPlaceImage } from "@/capabilities/destination/place-images";
+import { findPlaceImage, withoutRepeatedImages } from "@/capabilities/destination/place-images";
 import { AmapPlacePhotoProvider } from "@/platform/place-photos/amap-place-photo-provider";
 import type { PlacePhotoProvider } from "@/platform/place-photos/place-photo-provider";
 import type { DestinationRecommendationContext } from "./destination-recommendation-context";
@@ -52,12 +52,12 @@ export async function runDestinationRecommendationWorkflow(
     ? outsideSavedProvinces(proposed, settledAreas(context))
     : withinSettledProvinces(proposed, settledAreas(context));
   // Photos are looked up together, after filtering, so only cards that will show get one.
-  const destinations = await Promise.all(groups.flatMap((group) => group.places.map(async (place) => {
+  const destinations = withoutRepeatedImages(await Promise.all(groups.flatMap((group) => group.places.map(async (place) => {
     const image = await findPlaceImage({ province: group.province, place: place.name, spot: null,
       landmark: place.landmark ?? null }, dependencies.photos);
     return { id: dependencies.generateId(), name: place.name, province: group.province, reason: place.reason,
       ...(image ? { image } : {}) };
-  })));
+  }))));
 
   logger.info({ event: "recommendation.workflow.completed", requestId,
     discoveryCount: discovery.length, proposedProvinceCount: proposed.length,

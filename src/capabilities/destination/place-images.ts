@@ -7,7 +7,9 @@ import type { PlacePhotoProvider, PlacePhotoQuery } from "@/platform/place-photo
  * What a photo should show for one place. A 市's own photo is the provider's least
  * reliable answer (丽江市's first one was a stage show), so the most specific thing
  * the user or Meri named wins: the spot they asked for, then a recommendation's
- * landmark, then a national scenic area inside the 市, then one inside the province.
+ * landmark, then a national scenic area inside the 市. A province's scenic area is only
+ * for a destination that is a whole province: shown on a 市's card it is somewhere
+ * else — 柳州市 under 桂林's 芦笛岩 — which is worse than no photo.
  */
 export interface PhotoSubject {
   readonly province: string;
@@ -31,7 +33,6 @@ export function photoQueriesFor(subject: PhotoSubject): readonly PlacePhotoQuery
     queries.push({ kind: "named", keywords: (subject.spot ?? subject.landmark) as string, region: area });
   }
   queries.push({ kind: "scenic", region: area });
-  if (subject.place) queries.push({ kind: "scenic", region: subject.province });
   return queries;
 }
 
@@ -41,6 +42,24 @@ export async function findPlaceImage(subject: PhotoSubject, photos: PlacePhotoPr
     if (image) return image;
   }
   return null;
+}
+
+/**
+ * One photo per URL across a set of cards: two places under the same picture says
+ * they are the same place. The first keeps it; a later one goes without.
+ */
+export function withoutRepeatedImages<T extends { readonly image?: PlaceImage }>(items: readonly T[]): T[] {
+  const seen = new Set<string>();
+  return items.map((item) => {
+    if (!item.image) return item;
+    if (seen.has(item.image.url)) {
+      const rest = { ...item };
+      delete (rest as { image?: PlaceImage }).image;
+      return rest;
+    }
+    seen.add(item.image.url);
+    return item;
+  });
 }
 
 /** Adds a photo to each offered place; a place without one is offered as before. */
@@ -53,7 +72,7 @@ export async function withChoiceImages(
       spot: choice.spot ?? null }, photos);
     return image ? { ...choice, image } : choice;
   }));
-  return { ...presentation, choices };
+  return { ...presentation, choices: withoutRepeatedImages(choices) };
 }
 
 /** One photo for one chosen place, in the order the destination lists them. */
@@ -114,5 +133,10 @@ export async function selectedPlaceImages(
       await findPlaceImage(subject, photos);
     return image ? { key, label, image } : null;
   }));
-  return found.filter((item): item is SelectedPlaceImage => item !== null);
+  const seen = new Set<string>();
+  return found.filter((item): item is SelectedPlaceImage => {
+    if (item === null || seen.has(item.image.url)) return false;
+    seen.add(item.image.url);
+    return true;
+  });
 }
