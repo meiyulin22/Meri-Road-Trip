@@ -1,5 +1,6 @@
 import { z } from "zod";
 
+import type { Messages } from "@/components/i18n/messages";
 import type { GeneratePlanReadiness } from "@/domain/trip-state/planning-readiness";
 
 const readinessSchema = z.discriminatedUnion("canProceed", [
@@ -27,15 +28,15 @@ export async function requestPlanningReadiness(
   return readinessSchema.parse(await response.json());
 }
 
-export function planningReadinessMessage(readiness: GeneratePlanReadiness): string {
+export function planningReadinessMessage(readiness: GeneratePlanReadiness, text: Messages["generatePlan"]): string {
   if (readiness.canProceed) {
-    return "目的地已选定。规划功能尚未开放。";
+    return text.ready;
   }
 
   switch (readiness.reason) {
     case "destination_missing":
-      return "请先添加目的地。";
+      return text.needsDestination;
     case "destination_unverified":
-      return "旧旅程中的目的地尚未核验，请在目的地里重新搜索并添加。";
+      return text.needsReverify;
   }
 }

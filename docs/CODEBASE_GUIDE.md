@@ -209,11 +209,11 @@ LLM 解释自然语言并提出受限 JSON；应用校验、决定是否执行�
 | [src/app/layout.tsx](../src/app/layout.tsx) | 页面/框架入口 | 根布局、字体、全局样式及站点 metadata/图标；按访客语言设置 `<html lang>`、标题/描述，并包上 LocaleProvider。 |
 | [src/app/manifest.ts](../src/app/manifest.ts) | 页面/框架入口 | PWA Web App Manifest，声明名称、启动地址、显示方式和图标；不提供离线缓存。 |
 | [src/app/page.tsx](../src/app/page.tsx) | 页面/框架入口 | 首页 / 的服务端页面入口，渲染 MeriAppShell。 |
-| [src/app/trips/[id]/error.tsx](../src/app/trips/%5Bid%5D/error.tsx) | 页面/框架入口 | Workspace 页面错误边界，提供失败提示和重试入口。 |
-| [src/app/trips/[id]/page.tsx](../src/app/trips/%5Bid%5D/page.tsx) | 页面/框架入口 | Workspace 服务端加载入口，检查归属、读取状态/消息，区分 404 与缺失状态；最多等 1.5 秒带上已选地点照片。 |
-| [src/app/trips/journey-delete-action.tsx](../src/app/trips/journey-delete-action.tsx) | 页面/框架入口 | 列表页客户端删除控件，调用 owner-scoped DELETE 并更新页面。 |
+| [src/app/trips/[id]/error.tsx](../src/app/trips/%5Bid%5D/error.tsx) | 页面/框架入口 | Workspace 页面错误边界，按访客语言提供失败提示和重试入口。 |
+| [src/app/trips/[id]/page.tsx](../src/app/trips/%5Bid%5D/page.tsx) | 页面/框架入口 | Workspace 服务端加载入口，检查归属、读取状态/消息，区分 404 与缺失状态；最多等 1.5 秒带上已选地点照片；页面标题与缺失状态提示按访客语言。 |
+| [src/app/trips/journey-delete-action.tsx](../src/app/trips/journey-delete-action.tsx) | 页面/框架入口 | 列表页客户端删除控件，调用 owner-scoped DELETE 并更新页面，文字按访客语言。 |
 | [src/app/trips/new/page.tsx](../src/app/trips/new/page.tsx) | 页面/框架入口 | 旧 /trips/new 入口重定向至首页，统一新建入口。 |
-| [src/app/trips/page.tsx](../src/app/trips/page.tsx) | 页面/框架入口 | /trips 服务端列表，按访客读取 JourneySummary，呈现旅程卡和空状态。 |
+| [src/app/trips/page.tsx](../src/app/trips/page.tsx) | 页面/框架入口 | /trips 服务端列表，按访客读取 JourneySummary，按访客语言呈现旅程卡、状态和空状态及页面标题。 |
 | [src/app/trips/trips.module.css](../src/app/trips/trips.module.css) | 页面/框架入口 | Journey 列表、卡片、背景和响应式布局样式。 |
 
 ### 6.4 首页表现层
@@ -234,7 +234,7 @@ LLM 解释自然语言并提出受限 JSON；应用校验、决定是否执行�
 | [src/components/meri-shell/recent-journeys-model.ts](../src/components/meri-shell/recent-journeys-model.ts) | 表现层 | 纯前端规则：最近列表、可见数量、循环资格、箭头状态及点击导航边界。 |
 | [src/components/meri-shell/recent-journeys.module.css](../src/components/meri-shell/recent-journeys.module.css) | 表现层 | 最近旅程卡片、轮播箭头及操作样式。 |
 | [src/components/meri-shell/recent-journeys.tsx](../src/components/meri-shell/recent-journeys.tsx) | 表现层 | 最近旅程 React 组件，呈现 Embla 轮播、导航和删除后的列表更新。 |
-| [src/components/i18n/messages.ts](../src/components/i18n/messages.ts) | 表现层 | 界面文字中英字典（目前为首页与最近旅程），英文定结构、中文类型上必须对应，带参数的句子为函数。 |
+| [src/components/i18n/messages.ts](../src/components/i18n/messages.ts) | 表现层 | 界面文字中英字典（首页、最近旅程、旅程页面各区域、我的旅程列表），英文定结构、中文类型上必须对应，带参数的句子与日期格式为函数。 |
 | [src/components/i18n/locale-context.tsx](../src/components/i18n/locale-context.tsx) | 表现层 | LocaleProvider 与 useLocale/useMessages；Provider 之外默认英文（仅测试中出现）。 |
 
 ### 6.5 Workspace 表现层
@@ -246,7 +246,7 @@ LLM 解释自然语言并提出受限 JSON；应用校验、决定是否执行�
 | [src/components/companion/bear-sprite-sheet.ts](../src/components/companion/bear-sprite-sheet.ts) | 表现层 | 读取并用 Zod 校验生成的 bear-sprites.json，导出帧尺寸、每个动画的行号/帧数/时长和精灵图地址。 |
 | [src/components/companion/companion-bear.tsx](../src/components/companion/companion-bear.tsx) | 表现层 | 精灵图播放器：按计划逐帧播放，计划结束或反应变化时向行为规则要下一步（过渡中不打断），标签页隐藏时暂停，减少动态效果时只显示一帧。 |
 | [src/components/companion/companion-status-model.test.ts](../src/components/companion/companion-status-model.test.ts) | 测试（对应模块边界） | 验证小熊一句话的优先级（出错 > 思考 > 可生成 > 缺目的地）、可选缺项列举和旧目的地提示。 |
-| [src/components/companion/companion-status-model.ts](../src/components/companion/companion-status-model.ts) | 表现层 | 小熊一句话的纯规则：由 TripState 与聊天活动决定情绪和文案，不调用模型。 |
+| [src/components/companion/companion-status-model.ts](../src/components/companion/companion-status-model.ts) | 表现层 | 小熊一句话的纯规则：由 TripState 与聊天活动决定情绪和文案（文案取自传入的字典），不调用模型。 |
 | [src/components/companion/companion.module.css](../src/components/companion/companion.module.css) | 表现层 | 小熊区域在旅程列底部的固定位置、对话气泡和像素化精灵图样式。 |
 | [src/components/companion/meri-world.tsx](../src/components/companion/meri-world.tsx) | 表现层 | 旅程列底部的小熊与对话气泡：一句话来自 companionStatus，并把同样的状态作为反应交给 CompanionBear。 |
 | [src/components/trip-workspace/conversation-panel.tsx](../src/components/trip-workspace/conversation-panel.tsx) | 表现层 | 聊天主组件：useChat、已保存消息、候选卡、卡片关闭/只读、确认及消息逐字显示；最后一条为 pending 时请求推荐卡片并显示加载/重试；推荐卡还有未查照片时逐条消息请求照片流，收到一张补一张；向外上报 idle/thinking/error 活动供小熊使用。 |
@@ -262,19 +262,19 @@ LLM 解释自然语言并提出受限 JSON；应用校验、决定是否执行�
 | [src/components/trip-workspace/destination-recommendation-picker.module.css](../src/components/trip-workspace/destination-recommendation-picker.module.css) | 表现层 | 目的地候选/推荐多选列表的分组、checkbox、确认及状态样式。 |
 | [src/components/trip-workspace/destination-recommendation-picker.tsx](../src/components/trip-workspace/destination-recommendation-picker.tsx) | 表现层 | 保留的旧推荐多选组件及测试入口；当前 ConversationPanel 使用 DestinationChoicesCard。 |
 | [src/components/trip-workspace/expedition-brief-panel.tsx](../src/components/trip-workspace/expedition-brief-panel.tsx) | 表现层 | Journey overview 字段面板，按出发地、目的地、何时、交通偏好、旅程名称排列；交通一键点选，名称文本编辑。 |
-| [src/components/trip-workspace/field-certainty.tsx](../src/components/trip-workspace/field-certainty.tsx) | 表现层 | 字段把握程度的共享展示：统一 18px 圆形状态（known 实心绿勾、missing 空圈、approximate 琥珀点、ambiguous “!”）、屏幕阅读器文字和“大致/待确认”标签。 |
+| [src/components/trip-workspace/field-certainty.tsx](../src/components/trip-workspace/field-certainty.tsx) | 表现层 | 字段把握程度的共享展示：统一 18px 圆形状态（known 实心绿勾、missing 空圈、approximate 琥珀点、ambiguous “!”）、屏幕阅读器文字、把握程度文字（CertaintyLabel）和“大致/待确认”标签，文字取自字典。 |
 | [src/components/trip-workspace/generate-plan-action.tsx](../src/components/trip-workspace/generate-plan-action.tsx) | 表现层 | 唯一的 Generate plan，Halo 式旋转渐变边框按钮，位于聊天下方并始终可见；不可用时保持可聚焦并在悬停/聚焦时说明添加目的地的途径（可打开右侧搜索），规划尚未开放。 |
 | [src/components/trip-workspace/journey-globe.tsx](../src/components/trip-workspace/journey-globe.tsx) | 表现层 | 装饰地球：改写自 cult-ui Illustration Globe（MIT）的 SVG 线框半球，节点数随已选地点数变化，无地理含义；减少动态效果时静止；由 journey-orbit 包裹。 |
 | [src/components/trip-workspace/journey-orbit.tsx](../src/components/trip-workspace/journey-orbit.tsx) | 表现层 | 照片环：已选地点照片绕地球旋转，前大后小、前后遮挡，悬停暂停、点击转到正前方、减少动态效果时静止。 |
 | [src/components/trip-workspace/location-editor-model.test.ts](../src/components/trip-workspace/location-editor-model.test.ts) | 测试（对应模块边界） | 验证 query 长度、完整建议解析及已选地点 patch 身份/坐标。 |
 | [src/components/trip-workspace/location-editor-model.ts](../src/components/trip-workspace/location-editor-model.ts) | 表现层 | 输入 query 标准化、建议响应校验和出发地 selection patch 构造。 |
 | [src/components/trip-workspace/location-editor.tsx](../src/components/trip-workspace/location-editor.tsx) | 表现层 | 当前用于 origin 的输入建议编辑控件，防抖查询、显式选中并保存普通字段；状态图标/标签来自 field-certainty。 |
-| [src/components/trip-workspace/message-timestamp.ts](../src/components/trip-workspace/message-timestamp.ts) | 表现层 | 按本地今天/昨天/更早日期格式化聊天时间标签。 |
+| [src/components/trip-workspace/message-timestamp.ts](../src/components/trip-workspace/message-timestamp.ts) | 表现层 | 按本地今天/昨天/更早日期格式化聊天时间标签，文字由传入的字典决定（昨天/Yesterday）。 |
 | [src/components/trip-workspace/planning-readiness-model.test.ts](../src/components/trip-workspace/planning-readiness-model.test.ts) | 测试（对应模块边界） | 验证只读 readiness 请求、响应校验及缺失/旧文本说明文案。 |
-| [src/components/trip-workspace/planning-readiness-model.ts](../src/components/trip-workspace/planning-readiness-model.ts) | 表现层 | 准备度请求、响应校验和固定说明文案。 |
-| [src/components/trip-workspace/trip-dates-editor.tsx](../src/components/trip-workspace/trip-dates-editor.tsx) | 表现层 | “何时”行：一行概括日期与时长，点开为 react-day-picker 范围日历（宽屏两月）和天数步进器；两次点击定起止后保存，支持清除。 |
+| [src/components/trip-workspace/planning-readiness-model.ts](../src/components/trip-workspace/planning-readiness-model.ts) | 表现层 | 准备度请求、响应校验和说明文案（取自传入的字典）。 |
+| [src/components/trip-workspace/trip-dates-editor.tsx](../src/components/trip-workspace/trip-dates-editor.tsx) | 表现层 | “何时”行：一行概括日期与时长，点开为 react-day-picker 范围日历（宽屏两月，中/英 locale 随界面语言）和天数步进器；两次点击定起止后保存，支持清除。 |
 | [src/components/trip-workspace/trip-dates-model.test.ts](../src/components/trip-workspace/trip-dates-model.test.ts) | 测试（对应模块边界） | 验证“何时”概括文案、近似原话的标记、日历日与存储日互转不偏移时区，以及 patch 只含用户所选值。 |
-| [src/components/trip-workspace/trip-dates-model.ts](../src/components/trip-workspace/trip-dates-model.ts) | 表现层 | “何时”纯辅助：概括文案与整体 certainty、日历 Date 与 YYYY-MM-DD 互转、日期 patch 构造。 |
+| [src/components/trip-workspace/trip-dates-model.ts](../src/components/trip-workspace/trip-dates-model.ts) | 表现层 | “何时”纯辅助：按传入字典的概括文案（精确天数按语言显示，其他写法原样）与整体 certainty、日历 Date 与 YYYY-MM-DD 互转、日期 patch 构造。 |
 | [src/components/trip-workspace/trip-message-ui-adapter.test.ts](../src/components/trip-workspace/trip-message-ui-adapter.test.ts) | 测试（对应模块边界） | 验证消息顺序、ID/角色/正文不变、时间格式、历史卡适配和去重追加。 |
 | [src/components/trip-workspace/trip-message-ui-adapter.ts](../src/components/trip-workspace/trip-message-ui-adapter.ts) | 表现层 | TripMessage → UIMessage，读取时间/presentation（含 pending 推荐标记），将历史卡转换为统一 choices，按 ID 避免重复追加；列出待查照片的推荐卡、把流式到达的照片放到对应卡上。 |
 | [src/components/trip-workspace/trip-state-persistence-model.test.ts](../src/components/trip-workspace/trip-state-persistence-model.test.ts) | 测试（对应模块边界） | 验证确定性状态/来源保留、清空字段、目的地拒绝及服务端响应检查。 |
@@ -286,8 +286,8 @@ LLM 解释自然语言并提出受限 JSON；应用校验、决定是否执行�
 | [src/components/trip-workspace/workspace-conversation-model.test.ts](../src/components/trip-workspace/workspace-conversation-model.test.ts) | 测试（对应模块边界） | 验证合法/非法响应、浏览器 fetch 接收者及失败提示，不把未确认发送当已保存。 |
 | [src/components/trip-workspace/workspace-conversation-model.ts](../src/components/trip-workspace/workspace-conversation-model.ts) | 表现层 | 请求聊天、解析响应及 selection/推荐过期相关错误类型，校验服务端返回状态和消息。 |
 | [src/components/trip-workspace/workspace-header.tsx](../src/components/trip-workspace/workspace-header.tsx) | 表现层 | 品牌/返回首页、旅程标题（左侧缩略图为第一个地点的照片，没有时为默认图）、日期/出发地/交通摘要；日期与“何时”同一写法；保存标签为当前 UI 展示。 |
-| [src/components/trip-workspace/workspace-presentation.ts](../src/components/trip-workspace/workspace-presentation.ts) | 表现层 | 页头使用的字段、日期（复用 tripDatesSummary）和交通显示转换。 |
-| [src/components/trip-workspace/workspace-title.ts](../src/components/trip-workspace/workspace-title.ts) | 表现层 | 从当前 name 字段派生 Workspace 标题，缺失时显示默认标题。 |
+| [src/components/trip-workspace/workspace-presentation.ts](../src/components/trip-workspace/workspace-presentation.ts) | 表现层 | 页头使用的字段和日期（复用 tripDatesSummary，按传入的字典）显示转换。 |
+| [src/components/trip-workspace/workspace-title.ts](../src/components/trip-workspace/workspace-title.ts) | 表现层 | 从当前 name 字段派生 Workspace 标题，缺失时显示调用方传入的默认标题。 |
 
 ### 6.6 基础 UI 组件
 

@@ -6,6 +6,8 @@ import { useId, useRef, useState } from "react";
 import { evaluateGeneratePlanReadiness, type GeneratePlanReadiness } from "@/domain/trip-state/planning-readiness";
 import type { TripState } from "@/domain/trip-state/trip-state";
 
+import { useMessages } from "@/components/i18n/locale-context";
+
 import { planningReadinessMessage, requestPlanningReadiness } from "./planning-readiness-model";
 import styles from "./trip-workspace.module.css";
 
@@ -25,6 +27,7 @@ export function GeneratePlanAction({
   readonly tripId: string;
   readonly tripState: TripState;
 }) {
+  const text = useMessages().generatePlan;
   // The answer belongs to the destination it was asked about, so a destination that
   // changes afterwards drops it instead of describing the old one.
   const [answer, setAnswer] = useState<{
@@ -63,7 +66,7 @@ export function GeneratePlanAction({
           aria-busy={isChecking}
           aria-describedby={blocked.canProceed ? undefined : hintId}
           aria-disabled={!blocked.canProceed || isChecking}
-          aria-label={isChecking ? "正在检查目的地" : "Generate plan"}
+          aria-label={isChecking ? text.checking : text.label}
           className={styles.haloButton}
           onClick={() => void checkReadiness()}
           type="button"
@@ -73,27 +76,27 @@ export function GeneratePlanAction({
           ) : (
             <Route aria-hidden="true" size={17} />
           )}
-          <HaloLabel text={isChecking ? "正在检查目的地…" : "Generate plan"} />
+          <HaloLabel text={isChecking ? text.checkingShort : text.label} />
         </button>
         {blocked.canProceed ? null : (
           <div className={styles.generatePlanHint} id={hintId} role="note">
             {blocked.reason === "destination_missing" ? (
               <>
-                <strong>先告诉 Meri 想去哪里</strong>
+                <strong>{text.missingTitle}</strong>
                 <ul>
-                  <li>在下方对话里说出想去的省、城市或景点</li>
-                  <li>还没想好？对 Meri 说「帮我推荐几个地方」</li>
+                  <li>{text.missingSay}</li>
+                  <li>{text.missingRecommend}</li>
                   <li>
-                    <button onClick={onChooseDestination} type="button">在旅程信息里搜索并添加目的地</button>
+                    <button onClick={onChooseDestination} type="button">{text.missingSearch}</button>
                   </li>
                 </ul>
               </>
             ) : (
               <>
-                <strong>旧旅程里的目的地需要重新确认</strong>
+                <strong>{text.unverifiedTitle}</strong>
                 <ul>
                   <li>
-                    <button onClick={onChooseDestination} type="button">在旅程信息的目的地里重新搜索添加，或清除旧记录</button>
+                    <button onClick={onChooseDestination} type="button">{text.unverifiedSearch}</button>
                   </li>
                 </ul>
               </>
@@ -103,11 +106,11 @@ export function GeneratePlanAction({
       </div>
       {current?.readiness ? (
         <p role="status" data-ready={current.readiness.canProceed}>
-          {planningReadinessMessage(current.readiness)}
+          {planningReadinessMessage(current.readiness, text)}
         </p>
       ) : null}
       {current !== null && current.readiness === null ? (
-        <p role="alert" data-ready="false">暂时无法完成检查，请重试。</p>
+        <p role="alert" data-ready="false">{text.checkFailed}</p>
       ) : null}
     </div>
   );

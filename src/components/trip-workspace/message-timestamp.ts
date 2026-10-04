@@ -1,4 +1,6 @@
-export function formatMessageTimestamp(createdAt: string, now: Date): string {
+import type { Messages } from "@/components/i18n/messages";
+
+export function formatMessageTimestamp(createdAt: string, now: Date, text: Messages["timestamps"]): string {
   const date = new Date(createdAt);
   const time = new Intl.DateTimeFormat("zh-CN", {
     hour: "2-digit", minute: "2-digit", hourCycle: "h23",
@@ -8,6 +10,6 @@ export function formatMessageTimestamp(createdAt: string, now: Date): string {
   const yesterday = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1);
 
   if (date >= today && date < tomorrow) return time;
-  if (date >= yesterday && date < today) return `昨天 ${time}`;
-  return `${date.getMonth() + 1}月${date.getDate()}日 ${time}`;
+  if (date >= yesterday && date < today) return text.yesterday(time);
+  return text.earlier(date, time);
 }

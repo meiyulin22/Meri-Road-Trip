@@ -4,6 +4,8 @@ import { MoreHorizontal } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useId, useState } from "react";
 
+import { useMessages } from "@/components/i18n/locale-context";
+
 import styles from "./trips.module.css";
 
 export function JourneyDeleteAction({
@@ -13,6 +15,7 @@ export function JourneyDeleteAction({
   tripId: string;
   name: string;
 }) {
+  const text = useMessages().journeys;
   const router = useRouter();
   const confirmationId = useId();
   const [confirming, setConfirming] = useState(false);
@@ -31,27 +34,27 @@ export function JourneyDeleteAction({
       }
       router.refresh();
     } catch {
-      setError("Could not delete this Journey. Please try again.");
+      setError(text.deleteFailed);
       setPending(false);
     }
   }
 
   return (
     <details className={styles.cardMenu}>
-      <summary aria-label={`More options for ${name}`}>
+      <summary aria-label={text.moreOptions(name)}>
         <MoreHorizontal aria-hidden="true" size={20} />
       </summary>
       <div className={styles.cardMenuPanel}>
         {confirming ? (
           <div aria-labelledby={confirmationId} role="group">
-            <p id={confirmationId}>Delete “{name}” and its conversation?</p>
+            <p id={confirmationId}>{text.deleteQuestion(name)}</p>
             <div className={styles.cardMenuActions}>
               <button
                 disabled={pending}
                 onClick={() => setConfirming(false)}
                 type="button"
               >
-                Cancel
+                {text.cancel}
               </button>
               <button
                 className={styles.deleteConfirm}
@@ -59,13 +62,13 @@ export function JourneyDeleteAction({
                 onClick={deleteJourney}
                 type="button"
               >
-                {pending ? "Deleting…" : "Delete Journey"}
+                {pending ? text.deleting : text.deleteJourney}
               </button>
             </div>
           </div>
         ) : (
           <button onClick={() => setConfirming(true)} type="button">
-            Delete Journey
+            {text.deleteJourney}
           </button>
         )}
         {error && (

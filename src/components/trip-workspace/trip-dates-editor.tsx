@@ -3,14 +3,15 @@
 import { CalendarDays, Minus, Pencil, Plus } from "lucide-react";
 import { useRef, useState, useSyncExternalStore } from "react";
 import { DayPicker, type DateRange } from "react-day-picker";
-import { zhCN } from "react-day-picker/locale";
+import { enUS, zhCN } from "react-day-picker/locale";
 import "react-day-picker/style.css";
 
 import { parseExactDays } from "@/domain/trip-state/trip-dates";
 import type { TripState, TripStatePatch } from "@/domain/trip-state/trip-state";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/animated-popover";
+import { useLocale, useMessages } from "@/components/i18n/locale-context";
 
-import { CertaintyTag, certaintyLabels, FieldStatusIcon } from "./field-certainty";
+import { CertaintyLabel, CertaintyTag, FieldStatusIcon } from "./field-certainty";
 import { clearedTripDatesPatch, createTripDatesPatch, toCalendarDate, tripDatesSummary } from "./trip-dates-model";
 import { requestTripStateUpdate } from "./trip-state-persistence-model";
 import styles from "./trip-workspace.module.css";
@@ -40,6 +41,9 @@ export function TripDatesField({
   readonly tripId: string;
   readonly tripState: TripState;
 }) {
+  const text = useMessages();
+  const words = text.dates;
+  const locale = useLocale();
   const [open, setOpen] = useState(false);
   // A start picked on the calendar whose end has not been picked yet.
   const [draftStart, setDraftStart] = useState<Date | null>(null);
@@ -54,7 +58,7 @@ export function TripDatesField({
   const savedStart = toCalendarDate(tripState.startDate);
   const savedEnd = toCalendarDate(tripState.endDate);
   const savedDays = parseExactDays(tripState.duration);
-  const summary = tripDatesSummary(tripState, today);
+  const summary = tripDatesSummary(tripState, today, words);
   // Whatever Meri wrote down that the calendar cannot show — 「十月底」, 「大概一周」 —
   // stays visible here until an exact choice replaces it.
   const roughWords = [
@@ -74,7 +78,7 @@ export function TripDatesField({
     try {
       onTripStateChange(await requestTripStateUpdate(tripId, patch));
     } catch {
-      setError("日期暂时没能保存，请重试。");
+      setError(words.saveFailed);
     } finally {
       inFlight.current = false;
       setSaving(false);
@@ -122,11 +126,11 @@ export function TripDatesField({
             <FieldStatusIcon state={summary.certainty} />
             {label}
           </span>
-          <span className={styles.fieldCertainty}>{certaintyLabels[summary.certainty]}</span>
+          <CertaintyLabel state={summary.certainty} />
         </dt>
         <dd>
           <PopoverTrigger asChild>
-            <button aria-label={`编辑${label}`} className={styles.fieldEditTrigger} title={`编辑${label}`} type="button">
+            <button aria-label={text.brief.edit(label)} className={styles.fieldEditTrigger} title={text.brief.edit(label)} type="button">
               <span>
                 {summary.text}
                 <CertaintyTag state={summary.certainty} />
@@ -138,7 +142,7 @@ export function TripDatesField({
       </div>
       <PopoverContent
         align="end"
-        aria-label="选择旅行日期"
+        aria-label={words.choose}
         className={styles.datesPopover}
         collisionPadding={12}
         side="bottom"
@@ -146,28 +150,26 @@ export function TripDatesField({
       >
         <div className={styles.destinationPopoverHeading}>
           <CalendarDays aria-hidden="true" size={16} />
-          <span>选择旅行日期</span>
+          <span>{words.choose}</span>
         </div>
         <p className={styles.datesHint} role="status">
-          {draftStart
-            ? `开始：${draftStart.getMonth() + 1}月${draftStart.getDate()}日。再点结束日期，或在下方填天数。`
-            : "先点开始日期，再点结束日期，天数会自动算好。"}
+          {draftStart ? words.startPicked(draftStart) : words.howTo}
         </p>
         <DayPicker
           className={styles.datesCalendar}
           defaultMonth={draftStart ?? savedStart ?? today}
           disabled={{ before: today }}
-          locale={zhCN}
+          locale={locale === "zh" ? zhCN : enUS}
           mode="range"
           numberOfMonths={wide ? 2 : 1}
           onSelect={(_range, triggerDate) => pickDay(triggerDate)}
           selected={selected}
         />
         <div className={styles.datesLength}>
-          <label htmlFor="trip-days">行程时长</label>
+          <label htmlFor="trip-days">{words.length}</label>
           <div className={styles.datesStepper}>
             <button
-              aria-label="少一天"
+              aria-label={words.fewerDay}
               disabled={saving || savedDays === null || savedDays <= 1}
               onClick={() => commitDays((savedDays ?? 2) - 1)}
               type="button"
@@ -188,9 +190,9 @@ export function TripDatesField({
               type="text"
               value={shownDays}
             />
-            <span>天</span>
+            <span>{words.daysUnit}</span>
             <button
-              aria-label="多一天"
+              aria-label={words.moreDay}
               disabled={saving || (savedDays ?? 0) >= maxDays}
               onClick={() => commitDays((savedDays ?? 0) + 1)}
               type="button"
@@ -200,7 +202,7 @@ export function TripDatesField({
           </div>
         </div>
         {roughWords.length > 0 ? (
-          <p className={styles.datesNote}>Meri 记下：{roughWords.join(" · ")}。选好具体日期后会替换。</p>
+          <p className={styles.datesNote}>{words.noted(roughWords.join(" · "))}</p>
         ) : null}
         <div className={styles.datesFooter}>
           <button
@@ -208,9 +210,9 @@ export function TripDatesField({
             onClick={() => { setDraftStart(null); void save(clearedTripDatesPatch); }}
             type="button"
           >
-            清除日期
+            {words.clear}
           </button>
-          {saving ? <span role="status">正在保存…</span> : null}
+          {saving ? <span role="status">{words.saving}</span> : null}
           {error ? <span className={styles.destinationError} role="alert">{error}</span> : null}
         </div>
       </PopoverContent>

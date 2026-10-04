@@ -2,19 +2,22 @@
 
 import Link from "next/link";
 
+import { useMessages } from "@/components/i18n/locale-context";
+
 export default function TripWorkspaceError({
   reset,
 }: {
   readonly reset: () => void;
 }) {
+  const text = useMessages().workspace;
   return (
     <main>
-      <h1>旅程暂时无法加载</h1>
-      <p>Meri 没有修改或替换你的旅程数据。</p>
+      <h1>{text.loadFailed}</h1>
+      <p>{text.loadFailedDetail}</p>
       <button onClick={reset} type="button">
-        重试
+        {text.retry}
       </button>
-      <Link href="/">回到首页</Link>
+      <Link href="/">{text.toHome}</Link>
     </main>
   );
 }

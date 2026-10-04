@@ -3,7 +3,11 @@ import test from "node:test";
 
 import type { TripState } from "@/domain/trip-state/trip-state";
 
+import { messages } from "@/components/i18n/messages";
+
 import { companionStatus } from "./companion-status-model";
+
+const zh = messages.zh.bear;
 
 const empty: TripState = {
   name: { state: "missing" }, origin: { state: "missing" }, destination: { state: "missing" },
@@ -13,20 +17,20 @@ const empty: TripState = {
 const guangdong: TripState["destination"] = { state: "known", source: "user", areas: [{ province: "广东省", places: [] }] };
 
 test("a failure and Meri thinking outrank what the Journey still needs", () => {
-  assert.equal(companionStatus(empty, "error").mood, "error");
-  assert.match(companionStatus(empty, "error").text, /出错了/);
-  assert.deepEqual(companionStatus({ ...empty, destination: guangdong }, "thinking"), { mood: "thinking", text: "我想想…" });
+  assert.equal(companionStatus(empty, "error", zh).mood, "error");
+  assert.match(companionStatus(empty, "error", zh).text, /出错了/);
+  assert.deepEqual(companionStatus({ ...empty, destination: guangdong }, "thinking", zh), { mood: "thinking", text: "我想想…" });
 });
 
 test("without a destination the bear asks for one and suggests asking for recommendations", () => {
-  const status = companionStatus(empty, "idle");
+  const status = companionStatus(empty, "idle", zh);
   assert.equal(status.mood, "missing");
   assert.match(status.text, /还差目的地/);
   assert.match(status.text, /帮我推荐几个地方/);
 });
 
 test("a destination makes the plan ready, and the optional gaps are named", () => {
-  const status = companionStatus({ ...empty, destination: guangdong }, "idle");
+  const status = companionStatus({ ...empty, destination: guangdong }, "idle", zh);
   assert.equal(status.mood, "ready");
   assert.match(status.text, /可以生成计划/);
   assert.match(status.text, /出发地、出行时间、交通方式/);
@@ -36,12 +40,19 @@ test("a destination makes the plan ready, and the optional gaps are named", () =
     origin: { state: "known", value: "大连", source: "user" },
     duration: { state: "approximate", value: "一周左右", source: "user" },
     transportPreference: { state: "known", value: "self_drive", source: "user" },
-  }, "idle");
+  }, "idle", zh);
   assert.deepEqual(complete, { mood: "ready", text: "都齐啦，可以生成计划了！" });
 });
 
 test("an old unverified destination asks to be confirmed again", () => {
-  const status = companionStatus({ ...empty, destination: { state: "known", source: "user", areas: [], legacyText: "梅里雪山" } }, "idle");
+  const status = companionStatus({ ...empty, destination: { state: "known", source: "user", areas: [], legacyText: "梅里雪山" } }, "idle", zh);
   assert.equal(status.mood, "missing");
   assert.match(status.text, /重新确认/);
+});
+
+test("in English the bear says the same things in English", () => {
+  const en = messages.en.bear;
+  assert.equal(companionStatus(empty, "idle", en).text, en.needsDestination);
+  assert.equal(companionStatus({ ...empty, destination: guangdong }, "idle", en).text,
+    "Ready to generate a plan! Tell me where you're starting from, when you're going, how you'll get around and it'll be even better.");
 });

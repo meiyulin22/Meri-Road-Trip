@@ -13,7 +13,9 @@ import type {
   TripStateFieldName,
 } from "@/domain/trip-state/trip-state";
 
-import { CertaintyTag, certaintyLabels, FieldStatusIcon } from "./field-certainty";
+import { useMessages } from "@/components/i18n/locale-context";
+
+import { CertaintyLabel, CertaintyTag, FieldStatusIcon } from "./field-certainty";
 import { LocationEditor } from "./location-editor";
 import { TripDatesField } from "./trip-dates-editor";
 import { DestinationEditor } from "./destination-editor";
@@ -22,13 +24,6 @@ import {
   requestTripStateUpdate,
 } from "./trip-state-persistence-model";
 import styles from "./trip-workspace.module.css";
-
-const transportPreferenceLabels: Record<TransportPreference, string> = {
-  self_drive: "自驾",
-  no_self_drive: "不自驾",
-  public_transport: "公共交通",
-  flexible: "灵活",
-};
 
 type DateFieldName = "startDate" | "endDate" | "duration";
 type TextFieldName = Exclude<TripStateFieldName, "origin" | "destination" | "transportPreference" | DateFieldName>;
@@ -42,16 +37,7 @@ const compactBriefFields: BriefRowKey[] = [
 
 // Ordered by the questions a plan answers — from where, to where, when, how — with
 // the Journey's own name last, since Meri fills it in and it is rarely the point.
-const allBriefFields: Array<{
-  readonly key: BriefRowKey;
-  readonly label: string;
-}> = [
-  { key: "origin", label: "出发地" },
-  { key: "destination", label: "目的地" },
-  { key: "dates", label: "何时" },
-  { key: "transportPreference", label: "交通偏好" },
-  { key: "name", label: "旅程名称" },
-];
+const allBriefFields: readonly BriefRowKey[] = ["origin", "destination", "dates", "transportPreference", "name"];
 
 export function ExpeditionBriefPanel({
   destinationEditorOpenRequest,
@@ -64,6 +50,7 @@ export function ExpeditionBriefPanel({
   readonly tripId: string;
   readonly tripState: TripState;
 }) {
+  const text = useMessages().brief;
   const [isExpanded, setIsExpanded] = useState(true);
   const [persistenceError, setPersistenceError] = useState<string | null>(null);
   const [isSavingTransport, setIsSavingTransport] = useState(false);
@@ -72,9 +59,8 @@ export function ExpeditionBriefPanel({
     readonly field: TextFieldName;
     readonly value: string;
   } | null>(null);
-  const visibleFields = isExpanded
-    ? allBriefFields
-    : allBriefFields.filter(({ key }) => compactBriefFields.includes(key));
+  const visibleFields = (isExpanded ? allBriefFields : allBriefFields.filter((key) => compactBriefFields.includes(key)))
+    .map((key) => ({ key, label: text.fields[key] }));
 
   async function persistField(field: TextFieldName | "transportPreference", value: string): Promise<boolean> {
     if (isPersistingEdit.current) return false;
@@ -85,7 +71,7 @@ export function ExpeditionBriefPanel({
       setPersistenceError(null);
       return true;
     } catch {
-      setPersistenceError("这次修改暂时没能保存，请重试。");
+      setPersistenceError(text.saveFailed);
       return false;
     } finally {
       isPersistingEdit.current = false;
@@ -128,18 +114,18 @@ export function ExpeditionBriefPanel({
     >
       <header className={styles.briefHeader}>
         <div className={styles.regionHeading}>
-          <h2 id="expedition-brief-title"><Map size={21} aria-hidden="true" />Journey overview</h2>
+          <h2 id="expedition-brief-title"><Map size={21} aria-hidden="true" />{text.title}</h2>
         </div>
         <button
           aria-expanded={isExpanded}
-          aria-label={isExpanded ? "收起旅程信息" : "查看全部旅程信息"}
+          aria-label={isExpanded ? text.collapse : text.expandAll}
           onClick={() => {
             setEditing(null);
             setIsExpanded((current) => !current);
           }}
           type="button"
         >
-          <span className={styles.srOnly}>{isExpanded ? "收起" : "查看全部信息"}</span>
+          <span className={styles.srOnly}>{isExpanded ? text.collapseShort : text.expandShort}</span>
           {isExpanded ? (
             <ChevronUp aria-hidden="true" size={14} />
           ) : (
@@ -150,7 +136,7 @@ export function ExpeditionBriefPanel({
 
       <div className={styles.briefGuidance}>
         <p className={styles.editingHint}>
-          Meri 目前理解的旅程。点一下，就能补充或修改。
+          {text.hint}
         </p>
       </div>
 
@@ -218,7 +204,7 @@ function FieldHeading({ label, state }: { readonly label: string; readonly state
         <FieldStatusIcon state={state} />
         {label}
       </span>
-      <span className={styles.fieldCertainty}>{certaintyLabels[state]}</span>
+      <CertaintyLabel state={state} />
     </dt>
   );
 }
@@ -239,6 +225,7 @@ function TransportPreferenceField({
   readonly label: string;
   readonly onSelect: (value: TransportPreference | "") => void;
 }) {
+  const text = useMessages().brief;
   const selected = field.state === "known" ? field.value : null;
 
   return (
@@ -254,13 +241,13 @@ function TransportPreferenceField({
               onClick={() => onSelect(selected === preference ? "" : preference)}
               type="button"
             >
-              {transportPreferenceLabels[preference]}
+              {text.transport[preference]}
             </button>
           ))}
         </div>
         {field.state === "approximate" || field.state === "ambiguous" ? (
           <p className={styles.fieldNote}>
-            Meri 记下：{field.value}
+            {text.noted(field.value)}
             <CertaintyTag state={field.state} />
           </p>
         ) : null}
@@ -290,6 +277,7 @@ function ExpeditionBriefField({
   onConfirm,
   onCancel,
 }: ExpeditionBriefFieldProps) {
+  const text = useMessages().brief;
   function handleKeyDown(event: React.KeyboardEvent<HTMLElement>): void {
     if (event.key === "Escape") {
       event.preventDefault();
@@ -308,7 +296,7 @@ function ExpeditionBriefField({
       <dd>
         {isEditing ? (
           <input
-            aria-label={`编辑${label}`}
+            aria-label={text.edit(label)}
             autoFocus
             onBlur={onConfirm}
             onChange={(event) => onChange(event.target.value)}
@@ -317,7 +305,7 @@ function ExpeditionBriefField({
             value={editValue}
           />
         ) : (
-          <button aria-label={`编辑${label}`} className={styles.fieldEditTrigger} title={`编辑${label}`} onClick={onEdit} type="button">
+          <button aria-label={text.edit(label)} className={styles.fieldEditTrigger} title={text.edit(label)} onClick={onEdit} type="button">
             <span>
               {field.state === "missing" ? "—" : field.value}
               <CertaintyTag state={field.state} />

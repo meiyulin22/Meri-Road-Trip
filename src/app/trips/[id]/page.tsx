@@ -15,11 +15,13 @@ import type { TripMessage } from "@/domain/trip-message/trip-message";
 import type { TripState } from "@/domain/trip-state/trip-state";
 import { AmapPlacePhotoProvider } from "@/platform/place-photos/amap-place-photo-provider";
 
+import { messages } from "@/components/i18n/messages";
+import { requestLocale } from "@/platform/locale/request-locale";
 import styles from "@/components/trip-workspace/trip-workspace.module.css";
 
-export const metadata: Metadata = {
-  title: "Journey | Meri",
-};
+export async function generateMetadata(): Promise<Metadata> {
+  return { title: messages[await requestLocale()].workspace.pageTitle };
+}
 
 export const dynamic = "force-dynamic";
 
@@ -88,7 +90,8 @@ async function initialPlacePhotos(
   return Promise.race([lookup, timeout]);
 }
 
-function MissingTripState() {
+async function MissingTripState() {
+  const text = messages[await requestLocale()].workspace;
   return (
     <main className={styles.missingWorkspace}>
       <Image
@@ -97,8 +100,8 @@ function MissingTripState() {
         src="/brand/meri-wordmark.svg"
         width={1101}
       />
-      <p>这个旅程缺少必要的状态数据，Meri 没有擅自创建替代内容。</p>
-      <Link href="/">回到首页</Link>
+      <p>{text.stateMissing}</p>
+      <Link href="/">{text.toHome}</Link>
     </main>
   );
 }

@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
+import { messages } from "@/components/i18n/messages";
 import { formatMessageTimestamp } from "./message-timestamp";
 import { appendPersistedMessageIfAbsent, destinationChoicePresentation, locationCandidatePresentation, messageCreatedAt, recommendationIdsAwaitingPhoto, recommendationPresentation, toWorkspaceUIMessages, withRecommendationPhoto } from "./trip-message-ui-adapter";
 
@@ -10,11 +11,15 @@ function localDate(year: number, month: number, day: number, hour: number, minut
 
 test("message timestamps use local today, yesterday, and older labels", () => {
   assert.equal(formatMessageTimestamp(localDate(2026, 9, 26, 19, 32),
-    new Date(2026, 8, 26, 23, 0)), "19:32");
+    new Date(2026, 8, 26, 23, 0), messages.zh.timestamps), "19:32");
   assert.equal(formatMessageTimestamp(localDate(2026, 9, 25, 19, 32),
-    new Date(2026, 8, 26, 1, 0)), "昨天 19:32");
+    new Date(2026, 8, 26, 1, 0), messages.zh.timestamps), "昨天 19:32");
   assert.equal(formatMessageTimestamp(localDate(2026, 9, 24, 19, 32),
-    new Date(2026, 8, 26, 1, 0)), "9月24日 19:32");
+    new Date(2026, 8, 26, 1, 0), messages.zh.timestamps), "9月24日 19:32");
+  assert.equal(formatMessageTimestamp(localDate(2026, 9, 25, 19, 32),
+    new Date(2026, 8, 26, 1, 0), messages.en.timestamps), "Yesterday 19:32");
+  assert.equal(formatMessageTimestamp(localDate(2026, 9, 24, 19, 32),
+    new Date(2026, 8, 26, 1, 0), messages.en.timestamps), "Sep 24 19:32");
 });
 
 test("maps persisted TripMessages to ordered UI messages without changing IDs, roles, or text", () => {

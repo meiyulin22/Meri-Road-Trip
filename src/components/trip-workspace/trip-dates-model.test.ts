@@ -3,7 +3,11 @@ import test from "node:test";
 
 import type { TripStateField } from "@/domain/trip-state/trip-state";
 
+import { messages } from "@/components/i18n/messages";
+
 import { createTripDatesPatch, toCalendarDate, toStoredDate, tripDatesSummary } from "./trip-dates-model";
+
+const zh = messages.zh.dates;
 
 const missing: TripStateField = { state: "missing" };
 const known = (value: string): TripStateField => ({ state: "known", value, source: "user" });
@@ -12,22 +16,22 @@ const today = new Date(2026, 9, 1);
 
 test("a known span reads as one line with its length", () => {
   assert.deepEqual(
-    tripDatesSummary({ startDate: known("2026-10-01"), endDate: known("2026-10-07"), duration: known("7天") }, today),
+    tripDatesSummary({ startDate: known("2026-10-01"), endDate: known("2026-10-07"), duration: known("7天") }, today, zh),
     { text: "10月1日 → 10月7日 · 7天", certainty: "known" },
   );
   assert.equal(
-    tripDatesSummary({ startDate: known("2027-01-02"), endDate: missing, duration: missing }, today).text,
+    tripDatesSummary({ startDate: known("2027-01-02"), endDate: missing, duration: missing }, today, zh).text,
     "2027年1月2日 出发",
   );
-  assert.equal(tripDatesSummary({ startDate: missing, endDate: missing, duration: known("7天") }, today).text, "7天");
+  assert.equal(tripDatesSummary({ startDate: missing, endDate: missing, duration: known("7天") }, today, zh).text, "7天");
 });
 
 test("rough words stay as Meri heard them and mark the whole row rough", () => {
   assert.deepEqual(
-    tripDatesSummary({ startDate: rough("十月底"), endDate: missing, duration: rough("大概一周") }, today),
+    tripDatesSummary({ startDate: rough("十月底"), endDate: missing, duration: rough("大概一周") }, today, zh),
     { text: "十月底 出发 · 大概一周", certainty: "approximate" },
   );
-  assert.deepEqual(tripDatesSummary({ startDate: missing, endDate: missing, duration: missing }, today),
+  assert.deepEqual(tripDatesSummary({ startDate: missing, endDate: missing, duration: missing }, today, zh),
     { text: "—", certainty: "missing" });
 });
 
@@ -44,4 +48,13 @@ test("the picker saves only what the user chose and leaves the third to the serv
     endDate: known("2026-10-07"),
   });
   assert.deepEqual(createTripDatesPatch({ days: 5 }), { duration: known("5天") });
+});
+
+test("in English the same span reads in English, and words Meri heard stay as they were", () => {
+  const en = messages.en.dates;
+  assert.equal(tripDatesSummary({ startDate: known("2026-10-01"), endDate: known("2026-10-07"), duration: known("7天") }, today, en).text,
+    "Oct 1 → Oct 7 · 7 days");
+  assert.equal(tripDatesSummary({ startDate: known("2027-01-02"), endDate: missing, duration: known("1天") }, today, en).text,
+    "From Jan 2, 2027 · 1 day");
+  assert.equal(tripDatesSummary({ startDate: missing, endDate: missing, duration: known("7天6晚") }, today, en).text, "7天6晚");
 });

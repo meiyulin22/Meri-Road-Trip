@@ -7,7 +7,9 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/animate
 import type { LocationSuggestion } from "@/domain/location/location-suggestion";
 import type { TripState } from "@/domain/trip-state/trip-state";
 
-import { CertaintyTag, certaintyLabels, FieldStatusIcon } from "./field-certainty";
+import { useMessages } from "@/components/i18n/locale-context";
+
+import { CertaintyLabel, CertaintyTag, FieldStatusIcon } from "./field-certainty";
 import { createSelectedLocationPatch, normalizeSuggestionQuery, parseSuggestionResponse } from "./location-editor-model";
 import { requestTripStateUpdate } from "./trip-state-persistence-model";
 import styles from "./trip-workspace.module.css";
@@ -30,7 +32,9 @@ export function LocationEditor({
   readonly tripState: TripState;
 }) {
   const location = tripState[field];
-  const label = "出发地";
+  const text = useMessages();
+  const words = text.origin;
+  const label = words.label;
   const [open, setOpen] = useState(initiallyOpen);
   const [query, setQuery] = useState(initiallyOpen && location.state !== "missing" ? location.value : "");
   const [suggestions, setSuggestions] = useState<readonly LocationSuggestion[]>([]);
@@ -109,7 +113,7 @@ export function LocationEditor({
       setSaving(false);
       changeOpen(false);
     } catch {
-      setSaveError(`${label}暂时没能保存，请重试选择。`);
+      setSaveError(words.saveFailed);
       savingRef.current = false;
       setSaving(false);
     }
@@ -144,11 +148,11 @@ export function LocationEditor({
             <FieldStatusIcon state={location.state} />
             {label}
           </span>
-          <span className={styles.fieldCertainty}>{certaintyLabels[location.state]}</span>
+          <CertaintyLabel state={location.state} />
         </dt>
         <dd>
           <PopoverTrigger asChild>
-            <button aria-label={`编辑${label}`} className={styles.fieldEditTrigger} title={`编辑${label}`} type="button">
+            <button aria-label={text.brief.edit(label)} className={styles.fieldEditTrigger} title={text.brief.edit(label)} type="button">
               <span>
                 {location.state === "missing" ? "—" : location.value}
                 <CertaintyTag state={location.state} />
@@ -164,16 +168,16 @@ export function LocationEditor({
         sideOffset={7}
         collisionPadding={12}
         className={styles.destinationPopover}
-        aria-label={`搜索并选择${label}`}
+        aria-label={words.searchAndChoose}
       >
         <div className={styles.destinationPopoverHeading}>
           <MapPin size={16} aria-hidden="true" />
-          <span>选择{label}</span>
+          <span>{words.choose}</span>
         </div>
         <div className={styles.destinationSearch}>
           <Search size={16} aria-hidden="true" />
           <input
-            aria-label={`搜索${label}`}
+            aria-label={words.search}
             aria-autocomplete="list"
             aria-controls={suggestions.length > 0 ? listId : undefined}
             aria-expanded={suggestions.length > 0}
@@ -182,17 +186,17 @@ export function LocationEditor({
             autoFocus
             onChange={(event) => changeQuery(event.target.value)}
             onKeyDown={handleKeyDown}
-            placeholder="搜索城市、景点或车站"
+            placeholder={words.placeholder}
             role="combobox"
             value={query}
           />
         </div>
-        {status === "idle" ? <p className={styles.destinationMessage}>输入至少 2 个字，选择一个具体地点。</p> : null}
-        {status === "searching" ? <p className={styles.destinationMessage} role="status">正在寻找地点…</p> : null}
-        {status === "empty" ? <p className={styles.destinationMessage} role="status">没有找到匹配的地点，试试更具体的名称。</p> : null}
-        {status === "error" ? <p className={styles.destinationError} role="alert">地点搜索暂时不可用，请稍后重试。</p> : null}
+        {status === "idle" ? <p className={styles.destinationMessage}>{words.idle}</p> : null}
+        {status === "searching" ? <p className={styles.destinationMessage} role="status">{words.searching}</p> : null}
+        {status === "empty" ? <p className={styles.destinationMessage} role="status">{words.noResults}</p> : null}
+        {status === "error" ? <p className={styles.destinationError} role="alert">{words.unavailable}</p> : null}
         {suggestions.length > 0 ? (
-          <div className={styles.destinationSuggestions} id={listId} role="listbox" aria-label="地点建议">
+          <div className={styles.destinationSuggestions} id={listId} role="listbox" aria-label={words.suggestions}>
             {suggestions.map((suggestion, index) => (
               <button
                 aria-selected={index === activeIndex}
@@ -213,7 +217,7 @@ export function LocationEditor({
             ))}
           </div>
         ) : null}
-        {saving ? <p className={styles.destinationMessage} role="status">正在保存{label}…</p> : null}
+        {saving ? <p className={styles.destinationMessage} role="status">{words.saving}</p> : null}
         {saveError ? <p className={styles.destinationError} role="alert">{saveError}</p> : null}
       </PopoverContent>
     </Popover>

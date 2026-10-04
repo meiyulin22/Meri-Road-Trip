@@ -146,7 +146,7 @@ test("a failed selection leaves the Workspace showing what it had", async () => 
   };
   await assert.rejects(() => selectDestinationRecommendation("trip", "assistant-cards", ["candidate-2"],
     async () => Response.json({ error: "failed" }, { status: 500 })));
-  assert.equal(getWorkspaceTitle(original), "云南大理之旅");
+  assert.equal(getWorkspaceTitle(original, "新的旅程想法"), "云南大理之旅");
 });
 
 test("successful selection applies the server name to Workspace title and Journey overview state", async () => {
@@ -161,7 +161,7 @@ test("successful selection applies the server name to Workspace title and Journe
     async () => Response.json({ tripState: persisted,
       assistantMessage: { ...followUp, tripId: "trip", content: "好，目的地定为泉州了。" } }));
   assert.deepEqual(displayed, persisted);
-  assert.equal(getWorkspaceTitle(displayed), "泉州之旅");
+  assert.equal(getWorkspaceTitle(displayed, "新的旅程想法"), "泉州之旅");
   assert.equal(journeyFieldLabel(displayed.name, "旅程名称待定"), "泉州之旅");
 });
 

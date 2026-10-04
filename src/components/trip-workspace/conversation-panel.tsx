@@ -9,6 +9,8 @@ import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import type { ConversationActivity } from "@/components/companion/companion-status-model";
 import type { TripMessage } from "@/domain/trip-message/trip-message";
 import type { TripState } from "@/domain/trip-state/trip-state";
+import { useMessages } from "@/components/i18n/locale-context";
+import type { Messages } from "@/components/i18n/messages";
 
 import { nextRevealCharacterCount, visibleAssistantText } from "./conversation-reveal";
 import { requestPendingRecommendations, selectDestinationRecommendation, streamRecommendationPhotos } from "./destination-recommendation-model";
@@ -23,9 +25,6 @@ import {
   type CommittedWorkspaceTurn,
 } from "./workspace-chat-transport";
 import styles from "./trip-workspace.module.css";
-
-const workspaceConversationError =
-  "发送结果暂时无法确认。请刷新旅程，查看最新消息和状态后再继续。";
 
 function subscribeToBrowser(): () => void { return () => undefined; }
 function browserSnapshot(): boolean { return true; }
@@ -50,6 +49,8 @@ export function ConversationPanel({
   readonly tripId: string;
   readonly tripState: TripState;
 }) {
+  const text = useMessages();
+  const words = text.conversation;
   const [message, setMessage] = useState("");
   const selectionInFlight = useRef(false);
   const [selectionPendingMessageId, setSelectionPendingMessageId] = useState<string | null>(null);
@@ -212,10 +213,10 @@ export function ConversationPanel({
       if (error instanceof DestinationSelectionFollowUpError) {
         setClosedOfferIds((current) => [...new Set([...current, messageId])]);
         onTripStateChange(error.tripState);
-        setSelectionNotice("目的地已保存，但确认回复未完成。请刷新核对。");
+        setSelectionNotice(words.savedWithoutReply);
       } else if (error instanceof DestinationOfferExpiredError) {
         setClosedOfferIds((current) => [...new Set([...current, messageId])]);
-        setSelectionNotice("这组选项已过期。请刷新查看最新对话，或重新搜索目的地。");
+        setSelectionNotice(words.offerExpired);
       } else {
         setSelectionErrorMessageId(messageId);
       }
@@ -247,12 +248,12 @@ export function ConversationPanel({
     >
       <header className={styles.dockHeader}>
         <div className={styles.regionHeading}>
-          <p>THE JOURNEY STARTS WITH A CONVERSATION</p>
-          <h2 id="conversation-title">和 Meri 一起，把想法变成旅程</h2>
+          <p>{words.eyebrow}</p>
+          <h2 id="conversation-title">{words.title}</h2>
         </div>
         <button
           aria-expanded={isExpanded}
-          aria-label={isExpanded ? "收起对话" : "展开对话"}
+          aria-label={isExpanded ? words.collapse : words.expand}
           className={styles.dockToggle}
           onClick={() => onExpandedChange(!isExpanded)}
           type="button"
@@ -278,11 +279,11 @@ export function ConversationPanel({
                 />
                 <div>
                   <MessageHeader speaker="Meri" createdAt={null} now={localNow} />
-                  <p>{getConversationOpening(tripState)}</p>
+                  <p>{getConversationOpening(tripState, words)}</p>
                 </div>
               </article>
               <p className={styles.conversationHint}>
-                旅程不需要一次想完整，我们可以边聊边整理。
+                {words.hint}
               </p>
             </>
           ) : null}
@@ -311,14 +312,14 @@ export function ConversationPanel({
                   {conversationMessage.id === pendingCardsId && cardsLoading ? (
                     <p className={styles.conversationStatus} role="status">
                       <LoaderCircle aria-hidden="true" className={styles.loadingIcon} size={14} />
-                      正在挑选推荐的地方…
+                      {words.pickingCards}
                     </p>
                   ) : null}
                   {conversationMessage.id === pendingCardsId && cardsFailure === "failed" ? (
                     <div className={styles.conversationError} role="alert">
-                      <span>推荐暂时没有生成出来。</span>
+                      <span>{words.cardsFailed}</span>
                       <button onClick={() => setCardsOutcome(null)} type="button">
-                        重试
+                        {words.retry}
                       </button>
                     </div>
                   ) : null}
@@ -338,14 +339,14 @@ export function ConversationPanel({
               </article>
             ) : (
               <article className={styles.userMessage} key={conversationMessage.id}>
-                <MessageHeader speaker="你" createdAt={messageCreatedAt(conversationMessage)} now={localNow} />
+                <MessageHeader speaker={words.you} createdAt={messageCreatedAt(conversationMessage)} now={localNow} />
                 <p>{messageText(conversationMessage)}</p>
                 {index === messages.length - 1 && isSubmitting ? (
-                  <span className={styles.messageDelivery}>发送中…</span>
+                  <span className={styles.messageDelivery}>{words.sending}</span>
                 ) : null}
                 {index === messages.length - 1 && hasError ? (
                   <span className={`${styles.messageDelivery} ${styles.messageFailed}`}>
-                    发送结果未确认
+                    {words.unconfirmed}
                   </span>
                 ) : null}
               </article>
@@ -354,24 +355,24 @@ export function ConversationPanel({
           {selectionNotice ? <p role="alert">{selectionNotice}</p> : null}
           {isSubmitting ? (
             <p className={styles.conversationStatus} role="status">
-              Meri 正在理解这条消息…
+              {words.understanding}
             </p>
           ) : null}
           {hasError ? (
             <div className={styles.conversationError} role="alert">
-              <span>{workspaceConversationError}</span>
+              <span>{words.unconfirmedDetail}</span>
               <button
                 onClick={() => window.location.reload()}
                 type="button"
               >
-                刷新核对
+                {words.refresh}
               </button>
             </div>
           ) : null}
         </div>
       ) : latestMessage?.role === "user" ? (
         <article className={styles.userMessage}>
-          <MessageHeader speaker="你" createdAt={messageCreatedAt(latestMessage)} now={localNow} />
+          <MessageHeader speaker={words.you} createdAt={messageCreatedAt(latestMessage)} now={localNow} />
           <p>{messageText(latestMessage)}</p>
         </article>
       ) : (
@@ -384,7 +385,7 @@ export function ConversationPanel({
           />
           <div>
             <MessageHeader speaker="Meri" createdAt={latestMessage ? messageCreatedAt(latestMessage) : null} now={localNow} />
-            <p>{latestMessage ? messageText(latestMessage) : getConversationOpening(tripState)}</p>
+            <p>{latestMessage ? messageText(latestMessage) : getConversationOpening(tripState, words)}</p>
           </div>
         </article>
       )}
@@ -402,23 +403,23 @@ export function ConversationPanel({
         data-region="conversation-composer"
         onSubmit={handleSubmit}
       >
-        <button aria-label="添加内容（暂不可用）" disabled type="button">
+        <button aria-label={words.attachUnavailable} disabled type="button">
           <ImageIcon aria-hidden="true" size={21} />
         </button>
         <label className={styles.srOnly} htmlFor="workspace-message">
-          告诉 Meri 你还在想什么
+          {words.inputLabel}
         </label>
         <input
           disabled={isSubmitting || hasError || selectionPendingMessageId !== null || cardsLoading}
           id="workspace-message"
           onChange={(event) => setMessage(event.target.value)}
           onKeyDown={handleMessageKeyDown}
-          placeholder="告诉 Meri 你的想法…"
+          placeholder={words.placeholder}
           type="text"
           value={message}
         />
         <button
-          aria-label="发送消息"
+          aria-label={words.send}
           disabled={isSubmitting || hasError || selectionPendingMessageId !== null || cardsLoading || message.trim() === ""}
           type="submit"
         >
@@ -434,14 +435,15 @@ export function ConversationPanel({
 }
 
 function MessageHeader({ speaker, createdAt, now }: {
-  readonly speaker: "Meri" | "你";
+  readonly speaker: string;
   readonly createdAt: string | null;
   readonly now: Date | null;
 }) {
+  const timestamps = useMessages().timestamps;
   return (
     <div className={styles.messageHeader}>
       <span>{speaker}</span>
-      {createdAt && now ? <time dateTime={createdAt}>{formatMessageTimestamp(createdAt, now)}</time> : null}
+      {createdAt && now ? <time dateTime={createdAt}>{formatMessageTimestamp(createdAt, now, timestamps)}</time> : null}
     </div>
   );
 }
@@ -453,10 +455,10 @@ function messageText(message: UIMessage): string {
     .join("");
 }
 
-function getConversationOpening(tripState: TripState): string {
+function getConversationOpening(tripState: TripState, words: Messages["conversation"]): string {
   if (tripState.startDate.state !== "missing") {
-    return `我已经记下了你的想法，也保留了“${tripState.startDate.value}”这个时间范围。你可以继续告诉我任何还在考虑的事情。`;
+    return words.openingWithDates(tripState.startDate.value);
   }
 
-  return "我已经记下了你的旅行想法。信息不需要一次完整，我们可以边聊边把旅程变清晰。";
+  return words.opening;
 }

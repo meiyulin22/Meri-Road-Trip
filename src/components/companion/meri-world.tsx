@@ -1,6 +1,7 @@
 "use client";
 
 import type { TripState } from "@/domain/trip-state/trip-state";
+import { useMessages } from "@/components/i18n/locale-context";
 
 import type { BearReaction } from "./bear-behavior";
 import { CompanionBear } from "./companion-bear";
@@ -28,7 +29,7 @@ export function MeriWorld({
   readonly activity: ConversationActivity;
   readonly tripState: TripState;
 }) {
-  const status = companionStatus(tripState, activity);
+  const status = companionStatus(tripState, activity, useMessages().bear);
 
   return (
     <section className={styles.meriWorld} aria-label="Meri companion" data-region="meri-world">

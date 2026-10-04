@@ -1,5 +1,6 @@
+import type { Messages } from "@/components/i18n/messages";
 import type { TripState, TripStateField, TripStatePatch } from "@/domain/trip-state/trip-state";
-import { formatExactDays, parseExactDate, type TripDateFieldName } from "@/domain/trip-state/trip-dates";
+import { formatExactDays, parseExactDate, parseExactDays, type TripDateFieldName } from "@/domain/trip-state/trip-dates";
 
 import type { FieldCertainty } from "./field-certainty";
 
@@ -22,12 +23,21 @@ export function toCalendarDate(field: TripStateField): Date | undefined {
   return new Date(utc.getUTCFullYear(), utc.getUTCMonth(), utc.getUTCDate());
 }
 
-function dayLabel(field: TripStateField, today: Date): string | null {
+function dayLabel(field: TripStateField, today: Date, text: Messages["dates"]): string | null {
   if (field.state === "missing") return null;
   const date = toCalendarDate(field);
   if (date === undefined) return field.value;
-  const monthDay = `${date.getMonth() + 1}月${date.getDate()}日`;
-  return date.getFullYear() === today.getFullYear() ? monthDay : `${date.getFullYear()}年${monthDay}`;
+  return text.monthDay(date, date.getFullYear() !== today.getFullYear());
+}
+
+/**
+ * An exact length is stored as 「7天」 and said in the interface's language; anything
+ * else — 「7天6晚」, 「大概一周」 — is Meri's or the user's own words, shown as they are.
+ */
+function lengthLabel(field: TripStateField, text: Messages["dates"]): string | null {
+  if (field.state === "missing") return null;
+  const days = parseExactDays(field);
+  return days !== null && field.value.trim() === formatExactDays(days) ? text.days(days) : field.value;
 }
 
 /**
@@ -35,14 +45,14 @@ function dayLabel(field: TripStateField, today: Date): string | null {
  * The row is only as certain as its least certain part, so 「10月1日 → 十月中旬」 is
  * still marked rough even though one end is an exact day.
  */
-export function tripDatesSummary(dates: TripDates, today: Date): {
+export function tripDatesSummary(dates: TripDates, today: Date, words: Messages["dates"]): {
   readonly text: string;
   readonly certainty: FieldCertainty;
 } {
-  const start = dayLabel(dates.startDate, today);
-  const end = dayLabel(dates.endDate, today);
-  const length = dates.duration.state === "missing" ? null : dates.duration.value;
-  const span = start && end ? `${start} → ${end}` : start ? `${start} 出发` : end ? `${end} 结束` : null;
+  const start = dayLabel(dates.startDate, today, words);
+  const end = dayLabel(dates.endDate, today, words);
+  const length = lengthLabel(dates.duration, words);
+  const span = start && end ? `${start} → ${end}` : start ? words.from(start) : end ? words.until(end) : null;
   const text = [span, length].filter(Boolean).join(" · ") || "—";
   const certainty = [dates.startDate, dates.endDate, dates.duration]
     .map((field) => field.state)

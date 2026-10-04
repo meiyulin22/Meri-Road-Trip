@@ -16,6 +16,7 @@ import type { SelectedPlaceImage } from "@/capabilities/destination/place-images
 import type { DestinationField } from "@/domain/trip-state/trip-state";
 
 import { JourneyGlobe } from "./journey-globe";
+import { useMessages } from "@/components/i18n/locale-context";
 import styles from "./trip-workspace.module.css";
 
 /*
@@ -42,6 +43,7 @@ export function JourneyOrbit({
   readonly destination: DestinationField;
   readonly photos: readonly SelectedPlaceImage[];
 }) {
+  const orbitLabel = useMessages().orbit.photos;
   const reduceMotion = useReducedMotion();
   // The ring's turn so far; each photo adds its own fixed offset round the circle.
   const turn = useMotionValue(0);
@@ -69,7 +71,7 @@ export function JourneyOrbit({
         <JourneyGlobe destination={destination} />
       </div>
       {photos.length > 0 ? (
-        <ul aria-label="已选地点的照片" className={styles.orbitPhotos}>
+        <ul aria-label={orbitLabel} className={styles.orbitPhotos}>
           {photos.map((photo, index) => (
             <OrbitPhoto
               key={photo.key}

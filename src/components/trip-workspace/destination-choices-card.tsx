@@ -10,6 +10,8 @@ import type { DestinationChoicesPresentation } from "@/domain/trip-message/trip-
 import { groupDestinationChoices } from "@/domain/trip-message/destination-choice-identity";
 import { destinationContains, type DestinationArea } from "@/domain/trip-state/destination-areas";
 
+import { useMessages } from "@/components/i18n/locale-context";
+
 import { AnimatedCheckbox } from "../ui/animated-checkbox";
 import { Skeleton } from "../ui/skeleton";
 import styles from "./destination-recommendation-picker.module.css";
@@ -24,6 +26,7 @@ export function DestinationChoicesCard({ presentation, areas, active, pending, e
   /** Places whose photo is still being looked up: they pulse instead of showing the pin. */
   readonly photoPendingIds?: readonly string[];
 }) {
+  const text = useMessages().cards;
   const [picked, setPicked] = useState<readonly string[]>([]);
   const rows = groupDestinationChoices(presentation.choices);
   function isAdded(choice: DestinationChoicesPresentation["choices"][number]): boolean {
@@ -46,7 +49,7 @@ export function DestinationChoicesCard({ presentation, areas, active, pending, e
     if (!active || pending) return;
     setPicked((current) => current.includes(choiceId) ? current.filter((id) => id !== choiceId) : [...current, choiceId]);
   }
-  return <section aria-label="可添加的目的地" className={styles.picker}>
+  return <section aria-label={text.label} className={styles.picker}>
     {[...groups].map(([province, choices]) => <ProvinceRow key={province} province={province}>
       {choices.map((choice) => {
         const selected = isAdded(choice);
@@ -67,12 +70,12 @@ export function DestinationChoicesCard({ presentation, areas, active, pending, e
       })}
     </ProvinceRow>)}
     <div className={styles.commit}>
-      <span>{!active ? "历史选项，仅供查看" : selectedRows.length ? `已选 ${selectedRows.length} 个` : "可以一次选择多个城市"}</span>
+      <span>{!active ? text.viewOnly : selectedRows.length ? text.picked(selectedRows.length) : text.pickSeveral}</span>
       <button type="button" disabled={!active || pending || selectedIds.length === 0} onClick={() => { if (active && !pending && selectedIds.length) onCommit(selectedIds); }}>
-        {pending ? "保存中…" : presentation.mode === "replace" ? "替换为所选目的地" : "添加所选"}
+        {pending ? text.saving : presentation.mode === "replace" ? text.replace : text.add}
       </button>
     </div>
-    {error && active ? <p className={styles.error} role="alert">保存失败，请重试。</p> : null}
+    {error && active ? <p className={styles.error} role="alert">{text.saveFailed}</p> : null}
   </section>;
 }
 
@@ -81,6 +84,7 @@ export function DestinationChoicesCard({ presentation, areas, active, pending, e
  * run several screens tall stacked, and a row keeps every province's heading in view.
  */
 function ProvinceRow({ province, children }: { readonly province: string; readonly children: ReactNode }) {
+  const text = useMessages().cards;
   const reduceMotion = useReducedMotion();
   const [viewportRef, emblaApi] = useEmblaCarousel({ align: "start", containScroll: "trimSnaps", dragFree: true });
   const [edges, setEdges] = useState({ canScrollPrev: false, canScrollNext: false });
@@ -128,10 +132,10 @@ function ProvinceRow({ province, children }: { readonly province: string; readon
     <div className={styles.groupHeading}>
       <h3>{province}</h3>
       {edges.canScrollPrev || edges.canScrollNext ? <span className={styles.rowArrows}>
-        <button aria-label={`${province}：上一组`} disabled={!edges.canScrollPrev} onClick={() => emblaApi?.scrollPrev(Boolean(reduceMotion))} type="button">
+        <button aria-label={text.previous(province)} disabled={!edges.canScrollPrev} onClick={() => emblaApi?.scrollPrev(Boolean(reduceMotion))} type="button">
           <ChevronLeft aria-hidden="true" size={16} />
         </button>
-        <button aria-label={`${province}：下一组`} disabled={!edges.canScrollNext} onClick={() => emblaApi?.scrollNext(Boolean(reduceMotion))} type="button">
+        <button aria-label={text.next(province)} disabled={!edges.canScrollNext} onClick={() => emblaApi?.scrollNext(Boolean(reduceMotion))} type="button">
           <ChevronRight aria-hidden="true" size={16} />
         </button>
       </span> : null}
@@ -151,6 +155,7 @@ function PlaceCard({ choice, checked, disabled, inJourney, onToggle, photoPendin
   readonly onToggle: () => void;
   readonly photoPending: boolean;
 }) {
+  const text = useMessages().cards;
   const [imageFailed, setImageFailed] = useState(false);
   const [loadedUrl, setLoadedUrl] = useState<string | null>(null);
   const image = imageFailed ? undefined : choice.image;
@@ -169,15 +174,15 @@ function PlaceCard({ choice, checked, disabled, inJourney, onToggle, photoPendin
       <span className={styles.placeCheck}>
         <AnimatedCheckbox checked={checked} disabled={disabled} onChange={onToggle} />
       </span>
-      {inJourney ? <span className={styles.inJourneyBadge}>已在行程</span> : null}
+      {inJourney ? <span className={styles.inJourneyBadge}>{text.inJourney}</span> : null}
       {image && !waiting ? <span className={styles.placeCaption}>{image.caption}</span> : null}
     </span>
     <span className={styles.placeBody}>
       <span className={styles.name}>{choice.city ?? choice.name}</span>
-      {choice.spot ? <small className={styles.choiceRegion}>想去：{choice.spot}（具体位置将在规划时确认）</small> : null}
+      {choice.spot ? <small className={styles.choiceRegion}>{text.wantToGo(choice.spot)}</small> : null}
       {!choice.city && choice.detail ? <small className={styles.choiceRegion}>{choice.detail}</small> : null}
       {choice.reason ? <span className={styles.reason}>{choice.reason}</span> : null}
-      {choice.legacyUnverified ? <span className={styles.choiceStatus}>请重新搜索</span> : null}
+      {choice.legacyUnverified ? <span className={styles.choiceStatus}>{text.searchAgain}</span> : null}
     </span>
   </label>;
 }

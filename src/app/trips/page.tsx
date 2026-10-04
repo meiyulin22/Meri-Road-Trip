@@ -7,25 +7,30 @@ import { cookies } from "next/headers";
 import type { JourneySummary } from "@/platform/persistence/journey-summary-repository";
 import { journeySummaryRepository } from "@/capabilities/journey/journey-summary-repository-instance";
 import { loadMyJourneys } from "@/capabilities/journey/my-journeys";
+import { messages, type Messages } from "@/components/i18n/messages";
+import { requestLocale } from "@/platform/locale/request-locale";
 
 import { JourneyDeleteAction } from "./journey-delete-action";
 import styles from "./trips.module.css";
 
-export const metadata: Metadata = {
-  title: "My Journeys | Meri",
-};
+export async function generateMetadata(): Promise<Metadata> {
+  return { title: messages[await requestLocale()].journeys.pageTitle };
+}
+
+type JourneysText = Messages["journeys"];
 
 export const dynamic = "force-dynamic";
 
 export default async function MyJourneysPage() {
   const journeys = await loadMyJourneys(await cookies(), journeySummaryRepository);
+  const text = messages[await requestLocale()];
 
   return (
     <main className={styles.page}>
       <div className={styles.backdrop} aria-hidden="true" />
       <div className={styles.shell}>
         <header className={styles.header}>
-          <Link aria-label="Meri home" className={styles.brand} href="/">
+          <Link aria-label={text.workspace.homeLabel} className={styles.brand} href="/">
             <Image
               alt="Meri"
               height={329}
@@ -37,29 +42,28 @@ export default async function MyJourneysPage() {
           <div className={styles.headerActions}>
             <Link className={styles.homeLink} href="/">
               <ArrowLeft aria-hidden="true" size={17} />
-              <span>Home</span>
+              <span>{text.journeys.home}</span>
             </Link>
             <Link className={styles.newJourney} href="/#new-trip">
               <Plus aria-hidden="true" size={18} />
-              <span>New Journey</span>
+              <span>{text.journeys.newJourney}</span>
             </Link>
           </div>
         </header>
 
         <section className={styles.content} aria-labelledby="journeys-title">
-          <p className={styles.eyebrow}>Continue exploring</p>
-          <h1 id="journeys-title">My Journeys</h1>
+          <p className={styles.eyebrow}>{text.journeys.eyebrow}</p>
+          <h1 id="journeys-title">{text.journeys.title}</h1>
           <p className={styles.introduction}>
-            Return to a saved Journey and continue from the state Meri already
-            knows.
+            {text.journeys.introduction}
           </p>
 
           {journeys.length === 0 ? (
-            <EmptyState />
+            <EmptyState text={text.journeys} />
           ) : (
             <ul className={styles.journeyList}>
               {journeys.map((journey) => (
-                <JourneyCard journey={journey} key={journey.id} />
+                <JourneyCard journey={journey} key={journey.id} text={text.journeys} />
               ))}
             </ul>
           )}
@@ -69,17 +73,17 @@ export default async function MyJourneysPage() {
   );
 }
 
-function JourneyCard({ journey }: { readonly journey: JourneySummary }) {
+function JourneyCard({ journey, text }: { readonly journey: JourneySummary; readonly text: JourneysText }) {
   return (
     <li className={styles.cardItem}>
       <Link
-        aria-label={`Continue ${journey.name}`}
+        aria-label={text.continue(journey.name)}
         className={styles.journeyCard}
         href={`/trips/${encodeURIComponent(journey.id)}`}
       >
         <div className={styles.cardHeading}>
           <div>
-            <span className={styles.status}>{journey.status}</span>
+            <span className={styles.status}>{text.status[journey.status]}</span>
             <h2>{journey.name}</h2>
           </div>
           <ArrowRight aria-hidden="true" size={22} />
@@ -89,21 +93,21 @@ function JourneyCard({ journey }: { readonly journey: JourneySummary }) {
           <div>
             <dt>
               <MapPin aria-hidden="true" size={16} />
-              Destination
+              {text.destination}
             </dt>
-            <dd>{journey.destination ?? "Not decided yet"}</dd>
+            <dd>{journey.destination ?? text.notDecided}</dd>
           </div>
           <div>
             <dt>
               <CalendarDays aria-hidden="true" size={16} />
-              Dates
+              {text.dates}
             </dt>
-            <dd>{formatDateRange(journey)}</dd>
+            <dd>{formatDateRange(journey, text)}</dd>
           </div>
         </dl>
 
         <p className={styles.updatedAt}>
-          Updated <time dateTime={journey.updatedAt}>{formatUpdatedAt(journey.updatedAt)}</time>
+          {text.updated} <time dateTime={journey.updatedAt}>{text.updatedAt(new Date(journey.updatedAt))}</time>
         </p>
       </Link>
       <JourneyDeleteAction name={journey.name} tripId={journey.id} />
@@ -111,7 +115,7 @@ function JourneyCard({ journey }: { readonly journey: JourneySummary }) {
   );
 }
 
-function EmptyState() {
+function EmptyState({ text }: { readonly text: JourneysText }) {
   return (
     <section className={styles.emptyState} aria-labelledby="empty-title">
       <Image
@@ -121,18 +125,17 @@ function EmptyState() {
         width={1024}
       />
       <div>
-        <h2 id="empty-title">No saved Journeys yet</h2>
+        <h2 id="empty-title">{text.emptyTitle}</h2>
         <p>
-          Start with a destination, a season, or just the feeling that you want
-          to go somewhere.
+          {text.emptyText}
         </p>
-        <Link href="/#new-trip">Create your first Journey</Link>
+        <Link href="/#new-trip">{text.createFirst}</Link>
       </div>
     </section>
   );
 }
 
-function formatDateRange(journey: JourneySummary): string {
+function formatDateRange(journey: JourneySummary, text: JourneysText): string {
   if (journey.startDate && journey.endDate) {
     return journey.startDate === journey.endDate
       ? journey.startDate
@@ -140,21 +143,12 @@ function formatDateRange(journey: JourneySummary): string {
   }
 
   if (journey.startDate) {
-    return `From ${journey.startDate}`;
+    return text.from(journey.startDate);
   }
 
   if (journey.endDate) {
-    return `Until ${journey.endDate}`;
+    return text.until(journey.endDate);
   }
 
-  return "Flexible";
-}
-
-function formatUpdatedAt(value: string): string {
-  return new Intl.DateTimeFormat("en-US", {
-    day: "numeric",
-    month: "short",
-    timeZone: "UTC",
-    year: "numeric",
-  }).format(new Date(value));
+  return text.flexible;
 }

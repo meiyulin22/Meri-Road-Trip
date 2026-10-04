@@ -1,15 +1,10 @@
 import { Check } from "lucide-react";
 
+import { useMessages } from "@/components/i18n/locale-context";
+
 import styles from "./trip-workspace.module.css";
 
 export type FieldCertainty = "known" | "approximate" | "ambiguous" | "missing";
-
-export const certaintyLabels: Record<FieldCertainty, string> = {
-  known: "已理解",
-  approximate: "大致范围",
-  ambiguous: "需要确认",
-  missing: "暂未确定",
-};
 
 /**
  * Each brief row says how sure Meri is, not just whether a value exists: 「下个月」 is
@@ -24,13 +19,20 @@ export function FieldStatusIcon({ state }: { readonly state: FieldCertainty }) {
   );
 }
 
+/** How sure Meri is about a row, in words, beside its label. */
+export function CertaintyLabel({ state }: { readonly state: FieldCertainty }) {
+  const text = useMessages().brief;
+  return <span className={styles.fieldCertainty}>{text.certainty[state]}</span>;
+}
+
 /** The visible word beside a value Meri only roughly understood. Screen readers get the
  * full label from the row heading instead, so this stays hidden from them. */
 export function CertaintyTag({ state }: { readonly state: FieldCertainty }) {
+  const text = useMessages().brief;
   if (state !== "approximate" && state !== "ambiguous") return null;
   return (
     <small aria-hidden="true" className={styles.certaintyTag} data-certainty={state}>
-      {state === "approximate" ? "大致" : "待确认"}
+      {text.certaintyTag[state]}
     </small>
   );
 }

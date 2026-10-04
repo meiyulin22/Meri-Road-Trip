@@ -16,18 +16,20 @@ import { ExpeditionBriefPanel } from "./expedition-brief-panel";
 import { coverPhoto, requestDestinationPhotos } from "./destination-photos-model";
 import { JourneyOrbit } from "./journey-orbit";
 import { WorkspaceHeader } from "./workspace-header";
+import { useMessages } from "@/components/i18n/locale-context";
+
 import styles from "./trip-workspace.module.css";
 
 const sidebarNavigation: Array<{
-  label: string;
+  key: "home" | "trips" | "explore" | "map" | "weather";
   icon: LucideIcon;
   href?: string;
 }> = [
-  { label: "Home", icon: Home, href: "/" },
-  { label: "Trips", icon: Backpack },
-  { label: "Explore", icon: Compass },
-  { label: "Map", icon: Map },
-  { label: "Weather", icon: CloudSun },
+  { key: "home", icon: Home, href: "/" },
+  { key: "trips", icon: Backpack },
+  { key: "explore", icon: Compass },
+  { key: "map", icon: Map },
+  { key: "weather", icon: CloudSun },
 ];
 
 function subscribeToStaticClientState(): () => void {
@@ -119,12 +121,13 @@ export function TripWorkspace({
 
 function WorkspaceSidebar() {
   const dialogRef = useRef<HTMLDialogElement>(null);
+  const text = useMessages();
 
   return (
     <>
       <button
         aria-haspopup="dialog"
-        aria-label="打开 Meri 导航"
+        aria-label={text.nav.open}
         className={styles.sidebarTrigger}
         onClick={() => dialogRef.current?.showModal()}
         type="button"
@@ -132,20 +135,20 @@ function WorkspaceSidebar() {
         <Menu aria-hidden="true" size={19} />
       </button>
       <dialog
-        aria-label="Meri 导航"
+        aria-label={text.nav.label}
         className={styles.sidebar}
         data-region="sidebar"
         ref={dialogRef}
       >
         <button
-          aria-label="关闭 Meri 导航"
+          aria-label={text.nav.close}
           className={styles.sidebarClose}
           onClick={() => dialogRef.current?.close()}
           type="button"
         >
           <X aria-hidden="true" size={18} />
         </button>
-        <Link aria-label="Meri home" className={styles.sidebarBrand} href="/">
+        <Link aria-label={text.workspace.homeLabel} className={styles.sidebarBrand} href="/">
           <Image
             alt=""
             height={500}
@@ -158,21 +161,21 @@ function WorkspaceSidebar() {
 
         <Link className={styles.newJourneyLink} href="/">
           <Plus aria-hidden="true" size={17} />
-          新旅程
+          {text.nav.newJourney}
         </Link>
 
-        <nav className={styles.sidebarNavigation} aria-label="Primary navigation">
-          {sidebarNavigation.map(({ href, icon: Icon, label }) =>
+        <nav className={styles.sidebarNavigation} aria-label={text.nav.primary}>
+          {sidebarNavigation.map(({ href, icon: Icon, key }) =>
             href ? (
-              <Link href={href} key={label}>
+              <Link href={href} key={key}>
                 <Icon aria-hidden="true" size={18} />
-                <span>{label}</span>
+                <span>{text.nav[key]}</span>
               </Link>
             ) : (
-              <span aria-disabled="true" key={label}>
+              <span aria-disabled="true" key={key}>
                 <Icon aria-hidden="true" size={18} />
-                <span>{label}</span>
-                <small>Soon</small>
+                <span>{text.nav[key]}</span>
+                <small>{text.nav.soon}</small>
               </span>
             ),
           )}

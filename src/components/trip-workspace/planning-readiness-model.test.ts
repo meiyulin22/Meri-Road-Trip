@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
+import { messages } from "@/components/i18n/messages";
 import { planningReadinessMessage, requestPlanningReadiness } from "./planning-readiness-model";
 
 test("client request reads the focused endpoint without writing Journey state", async () => {
@@ -23,7 +24,7 @@ test("an empty Journey receives the destination_missing message from the readine
   });
   assert.equal(calls, 1);
   assert.deepEqual(result, { canProceed: false, reason: "destination_missing" });
-  assert.equal(planningReadinessMessage(result), "请先添加目的地。");
+  assert.equal(planningReadinessMessage(result, messages.zh.generatePlan), "请先添加目的地。");
 });
 
 test("client rejects invalid success payloads and failed HTTP responses", async () => {
@@ -32,6 +33,6 @@ test("client rejects invalid success payloads and failed HTTP responses", async 
 });
 
 test("UI messages distinguish selected, missing and old unverified records",()=>{
- assert.match(planningReadinessMessage({canProceed:true,destination:"selected"}),/已选定/);
- for(const reason of ["destination_missing","destination_unverified"] as const)assert.ok(planningReadinessMessage({canProceed:false,reason}));
+ assert.match(planningReadinessMessage({canProceed:true,destination:"selected"}, messages.zh.generatePlan),/已选定/);
+ for(const reason of ["destination_missing","destination_unverified"] as const)assert.ok(planningReadinessMessage({canProceed:false,reason}, messages.en.generatePlan));
 });
