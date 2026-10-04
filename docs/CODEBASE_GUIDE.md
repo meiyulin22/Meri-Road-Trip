@@ -154,7 +154,7 @@ LLM 解释自然语言并提出受限 JSON；应用校验、决定是否执行�
 
 下表按目录分类，每个路径都有独立一行。测试不是运行时业务层；同目录测试主要验证对应层的规则或适配边界，多数使用 mock/内存替身，不据此宣称真实提供方已验证。
 
-本次索引共 294 个文件，其中 70 个测试文件。
+本次索引按路径去重共 318 个文件，其中 82 个测试文件。
 
 ### 6.1 根目录配置与入口
 
@@ -185,6 +185,7 @@ LLM 解释自然语言并提出受限 JSON；应用校验、决定是否执行�
 | [docs/USER_FLOW_CURRENT.md](../docs/USER_FLOW_CURRENT.md) | 文档/开发约定 | 向用户讲解的详细业务材料：入口、模型 JSON、每个操作的 API/代码、状态变化、错误、并发与兼容。 |
 | [docs/product/adaptive-workspace.md](../docs/product/adaptive-workspace.md) | 文档/开发约定 | 精简的未来界面方向：按用户决定调整信息重点，保留状态和受控组件边界，不预选框架。 |
 | [docs/product/companion-bear.md](../docs/product/companion-bear.md) | 文档/开发约定 | 小熊设计说明：营地小桌精灵图方案、动作清单和“反应优先、自由时间随机”的行为逻辑；素材与行为已实现，文中列出仍待定的部分。 |
+| [docs/product/visual-media-direction.md](../docs/product/visual-media-direction.md) | 文档/设计探索 | 保存页面评审与图像、视频、Web3D、分享产物讨论，区分已认可方向、待讨论细节和灵感；记录高德照片的当前展示位置，未在本次实施功能。 |
 
 ### 6.3 App Router 页面与 HTTP 接口
 
@@ -559,7 +560,10 @@ LLM 解释自然语言并提出受限 JSON；应用校验、决定是否执行�
 | [assets/companion/Logo.png](../assets/companion/Logo.png) | 设计/素材制作 | 角色/品牌制作参考图片，不是业务逻辑。 |
 | [assets/companion/LogoSVG-framework.png](../assets/companion/LogoSVG-framework.png) | 设计/素材制作 | 品牌图形制作参考，不是运行时组件。 |
 | [assets/companion/Meri.png](../assets/companion/Meri.png) | 设计/素材制作 | Meri 角色制作参考原图。 |
-| [assets/design/trip-workspace-v0.1-concept.png](../assets/design/trip-workspace-v0.1-concept.png) | 设计/素材制作 | Workspace v0.1 设计参考；不代表当前页面完整实现该概念图。 |
+| [assets/design/visual-media-v1-prompts.json](../assets/design/visual-media-v1-prompts.json) | 设计/素材制作 | 两张视觉效果图的完整生成提示词、输出文件与讨论状态；使用内置图像生成工具。 |
+| [assets/design/home-visual-media-v2.png](../assets/design/home-visual-media-v2.png) | 设计/素材制作 | 当前首页截图引导的局部营地设计稿；保留最新背景和布局，非像素级实现。 |
+| [assets/design/workspace-visual-media-v2.png](../assets/design/workspace-visual-media-v2.png) | 设计/素材制作 | 当前 Workspace 截图引导的纸上营地设计稿；保留实际页面状态，未接入 3D。 |
+| [assets/design/visual-media-v2-prompts.json](../assets/design/visual-media-v2-prompts.json) | 设计/素材制作 | 第二轮截图引导生成的完整提示词、参考素材与未批准状态。 |
 
 ### 6.18 历史目录占位文件
 
