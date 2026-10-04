@@ -4,6 +4,8 @@ import { ArrowUp, LoaderCircle } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useReducer, type FormEvent, type KeyboardEvent } from "react";
 
+import { useMessages } from "@/components/i18n/locale-context";
+
 import styles from "./meri-app-shell.module.css";
 import {
   canSubmitTripDraft,
@@ -14,9 +16,8 @@ import {
   retryOpeningAndNavigate,
 } from "./new-trip-composer-model";
 
-const errorMessage = "Meri 暂时无法理解这段旅行想法。你的输入还在，请稍后重试。";
-
 export function NewTripComposer() {
+  const text = useMessages().home;
   const router = useRouter();
   const [state, dispatch] = useReducer(
     newTripComposerReducer,
@@ -47,7 +48,7 @@ export function NewTripComposer() {
         (tripId) => dispatch({ type: "opening.failed", tripId, draft }),
       );
     } catch {
-      dispatch({ type: "submission.failed", error: errorMessage });
+      dispatch({ type: "submission.failed", error: text.draftFailed });
     }
   }
 
@@ -57,7 +58,7 @@ export function NewTripComposer() {
     try {
       await retryOpeningAndNavigate(state.createdTripId, (path) => router.push(path));
     } catch {
-      dispatch({ type: "opening.retry.failed", error: "Meri 仍暂时无法回复。旅程已经保存，你可以稍后再试或先进入旅程。" });
+      dispatch({ type: "opening.retry.failed", error: text.openingRetryFailed });
     }
   }
 
@@ -75,7 +76,7 @@ export function NewTripComposer() {
   }
 
   return (
-    <section className={styles.composer} id="new-trip" aria-label="Start a Journey">
+    <section className={styles.composer} id="new-trip" aria-label={text.startJourney}>
       <form autoComplete="off" aria-busy={isSubmitting} onSubmit={handleSubmit}>
         <div className={styles.composerInput}>
           <label className={styles.srOnly} htmlFor="trip-idea">
@@ -89,11 +90,11 @@ export function NewTripComposer() {
               dispatch({ type: "message.changed", message: event.target.value })
             }
             onKeyDown={handleTextareaKeyDown}
-            placeholder="Tell Meri anything about your trip..."
+            placeholder={text.composerPlaceholder}
             rows={3}
             value={state.message}
           />
-          <button aria-label="Send trip idea" disabled={!canSubmit} type="submit">
+          <button aria-label={text.sendIdea} disabled={!canSubmit} type="submit">
             {isSubmitting ? (
               <LoaderCircle aria-hidden="true" className={styles.loadingIcon} size={21} />
             ) : (
@@ -104,7 +105,7 @@ export function NewTripComposer() {
 
         {isSubmitting ? (
           <p className={styles.composerStatus} role="status">
-            Meri 正在理解你的想法…
+            {text.understanding}
           </p>
         ) : null}
 
@@ -115,12 +116,12 @@ export function NewTripComposer() {
         ) : null}
         {state.createdTripId ? (
           <div className={styles.composerError} role="status">
-            <p>旅程和你的原始想法已保存。{state.error ?? "Meri 暂时没能完成第一条回复。"}</p>
+            <p>{text.journeySaved}{state.error ?? text.openingMissing}</p>
             <button disabled={isSubmitting} onClick={() => void handleOpeningRetry()} type="button">
-              {isSubmitting ? "正在重试…" : "重试 Meri 回复"}
+              {isSubmitting ? text.retryingOpening : text.retryOpening}
             </button>
             <button onClick={() => router.push(`/trips/${encodeURIComponent(state.createdTripId!)}`)} type="button">
-              先进入旅程
+              {text.openJourneyFirst}
             </button>
           </div>
         ) : null}

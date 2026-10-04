@@ -62,7 +62,9 @@ persistent Journeys. A Trip supplies Journey identity, ownership, and
 lifecycle; TripState stores evolving values. The user can create a
 Journey from natural language, reopen it, continue a Workspace
 conversation, edit state through supported controls, and review the
-saved conversation.
+saved conversation. A 「中 | EN」 toggle on the home page switches the
+interface language; so far only the home page follows it, and the
+Workspace and Meri's replies are still in Chinese.
 
 Current TripState fields are name, origin, destination, start date, end
 date, duration, and transport preference. Ordinary values may be known,

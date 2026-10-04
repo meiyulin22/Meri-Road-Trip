@@ -9,15 +9,28 @@ import {
 } from "geist/font/pixel";
 import "./globals.css";
 
+import { LocaleProvider } from "@/components/i18n/locale-context";
+import { htmlLang } from "@/domain/locale/locale";
+import { requestLocale } from "@/platform/locale/request-locale";
+
 const geistSans = Geist({
   variable: "--font-geist-sans",
   subsets: ["latin"],
 });
 
-export const metadata: Metadata = {
+const pageText = {
+  en: { title: "Meri — Outdoor intelligence for every trip", description: "Your Personal Outdoor Intelligence Companion" },
+  zh: { title: "Meri — 每一次出行的户外智能伙伴", description: "你的个人户外智能伙伴" },
+} as const;
+
+export async function generateMetadata(): Promise<Metadata> {
+  const text = pageText[await requestLocale()];
+  return { ...sharedMetadata, title: text.title, description: text.description };
+}
+
+/** Everything the page head carries in either language. */
+const sharedMetadata: Metadata = {
   applicationName: "Meri",
-  title: "Meri — Outdoor intelligence for every trip",
-  description: "Your Personal Outdoor Intelligence Companion",
   manifest: "/manifest.webmanifest",
   icons: {
     icon: [{ url: "/brand/meri-favicon.svg", type: "image/svg+xml" }],
@@ -41,13 +54,16 @@ export const viewport: Viewport = {
   viewportFit: "cover",
 };
 
-export default function RootLayout({ children }: LayoutProps<"/">) {
+export default async function RootLayout({ children }: LayoutProps<"/">) {
+  const locale = await requestLocale();
   return (
     <html
-      lang="en"
+      lang={htmlLang(locale)}
       className={`${geistSans.variable} ${GeistPixelSquare.variable} ${GeistPixelGrid.variable} ${GeistPixelCircle.variable} ${GeistPixelTriangle.variable} ${GeistPixelLine.variable}`}
     >
-      <body>{children}</body>
+      <body>
+        <LocaleProvider locale={locale}>{children}</LocaleProvider>
+      </body>
     </html>
   );
 }

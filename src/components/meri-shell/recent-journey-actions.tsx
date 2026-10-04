@@ -3,6 +3,7 @@
 import { MoreHorizontal } from "lucide-react";
 import { useRef, useState } from "react";
 
+import { useMessages } from "@/components/i18n/locale-context";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/animated-popover";
 
 import { requestRecentJourneyDeletionOnce } from "./recent-journey-deletion";
@@ -17,6 +18,7 @@ export function RecentJourneyActions({
   readonly onDeleted: (tripId: string) => void;
   readonly tripId: string;
 }) {
+  const text = useMessages().recentJourneys;
   const [menuOpen, setMenuOpen] = useState(false);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -40,7 +42,7 @@ export function RecentJourneyActions({
       dialogRef.current?.close();
       onDeleted(tripId);
     } catch {
-      setError("Could not delete this Journey. Please try again.");
+      setError(text.deleteFailed);
     } finally {
       setPending(false);
     }
@@ -50,7 +52,7 @@ export function RecentJourneyActions({
     <>
       <Popover open={menuOpen} onOpenChange={setMenuOpen}>
         <PopoverTrigger asChild>
-          <button aria-label="Journey actions" className={styles.actionsTrigger} ref={triggerRef} type="button">
+          <button aria-label={text.actions} className={styles.actionsTrigger} ref={triggerRef} type="button">
             <MoreHorizontal aria-hidden="true" size={20} strokeWidth={2} />
           </button>
         </PopoverTrigger>
@@ -64,7 +66,7 @@ export function RecentJourneyActions({
           sideOffset={6}
         >
           <button className={styles.menuDelete} onClick={openConfirmation} type="button">
-            Delete Journey
+            {text.deleteMenu}
           </button>
         </PopoverContent>
       </Popover>
@@ -81,9 +83,9 @@ export function RecentJourneyActions({
         }}
         ref={dialogRef}
       >
-        <h2 id={`delete-journey-title-${tripId}`}>Delete “{name}”?</h2>
+        <h2 id={`delete-journey-title-${tripId}`}>{text.deleteTitle(name)}</h2>
         <p id={`delete-journey-description-${tripId}`}>
-          This journey and its conversation will be permanently deleted.
+          {text.deleteDescription}
         </p>
         {error ? <p className={styles.deleteError} role="alert">{error}</p> : null}
         <div className={styles.deleteActions}>
@@ -94,7 +96,7 @@ export function RecentJourneyActions({
             onClick={() => dialogRef.current?.close()}
             type="button"
           >
-            Cancel
+            {text.cancel}
           </button>
           <button
             className={styles.confirmDelete}
@@ -102,7 +104,7 @@ export function RecentJourneyActions({
             onClick={() => void confirmDelete()}
             type="button"
           >
-            {pending ? "Deleting…" : "Delete"}
+            {pending ? text.deleting : text.confirmDelete}
           </button>
         </div>
       </dialog>

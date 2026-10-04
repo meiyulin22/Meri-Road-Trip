@@ -6,6 +6,8 @@ import { useReducedMotion } from "motion/react";
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState, type MouseEvent, type PointerEvent } from "react";
 
+import { useMessages } from "@/components/i18n/locale-context";
+import type { Messages } from "@/components/i18n/messages";
 import type { JourneySummary } from "@/platform/persistence/journey-summary-repository";
 
 import {
@@ -22,6 +24,7 @@ type RecentJourneysProps = {
 };
 
 export function RecentJourneys({ journeys }: RecentJourneysProps) {
+  const text = useMessages().recentJourneys;
   const [deletedIds, setDeletedIds] = useState<readonly string[]>([]);
   const visibleJourneys = visibleRecentJourneys(journeys, deletedIds);
 
@@ -36,7 +39,7 @@ export function RecentJourneys({ journeys }: RecentJourneysProps) {
   return (
     <section aria-labelledby="recent-journeys-title" className={styles.section} data-region="recent-journeys">
       <div className={styles.headingRow}>
-        <h2 id="recent-journeys-title">Continue exploring</h2>
+        <h2 id="recent-journeys-title">{text.title}</h2>
       </div>
       {visibleJourneys.length === 1 ? (
         <div className={styles.single}>
@@ -53,6 +56,7 @@ function JourneyCarousel({
   journeys,
   onDeleted,
 }: RecentJourneysProps & { readonly onDeleted: (tripId: string) => void }) {
+  const text = useMessages().recentJourneys;
   const reduceMotion = useReducedMotion();
   const [viewportRef, emblaApi] = useEmblaCarousel({
     align: "center",
@@ -105,7 +109,7 @@ function JourneyCarousel({
     <>
       <div className={styles.carouselRow}>
         <button
-          aria-label="Previous journey"
+          aria-label={text.previous}
           className={styles.arrow}
           disabled={!canScrollPrev}
           onClick={() => emblaApi?.scrollPrev(Boolean(reduceMotion))}
@@ -139,7 +143,7 @@ function JourneyCarousel({
           </ul>
         </div>
         <button
-          aria-label="Next journey"
+          aria-label={text.next}
           className={styles.arrow}
           disabled={!canScrollNext}
           onClick={() => emblaApi?.scrollNext(Boolean(reduceMotion))}
@@ -168,10 +172,11 @@ function JourneyCard({
   onClick?: (event: MouseEvent<HTMLAnchorElement>) => void;
   onDeleted: (tripId: string) => void;
 }) {
+  const text = useMessages().recentJourneys;
   return (
     <div className={styles.cardShell}>
       <Link
-        aria-label={`${isActive ? "Open" : "Select"} ${journey.name}`}
+        aria-label={isActive ? text.open(journey.name) : text.select(journey.name)}
         className={styles.card}
         href={`/trips/${encodeURIComponent(journey.id)}`}
         onClick={onClick}
@@ -181,9 +186,9 @@ function JourneyCard({
           <span className={styles.coverRidge} />
         </div>
         <div className={styles.cardDetails}>
-          <span className={styles.destination}>{journey.destination ?? "Destination not set"}</span>
+          <span className={styles.destination}>{journey.destination ?? text.destinationNotSet}</span>
           <span className={styles.name}>{journey.name}</span>
-          <span className={styles.dates}>{formatDateRange(journey)}</span>
+          <span className={styles.dates}>{formatDateRange(journey, text)}</span>
         </div>
       </Link>
       <RecentJourneyActions name={journey.name} onDeleted={onDeleted} tripId={journey.id} />
@@ -200,11 +205,12 @@ function JourneyPagination({
   onSelect: (index: number) => void;
   selectedIndex: number;
 }) {
+  const text = useMessages().recentJourneys;
   return (
-    <div aria-label="Choose a recent journey" className={styles.pagination} role="group">
+    <div aria-label={text.choose} className={styles.pagination} role="group">
       {Array.from({ length: count }, (_, index) => (
         <button
-          aria-label={`Go to journey ${index + 1} of ${count}`}
+          aria-label={text.goTo(index + 1, count)}
           aria-current={index === selectedIndex ? "true" : undefined}
           className={styles.pageButton}
           key={index}
@@ -218,13 +224,13 @@ function JourneyPagination({
   );
 }
 
-function formatDateRange(journey: JourneySummary): string {
+function formatDateRange(journey: JourneySummary, text: Messages["recentJourneys"]): string {
   if (journey.startDate && journey.endDate) {
     return journey.startDate === journey.endDate
       ? journey.startDate
       : `${journey.startDate} — ${journey.endDate}`;
   }
-  if (journey.startDate) return `From ${journey.startDate}`;
-  if (journey.endDate) return `Until ${journey.endDate}`;
-  return "Flexible dates";
+  if (journey.startDate) return text.from(journey.startDate);
+  if (journey.endDate) return text.until(journey.endDate);
+  return text.flexibleDates;
 }

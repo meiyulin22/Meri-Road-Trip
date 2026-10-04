@@ -6,6 +6,8 @@
   --line: rgba(23, 53, 44, 0.14);
   --accent: #c95f3d;
   --accent-dark: #a8472d;
+  /* Chinese in the system's own sans: 苹方 on Apple, 思源黑体 on Android/Linux, 雅黑 on Windows. */
+  --font-cjk-sans: "PingFang SC", "Noto Sans SC", "Source Han Sans SC", "Microsoft YaHei", sans-serif;
 }
 
 * {

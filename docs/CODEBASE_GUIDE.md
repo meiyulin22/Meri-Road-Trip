@@ -37,6 +37,7 @@
 | `src/app/trips/` | Journey 列表、Workspace 页面和删除入口 | 页面层，含服务端读取与客户端操作组件 |
 | `src/components/` | React UI 和前端请求/展示模型 | 表现层（presentation layer） |
 | `src/components/meri-shell/` | 首页外壳、创建输入、最近旅程 | 首页表现层 |
+| `src/components/i18n/` | 界面文字的中英字典和把当前语言交给客户端组件的 Provider | 表现层 |
 | `src/components/companion/` | 小熊：一句话规则、行为规则、精灵图播放器和帧清单 | Companion 表现层 |
 | `src/components/trip-workspace/` | 聊天、右侧字段编辑、目的地卡、状态同步、准备度按钮 | Workspace 表现层 |
 | `src/components/ui/` | 已使用的基础 UI：动画 Popover、动画复选框、像素标题、骨架占位块 | UI 基础组件 |
@@ -46,6 +47,7 @@
 | `src/domain/trip-draft/` | 首页自然语言提取的草稿契约 | 输入领域模型 |
 | `src/domain/trip-message/` | 持久化消息、支持的 presentation、选择项偏好身份 | 会话领域模型 |
 | `src/domain/location/` | 地点候选、建议、合理匹配规则和推荐校验 | 地点领域模型及纯规则 |
+| `src/domain/locale/` | 支持的语言（zh/en）与 `<html lang>` 取值 | 领域层基础类型 |
 | `src/capabilities/` | 围绕具体能力组织服务、用例、prompt 和流程编排 | 应用层（application layer），回答“完成一个操作需要哪些步骤” |
 | `src/capabilities/journey/` | 创建、加载、更新、删除 Journey 和草稿提取 | Journey 应用用例 |
 | `src/capabilities/conversation/` | 模型解释、开场、历史上下文和消息保存 | 对话应用用例 |
@@ -62,6 +64,7 @@
 | `src/platform/persistence/in-memory/` | 内存 repository，用于测试替身 | 持久化测试适配器 |
 | `src/platform/persistence/database/` | Neon/Drizzle 连接与 schema | 数据库连接及表结构 |
 | `src/platform/identity/` | guest cookie 创建和读取 | 访客身份基础设施 |
+| `src/platform/locale/` | 语言 cookie 的读写规则与按请求取语言（cookie → Accept-Language） | 访客偏好基础设施 |
 | `src/platform/observability/` | 结构化日志、错误序列化及脱敏 | 可观测性基础设施 |
 
 “业务层”容易同时指两层：`domain` 定义规则，`capabilities` 编排用例。“数据调用层”最好具体说成持久化适配器、地图适配器或模型适配器；数据库、HTTP 提供方和 LLM 是不同边界。
@@ -160,6 +163,7 @@ LLM 解释自然语言并提出受限 JSON；应用校验、决定是否执行�
 | [.env.example](../.env.example) | 工程配置 | 服务端环境变量模板，提供数据库、Kimi、高德、Bocha、时区和日志配置示例；不放真实密钥。 |
 | [.gitignore](../.gitignore) | 工程配置 | 忽略依赖、构建结果、环境密钥、日志和 TypeScript 生成文件。 |
 | [AGENTS.md](../AGENTS.md) | 文档/开发约定 | 所有 AI 的共同入口：必读文档、Git 修改保护、当前业务边界及 Next.js 本地指南要求。 |
+| [.claude/launch.json](../.claude/launch.json) | 开发工具配置 | Claude 浏览器预览面板启动 `npm run dev`（端口 3000）的配置，不影响应用运行。 |
 | [CLAUDE.md](../CLAUDE.md) | 文档/开发约定 | Claude 入口，以 @AGENTS.md 引用共用规则，补充导航链接，避免复制规则。 |
 | [README.md](../README.md) | 文档/开发约定 | 本地运行、环境变量、检查命令、架构入口和部署说明。 |
 | [drizzle.config.ts](../drizzle.config.ts) | 工程配置 | 加载本地环境，指定 PostgreSQL schema 和迁移目录，检查 DATABASE_URL。 |
@@ -202,7 +206,7 @@ LLM 解释自然语言并提出受限 JSON；应用校验、决定是否执行�
 | [src/app/api/trips/[id]/route.ts](../src/app/api/trips/%5Bid%5D/route.ts) | HTTP 接口层 | DELETE /api/trips/[id] 只删除当前访客拥有的 Trip，数据库级联清理状态和消息。 |
 | [src/app/api/trips/[id]/state/route.ts](../src/app/api/trips/%5Bid%5D/state/route.ts) | HTTP 接口层 | GET 状态/PATCH 领域校验后的 patch；调用 JourneyService，不自行做高德核验，冲突错误当前未单独映射 409。 |
 | [src/app/globals.css](../src/app/globals.css) | 页面/框架入口 | 全站基础样式与通用视觉变量。 |
-| [src/app/layout.tsx](../src/app/layout.tsx) | 页面/框架入口 | 根布局、字体、全局样式及站点 metadata/图标。 |
+| [src/app/layout.tsx](../src/app/layout.tsx) | 页面/框架入口 | 根布局、字体、全局样式及站点 metadata/图标；按访客语言设置 `<html lang>`、标题/描述，并包上 LocaleProvider。 |
 | [src/app/manifest.ts](../src/app/manifest.ts) | 页面/框架入口 | PWA Web App Manifest，声明名称、启动地址、显示方式和图标；不提供离线缓存。 |
 | [src/app/page.tsx](../src/app/page.tsx) | 页面/框架入口 | 首页 / 的服务端页面入口，渲染 MeriAppShell。 |
 | [src/app/trips/[id]/error.tsx](../src/app/trips/%5Bid%5D/error.tsx) | 页面/框架入口 | Workspace 页面错误边界，提供失败提示和重试入口。 |
@@ -218,7 +222,7 @@ LLM 解释自然语言并提出受限 JSON；应用校验、决定是否执行�
 | --- | --- | --- |
 | [src/components/meri-shell/home-entrance.tsx](../src/components/meri-shell/home-entrance.tsx) | 表现层 | Motion 首页分区入场动画，支持减少动态效果偏好；不是背景水彩显露动画。 |
 | [src/components/meri-shell/meri-app-shell.module.css](../src/components/meri-shell/meri-app-shell.module.css) | 表现层 | 首页背景、品牌、输入区、角色、布局及响应式样式。 |
-| [src/components/meri-shell/meri-app-shell.tsx](../src/components/meri-shell/meri-app-shell.tsx) | 表现层 | 首页服务端外壳，读取最近旅程，组合品牌、标题、输入、角色和 HomeEntrance。 |
+| [src/components/meri-shell/meri-app-shell.tsx](../src/components/meri-shell/meri-app-shell.tsx) | 表现层 | 首页服务端外壳，读取最近旅程和访客语言，组合 Profile、语言切换、品牌、标题（英文像素字体，中文用系统字体的普通 h1）、输入、角色和 HomeEntrance。 |
 | [src/components/meri-shell/new-trip-composer-model.test.ts](../src/components/meri-shell/new-trip-composer-model.test.ts) | 测试（对应模块边界） | 验证空输入、提取/创建失败、保留输入、真实 Trip ID 导航及重试不重复创建。 |
 | [src/components/meri-shell/new-trip-composer-model.ts](../src/components/meri-shell/new-trip-composer-model.ts) | 表现层 | 首页 reducer 与请求模型：提取草稿、创建 Journey、处理 opening_failed 和导航。 |
 | [src/components/meri-shell/new-trip-composer.tsx](../src/components/meri-shell/new-trip-composer.tsx) | 表现层 | 首页客户端输入组件，绑定阶段、错误、创建导航和 opening 重试操作。 |
@@ -230,6 +234,8 @@ LLM 解释自然语言并提出受限 JSON；应用校验、决定是否执行�
 | [src/components/meri-shell/recent-journeys-model.ts](../src/components/meri-shell/recent-journeys-model.ts) | 表现层 | 纯前端规则：最近列表、可见数量、循环资格、箭头状态及点击导航边界。 |
 | [src/components/meri-shell/recent-journeys.module.css](../src/components/meri-shell/recent-journeys.module.css) | 表现层 | 最近旅程卡片、轮播箭头及操作样式。 |
 | [src/components/meri-shell/recent-journeys.tsx](../src/components/meri-shell/recent-journeys.tsx) | 表现层 | 最近旅程 React 组件，呈现 Embla 轮播、导航和删除后的列表更新。 |
+| [src/components/i18n/messages.ts](../src/components/i18n/messages.ts) | 表现层 | 界面文字中英字典（目前为首页与最近旅程），英文定结构、中文类型上必须对应，带参数的句子为函数。 |
+| [src/components/i18n/locale-context.tsx](../src/components/i18n/locale-context.tsx) | 表现层 | LocaleProvider 与 useLocale/useMessages；Provider 之外默认英文（仅测试中出现）。 |
 
 ### 6.5 Workspace 表现层
 
@@ -292,6 +298,9 @@ LLM 解释自然语言并提出受限 JSON；应用校验、决定是否执行�
 | [src/components/ui/animated-checkbox.tsx](../src/components/ui/animated-checkbox.tsx) | 表现层 | 保留原生 checkbox 语义的复选框，Motion 绘制对勾；用于两个目的地多选卡。 |
 | [src/components/ui/pixel-heading-character.module.css](../src/components/ui/pixel-heading-character.module.css) | 表现层 | 像素标题字符布局、字体和动画相关样式。 |
 | [src/components/ui/pixel-heading-character.tsx](../src/components/ui/pixel-heading-character.tsx) | 表现层 | 像素字符标题组件，处理字体/字符动画模式和减少动态效果。 |
+| [src/components/ui/language-toggle.module.css](../src/components/ui/language-toggle.module.css) | 表现层 | 语言切换的胶囊样式，尺寸配色与首页 Profile 一致，当前语言高亮。 |
+| [src/components/ui/language-toggle.tsx](../src/components/ui/language-toggle.tsx) | 表现层 | 「中 \| EN」切换：每种语言用自己的文字命名，点击写 `meri_locale` cookie 并刷新页面。 |
+| [src/components/ui/language-toggle.test.tsx](../src/components/ui/language-toggle.test.tsx) | 测试（对应模块边界） | 验证两种语言的名称、lang 属性和当前语言的按下状态。 |
 | [src/components/ui/skeleton.module.css](../src/components/ui/skeleton.module.css) | 表现层 | 骨架块底色与呼吸闪烁动画，减少动态效果时静止。 |
 | [src/components/ui/skeleton.tsx](../src/components/ui/skeleton.tsx) | 表现层 | 仿 shadcn/ui Skeleton 的占位块（CSS Modules，无 Tailwind），用于推荐卡照片到达前。 |
 
@@ -307,6 +316,7 @@ LLM 解释自然语言并提出受限 JSON；应用校验、决定是否执行�
 | [src/domain/location/location-suggestion.ts](../src/domain/location/location-suggestion.ts) | 领域层 | 输入建议 LocationSuggestion 类型，包含可能缺失的身份/坐标，与最终目的地确认分开；本文件不执行校验。 |
 | [src/domain/location/location.ts](../src/domain/location/location.ts) | 领域层 | 规范化 LocationCandidate，包含提供方身份、行政归属、地址和坐标。 |
 | [src/domain/location/place-image.ts](../src/domain/location/place-image.ts) | 领域层 | 地点照片类型（https 链接 + 说明文字）与读取校验，不合法时视为没有照片。 |
+| [src/domain/locale/locale.ts](../src/domain/locale/locale.ts) | 领域层 | 支持的语言 zh/en、合法性判断及 `<html lang>` 取值。 |
 | [src/domain/location/recommendation-identity.test.ts](../src/domain/location/recommendation-identity.test.ts) | 测试（对应模块边界） | 验证等价名称归一化，保留不同山峰/路线/相似地名的独立性。 |
 | [src/domain/location/recommendation-identity.ts](../src/domain/location/recommendation-identity.ts) | 领域层 | 推荐名和地区名标准化，处理空白、全角及受支持后缀，不做地点网络核验。 |
 | [src/domain/trip-draft/trip-draft.test.ts](../src/domain/trip-draft/trip-draft.test.ts) | 测试（对应模块边界） | 验证近似时间原话、不完整草稿、出发地/交通及目的地 edit 的合法性。 |
@@ -427,6 +437,9 @@ LLM 解释自然语言并提出受限 JSON；应用校验、决定是否执行�
 | --- | --- | --- |
 | [src/platform/identity/guest-identity.test.ts](../src/platform/identity/guest-identity.test.ts) | 测试（对应模块边界） | 验证既有 UUID 复用、缺失/非法 cookie 创建及 cookie 配置。 |
 | [src/platform/identity/guest-identity.ts](../src/platform/identity/guest-identity.ts) | 基础设施端口/适配器 | 读取/验证 meri_guest_id cookie，必要时生成访客 UUID 和安全 cookie 配置。 |
+| [src/platform/locale/locale-preference.ts](../src/platform/locale/locale-preference.ts) | 基础设施端口/适配器 | `meri_locale` cookie 名、按 Accept-Language 排序取中/英、读取偏好与写 cookie 的字符串；无服务端依赖，切换按钮共用。 |
+| [src/platform/locale/locale-preference.test.ts](../src/platform/locale/locale-preference.test.ts) | 测试（对应模块边界） | 验证浏览器语言排序与权重、cookie 优先且坏值被忽略、cookie 字符串。 |
+| [src/platform/locale/request-locale.ts](../src/platform/locale/request-locale.ts) | 基础设施端口/适配器 | 服务端从当前请求的 cookies/headers 取语言。 |
 | [src/platform/llm/ai-sdk-kimi-client.test.ts](../src/platform/llm/ai-sdk-kimi-client.test.ts) | 测试（对应模块边界） | mock 验证 schema/历史转发、旧新 SDK 契约、非法/截断输出、超时/HTTP 错误及配置校验。 |
 | [src/platform/llm/ai-sdk-kimi-client.ts](../src/platform/llm/ai-sdk-kimi-client.ts) | 基础设施端口/适配器 | Kimi 的 Vercel AI SDK 适配器，结构化输出、finish reason/usage 归一化、60 秒超时、零自动重试和日志。 |
 | [src/platform/llm/kimi-client.ts](../src/platform/llm/kimi-client.ts) | 基础设施端口/适配器 | StructuredOutputModelClient 端口及通用模型错误，同时保留旧 OpenAI SDK Kimi 实现；当前应用入口默认 AI SDK 客户端。 |

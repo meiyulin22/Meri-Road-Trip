@@ -31,3 +31,17 @@ test("card navigation and Journey actions are sibling controls", async () => {
   assert.match(markup, />Cancel<\/button>/);
   assert.match(markup, />Delete<\/button>/);
 });
+
+test("in Chinese the cards, dates and delete dialog speak Chinese, and Journey names stay as they are", async () => {
+  const { RecentJourneys } = await import("./recent-journeys");
+  const { LocaleProvider } = await import("@/components/i18n/locale-context");
+  const markup = renderToStaticMarkup(<LocaleProvider locale="zh">
+    <RecentJourneys journeys={[{ ...journey, destination: null, startDate: "2026-11-01" }]} />
+  </LocaleProvider>);
+  assert.match(markup, /继续探索/);
+  assert.match(markup, /目的地未定/);
+  assert.match(markup, /2026-11-01 起/);
+  assert.match(markup, /删除「Dalian」？/);
+  assert.match(markup, /aria-label="旅程操作"/);
+  assert.doesNotMatch(markup, /Continue exploring|Delete/);
+});

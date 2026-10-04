@@ -23,6 +23,7 @@
   display: flex;
   justify-content: flex-end;
   align-items: flex-start;
+  gap: 0.5rem;
 }
 
 .profileButton {
@@ -96,6 +97,16 @@
   line-height: 1.25;
   text-align: center;
   pointer-events: none;
+}
+
+/*
+ * The pixel fonts have no Chinese, and their own fallback ends in a monospace that
+ * Windows can fill with a CJK mono face — so the Chinese headline names the system's
+ * sans directly, a touch heavier so it holds its own under the pixel logo.
+ */
+.headlineChinese {
+  font-family: var(--font-cjk-sans);
+  font-weight: 500;
 }
 
 .composer {
