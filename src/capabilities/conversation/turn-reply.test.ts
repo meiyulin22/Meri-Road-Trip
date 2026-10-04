@@ -35,9 +35,9 @@ test("a card or an unplaced name is the turn's news, and the model's reply is le
   const choices = { ...nothing, unresolved: ["大里"], choices: { answering: "潮汕", presentation: {
     type: "destination_choices" as const, mode: "add" as const, choices: [{ id: "a", name: "潮州市", province: "广东省" }] } } };
   assert.equal(destinationEditReply(choices, modelReply, empty, empty),
-    "找到「潮汕」相关的地点了，点击添加后才会记入旅程。「大里」暂时没找到。");
+    "找到「潮汕」相关的地点了，点击添加后才会记入旅程。「大里」暂时没找到。都不是的话，可以在「目的地」的「添加」里自己搜索。");
   assert.equal(destinationEditReply({ ...nothing, unresolved: ["大里"] }, modelReply, empty, empty),
-    "暂时没找到「大里」的可靠地点，目的地没有因此改变。");
+    "暂时没找到「大里」的可靠地点，目的地没有因此改变。也可以在「目的地」的「添加」里自己搜索。");
   assert.equal(destinationEditReply({ ...nothing, lookupFailed: ["大连"] }, modelReply, empty, empty),
     "地点查询暂时不可用，目的地没有改变。请稍后重试。");
 });

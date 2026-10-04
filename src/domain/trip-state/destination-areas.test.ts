@@ -19,6 +19,7 @@ test("destination text groups cities and their spot preferences under provinces"
 
 test("empty province remains visible after its final city is deleted", () => {
   assert.equal(destinationAreasText([hainan]), "海南省");
+  assert.equal(destinationAreasText([{ province: "北京市", places: [{ name: "北京市", spots: ["故宫"] }] }]), "北京市（故宫）");
   assert.equal(destinationAreasTitle([hainan]), "海南省");
   const removed = removeFromDestination([{ province: "海南省", places: [{ name: "三亚市", spots: ["蜈支洲岛"] }] }],
     { province: "海南省", place: "三亚市", spot: null });

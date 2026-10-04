@@ -90,7 +90,9 @@ The implemented destination flow includes:
   an administrative or scenic-area suffix (大连 → 大连市), or with only the place's own
   city in front (西湖 → 杭州西湖风景名胜区) — is added at once. Beside a sight, a district
   of the same name in the same city gives way (西湖, not 西湖区). A name found only with
-  some other prefix (松赞林寺 → 噶丹松赞林寺) is offered for confirmation. A typo,
+  some other prefix (松赞林寺 → 噶丹松赞林寺) is offered for confirmation, and when no
+  rule matches, up to three places the provider calls sights whose names hold the
+  user's words are offered (故宫 → 故宫博物院), never a ticket office or car park. A typo,
   several possible places, a broad region, or a name the model rewrote is offered
   as choices instead. Chat offers use checkboxes and one batch confirmation; manual
   search uses a result's Add action.

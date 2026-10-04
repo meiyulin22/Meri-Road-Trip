@@ -132,7 +132,36 @@ export function resolveDestinationCandidates(
   const loose = looseMatches(expression, candidates);
   if (loose.length === 1) return { status: "resolved", candidate: loose[0] };
   if (loose.length > 1) return { status: "ambiguous", candidates: loose };
+
+  const sights = sightsNamingExpression(expression, candidates);
+  if (sights.length === 1) return { status: "resolved", candidate: sights[0] };
+  if (sights.length > 1) return { status: "ambiguous", candidates: sights };
   return { status: "unresolved" };
+}
+
+/** A card row stays readable; past this many, the user is better served by searching. */
+const maxSightOffers = 3;
+
+/**
+ * The very last resort, for a sight the provider found under a name no rule above
+ * accepts: 故宫博物院 for 故宫, 洪崖洞民俗风貌区 for 洪崖洞, 八达岭长城 for 长城. Only
+ * places the provider says are sights, whose name holds the user's words — never the
+ * ticket office, car park or bus stop named after them — and not a part of one
+ * (故宫博物院-午门, 人民公园·韦南康纪功碑) or one still being built. The caller must
+ * offer these for the user to pick; none of them is the user's own name for it.
+ */
+function sightsNamingExpression(expression: string, candidates: readonly LocationCandidate[]): LocationCandidate[] {
+  if (expression.length < 2) return [];
+  const seen = new Set<string>();
+  return candidates.filter((candidate) => {
+    if (!isUsableCandidate(candidate) || candidate.kind !== "sight") return false;
+    const name = normalize(candidate.name);
+    if (!name.includes(expression) || /[-－·(（]/u.test(name)) return false;
+    const identity = `${candidate.providerId}:${candidate.longitude},${candidate.latitude}`;
+    if (seen.has(identity)) return false;
+    seen.add(identity);
+    return true;
+  }).slice(0, maxSightOffers);
 }
 
 /**

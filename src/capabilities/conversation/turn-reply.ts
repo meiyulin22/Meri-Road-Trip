@@ -91,8 +91,12 @@ export function destinationEditReply(
       ? `「${result.unresolved.join("、")}」暂时没找到。`
       : `暂时没找到「${result.unresolved.join("、")}」的可靠地点，目的地没有因此改变。`);
   }
+  // Cards are Meri's best reading of the name, and a miss is a dead end; either way the
+  // user can still look the place up themselves in the destination editor.
+  const searchHint = result.choices ? "都不是的话，可以在「目的地」的「添加」里自己搜索。"
+    : result.unresolved.length ? "也可以在「目的地」的「添加」里自己搜索。" : "";
   const needsAttention = result.choices !== null || result.unresolved.length > 0 || result.lookupFailed.length > 0 ||
     result.ambiguousRemovals.length > 0 || result.notInDestination.length > 0;
   const becameReady = !evaluateGeneratePlanReadiness(before).canProceed && evaluateGeneratePlanReadiness(after).canProceed;
-  return `${facts.join("")}${becameReady ? `${planReadyNote}。` : ""}${needsAttention ? "" : modelReply}`;
+  return `${facts.join("")}${searchHint}${becameReady ? `${planReadyNote}。` : ""}${needsAttention ? "" : modelReply}`;
 }

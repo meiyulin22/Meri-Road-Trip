@@ -136,3 +136,13 @@ test("a recommendation card keeps its landmark, and its photo is not looked up y
   assert.throws(() => validateTripMessage({ ...message, presentation: { type: "destination_recommendations",
     destinations: [{ id: "a", name: "丽江市", province: "云南省", landmark: "x".repeat(31) }] } }));
 });
+
+test("a saved location candidate keeps whether it is a sight, and older ones without it still read", () => {
+  const candidate = { providerId: "palace", name: "故宫博物院", province: "北京市", city: "北京市", district: "东城区",
+    region: "北京市 东城区", address: null, longitude: 116.397, latitude: 39.918, coordinateSystem: "GCJ-02" };
+  const read = (extra: Record<string, unknown>) => validateTripMessage({ id: "m", tripId: "t", role: "assistant",
+    content: "找到了", createdAt: "2026-10-04T00:00:00.000Z",
+    presentation: { type: "location_candidates", candidates: [{ ...candidate, ...extra }] } }).presentation;
+  assert.deepEqual(read({ kind: "sight" }), { type: "location_candidates", candidates: [{ ...candidate, kind: "sight" }] });
+  assert.deepEqual(read({}), { type: "location_candidates", candidates: [candidate] });
+});

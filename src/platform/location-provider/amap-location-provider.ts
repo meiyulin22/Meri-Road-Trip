@@ -1,4 +1,4 @@
-import type { LocationCandidate } from "@/domain/location/location";
+import type { LocationCandidate, LocationKind } from "@/domain/location/location";
 import type {
   LocationProvider,
   LocationSearchResult,
@@ -38,6 +38,20 @@ function coordinates(value: unknown): { longitude: number; latitude: number } | 
   return { longitude, latitude };
 }
 
+/**
+ * Amap's category codes, of which a POI may carry several joined by "|": 11xxxx is
+ * 风景名胜 (scenic areas, parks, temples, viewpoints) and 1401xx is 博物馆. Checked
+ * 2026-10-04: 故宫博物院 is 110201|140100, 秦始皇兵马俑博物馆 140100, while its ticket
+ * office is 070306, its car park 150904 and the bus stop named after it 150700.
+ * 110105 城市广场 is filed under 风景名胜 but is a square, not somewhere to travel to:
+ * 「潮汕」 found 潮汕站南广场, the forecourt of a railway station.
+ */
+function kindOf(typecode: unknown): LocationKind | undefined {
+  if (typeof typecode !== "string" || typecode.trim() === "") return undefined;
+  return typecode.split("|").some((code) =>
+    (code.startsWith("11") && !code.startsWith("110105")) || code.startsWith("1401")) ? "sight" : "other";
+}
+
 function toCandidate(value: unknown): LocationCandidate | null {
   if (!isRecord(value)) return null;
 
@@ -52,6 +66,7 @@ function toCandidate(value: unknown): LocationCandidate | null {
   const city = optionalText(value.cityname);
   const district = optionalText(value.adname);
   const regionParts = [province, city, district].filter((part): part is string => part !== null);
+  const kind = kindOf(value.typecode);
 
   return {
     providerId,
@@ -63,6 +78,7 @@ function toCandidate(value: unknown): LocationCandidate | null {
     address: optionalText(value.address),
     ...point,
     coordinateSystem: "GCJ-02",
+    ...(kind ? { kind } : {}),
   };
 }
 

@@ -161,3 +161,23 @@ test("only when nothing else matches, a name with some other prefix is found, fr
   // Two characters end far too many names: 西湖 must not find 瘦西湖.
   assert.deepEqual(resolveDestinationCandidates("西湖", [located("瘦西湖", "slender", "扬州市")]), { status: "unresolved" });
 });
+
+test("as a last resort, sights whose name holds the user's words are offered, never what serves them", () => {
+  const sight = (name: string, id: string) => ({ ...located(name, id, "北京市", "东城区"), kind: "sight" as const });
+  const palace = sight("故宫博物院", "palace");
+  const gate = sight("故宫博物院-午门", "gate");
+  const tickets = { ...located("故宫博物院检票处", "tickets", "北京市"), kind: "other" as const };
+  const building = sight("北京故宫博物院北院区(建设中)", "building");
+  assert.deepEqual(resolveDestinationCandidates("故宫", [palace, gate, tickets, building]), { status: "resolved", candidate: palace });
+
+  // 秦始皇帝陵博物院 is the right site but does not say 兵马俑, so only the museum that does is offered.
+  const mausoleum = sight("秦始皇帝陵博物院", "mausoleum");
+  const museum = sight("秦始皇兵马俑博物馆", "museum");
+  assert.deepEqual(resolveDestinationCandidates("兵马俑", [mausoleum, museum]), { status: "resolved", candidate: museum });
+
+  const walls = ["八达岭长城", "居庸关长城", "慕田峪长城", "彰作里关长城"].map((name) => sight(name, name));
+  assert.deepEqual(resolveDestinationCandidates("长城", walls), { status: "ambiguous", candidates: walls.slice(0, 3) });
+
+  // A place the provider did not call a sight is not offered.
+  assert.deepEqual(resolveDestinationCandidates("故宫", [located("故宫博物院", "unknown-kind", "北京市")]), { status: "unresolved" });
+});

@@ -56,7 +56,10 @@ export function destinationAreasText(areas: readonly DestinationArea[]): string 
   return areas
     .map((area) => {
       const places = area.places.map((place) => placeText(area, place)).filter((text) => text !== "");
-      return places.length === 0 ? area.province : `${area.province} ${places.join(placeSeparator)}`;
+      if (places.length === 0) return area.province;
+      // A 直辖市 is its own province, so its spots follow the name directly: 北京市（故宫）.
+      const joined = places.join(placeSeparator);
+      return joined.startsWith("（") ? `${area.province}${joined}` : `${area.province} ${joined}`;
     })
     .join(areaSeparator);
 }

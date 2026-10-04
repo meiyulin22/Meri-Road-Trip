@@ -259,7 +259,7 @@ export const maxDestinationChoices = 12;
 function validateLocationCandidate(value: unknown): LocationCandidate {
   const required = ["providerId", "name", "region", "address", "longitude", "latitude", "coordinateSystem"];
   const levels = ["province", "city", "district"];
-  if (!isRecord(value) || !hasKnownKeys(value, required, levels) ||
+  if (!isRecord(value) || !hasKnownKeys(value, required, [...levels, "kind"]) ||
     !isPresentText(value.providerId) || !isPresentText(value.name) ||
     !(value.region === null || isPresentText(value.region)) ||
     !(value.address === null || isPresentText(value.address)) ||
@@ -274,7 +274,8 @@ function validateLocationCandidate(value: unknown): LocationCandidate {
     city: isPresentText(value.city) ? value.city : null,
     district: isPresentText(value.district) ? value.district : null,
     region: value.region as string | null, address: value.address as string | null,
-    longitude: value.longitude, latitude: value.latitude, coordinateSystem: "GCJ-02" };
+    longitude: value.longitude, latitude: value.latitude, coordinateSystem: "GCJ-02",
+    ...(value.kind === "sight" || value.kind === "other" ? { kind: value.kind } : {}) };
 }
 
 function hasKnownKeys(

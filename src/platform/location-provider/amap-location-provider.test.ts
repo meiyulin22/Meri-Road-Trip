@@ -154,3 +154,20 @@ test("missing API key fails before a network request", async () => {
   });
   assert.equal(calls, 0);
 });
+
+test("Amap's category says whether a POI is a sight or something serving one", async () => {
+  process.env.AMAP_API_KEY = "test-secret-key";
+  const poi = (id: string, name: string, typecode?: string) => ({ id, name, pname: "北京市", cityname: "北京市",
+    adname: "东城区", address: "景山前街4号", location: "116.397,39.918", ...(typecode === undefined ? {} : { typecode }) });
+  const fetcher: typeof fetch = async () => Response.json({ status: "1", pois: [
+    poi("palace", "故宫博物院", "110201|140100"),
+    poi("tickets", "故宫博物院检票处", "070000"),
+    poi("square", "潮汕站南广场", "110105"),
+    poi("museum", "秦始皇兵马俑博物馆", "140100"),
+    poi("unknown", "某地"),
+  ] });
+  const result = await new AmapLocationProvider(fetcher).searchByKeyword("故宫");
+  assert.equal(result.status, "success");
+  assert.deepEqual(result.status === "success" ? result.candidates.map((candidate) => candidate.kind) : [],
+    ["sight", "other", "other", "sight", undefined]);
+});
