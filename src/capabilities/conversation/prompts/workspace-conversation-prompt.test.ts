@@ -86,3 +86,20 @@ test("restored rules: no unchanged fields, no readiness claims, weather without 
   assert.match(text, /Ask at most one question per reply/);
   assert.match(text, /no 已记录、已添加、已加入/);
 });
+
+test("the English prompt teaches with English examples and passes places on in Chinese", () => {
+  const english = prompt("conversation", "en");
+  assert.match(english, /Lijiang → 丽江, Jade Dragon Snow Mountain → 玉龙雪山/);
+  assert.match(english, /The user confirms every translated name on a card before it is saved/);
+  assert.match(english, /"I don't want to go to Yunnan anymore": operation "remove", places \["云南"\]/);
+  assert.match(english, /"recommend somewhere", "any good places\?", "you pick"/);
+  assert.match(english, /average temperatures are about 22–28°C/);
+  assert.doesNotMatch(english, /stay exactly as the user typed them/);
+  assert.doesNotMatch(english, /推荐一下|已记录|平均气温/);
+  // The rules themselves are shared, written once for both languages.
+  for (const rule of [/Ask at most one question per reply/, /Never say whether the Journey is ready to generate/,
+    /never restate a field's current value/, /Give no temperatures, rainfall or other numbers/]) {
+    assert.match(english, rule);
+    assert.match(prompt("conversation", "zh"), rule);
+  }
+});

@@ -40,3 +40,12 @@ test("the inferred trip name is written in the language chosen on the landing pa
   assert.match(english, /trip name you infer is the Journey's title in the interface, so write it in English, whatever language the message uses/);
   assert.match(chinese, /so write it in Simplified Chinese/);
 });
+
+test("an English first message names its places in Chinese for the provider", () => {
+  const english = buildTripDraftSystemPrompt({ referenceDate: "2026-09-18", timezone: "Asia/Shanghai", locale: "en" });
+
+  assert.match(english, /put each place's standard Chinese name in places/);
+  assert.match(english, /Lijiang → 丽江/);
+  assert.doesNotMatch(english, /put their own place expressions in places/);
+  assert.doesNotMatch(english, /stay exactly as the user wrote them/);
+});

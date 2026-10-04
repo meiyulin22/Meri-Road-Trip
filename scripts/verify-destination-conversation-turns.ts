@@ -12,7 +12,7 @@ import { interpretWorkspaceConversation } from "@/capabilities/conversation/work
  * — the itinerary, and whether a plan is ready.
  *
  * Each case says what to look for, so two runs can be compared by eye. A case runs
- * with the Chinese interface unless it names another locale: cases 20–25 check that
+ * with the Chinese interface unless it names another locale: cases 20–27 check that
  * the reply starts in the language chosen on the home page and that following a user
  * who writes in the other one stays the model's call.
  */
@@ -152,8 +152,16 @@ const cases = {
     tripState: empty, message: "Can you recommend some quiet places?", conversationHistory: [],
   },
   "25": {
-    expect: 'EN interface: destinationEdit set with places exactly as typed (Yunnan, Sichuan — not translated to Chinese), none; reply in English',
+    expect: 'EN interface: destinationEdit set with the Chinese names ["云南","四川"], none; reply in English',
     locale: "en", tripState: empty, message: "I want to go to Yunnan and Sichuan", conversationHistory: [],
+  },
+  "26": {
+    expect: 'EN interface: destinationEdit add ["丽江"] (Chinese name), none; reply in English and does not say it was added',
+    locale: "en", tripState: provinceOnly, message: "I'd also like to visit Lijiang", conversationHistory: [],
+  },
+  "27": {
+    expect: 'EN interface: destinationEdit set ["玉龙雪山"] — the attraction itself in Chinese, not 丽江; none',
+    locale: "en", tripState: empty, message: "I want to see Jade Dragon Snow Mountain", conversationHistory: [],
   },
 } as const satisfies Record<string, {
   readonly expect: string; readonly locale?: Locale; readonly tripState: TripState; readonly message: string;

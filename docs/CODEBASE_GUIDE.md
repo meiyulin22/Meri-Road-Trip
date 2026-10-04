@@ -356,7 +356,7 @@ LLM 解释自然语言并提出受限 JSON；应用校验、决定是否执行�
 | [src/capabilities/journey/my-journeys.test.ts](../src/capabilities/journey/my-journeys.test.ts) | 测试（对应模块边界） | 验证匿名空列表、owner-scoped 列表及读取模型边界。 |
 | [src/capabilities/journey/my-journeys.ts](../src/capabilities/journey/my-journeys.ts) | 应用层/用例装配 | 用既有访客身份读取 JourneySummary，缺身份返回空列表，不创建新身份。 |
 | [src/capabilities/journey/prompts/trip-draft-prompt.test.ts](../src/capabilities/journey/prompts/trip-draft-prompt.test.ts) | 测试（对应模块边界） | 验证草稿 prompt 的不确定性/原话保留、共享字段语义及旅程名按首页语言。 |
-| [src/capabilities/journey/prompts/trip-draft-prompt.ts](../src/capabilities/journey/prompts/trip-draft-prompt.ts) | 应用层/用例装配 | 首页草稿提取系统 prompt，带参考日期、时区和首页语言（推断的旅程名用该语言写），约束 certainty 与目的地操作。 |
+| [src/capabilities/journey/prompts/trip-draft-prompt.ts](../src/capabilities/journey/prompts/trip-draft-prompt.ts) | 应用层/用例装配 | 首页草稿提取系统 prompt，带参考日期、时区和首页语言（推断的旅程名用该语言写），约束 certainty 与目的地操作；地名规则按语言分写（中文原样，英文换成中文名）。 |
 | [src/capabilities/journey/prompts/trip-state-field-guidance.ts](../src/capabilities/journey/prompts/trip-state-field-guidance.ts) | 应用层/用例装配 | 草稿与 Workspace 共享的普通字段 certainty 和业务语义提示块；精确日期写 YYYY-MM-DD、精确天数写 N天，并说明应用会补算第三项。 |
 | [src/capabilities/journey/trip-draft-extractor.test.ts](../src/capabilities/journey/trip-draft-extractor.test.ts) | 测试（对应模块边界） | 验证有效提取不创建 Trip、空输入先拒绝、模型请求/非法输出和截断错误。 |
 | [src/capabilities/journey/trip-draft-extractor.ts](../src/capabilities/journey/trip-draft-extractor.ts) | 应用层/用例装配 | 首页提取 JSON Schema 和结构化模型调用，处理请求/截断/输出错误，挽救草稿并记录丢弃项。 |
@@ -380,7 +380,10 @@ LLM 解释自然语言并提出受限 JSON；应用校验、决定是否执行�
 | [src/capabilities/conversation/opening-conversation-service.ts](../src/capabilities/conversation/opening-conversation-service.ts) | 应用层/用例装配 | 开场资格判断，生成/复用固定 ID 的助手开场，防止重试重复调用或写入。 |
 | [src/capabilities/conversation/prompts/workspace-conversation-prompt.test.ts](../src/capabilities/conversation/prompts/workspace-conversation-prompt.test.ts) | 测试（对应模块边界） | 验证模型提案、提供方核验、用户确认分离、不虚构计划能力，范围规则不变成固定话术，以及两种模式都写入回复语言规则。 |
 | [src/capabilities/conversation/prompts/workspace-conversation-prompt.ts](../src/capabilities/conversation/prompts/workspace-conversation-prompt.ts) | 应用层/用例装配 | 聊天系统 prompt：用户决定、地点提案、推荐/规划边界、中国目的地范围（仅遇境外地点时说明）、回复语言和 opening 规则。 |
-| [src/capabilities/conversation/prompts/reply-language-guidance.ts](../src/capabilities/conversation/prompts/reply-language-guidance.ts) | 应用层/用例装配 | 提示词里的语言名和回复语言规则：默认用首页选择的语言，用户明显用另一种语言写时可跟随（由模型判断），旅程名用首页语言，destinationEdit 地名保持原样。 |
+| [src/capabilities/conversation/prompts/reply-language-guidance.ts](../src/capabilities/conversation/prompts/reply-language-guidance.ts) | 应用层/用例装配 | 提示词里的语言名和回复语言规则：默认用首页选择的语言，用户明显用另一种语言写时跟随（由模型判断），旅程名用首页语言；只管文字，不管 destinationEdit 地名怎么写。 |
+| [src/capabilities/conversation/prompts/workspace-conversation-locale-rules.ts](../src/capabilities/conversation/prompts/workspace-conversation-locale-rules.ts) | 应用层/用例装配 | 聊天 prompt 里按语言分写的部分：地点修改规则与示例、推荐意图示例、天气反例；中文为调好的原文，英文用英文示例并要求把英文/拼音地名换成中文名交给高德。 |
+| [src/capabilities/conversation/prompts/chinese-prompts-lock.test.ts](../src/capabilities/conversation/prompts/chinese-prompts-lock.test.ts) | 测试（对应模块边界） | 把中文界面的聊天/开场/草稿 prompt 与两份 JSON schema 和快照逐字比较；有意修改时用 UPDATE_PROMPT_SNAPSHOT=1 重写快照并重跑 harness 中文用例。 |
+| [src/capabilities/conversation/prompts/chinese-prompts.snapshot.txt](../src/capabilities/conversation/prompts/chinese-prompts.snapshot.txt) | 测试数据 | 上面锁定测试的快照：1.0034 调好的中文 prompt 和 schema 原文。 |
 | [src/capabilities/conversation/trip-message-service-instance.ts](../src/capabilities/conversation/trip-message-service-instance.ts) | 应用层/用例装配 | 装配 Postgres message repository 和 TripRepository 为生产消息服务。 |
 | [src/capabilities/conversation/trip-message-service.test.ts](../src/capabilities/conversation/trip-message-service.test.ts) | 测试（对应模块边界） | 验证真实双边消息、候选 presentation、确认幂等和所有权保护。 |
 | [src/capabilities/conversation/trip-message-service.ts](../src/capabilities/conversation/trip-message-service.ts) | 应用层/用例装配 | owner 检查后保存初始原话、开场、完整对话、选卡确认、推荐卡片消息（不存在时才写）、推荐卡照片写回（只改原本是推荐卡的消息的 presentation）及读取消息。 |
@@ -520,7 +523,7 @@ LLM 解释自然语言并提出受限 JSON；应用校验、决定是否执行�
 
 | 文件地址 | 层/类别 | 做什么 |
 | --- | --- | --- |
-| [scripts/verify-destination-conversation-turns.ts](../scripts/verify-destination-conversation-turns.ts) | 开发验证工具 | 用多轮样例人工检查真实模型的地点/偏好解释、推荐意图、中国范围、错别字保留、天气/准备度/单问题规则、已有状态保护及回复语言（20–25 为英文界面或跨语言输入），需要模型配置。 |
+| [scripts/verify-destination-conversation-turns.ts](../scripts/verify-destination-conversation-turns.ts) | 开发验证工具 | 用多轮样例人工检查真实模型的地点/偏好解释、推荐意图、中国范围、错别字保留、天气/准备度/单问题规则、已有状态保护及回复语言和英文地名翻译（20–27 为英文界面或跨语言输入），需要模型配置。 |
 | [scripts/verify-location-resolve.ts](../scripts/verify-location-resolve.ts) | 开发验证工具 | 人工验证真实高德查询及 LocationService/层级解析结果，不是自动单元测试。 |
 | [scripts/verify-workspace-location-tool.ts](../scripts/verify-workspace-location-tool.ts) | 开发验证工具 | 人工调用真实 Workspace 解释器，检查地点意图结构；文件名保留旧 tool 命名，当前不是开放式工具 Agent。 |
 

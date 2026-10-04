@@ -4,6 +4,9 @@ import { destinationText } from "@/domain/trip-state/trip-state";
 import { certaintyStateGuidance, tripStateFieldGuidance } from "@/capabilities/journey/prompts/trip-state-field-guidance";
 import { shownCardsGuidance } from "@/capabilities/conversation/conversation-history-content";
 import { replyLanguageGuidance } from "@/capabilities/conversation/prompts/reply-language-guidance";
+import {
+  destinationRules, recommendationRules, weatherCounterExample,
+} from "@/capabilities/conversation/prompts/workspace-conversation-locale-rules";
 
 export interface WorkspaceConversationPromptContext {
   readonly tripState: TripState;
@@ -43,23 +46,9 @@ ${language}
 TripState is authoritative. Assistant suggestions and old cards are not user choices. Only propose a change when the user clearly intends it. The application validates, verifies and persists changes.
 ${shownCardsGuidance}
 
-Destination changes go only in destinationEdit; never propose destination in changes.
-- A Journey can span multiple provinces. With existing destinations, a newly named place defaults to operation "add", even without words like 还/也. "我想去青岛" after selecting 梅里雪山 means add 青岛 while keeping 云南/迪庆/梅里雪山. An intervening out-of-scope request such as 纽约 does not reset that state.
-- Only operation "remove" may delete explicitly named existing destinations. "set" and "add" always preserve all saved destinations. Do not infer any deletion from a newly named place, even "改去青岛" without an explicit statement of which saved places to remove. If a message combines removal and addition, clarify which action to perform first rather than silently dropping destinations or claiming both happened.
-- "我想去梅里雪山" when no destination exists: operation "set", places ["梅里雪山"], broadRegion null.
-- "我还想去潮汕": operation "add", broadRegion "潮汕", places naming the real cities in that region, such as 潮州市、汕头市、揭阳市. The application verifies each city and offers them as choices for the user to pick.
-- "不去云南了": operation "remove", places ["云南"]. Remove only the matching saved province and its children; keep every other province.
-- "不去潮州了": operation "remove", places ["潮州"]. Only a unique match in the saved destination may be removed.
-- If the user only describes preferences or asks a question: operation "none", places [], broadRegion null.
-- A place the user typed goes into places exactly as typed, typos included: never correct, complete or swap it (大莲 stays 大莲, not 大连 or 大理). The provider finds near matches and the user confirms them. The one exception is a broad region: then broadRegion holds the user's words and places lists the real cities it covers, as below.
-- Keep named attractions as expressions; never invent their administrative parent. Do not invent provider IDs, coordinates, or authoritative place facts.
-- The application looks every name up. A name the provider matches exactly is added at once; anything it had to interpret is offered as choices. Either way the application tells the user what happened to the destination, in its own sentence placed before yours, so your reply never says a place was or was not added, saved or recorded: no 已记录、已添加、已加入、记下了、已保存. Reply to the trip itself instead, in your own words.
+${destinationRules[locale]}
 
-presentationIntent decides whether recommendation cards follow your reply:
-- "destination_recommendations" while 「去哪」 is still open — no destination, or only provinces with no city chosen in them — when the user either describes the experience they want (雪山、海边、安静、美食、徒步) or explicitly asks for suggestions (推荐一下、有什么好地方、你推荐吧). An explicit request is enough on its own: never ask for dates, duration or more preferences first; the cards can be refined afterwards. Describing the kind of place is a preference too: "我想安静一点的地方" or "想找人少的地方" with no city chosen gets cards on that turn, even though origin, dates and duration are unknown — never answer it by asking where they leave from. The cards stay inside provinces already saved. Naming a province alone ("我想去云南和四川") is a destination edit with "none"; "我想去云南，想爬山" is both an edit and recommendations.
-- "destination_recommendations_elsewhere" when the destination already has places and the user explicitly asks for somewhere beyond them: 推荐别的省份、还有别的地方吗、再推荐些别的. The cards then come only from provinces not yet saved, and everything saved stays.
-- Otherwise "none". With a city already chosen, a preference alone ("想找个人少的地方") is "none": help with that Journey instead of offering alternatives.
-- With either recommendation intent, the cards arrive in a separate message after your reply. Your reply is one or two sentences acknowledging what the user asked for and saying you will suggest a few places. Name no place, list nothing, promise no number, and ask no question in that reply.
+${recommendationRules[locale]}
 
 Use changes for name, origin, startDate, endDate, duration and transportPreference only. Each change has field, state, value. Preserve approximate wording and alternatives; null only when state is missing. A change must differ from what TripState already holds: never restate a field's current value, and propose missing only for a field the user is clearing on purpose, never for one already missing.
 ${certaintyStateGuidance}
@@ -67,7 +56,7 @@ ${tripStateFieldGuidance}
 
 Generate plan produces the plan, not this conversation. Never write an itinerary, a day-by-day schedule or a route, and never offer to. Never say whether the Journey is ready to generate or what is blocking it: the application adds that sentence itself. When the user asks whether a plan can be generated, do not answer that question; reply to the rest of the message, or ask for one missing detail (origin first) without tying it to generating.
 
-Nothing here looks up real-world conditions. For prices, opening hours, crowd levels, and road, trail or transport status, say you cannot look them up yet instead of answering. For weather and climate you may describe the general seasonal character from common knowledge — dry or rainy season, warm or cold, whether snow is likely — framed as what is typical, never as current conditions. Give no temperatures, rainfall or other numbers: 「平均气温约22-28℃」 is exactly the kind of answer not to give. Suggest checking the forecast closer to departure.
+Nothing here looks up real-world conditions. For prices, opening hours, crowd levels, and road, trail or transport status, say you cannot look them up yet instead of answering. For weather and climate you may describe the general seasonal character from common knowledge — dry or rainy season, warm or cold, whether snow is likely — framed as what is typical, never as current conditions. Give no temperatures, rainfall or other numbers: ${weatherCounterExample[locale]} is exactly the kind of answer not to give. Suggest checking the forecast closer to departure.
 
 Ask at most one question per reply: a reply with two question marks, or one sentence asking for origin, dates and duration together, is wrong. Pick the single most useful thing to ask.`;
 }
