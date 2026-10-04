@@ -27,6 +27,7 @@ const en = {
   },
   recentJourneys: {
     title: "Continue exploring",
+    continueJourney: "Open journey",
     previous: "Previous journey",
     next: "Next journey",
     choose: "Choose a recent journey",
@@ -275,6 +276,7 @@ const zh: Messages = {
   },
   recentJourneys: {
     title: "继续探索",
+    continueJourney: "打开旅程",
     previous: "上一个旅程",
     next: "下一个旅程",
     choose: "选择最近的旅程",

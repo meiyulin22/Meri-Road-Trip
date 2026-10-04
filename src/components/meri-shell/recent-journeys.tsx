@@ -1,18 +1,16 @@
 "use client";
 
-import useEmblaCarousel from "embla-carousel-react";
-import { ChevronLeft, ChevronRight } from "lucide-react";
-import { useReducedMotion } from "motion/react";
+import { ArrowLeft, ArrowRight } from "lucide-react";
+import { motion, useMotionValue, useReducedMotion, useSpring } from "motion/react";
 import Link from "next/link";
-import { useCallback, useEffect, useRef, useState, type MouseEvent, type PointerEvent } from "react";
+import { useRef, useState, type MouseEvent, type PointerEvent } from "react";
 
 import { useMessages } from "@/components/i18n/locale-context";
 import type { Messages } from "@/components/i18n/messages";
 import type { JourneySummary } from "@/platform/persistence/journey-summary-repository";
 
 import {
-  recentJourneysArrowState,
-  shouldLoopRecentJourneys,
+  recentJourneyIndexAfterStep,
   shouldOpenJourneyCard,
   visibleRecentJourneys,
 } from "./recent-journeys-model";
@@ -57,36 +55,28 @@ function JourneyCarousel({
   onDeleted,
 }: RecentJourneysProps & { readonly onDeleted: (tripId: string) => void }) {
   const text = useMessages().recentJourneys;
-  const reduceMotion = useReducedMotion();
-  const [viewportRef, emblaApi] = useEmblaCarousel({
-    align: "center",
-    containScroll: false,
-    loop: shouldLoopRecentJourneys(journeys.length),
-    slidesToScroll: 1,
-  });
-  const [selectedIndex, setSelectedIndex] = useState(0);
-  const { canScrollPrev, canScrollNext } = recentJourneysArrowState(journeys.length, selectedIndex);
+  const [selectedId, setSelectedId] = useState(journeys[0].id);
+  const selectedIndex = Math.max(0, journeys.findIndex((journey) => journey.id === selectedId));
   const pointerStart = useRef<{ x: number; y: number } | null>(null);
   const gestureWasDragged = useRef(false);
 
-  const updateSelection = useCallback(() => {
-    if (!emblaApi) return;
-    setSelectedIndex(emblaApi.selectedScrollSnap());
-  }, [emblaApi]);
-
-  useEffect(() => {
-    if (!emblaApi) return;
-    const frame = requestAnimationFrame(updateSelection);
-    emblaApi.on("select", updateSelection).on("reInit", updateSelection);
-    return () => {
-      cancelAnimationFrame(frame);
-      emblaApi.off("select", updateSelection).off("reInit", updateSelection);
-    };
-  }, [emblaApi, updateSelection]);
+  function selectStep(step: -1 | 1) {
+    setSelectedId(journeys[recentJourneyIndexAfterStep(journeys.length, selectedIndex, step)].id);
+  }
 
   function handlePointerDown(event: PointerEvent<HTMLDivElement>) {
-    pointerStart.current = { x: event.clientX, y: event.clientY };
+    pointerStart.current = null;
     gestureWasDragged.current = false;
+    if (event.button !== 0 || (event.target as HTMLElement).closest("button, [role='dialog']")) return;
+    pointerStart.current = { x: event.clientX, y: event.clientY };
+  }
+
+  function handlePointerUp(event: PointerEvent<HTMLDivElement>) {
+    const start = pointerStart.current;
+    pointerStart.current = null;
+    if (!start || !gestureWasDragged.current) return;
+    const distance = event.clientX - start.x;
+    if (Math.abs(distance) >= 40) selectStep(distance < 0 ? 1 : -1);
   }
 
   function handlePointerMove(event: PointerEvent<HTMLDivElement>) {
@@ -108,23 +98,28 @@ function JourneyCarousel({
   return (
     <>
       <div className={styles.carouselRow}>
-        <button
-          aria-label={text.previous}
-          className={styles.arrow}
-          disabled={!canScrollPrev}
-          onClick={() => emblaApi?.scrollPrev(Boolean(reduceMotion))}
-          type="button"
-        >
-          <ChevronLeft aria-hidden="true" size={20} strokeWidth={1.8} />
-        </button>
         <div
+          aria-label={text.choose}
+          aria-roledescription="carousel"
           className={styles.viewport}
+          role="group"
           onClickCapture={suppressDragClick}
           onPointerDownCapture={handlePointerDown}
           onPointerMoveCapture={handlePointerMove}
-          ref={viewportRef}
+          onPointerUpCapture={handlePointerUp}
+          onPointerCancel={() => { pointerStart.current = null; }}
+          onPointerLeave={() => { pointerStart.current = null; }}
+          onKeyDown={(event) => {
+            if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") return;
+            event.preventDefault();
+            selectStep(event.key === "ArrowLeft" ? -1 : 1);
+          }}
+          tabIndex={0}
         >
-          <ul className={styles.track}>
+          {/* Adapted from Aceternity's Carousel: centered translated track and perspective slides. */}
+          <ul className={styles.track} style={{
+            transform: `translateX(calc(50% - var(--slide-width) / 2 - ${selectedIndex} * (var(--slide-width) + 1rem)))`,
+          }}>
             {journeys.map((journey, index) => (
               <li className={styles.slide} data-active={index === selectedIndex} key={journey.id}>
                 <JourneyCard
@@ -134,7 +129,7 @@ function JourneyCarousel({
                   onClick={(event) => {
                     if (!shouldOpenJourneyCard(selectedIndex, index, gestureWasDragged.current)) {
                       event.preventDefault();
-                      emblaApi?.scrollTo(index, Boolean(reduceMotion));
+                      setSelectedId(journey.id);
                     }
                   }}
                 />
@@ -142,21 +137,30 @@ function JourneyCarousel({
             ))}
           </ul>
         </div>
+      </div>
+      <div className={styles.controls}>
+        <button
+          aria-label={text.previous}
+          className={styles.arrow}
+          onClick={() => selectStep(-1)}
+          type="button"
+        >
+          <ArrowLeft aria-hidden="true" size={20} strokeWidth={1.8} />
+        </button>
+        <JourneyPagination
+          count={journeys.length}
+          onSelect={(index) => setSelectedId(journeys[index].id)}
+          selectedIndex={selectedIndex}
+        />
         <button
           aria-label={text.next}
           className={styles.arrow}
-          disabled={!canScrollNext}
-          onClick={() => emblaApi?.scrollNext(Boolean(reduceMotion))}
+          onClick={() => selectStep(1)}
           type="button"
         >
-          <ChevronRight aria-hidden="true" size={20} strokeWidth={1.8} />
+          <ArrowRight aria-hidden="true" size={20} strokeWidth={1.8} />
         </button>
       </div>
-      <JourneyPagination
-        count={journeys.length}
-        onSelect={(index) => emblaApi?.scrollTo(index, Boolean(reduceMotion))}
-        selectedIndex={selectedIndex}
-      />
     </>
   );
 }
@@ -173,25 +177,46 @@ function JourneyCard({
   onDeleted: (tripId: string) => void;
 }) {
   const text = useMessages().recentJourneys;
+  const reduceMotion = useReducedMotion();
+  const pointerX = useMotionValue(0);
+  const pointerY = useMotionValue(0);
+  const x = useSpring(pointerX, { stiffness: 180, damping: 25 });
+  const y = useSpring(pointerY, { stiffness: 180, damping: 25 });
+
+  function resetParallax() {
+    pointerX.set(0);
+    pointerY.set(0);
+  }
+
   return (
-    <div className={styles.cardShell}>
+    <div className={styles.cardShell} data-active={isActive}
+      onPointerMove={(event) => {
+        if (!isActive || reduceMotion || event.pointerType !== "mouse" || event.buttons !== 0) return;
+        const bounds = event.currentTarget.getBoundingClientRect();
+        pointerX.set((event.clientX - bounds.left - bounds.width / 2) / 30);
+        pointerY.set((event.clientY - bounds.top - bounds.height / 2) / 30);
+      }}
+      onPointerLeave={resetParallax}
+      onPointerDown={resetParallax}
+    >
       <Link
         aria-label={isActive ? text.open(journey.name) : text.select(journey.name)}
         className={styles.card}
         href={`/trips/${encodeURIComponent(journey.id)}`}
+        draggable={false}
         onClick={onClick}
         tabIndex={isActive ? 0 : -1}
       >
-        <div aria-hidden="true" className={styles.cover}>
-          <span className={styles.coverRidge} />
-        </div>
+        <motion.div aria-hidden="true" className={styles.cover}
+          style={{ x: isActive && !reduceMotion ? x : 0, y: isActive && !reduceMotion ? y : 0 }} />
         <div className={styles.cardDetails}>
           <span className={styles.destination}>{journey.destination ?? text.destinationNotSet}</span>
           <span className={styles.name}>{journey.name}</span>
           <span className={styles.dates}>{formatDateRange(journey, text)}</span>
+          <span className={styles.openLabel}>{text.continueJourney}<ArrowRight aria-hidden="true" size={16} /></span>
         </div>
       </Link>
-      <RecentJourneyActions name={journey.name} onDeleted={onDeleted} tripId={journey.id} />
+      {isActive ? <RecentJourneyActions name={journey.name} onDeleted={onDeleted} tripId={journey.id} /> : null}
     </div>
   );
 }

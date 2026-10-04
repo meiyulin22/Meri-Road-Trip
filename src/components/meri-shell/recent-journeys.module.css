@@ -21,55 +21,69 @@
 }
 
 .carouselRow {
-  width: min(100%, 29rem);
+  --slide-width: min(18rem, calc(100vw - 6rem));
+  width: min(100%, 38rem);
   margin-inline: auto;
-  display: grid;
-  grid-template-columns: 2rem minmax(0, 1fr) 2rem;
-  align-items: center;
-  gap: 0.5rem;
 }
 
 .viewport {
+  /* Keep the outer fade within the side previews, clear of the centered card. */
+  --edge-fade: clamp(0px, calc((100% - var(--slide-width)) / 2 - 1rem), 3rem);
   min-width: 0;
-  width: 66%;
-  justify-self: center;
+  width: 100%;
   overflow: hidden;
   touch-action: pan-y pinch-zoom;
+  padding-block: 0.75rem;
+  border-radius: 0.85rem;
+  -webkit-mask-image: linear-gradient(to right, transparent, #000 var(--edge-fade), #000 calc(100% - var(--edge-fade)), transparent);
+  mask-image: linear-gradient(to right, transparent, #000 var(--edge-fade), #000 calc(100% - var(--edge-fade)), transparent);
 }
 
 .track {
   display: flex;
   align-items: stretch;
-  gap: 0.55rem;
+  gap: 1rem;
+  width: 100%;
   margin: 0;
   padding: 0;
   list-style: none;
   touch-action: pan-y pinch-zoom;
+  transition: transform 700ms cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .slide {
   min-width: 0;
-  flex: 0 0 100%;
+  flex: 0 0 var(--slide-width);
+  perspective: 1200px;
 }
 
 .single {
-  width: min(16rem, 100%);
+  width: min(18rem, 100%);
   margin-inline: auto;
 }
 
 .cardShell {
   position: relative;
+  transform: scale(0.94) rotateX(8deg);
+  transform-origin: bottom;
+  transition: transform 500ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.cardShell[data-active="true"] {
+  transform: scale(1) rotateX(0);
 }
 
 .card {
-  height: 12.75rem;
+  position: relative;
+  isolation: isolate;
+  height: 15rem;
   display: grid;
-  grid-template-rows: 64% minmax(0, 36%);
+  place-items: center;
   overflow: hidden;
   border: 1px solid #bdc8ba;
   border-radius: 0.85rem;
-  color: inherit;
-  background: #fffdfa;
+  color: #fffdfa;
+  background: #31483f;
   box-shadow: none;
   text-decoration: none;
   cursor: pointer;
@@ -79,7 +93,12 @@
   border-color: #a7b8a5;
 }
 
+.slide[data-active="false"] .card {
+  border-color: transparent;
+}
+
 .card:focus-visible,
+.viewport:focus-visible,
 .actionsTrigger:focus-visible,
 .actionsMenu button:focus-visible,
 .deleteDialog button:focus-visible,
@@ -217,29 +236,23 @@
 }
 
 .cover {
-  position: relative;
-  overflow: hidden;
-  background: linear-gradient(165deg, #ebeee0 0%, #cbd7c1 57%, #97aa90 100%);
-}
-
-.cover::before,
-.coverRidge {
   position: absolute;
-  inset: auto -5% 0;
-  display: block;
-  height: 63%;
-  background: #9cac91;
-  clip-path: polygon(0 78%, 24% 33%, 43% 67%, 67% 17%, 100% 82%, 100% 100%, 0 100%);
+  z-index: -2;
+  inset: -0.8rem;
+  background: url("/backgrounds/workspace-alpine-day.png") center 52% / cover;
 }
 
-.cover::before {
+.card::after {
   content: "";
+  position: absolute;
+  z-index: -1;
+  inset: 0;
+  background: rgba(15, 32, 27, 0.62);
+  transition: background-color 500ms ease;
 }
 
-.coverRidge {
-  height: 45%;
-  background: #6f886f;
-  clip-path: polygon(0 72%, 29% 42%, 49% 80%, 75% 25%, 100% 70%, 100% 100%, 0 100%);
+.cardShell:not([data-active="true"]) .card::after {
+  background: rgba(15, 32, 27, 0.3);
 }
 
 .cardDetails {
@@ -247,9 +260,17 @@
   display: flex;
   flex-direction: column;
   justify-content: center;
-  gap: 0.1rem;
-  padding: 0.5rem 0.75rem;
-  text-align: left;
+  align-items: center;
+  gap: 0.4rem;
+  width: 100%;
+  padding: 2.8rem 1.25rem 1.25rem;
+  text-align: center;
+  opacity: 0;
+  transition: opacity 500ms ease;
+}
+
+.cardShell[data-active="true"] .cardDetails {
+  opacity: 1;
 }
 
 .destination,
@@ -258,22 +279,46 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  max-width: 100%;
 }
 
 .destination {
-  color: #314d3b;
-  font-size: 0.94rem;
+  color: #fffdfa;
+  font-size: 1.4rem;
   font-weight: 650;
 }
 
 .name {
-  font-size: 0.78rem;
+  font-size: 0.85rem;
   font-weight: 500;
 }
 
 .dates {
-  color: #68766e;
-  font-size: 0.72rem;
+  color: #e2e8dc;
+  font-size: 0.76rem;
+}
+
+.openLabel {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55rem;
+  min-height: 2.5rem;
+  margin-top: 0.6rem;
+  padding: 0.5rem 0.9rem;
+  border-radius: 0.65rem;
+  color: #24362e;
+  background: #fffdfa;
+  font-size: 0.8rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.controls {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 0.25rem;
 }
 
 .arrow {
@@ -282,10 +327,10 @@
   display: grid;
   place-items: center;
   justify-self: center;
-  border: 0;
+  border: 1px solid #d7dcd2;
   border-radius: 50%;
   color: #708477;
-  background: transparent;
+  background: #f0f1e8;
   cursor: pointer;
 }
 
@@ -303,7 +348,7 @@
   display: flex;
   justify-content: center;
   gap: 0.1rem;
-  margin-top: 0.1rem;
+  margin: 0;
 }
 
 .pageButton {
@@ -334,30 +379,21 @@
     margin-top: 1.35rem;
   }
 
-  .carouselRow {
-    grid-template-columns: 1.75rem minmax(0, 1fr) 1.75rem;
-    gap: 0.25rem;
-  }
-
-  .viewport {
-    width: 86%;
-  }
-
   .single {
-    width: min(15rem, 100%);
+    width: min(18rem, calc(100vw - 6rem));
   }
 
   .card {
-    height: 11.75rem;
-  }
-
-  .cardDetails {
-    padding: 0.45rem 0.6rem;
+    height: 14rem;
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .pageMark {
+  .pageMark,
+  .track,
+  .cardShell,
+  .cardDetails,
+  .card::after {
     transition: none;
   }
 }

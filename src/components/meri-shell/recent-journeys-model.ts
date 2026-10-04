@@ -11,28 +11,13 @@ export function visibleRecentJourneys(
   return journeys.filter((journey) => !deletedIds.includes(journey.id));
 }
 
-export function shouldLoopRecentJourneys(count: number): boolean {
-  return count >= 3;
-}
-
-export type RecentJourneysArrowState = {
-  readonly canScrollPrev: boolean;
-  readonly canScrollNext: boolean;
-};
-
-/**
- * Whether each arrow can still move the carousel. Embla knows this too, but only
- * by measuring a carousel that does not exist on the server, so asking it forces
- * the server to render an arrow state the client can then contradict. Every slide
- * is its own snap point here, so the Journey count and the selected slide are all
- * the measurement this needs, and both sides already agree on them.
- */
-export function recentJourneysArrowState(
+export function recentJourneyIndexAfterStep(
   count: number,
   selectedIndex: number,
-): RecentJourneysArrowState {
-  if (shouldLoopRecentJourneys(count)) return { canScrollPrev: true, canScrollNext: true };
-  return { canScrollPrev: selectedIndex > 0, canScrollNext: selectedIndex < count - 1 };
+  step: -1 | 1,
+): number {
+  if (count <= 1) return 0;
+  return (selectedIndex + step + count) % count;
 }
 
 export function shouldOpenJourneyCard(

@@ -231,10 +231,10 @@ LLM 解释自然语言并提出受限 JSON；应用校验、决定是否执行�
 | [src/components/meri-shell/recent-journey-deletion.test.ts](../src/components/meri-shell/recent-journey-deletion.test.ts) | 测试（对应模块边界） | 验证 owner-scoped DELETE、失败不报成功及并发重复删除的控制。 |
 | [src/components/meri-shell/recent-journey-deletion.ts](../src/components/meri-shell/recent-journey-deletion.ts) | 表现层 | 首页删除请求及请求去重，失败时仍允许重试。 |
 | [src/components/meri-shell/recent-journeys-markup.test.tsx](../src/components/meri-shell/recent-journeys-markup.test.tsx) | 测试（对应模块边界） | 验证旅程导航和操作控件为同级元素，避免交互控件嵌套造成误导航。 |
-| [src/components/meri-shell/recent-journeys-model.test.ts](../src/components/meri-shell/recent-journeys-model.test.ts) | 测试（对应模块边界） | 验证空/单/多旅程、显示数量、循环/箭头状态与交互目标的导航规则。 |
-| [src/components/meri-shell/recent-journeys-model.ts](../src/components/meri-shell/recent-journeys-model.ts) | 表现层 | 纯前端规则：最近列表、可见数量、循环资格、箭头状态及点击导航边界。 |
-| [src/components/meri-shell/recent-journeys.module.css](../src/components/meri-shell/recent-journeys.module.css) | 表现层 | 最近旅程卡片、轮播箭头及操作样式。 |
-| [src/components/meri-shell/recent-journeys.tsx](../src/components/meri-shell/recent-journeys.tsx) | 表现层 | 最近旅程 React 组件，呈现 Embla 轮播、导航和删除后的列表更新。 |
+| [src/components/meri-shell/recent-journeys-model.test.ts](../src/components/meri-shell/recent-journeys-model.test.ts) | 测试（对应模块边界） | 验证空/单/多旅程、显示数量、首尾循环切换与交互目标的导航规则。 |
+| [src/components/meri-shell/recent-journeys-model.ts](../src/components/meri-shell/recent-journeys-model.ts) | 表现层 | 纯前端规则：最近列表、可见数量、首尾循环的下一索引及点击导航边界。 |
+| [src/components/meri-shell/recent-journeys.module.css](../src/components/meri-shell/recent-journeys.module.css) | 表现层 | 最近旅程卡片、轮播箭头及操作样式；局部圆角与透明遮罩柔化两侧卡片及视口切口，中央卡片保持清晰。 |
+| [src/components/meri-shell/recent-journeys.tsx](../src/components/meri-shell/recent-journeys.tsx) | 表现层 | 最近旅程 React 组件，适配 Aceternity Carousel 的居中平移轨道、透视缩放及 Motion 悬停视差；支持循环切换、手势、键盘、导航和删除后的列表更新。 |
 | [src/components/i18n/messages.ts](../src/components/i18n/messages.ts) | 表现层 | 界面文字中英字典（首页、最近旅程、旅程页面各区域、我的旅程列表），英文定结构、中文类型上必须对应，带参数的句子与日期格式为函数。 |
 | [src/components/i18n/locale-context.tsx](../src/components/i18n/locale-context.tsx) | 表现层 | LocaleProvider 与 useLocale/useMessages；Provider 之外默认英文（仅测试中出现）。 |
 

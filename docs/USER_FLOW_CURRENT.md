@@ -66,6 +66,8 @@ flowchart TD
 
 代码：[页面加载](../src/app/trips/[id]/page.tsx)、[访客身份](../src/platform/identity/guest-identity.ts)、[JourneyService](../src/capabilities/journey/journey-service.ts)、[消息服务](../src/capabilities/conversation/trip-message-service.ts)、[列表查询](../src/capabilities/journey/my-journeys.ts)。
 
+首页最近旅程最多显示按最近更新排序的 5 个 Journey；没有时隐藏，只有一个时静态显示。多个时使用适配 [Aceternity Carousel](https://ui.aceternity.com/components/carousel) 的居中轨道、两侧透视缩放和鼠标悬停视差，背景复用本地户外插画，只作装饰。下方箭头首尾循环，圆点定位；可左右滑动或用左右方向键切换。点击侧卡先居中，点击当前卡（含「打开旅程」）进入 Workspace，拖动不会打开。只有当前卡显示删除菜单；删除成功后保留仍存在的当前 Journey，当前 Journey 被删则选第一项，删至一个转为静态卡、删空隐藏；请求失败保留卡片并可重试。系统减少动态效果设置关闭轨道/卡片过渡及悬停视差。
+
 ### 1.2 界面语言（中 / EN）
 
 首页右上角、Profile 右边有「中 | EN」切换（[LanguageToggle](../src/components/ui/language-toggle.tsx)）。
