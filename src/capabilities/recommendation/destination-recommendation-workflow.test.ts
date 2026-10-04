@@ -12,7 +12,7 @@ const state: TripState = {
   duration: { state: "missing" }, transportPreference: { state: "missing" },
 };
 const context: DestinationRecommendationContext = {
-  source: "conversation", scope: "within", tripState: state, conversationHistory: [{ role: "user", content: "成熟的徒步路线" }],
+  source: "conversation", scope: "within", tripState: state, conversationHistory: [{ role: "user", content: "成熟的徒步路线" }], locale: "zh",
 };
 const groups: readonly DestinationRecommendationGroup[] = [
   { province: "云南省", places: [
@@ -120,4 +120,13 @@ test("cards keep their landmark for the photo and arrive without one", async () 
     { id: "id-1", name: "丽江市", province: "云南省", reason: "雪山古城", landmark: "玉龙雪山" },
     { id: "id-2", name: "迪庆藏族自治州", province: "云南省", reason: "高原草甸" },
   ]);
+});
+
+test("in English, the sentence above the cards and the empty answer are English", async () => {
+  const { deps } = dependencies();
+  assert.match((await runDestinationRecommendationWorkflow({ ...context, locale: "en" }, "request-9", deps)).content,
+    /^I've listed a few places by province/);
+  const { deps: none } = dependencies({ generated: [] });
+  assert.match((await runDestinationRecommendationWorkflow({ ...context, locale: "en" }, "request-10", none)).content,
+    /couldn't find suitable destinations/);
 });

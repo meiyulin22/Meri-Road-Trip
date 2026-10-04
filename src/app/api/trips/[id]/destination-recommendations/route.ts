@@ -4,6 +4,8 @@ import { cookies } from "next/headers";
 
 import type { TripMessage, TripMessagePresentation } from "@/domain/trip-message/trip-message";
 import type { TripState } from "@/domain/trip-state/trip-state";
+import type { Locale } from "@/domain/locale/locale";
+import { requestLocale } from "@/platform/locale/request-locale";
 import { TripNotFoundError } from "@/domain/trip/trip-errors";
 import { readGuestId } from "@/platform/identity/guest-identity";
 import { logEvents, logger } from "@/platform/observability/logger";
@@ -18,6 +20,8 @@ import {
 } from "@/capabilities/recommendation/destination-recommendation-use-case";
 
 type Dependencies = DestinationRecommendationUseCaseDependencies & {
+  /** The language chosen on the landing page. */
+  readonly locale: Locale;
   readonly loadJourney: (tripId: string, ownerGuestId: string) => Promise<{ tripState: TripState }>;
   readonly listMessages: (tripId: string, ownerGuestId: string) => Promise<TripMessage[]>;
   readonly persistCards: (input: {
@@ -59,7 +63,7 @@ export async function handleDestinationRecommendationsPost(
     if (messages.at(-1)?.id !== pendingMessageId) {
       return Response.json({ error: "The conversation has moved on.", code: "recommendations_stale" }, { status: 409 });
     }
-    const result = await createPendingRecommendations({ tripId, tripState, request, requestId }, dependencies);
+    const result = await createPendingRecommendations({ tripId, tripState, request, requestId, locale: dependencies.locale }, dependencies);
     if (result === null) {
       return Response.json({ error: "The destination changed since this request.", code: "recommendations_stale" },
         { status: 409 });
@@ -89,6 +93,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   const { tripMessageService } = await import("@/capabilities/conversation/trip-message-service-instance");
   return handleDestinationRecommendationsPost(id, readGuestId(await cookies()), body, randomUUID(), {
     ...destinationRecommendationDependencies(),
+    locale: await requestLocale(),
     loadJourney: (tripId, owner) => journeyService.loadJourney(tripId, owner),
     listMessages: (tripId, owner) => tripMessageService.listMessages(tripId, owner),
     persistCards: (input) => tripMessageService.persistRecommendationCards(input),

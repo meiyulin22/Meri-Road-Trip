@@ -12,6 +12,8 @@ import { LocationService } from "@/capabilities/destination/location-service";
 import { picksFromSearch } from "@/capabilities/destination/resolve-destination-place";
 import { verifyDestinationChoice } from "@/capabilities/destination/verified-destination-choice";
 import { destinationSelectionReply } from "@/capabilities/destination/destination-selection-reply";
+import { meriReplies, type MeriReplies } from "@/capabilities/conversation/meri-replies";
+import { requestLocale } from "@/platform/locale/request-locale";
 import { destinationRecommendationSelectionMessageId } from "@/capabilities/conversation/destination-selection-message-id";
 
 type Dependencies = {
@@ -22,6 +24,8 @@ type Dependencies = {
   readonly persistFollowUp: (input: {
     tripId: string; ownerGuestId: string; messageId: string; content: string;
   }) => Promise<TripMessage>;
+  /** Meri's own sentences in the language chosen on the landing page. */
+  readonly replies: MeriReplies;
 };
 
 function offerChoices(message: TripMessage): { choices: readonly DestinationChoice[]; mode: "add" | "replace";
@@ -122,7 +126,7 @@ export async function handleDestinationRecommendationSelectionPost(
     try {
       const assistantMessage = await dependencies.persistFollowUp({
         tripId, ownerGuestId, messageId: followUpId,
-        content: destinationSelectionReply(tripState, currentState),
+        content: destinationSelectionReply(tripState, currentState, dependencies.replies),
       });
       return Response.json({ tripState, assistantMessage });
     } catch {
@@ -151,5 +155,6 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     listMessages: (tripId, owner) => tripMessageService.listMessages(tripId, owner),
     updateTripState: (tripId, owner, patch, expected) => journeyService.updateTripState(tripId, owner, patch, expected),
     persistFollowUp: (input) => tripMessageService.persistDestinationSelectionReply(input),
+    replies: meriReplies[await requestLocale()],
   });
 }

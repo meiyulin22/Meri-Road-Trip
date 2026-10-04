@@ -5,6 +5,7 @@ import {handleDestinationRecommendationSelectionPost as select} from "@/app/api/
 import {initializeTripState,applyTripStatePatch} from "@/domain/trip-state/trip-state";
 import type {TripMessage} from "@/domain/trip-message/trip-message";
 import {TripNotFoundError} from "@/domain/trip/trip-errors";
+import { meriReplies } from "@/capabilities/conversation/meri-replies";
 const tripId="trip-a";
 const initial=initializeTripState({name:{state:"missing"},origin:{state:"missing"},destinationEdit:{operation:"none"},startDate:{state:"missing"},endDate:{state:"missing"},duration:{state:"missing"},transportPreference:{state:"missing"}});
 const offer:TripMessage={id:"offer",tripId,role:"assistant",content:"选择",createdAt:"2026-09-29T00:00:00Z",presentation:{type:"destination_choices",mode:"add",choices:[{id:"a",name:"潮州市",province:"广东省",city:"潮州市"},{id:"b",name:"梅里雪山",province:"云南省",city:"迪庆藏族自治州",spot:"梅里雪山"}]}};
@@ -12,7 +13,7 @@ function fixture(){let state=initial;let writes=0;const messages=[offer];const d
  loadJourney:async()=>({tripState:state}),listMessages:async()=>messages,
  updateTripState:async(_id,_owner,patch)=>{writes++;state=applyTripStatePatch(state,patch);return state;},
  verifyChoice:async c=>({status:"verified",pick:{province:c.province,place:c.city??null,spot:c.spot??null}}),
- persistFollowUp:async input=>{const found=messages.find(m=>m.id===input.messageId);if(found)return found;const m:TripMessage={id:input.messageId,tripId,role:"assistant",content:input.content,createdAt:"2026-09-29T00:00:01Z"};messages.push(m);return m;},
+ replies: meriReplies.zh, persistFollowUp:async input=>{const found=messages.find(m=>m.id===input.messageId);if(found)return found;const m:TripMessage={id:input.messageId,tripId,role:"assistant",content:input.content,createdAt:"2026-09-29T00:00:01Z"};messages.push(m);return m;},
 };return {dependencies,getState:()=>state,getWrites:()=>writes,messages};}
 const body={messageId:offer.id,destinationIds:["a","b"]};
 test("only persisted offered identities can update a Journey",async()=>{
@@ -33,7 +34,7 @@ test("verification failure prevents the whole batch from being saved",async()=>{
 });
 test("write failure has no follow-up; follow-up failure reports saved state",async()=>{
  const f=fixture();const failed=await select(tripId,"owner",body,{...f.dependencies,updateTripState:async()=>{throw new Error("write");}});assert.equal(failed.status,500);assert.equal(f.messages.length,1);
- const partial=await select(tripId,"owner",body,{...f.dependencies,persistFollowUp:async()=>{throw new Error("reply");}});assert.equal(partial.status,500);const data=await partial.json();assert.equal(data.code,"follow_up_unavailable");assert.deepEqual(data.tripState,f.getState());
+ const partial=await select(tripId,"owner",body,{...f.dependencies,replies: meriReplies.zh, persistFollowUp:async()=>{throw new Error("reply");}});assert.equal(partial.status,500);const data=await partial.json();assert.equal(data.code,"follow_up_unavailable");assert.deepEqual(data.tripState,f.getState());
 });
 test("legacy recommendations still require successful provider verification",async()=>{
  const f=fixture();f.messages[0]={...offer,presentation:{type:"destination_recommendations",destinations:[{id:"a",name:"潮州市",province:"广东省"}]}};

@@ -1,3 +1,4 @@
+import type { Locale } from "@/domain/locale/locale";
 import type { RecommendationScope, TripMessage } from "@/domain/trip-message/trip-message";
 import { isDestinationOpenToRecommendations, type TripState } from "@/domain/trip-state/trip-state";
 import type { WorkspaceConversationInterpretation } from "@/domain/trip-state/workspace-conversation";
@@ -72,9 +73,10 @@ export async function createPendingRecommendations(input: {
   readonly tripState: TripState;
   readonly request: Extract<PendingRecommendationRequest, { status: "found" }>;
   readonly requestId: string;
+  readonly locale: Locale;
 }, dependencies: DestinationRecommendationUseCaseDependencies): Promise<DestinationRecommendationWorkflowResult | null> {
   if (!isDestinationOpenToRecommendations(input.tripState.destination, input.request.scope)) return null;
   const context = buildConversationalDestinationRecommendationContext(input.tripId, input.tripState,
-    input.request.earlierMessages, input.request.userText, input.request.scope);
+    input.request.earlierMessages, input.request.userText, input.request.scope, input.locale);
   return dependencies.runWorkflow(context, input.requestId);
 }

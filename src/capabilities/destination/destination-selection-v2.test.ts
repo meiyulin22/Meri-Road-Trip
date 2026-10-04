@@ -8,6 +8,7 @@ import { destinationPreferenceId } from "@/domain/trip-message/destination-choic
 import { verifyDestinationChoice } from "./verified-destination-choice";
 import { applyDestinationEdit } from "./apply-destination-edit";
 import { validateDestinationEdit } from "@/domain/trip-state/destination-edit";
+import { meriReplies } from "@/capabilities/conversation/meri-replies";
 
 const tripId = "trip-a";
 const owner = "guest-a";
@@ -47,7 +48,7 @@ test("Meri then an unsupported request then Qingdao preserves Yunnan for both se
         loadJourney: async () => ({ tripState: state }), listMessages: async () => [offered],
         verifyChoice: async () => ({ status: "verified", pick: { province: "山东省", place: "青岛市", spot: null } }),
         updateTripState: async (_tripId, _owner, patch) => { state = applyTripStatePatch(state, patch); return state; },
-        persistFollowUp: async ({ messageId, content }) => ({ id: messageId, tripId, role: "assistant",
+        replies: meriReplies.zh, persistFollowUp: async ({ messageId, content }) => ({ id: messageId, tripId, role: "assistant",
           content, createdAt: "2026-10-03T00:00:00.000Z" }),
       });
     assert.equal(response.status, 200);
@@ -73,7 +74,7 @@ test("an active foreign province card returns 409 without writing state or a con
       verifyChoice: (choice) => verifyDestinationChoice(choice, {
         search: async () => { throw new Error("must not search"); },
       }),
-      persistFollowUp: async () => { throw new Error("must not confirm"); },
+      replies: meriReplies.zh, persistFollowUp: async () => { throw new Error("must not confirm"); },
     });
   assert.equal(response.status, 409);
 });
@@ -90,7 +91,7 @@ test("a second city offer adds Guangdong without replacing Zhejiang and Fujian",
       updateTripState: async (_tripId, _owner, patch) => { state = applyTripStatePatch(state, patch); return state; },
       verifyChoice: async (choice) => ({ status: "verified", pick: {
         province: choice.province, place: choice.city ?? null, spot: choice.spot ?? null } }),
-      persistFollowUp: async ({ messageId, content }) => ({ id: messageId, tripId, role: "assistant",
+      replies: meriReplies.zh, persistFollowUp: async ({ messageId, content }) => ({ id: messageId, tripId, role: "assistant",
         content, createdAt: "2026-09-29T00:00:01.000Z" }),
     });
   assert.equal(response.status, 200);
@@ -108,7 +109,7 @@ test("an old replacement offer cannot overwrite a newer destination", async () =
       loadJourney: async () => ({ tripState: initial }), listMessages: async () => [offered],
       updateTripState: async () => { throw new Error("must not write"); },
       verifyChoice: async () => { throw new Error("must not verify"); },
-      persistFollowUp: async () => { throw new Error("must not reply"); },
+      replies: meriReplies.zh, persistFollowUp: async () => { throw new Error("must not reply"); },
     });
   assert.equal(response.status, 409);
 });
@@ -132,7 +133,7 @@ test("a grouped historical spot offer revalidates once and saves one city prefer
           coordinateSystem: "GCJ-02",
         }] }) });
       },
-      persistFollowUp: async ({ messageId, content }) => ({ id: messageId, tripId, role: "assistant",
+      replies: meriReplies.zh, persistFollowUp: async ({ messageId, content }) => ({ id: messageId, tripId, role: "assistant",
         content, createdAt: "2026-09-30T00:00:00.000Z" }),
     });
   assert.equal(response.status, 200);

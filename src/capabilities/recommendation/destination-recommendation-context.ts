@@ -1,3 +1,4 @@
+import type { Locale } from "@/domain/locale/locale";
 import type { TripMessage } from "@/domain/trip-message/trip-message";
 import { isDestinationOpenToRecommendations, type TripState } from "@/domain/trip-state/trip-state";
 import type { RecommendationScope } from "@/domain/trip-message/trip-message";
@@ -16,6 +17,8 @@ export type DestinationRecommendationContext = {
   readonly scope: RecommendationScope;
   readonly tripState: TripState;
   readonly conversationHistory: readonly StructuredOutputConversationMessage[];
+  /** The language chosen on the landing page, for the sentences Meri writes around the cards. */
+  readonly locale: Locale;
 };
 
 export function buildConversationalDestinationRecommendationContext(
@@ -24,13 +27,14 @@ export function buildConversationalDestinationRecommendationContext(
   messages: readonly TripMessage[],
   currentUserText: string,
   scope: RecommendationScope,
+  locale: Locale,
 ): DestinationRecommendationContext {
   if (!isDestinationOpenToRecommendations(tripState.destination, scope) || currentUserText.trim() === "") {
     throw new Error("Conversational destination recommendation context is not eligible.");
   }
   const history = selectMessages(messages, tripId, currentUserText.length);
   return { source: "conversation", scope, tripState,
-    conversationHistory: [...history, { role: "user", content: currentUserText }] };
+    conversationHistory: [...history, { role: "user", content: currentUserText }], locale };
 }
 
 function selectMessages(messages: readonly TripMessage[], tripId: string, reservedCharacters = 0): StructuredOutputConversationMessage[] {

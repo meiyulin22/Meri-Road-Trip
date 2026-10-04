@@ -8,6 +8,7 @@ import { createBochaDiscoverySearchFromEnvironment } from "@/platform/search/boc
 import { searchJourneyDiscovery, type DiscoverySearch, type DiscoverySearchResult } from "@/platform/search/discovery-search";
 import { logger } from "@/platform/observability/logger";
 import { generateDestinationRecommendations } from "./destination-recommendation-generator";
+import { meriReplies } from "@/capabilities/conversation/meri-replies";
 import type { DestinationRecommendationContext } from "./destination-recommendation-context";
 
 export type DestinationRecommendationWorkflowResult = {
@@ -58,13 +59,12 @@ export async function runDestinationRecommendationWorkflow(
     provinceCount: groups.length, placeCount: destinations.length,
     durationMs: Math.round(performance.now() - startedAt) }, "Destination recommendation workflow completed");
 
+  const replies = meriReplies[context.locale];
   if (!destinations.length) {
-    return { content: context.scope === "elsewhere"
-      ? "这次没有在其他省份筛出合适的地方。你可以说说想要什么样的风景，我们再找找。"
-      : "这次没有筛出合适的目的地。你可以调整一下偏好，我们再找找其他方向。" };
+    return { content: context.scope === "elsewhere" ? replies.noRecommendationsElsewhere : replies.noRecommendations };
   }
   return {
-    content: "我按省份列了几个可以去的地方，你想去哪些都可以选上，选好之后我们再往下定。",
+    content: replies.recommendationsListed,
     presentation: { type: "destination_recommendations", destinations },
   };
 }

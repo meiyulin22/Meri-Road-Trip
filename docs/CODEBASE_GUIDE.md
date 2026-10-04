@@ -384,7 +384,8 @@ LLM 解释自然语言并提出受限 JSON；应用校验、决定是否执行�
 | [src/capabilities/conversation/trip-message-service.test.ts](../src/capabilities/conversation/trip-message-service.test.ts) | 测试（对应模块边界） | 验证真实双边消息、候选 presentation、确认幂等和所有权保护。 |
 | [src/capabilities/conversation/trip-message-service.ts](../src/capabilities/conversation/trip-message-service.ts) | 应用层/用例装配 | owner 检查后保存初始原话、开场、完整对话、选卡确认、推荐卡片消息（不存在时才写）、推荐卡照片写回（只改原本是推荐卡的消息的 presentation）及读取消息。 |
 | [src/capabilities/conversation/turn-reply.test.ts](../src/capabilities/conversation/turn-reply.test.ts) | 测试（对应模块边界） | 验证地点 edit 正文：已加入、准备度只说一次、有卡或失败时省略模型 reply。 |
-| [src/capabilities/conversation/turn-reply.ts](../src/capabilities/conversation/turn-reply.ts) | 应用层/用例装配 | 应用自己的句子：地点 edit 的“已加入/候选/失败”正文（destinationEditReply，出卡或没找到时提示可在目的地「添加」里自己搜）、推荐引导语去问句（recommendationLeadIn）、已捕获字段/待补信息/准备度固定文案，准备度只在首次可规划时说；不代表规划执行。 |
+| [src/capabilities/conversation/turn-reply.ts](../src/capabilities/conversation/turn-reply.ts) | 应用层/用例装配 | 应用自己的句子（措辞取自调用方传入的 meri-replies）：地点 edit 的“已加入/候选/失败”正文（destinationEditReply，出卡或没找到时提示可在目的地「添加」里自己搜）、推荐引导语去问句（recommendationLeadIn）、已捕获字段/待补信息/准备度固定文案，准备度只在首次可规划时说；不代表规划执行。 |
+| [src/capabilities/conversation/meri-replies.ts](../src/capabilities/conversation/meri-replies.ts) | 应用层/用例装配 | Meri 在代码里写的句子的中英两份（已加入/候选/没找到/搜索提示/准备度/选卡确认/推荐固定句），以及两种语言的句子连接、列表分隔和引号；按首页选择的语言取用，不判断用户输入的语言。 |
 | [src/capabilities/conversation/workspace-conversation-context.test.ts](../src/capabilities/conversation/workspace-conversation-context.test.ts) | 测试（对应模块边界） | 验证空历史、城市/spot 待选卡上下文、助手合并和历史预算。 |
 | [src/capabilities/conversation/workspace-conversation-context.ts](../src/capabilities/conversation/workspace-conversation-context.ts) | 应用层/用例装配 | 选最近 5 轮/6000 字符真实历史，合并连续助手消息，保留选卡确认上下文。 |
 | [src/capabilities/conversation/workspace-conversation-interpreter.test.ts](../src/capabilities/conversation/workspace-conversation-interpreter.test.ts) | 测试（对应模块边界） | 验证修改提案、当前状态/历史输入、非法 JSON/输出及 opening 限制。 |
@@ -400,7 +401,7 @@ LLM 解释自然语言并提出受限 JSON；应用校验、决定是否执行�
 | [src/capabilities/destination/destination-choice-flow.test.ts](../src/capabilities/destination/destination-choice-flow.test.ts) | 测试（对应模块边界） | 跨模块验证核验→候选→显式提交不提前写目的地，以及提交复核身份/spot 保留；自身城市前缀算精确并用原话作景点名，其他前缀出卡。 |
 | [src/capabilities/destination/destination-recommendation-selection-route.test.ts](../src/capabilities/destination/destination-recommendation-selection-route.test.ts) | 测试（对应模块边界） | 验证只有保存的 offer 可提交、owner/ID 校验、提供方失败及选择接口状态边界。 |
 | [src/capabilities/destination/destination-selection-reply.test.ts](../src/capabilities/destination/destination-selection-reply.test.ts) | 测试（对应模块边界） | 验证确认包含城市/spot、已知/近似字段不重复追问，只有省也可规划、旧文本需重新确认。 |
-| [src/capabilities/destination/destination-selection-reply.ts](../src/capabilities/destination/destination-selection-reply.ts) | 应用层/用例装配 | 从保存前后的 TripState 构造只说新增地点的确认，首次可规划时附准备度和补充信息邀请，固定正文无 LLM 调用。 |
+| [src/capabilities/destination/destination-selection-reply.ts](../src/capabilities/destination/destination-selection-reply.ts) | 应用层/用例装配 | 从保存前后的 TripState 构造只说新增地点的确认，首次可规划时附准备度和补充信息邀请，固定正文无 LLM 调用，措辞按首页选择的语言（meri-replies）。 |
 | [src/capabilities/destination/destination-selection-v2.test.ts](../src/capabilities/destination/destination-selection-v2.test.ts) | 测试（对应模块边界） | 验证多省追加、旧 replace 冲突、已确认/过期卡、安全重试及不恢复已删除目的地。 |
 | [src/capabilities/destination/location-service.test.ts](../src/capabilities/destination/location-service.test.ts) | 测试（对应模块边界） | 验证空表达不调用、原话查询、无结果和提供方异常归一化。 |
 | [src/capabilities/destination/location-service.ts](../src/capabilities/destination/location-service.ts) | 应用层/用例装配 | 调用 LocationProvider、规范化错误并执行名称解析；同名商业 POI 干扰时最多补查一次“原词＋市”，要求行政字段佐证；保留原始候选供手动选择。 |
@@ -417,7 +418,7 @@ LLM 解释自然语言并提出受限 JSON；应用校验、决定是否执行�
 
 | 文件地址 | 层/类别 | 做什么 |
 | --- | --- | --- |
-| [src/capabilities/recommendation/destination-recommendation-context.ts](../src/capabilities/recommendation/destination-recommendation-context.ts) | 应用层/用例装配 | 从当前状态、推荐范围（within/elsewhere）和最多 10 条/6000 字符历史构造聊天触发（conversation）的推荐 context。 |
+| [src/capabilities/recommendation/destination-recommendation-context.ts](../src/capabilities/recommendation/destination-recommendation-context.ts) | 应用层/用例装配 | 从当前状态、推荐范围（within/elsewhere）和最多 10 条/6000 字符历史构造聊天触发（conversation）的推荐 context，带首页选择的语言（推荐固定句用它）。 |
 | [src/capabilities/recommendation/destination-recommendation-generator.test.ts](../src/capabilities/recommendation/destination-recommendation-generator.test.ts) | 测试（对应模块边界） | 验证聊天触发的上下文、真实历史/展示卡、JSON/schema 校验及推荐生成错误。 |
 | [src/capabilities/recommendation/destination-recommendation-generator.ts](../src/capabilities/recommendation/destination-recommendation-generator.ts) | 应用层/用例装配 | 推荐模型 JSON Schema、AI SDK 调用及领域校验，输出省/市/理由/配图地标，非法结果抛专用错误。 |
 | [src/capabilities/recommendation/destination-recommendation-model-client.test.ts](../src/capabilities/recommendation/destination-recommendation-model-client.test.ts) | 测试（对应模块边界） | 验证显式按钮调用不伪造 user 消息，AI SDK 只发一次模型请求。 |

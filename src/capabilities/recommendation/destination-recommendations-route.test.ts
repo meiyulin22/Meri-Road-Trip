@@ -24,6 +24,7 @@ const cards = { content: "我按省份列了几个可以去的地方。", presen
 function dependencies(messages: TripMessage[], options: { tripState?: TripState; fail?: boolean } = {}) {
   const calls = { workflow: 0, persisted: [] as TripMessage[] };
   return { calls, deps: {
+    locale: "zh" as const,
     loadJourney: async () => ({ tripState: options.tripState ?? state }),
     listMessages: async () => messages,
     async runWorkflow() {

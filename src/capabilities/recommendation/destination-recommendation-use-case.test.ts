@@ -73,7 +73,7 @@ test("cards are built from the stored request and real history, without a fabric
   assert.equal(request.status, "found");
   if (request.status !== "found") return;
   let calls = 0;
-  const result = await createPendingRecommendations({ tripId, tripState: state, request, requestId: "request-1" }, {
+  const result = await createPendingRecommendations({ tripId, tripState: state, request, requestId: "request-1", locale: "zh" }, {
     async runWorkflow(context) {
       calls += 1;
       assert.equal(context.scope, "within");
@@ -92,7 +92,7 @@ test("cards are built from the stored request and real history, without a fabric
 test("a destination settled since the reply was written gets no cards", async () => {
   const request = pendingRecommendationRequest(history, "a1");
   if (request.status !== "found") throw new Error("expected a pending request");
-  const result = await createPendingRecommendations({ tripId, tripState: placeChosen, request, requestId: "request-2" }, {
+  const result = await createPendingRecommendations({ tripId, tripState: placeChosen, request, requestId: "request-2", locale: "zh" }, {
     async runWorkflow() { throw new Error("must not run"); },
   });
   assert.equal(result, null);
@@ -101,7 +101,7 @@ test("a destination settled since the reply was written gets no cards", async ()
 test("a workflow failure reaches the caller instead of becoming an empty answer", async () => {
   const request = pendingRecommendationRequest(history, "a1");
   if (request.status !== "found") throw new Error("expected a pending request");
-  await assert.rejects(createPendingRecommendations({ tripId, tripState: state, request, requestId: "request-3" }, {
+  await assert.rejects(createPendingRecommendations({ tripId, tripState: state, request, requestId: "request-3", locale: "zh" }, {
     async runWorkflow() { throw new Error("model unavailable"); },
   }), /model unavailable/u);
 });

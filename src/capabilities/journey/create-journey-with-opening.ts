@@ -4,6 +4,7 @@ import type { LocationResolveResult } from "@/capabilities/destination/location-
 import { applyDestinationEdit } from "@/capabilities/destination/apply-destination-edit";
 import { resolveDestinationPlace } from "@/capabilities/destination/resolve-destination-place";
 import { destinationEditReply } from "@/capabilities/conversation/turn-reply";
+import type { MeriReplies } from "@/capabilities/conversation/meri-replies";
 import { withChoiceImages } from "@/capabilities/destination/place-images";
 import type { PlacePhotoProvider } from "@/platform/place-photos/place-photo-provider";
 import { initializeTripState, type DestinationField } from "@/domain/trip-state/trip-state";
@@ -26,6 +27,8 @@ export async function createJourneyWithOpening(
   input: {
     readonly draft: unknown; readonly ownerGuestId: string; readonly initialUserMessage?: string;
     readonly requestId: string; readonly referenceDate: string; readonly timezone: string;
+    /** Meri's own sentences in the language chosen on the landing page. */
+    readonly replies: MeriReplies;
   },
   dependencies: CreateJourneyWithOpeningDependencies,
 ): Promise<{ readonly journey: Journey; readonly opening: "completed" | "failed" | "not_requested";
@@ -40,7 +43,7 @@ export async function createJourneyWithOpening(
   // in the Journey already, and the model's opening greets it like any other state.
   const initialState = initializeTripState(draft);
   const createdState = result?.changed ? { ...initialState, destination: result.destination } : initialState;
-  const reply = result ? destinationEditReply(result, "", initialState, createdState) : "";
+  const reply = result ? destinationEditReply(result, "", initialState, createdState, input.replies) : "";
   const openingAssistant = result && reply !== "" && (result.choices || result.unresolved.length || result.lookupFailed.length)
     ? { content: reply, ...(result.choices
       ? { presentation: await withChoiceImages(result.choices.presentation, dependencies.photos) } : {}) }

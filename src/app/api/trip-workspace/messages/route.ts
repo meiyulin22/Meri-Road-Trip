@@ -24,6 +24,8 @@ import {
 import { selectRecentConversationMessages } from "@/capabilities/conversation/workspace-conversation-context";
 import { recommendationScopeForTurn } from "@/capabilities/recommendation/destination-recommendation-use-case";
 import { destinationEditReply, recommendationLeadIn } from "@/capabilities/conversation/turn-reply";
+import { meriReplies } from "@/capabilities/conversation/meri-replies";
+import { requestLocale } from "@/platform/locale/request-locale";
 import { AmapLocationProvider } from "@/platform/location-provider/amap-location-provider";
 import { TripStateNotFoundError, TripStateConflictError } from "@/capabilities/journey/journey-errors";
 import { journeyService } from "@/capabilities/journey/journey-service-instance";
@@ -200,9 +202,11 @@ export async function POST(request: Request) {
         destinationNeedsUser,
       }, "Destination recommendations were requested on a turn that cannot offer them");
     }
+    // The landing page's language words Meri's own sentences; the model's reply is its own.
+    const replies = meriReplies[await requestLocale()];
     const reply = destinationEditReply(destinationResult,
-      recommendationScope ? recommendationLeadIn(interpretation.reply) : interpretation.reply,
-      tripState, persistedTripState);
+      recommendationScope ? recommendationLeadIn(interpretation.reply, replies) : interpretation.reply,
+      tripState, persistedTripState, replies);
     const assistantPresentation = destinationResult.choices
       ? await withChoiceImages(destinationResult.choices.presentation, new AmapPlacePhotoProvider())
       : recommendationScope

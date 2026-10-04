@@ -5,6 +5,7 @@ import type { TripDraft } from "@/domain/trip-draft/trip-draft";
 import { initializeTripState } from "@/domain/trip-state/trip-state";
 import type { Journey } from "./journey-service";
 import { createJourneyWithOpening } from "./create-journey-with-opening";
+import { meriReplies } from "@/capabilities/conversation/meri-replies";
 
 const draft: TripDraft = {
   name: { state: "missing" }, origin: { state: "missing" },
@@ -19,7 +20,7 @@ const meri = { providerId: "amap-meri", name: "梅里雪山", province: "云南�
   district: "德钦县", region: "云南省迪庆藏族自治州", address: "德钦",
   longitude: 98.6, latitude: 28.4, coordinateSystem: "GCJ-02" as const };
 const input = { draft, ownerGuestId: "guest-a", initialUserMessage: "想去梅里雪山",
-  requestId: "request-a", referenceDate: "2026-09-29", timezone: "Asia/Shanghai" };
+  requestId: "request-a", referenceDate: "2026-09-29", timezone: "Asia/Shanghai", replies: meriReplies.zh };
 
 test("a first message naming a place the provider matches exactly starts the Journey with it", async () => {
   let savedDestination: unknown;

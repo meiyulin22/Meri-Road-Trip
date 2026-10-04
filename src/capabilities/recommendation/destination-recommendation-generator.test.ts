@@ -32,7 +32,7 @@ const valid = {
 const askedFor = "帮我推荐几个地方";
 
 function context(state: TripState = tripState) {
-  return buildConversationalDestinationRecommendationContext(tripId, state, history, askedFor, "within");
+  return buildConversationalDestinationRecommendationContext(tripId, state, history, askedFor, "within", "zh");
 }
 
 test("context carries how it was triggered, authoritative state, and only real history", () => {
@@ -50,7 +50,7 @@ test("context writes out the cards an earlier recommendation showed", () => {
   const offered: TripMessage = { id: "a2", tripId, role: "assistant", content: "看看这些方向。",
     createdAt: history[1].createdAt, presentation: { type: "destination_recommendations",
       destinations: [{ id: "c1", name: "甘孜藏族自治州", province: "四川省" }] } };
-  const built = buildConversationalDestinationRecommendationContext(tripId, tripState, [...history, offered], askedFor, "within");
+  const built = buildConversationalDestinationRecommendationContext(tripId, tripState, [...history, offered], askedFor, "within", "zh");
   assert.deepEqual(built.conversationHistory.at(-2), {
     role: "assistant", content: "看看这些方向。\n[展示过的卡片] 四川省：甘孜藏族自治州",
   });

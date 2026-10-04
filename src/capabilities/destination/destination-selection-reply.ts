@@ -1,6 +1,7 @@
 import { destinationText, type TripState } from "@/domain/trip-state/trip-state";
 import { destinationAdditions, destinationAreasText } from "@/domain/trip-state/destination-areas";
-import { capturedDetailsNote, missingDetailsInvitation, planReadyNote } from "@/capabilities/conversation/turn-reply";
+import { capturedDetailsNote, planReadyInvitation } from "@/capabilities/conversation/turn-reply";
+import type { MeriReplies } from "@/capabilities/conversation/meri-replies";
 import { evaluateGeneratePlanReadiness } from "@/domain/trip-state/planning-readiness";
 
 /**
@@ -9,7 +10,7 @@ import { evaluateGeneratePlanReadiness } from "@/domain/trip-state/planning-read
  * makes the Journey ready, not after every later pick: repeated four times in one
  * conversation, it buried what each pick changed.
  */
-export function destinationSelectionReply(tripState: TripState, before: TripState): string {
+export function destinationSelectionReply(tripState: TripState, before: TripState, replies: MeriReplies): string {
   const text = destinationText(tripState.destination);
   if (text === null) {
     throw new Error("Selected destination must be set before composing a reply.");
@@ -18,14 +19,14 @@ export function destinationSelectionReply(tripState: TripState, before: TripStat
   // A text-bearing destination is never missing, so the only way it is not ready is
   // an old record that was never verified. A whole province is ready.
   if (!readiness.canProceed) {
-    return `好，目的地现在是${text}。${capturedDetailsNote(tripState)}之前保存的地点还需要重新搜索确认。`;
+    return replies.join([replies.destinationIs(text), capturedDetailsNote(tripState, replies), replies.reverifySaved]);
   }
   const added = destinationAdditions(areasOf(before), areasOf(tripState));
-  const news = added.length === 0 ? "这些地点已经在旅程里了。" : `好，已加入${destinationAreasText(added)}。`;
+  const news = added.length === 0 ? replies.alreadyInJourney : replies.pickedAdded(destinationAreasText(added));
   if (evaluateGeneratePlanReadiness(before).canProceed) {
     return news;
   }
-  return `${news}${capturedDetailsNote(tripState)}${planReadyNote}${missingDetailsInvitation(tripState)}`;
+  return replies.join([news, capturedDetailsNote(tripState, replies), planReadyInvitation(tripState, replies)]);
 }
 
 function areasOf(tripState: TripState) {
