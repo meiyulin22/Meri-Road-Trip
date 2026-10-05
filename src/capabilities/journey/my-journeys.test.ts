@@ -11,6 +11,7 @@ const journey: JourneySummary = {
   id: "3d17d2c7-fd9b-4748-b751-3a76a9a920be",
   name: "富良野滑雪",
   destination: "富良野",
+  destinationAreas: [],
   startDate: null,
   endDate: null,
   status: "idea",

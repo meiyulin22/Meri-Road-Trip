@@ -8,7 +8,7 @@
 - [生成脚本](../../assets/companion/bear/generate_bear_sprites.py)把它缩成 64px 底图并合成全部帧，写出 [bear-sprites.png](../../public/companion/bear/bear-sprites.png) 和 [bear-sprites.json](../../public/companion/bear/bear-sprites.json)。改帧只需改脚本后重新运行。
 - [MeriWorld](../../src/components/companion/meri-world.tsx)把小熊放在旅程列底部，旁边气泡说一句话；文案来自 [companionStatus](../../src/components/companion/companion-status-model.ts)。
 - [bear-behavior](../../src/components/companion/bear-behavior.ts)按下文“行为逻辑”决定做什么，[CompanionBear](../../src/components/companion/companion-bear.tsx)逐帧播放。
-- 旧角色（人类徒步者）的分方向 idle/walking 素材和 `/playground/companion` 试验页已删除。[assets/companion/Meri.png](../../assets/companion/Meri.png) 等设计稿保留作参考。
+- 旧角色（人类徒步者）的分方向 idle/walking 素材和 `/playground/companion` 试验页已删除。它的参考原图 `assets/companion/Meri.png` 已在 1.0202 删除。
 
 ## 想要的效果
 

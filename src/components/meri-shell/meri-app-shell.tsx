@@ -4,6 +4,10 @@ import { cookies } from "next/headers";
 
 import { journeySummaryRepository } from "@/capabilities/journey/journey-summary-repository-instance";
 import { loadMyJourneys } from "@/capabilities/journey/my-journeys";
+import { journeyCovers } from "@/capabilities/journey/journey-covers";
+import { tripMessageService } from "@/capabilities/conversation/trip-message-service-instance";
+import { readGuestId } from "@/platform/identity/guest-identity";
+import { AmapPlacePhotoProvider } from "@/platform/place-photos/amap-place-photo-provider";
 import { messages } from "@/components/i18n/messages";
 import { requestLocale } from "@/platform/locale/request-locale";
 
@@ -16,9 +20,17 @@ import { RecentJourneys } from "./recent-journeys";
 import { recentJourneysForHome } from "./recent-journeys-model";
 
 export async function MeriAppShell() {
+  const cookieStore = await cookies();
   const journeys = recentJourneysForHome(
-    await loadMyJourneys(await cookies(), journeySummaryRepository),
+    await loadMyJourneys(cookieStore, journeySummaryRepository),
   );
+  const ownerGuestId = readGuestId(cookieStore);
+  // A short wait, as on the Workspace: photos it has seen come from the cache at once.
+  const covers = ownerGuestId ? await journeyCovers(journeys, {
+    listMessages: (tripId) => tripMessageService.listMessages(tripId, ownerGuestId),
+    photos: new AmapPlacePhotoProvider(),
+    waitMs: 1_500,
+  }) : {};
   const locale = await requestLocale();
   const text = messages[locale].home;
 
@@ -82,7 +94,7 @@ export async function MeriAppShell() {
             {text.headline}
           </PixelHeading>
         )}
-        recentJourneys={journeys.length > 0 ? <RecentJourneys journeys={journeys} /> : null}
+        recentJourneys={journeys.length > 0 ? <RecentJourneys covers={covers} journeys={journeys} /> : null}
       />
 
       <div className={styles.landscape} aria-hidden="true" />

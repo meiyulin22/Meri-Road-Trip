@@ -14,6 +14,7 @@ const journeys: JourneySummary[] = Array.from({ length: 6 }, (_, index) => ({
   id: `journey-${index}`,
   name: `Journey ${index}`,
   destination: `Place ${index}`,
+  destinationAreas: [],
   startDate: null,
   endDate: null,
   status: "idea",

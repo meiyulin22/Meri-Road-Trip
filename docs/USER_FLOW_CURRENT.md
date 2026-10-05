@@ -68,7 +68,7 @@ flowchart TD
 
 代码：[页面加载](../src/app/trips/[id]/page.tsx)、[访客身份](../src/platform/identity/guest-identity.ts)、[JourneyService](../src/capabilities/journey/journey-service.ts)、[消息服务](../src/capabilities/conversation/trip-message-service.ts)、[列表查询](../src/capabilities/journey/my-journeys.ts)。
 
-首页最近旅程最多显示按最近更新排序的 5 个 Journey；没有时隐藏，只有一个时静态显示。多个时使用适配 [Aceternity Carousel](https://ui.aceternity.com/components/carousel) 的居中轨道、两侧透视缩放和鼠标悬停视差，背景复用本地户外插画，只作装饰。下方箭头首尾循环，圆点定位；可左右滑动或用左右方向键切换。点击侧卡先居中，点击当前卡（含「打开旅程」）进入 Workspace，拖动不会打开。只有当前卡显示删除菜单；删除确认框在视口中央显示，窄屏留出边距、内容过高时内部滚动，取消或 Esc 关闭（删除请求进行中禁止取消）；删除成功后保留仍存在的当前 Journey，当前 Journey 被删则选第一项，删至一个转为静态卡、删空隐藏；请求失败保留卡片并可重试。系统减少动态效果设置关闭轨道/卡片过渡及悬停视差。
+首页最近旅程最多显示按最近更新排序的 5 个 Journey；没有时隐藏，只有一个时静态显示。多个时使用适配 [Aceternity Carousel](https://ui.aceternity.com/components/carousel) 的居中轨道、两侧透视缩放和鼠标悬停视差，每张卡的背景是这个旅程的封面照片：和 Workspace 标题缩略图同一张，即第一个有照片的已选地点（从卡片选的地点沿用卡片的照片），所以不管地点是点卡片加的、用户说出名字自动加的，还是在右侧栏手动搜索加的，都有照片（[journeyCovers](../src/capabilities/journey/journey-covers.ts)，照片查询见 [place-images](../src/capabilities/destination/place-images.ts)）。照片不存进 TripState 或数据库，每次按当前目的地查；首页最多等 1.5 秒，查过的地点从进程内缓存立即返回，没赶上、没有地点或高德没有照片的卡继续用本地户外插画，下次打开就会有。下方箭头首尾循环，圆点定位；可左右滑动或用左右方向键切换。点击侧卡先居中，点击当前卡（含「打开旅程」）进入 Workspace，拖动不会打开。只有当前卡显示删除菜单；删除确认框在视口中央显示，窄屏留出边距、内容过高时内部滚动，取消或 Esc 关闭（删除请求进行中禁止取消）；删除成功后保留仍存在的当前 Journey，当前 Journey 被删则选第一项，删至一个转为静态卡、删空隐藏；请求失败保留卡片并可重试。系统减少动态效果设置关闭轨道/卡片过渡及悬停视差。
 
 ### 1.2 界面语言（中 / EN）
 

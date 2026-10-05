@@ -34,6 +34,7 @@ export class PostgresJourneySummaryRepository implements JourneySummaryRepositor
         id: row.id,
         name: titleFromState(state),
         destination: destinationText(state.destination),
+        destinationAreas: state.destination.state === "known" ? state.destination.areas : [],
         startDate: fieldText(state.startDate),
         endDate: fieldText(state.endDate),
         status: row.status,

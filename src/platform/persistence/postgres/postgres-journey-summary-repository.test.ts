@@ -93,6 +93,7 @@ test("projects current TripState without updating stale Trip fields", async () =
     id: row.id,
     name: "北方之旅",
     destination: "大连",
+    destinationAreas: [],
     startDate: "十月初",
     endDate: null,
     status: "idea",
@@ -134,4 +135,15 @@ test("filters by Trip owner and keeps missing TripState fields missing", async (
   };
   const [legacySummary] = await repository.listByOwner(guestA);
   assert.equal(legacySummary.name, "新的旅程想法");
+});
+
+test("carries the saved places for the cover photo, and none when the destination is missing", async () => {
+  const areas = [{ province: "云南省", places: [{ name: "丽江市", spots: ["玉龙雪山"] }] }];
+  const row: SummaryRow = { id: "3d17d2c7-fd9b-4748-b751-3a76a9a920be", ownerGuestId: guestA, status: "idea",
+    tripUpdatedAt: "2026-09-23T08:00:00.000Z", stateUpdatedAt: "2026-09-23T08:00:00.000Z",
+    state: { ...state, destination: { state: "known" as const, source: "user", areas } } };
+  const { repository } = createDatabaseDouble([row]);
+  assert.deepEqual((await repository.listByOwner(guestA))[0].destinationAreas, areas);
+  row.state = { ...state, destination: { state: "missing" } };
+  assert.deepEqual((await repository.listByOwner(guestA))[0].destinationAreas, []);
 });

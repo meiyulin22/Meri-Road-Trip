@@ -154,7 +154,7 @@ LLM 解释自然语言并提出受限 JSON；应用校验、决定是否执行�
 
 下表按目录分类，每个路径都有独立一行。测试不是运行时业务层；同目录测试主要验证对应层的规则或适配边界，多数使用 mock/内存替身，不据此宣称真实提供方已验证。
 
-本次索引按路径去重共 320 个文件，其中 82 个测试文件。
+本次索引按路径去重共 330 个文件，其中 83 个测试文件。
 
 ### 6.1 根目录配置与入口
 
@@ -223,18 +223,18 @@ LLM 解释自然语言并提出受限 JSON；应用校验、决定是否执行�
 | --- | --- | --- |
 | [src/components/meri-shell/home-entrance.tsx](../src/components/meri-shell/home-entrance.tsx) | 表现层 | Motion 首页分区入场动画，支持减少动态效果偏好；不是背景水彩显露动画。 |
 | [src/components/meri-shell/meri-app-shell.module.css](../src/components/meri-shell/meri-app-shell.module.css) | 表现层 | 首页背景、品牌、输入区、角色、布局及响应式样式。 |
-| [src/components/meri-shell/meri-app-shell.tsx](../src/components/meri-shell/meri-app-shell.tsx) | 表现层 | 首页服务端外壳，读取最近旅程和访客语言，组合 Profile、语言切换、品牌、标题（英文像素字体，中文用系统字体的普通 h1）、输入、角色和 HomeEntrance。 |
+| [src/components/meri-shell/meri-app-shell.tsx](../src/components/meri-shell/meri-app-shell.tsx) | 表现层 | 首页服务端外壳，读取最近旅程、它们的封面照片（最多等 1.5 秒）和访客语言，组合 Profile、语言切换、品牌、标题（英文像素字体，中文用系统字体的普通 h1）、输入、角色和 HomeEntrance。 |
 | [src/components/meri-shell/new-trip-composer-model.test.ts](../src/components/meri-shell/new-trip-composer-model.test.ts) | 测试（对应模块边界） | 验证空输入、提取/创建失败、保留输入、真实 Trip ID 导航及重试不重复创建。 |
 | [src/components/meri-shell/new-trip-composer-model.ts](../src/components/meri-shell/new-trip-composer-model.ts) | 表现层 | 首页 reducer 与请求模型：提取草稿、创建 Journey、处理 opening_failed 和导航。 |
 | [src/components/meri-shell/new-trip-composer.tsx](../src/components/meri-shell/new-trip-composer.tsx) | 表现层 | 首页客户端业务容器，组合 ChatComposer 展示组件，绑定阶段、错误、创建导航和 opening 重试操作。 |
 | [src/components/meri-shell/recent-journey-actions.tsx](../src/components/meri-shell/recent-journey-actions.tsx) | 表现层 | 首页单张卡片的操作菜单，触发删除并隔离卡片导航。 |
 | [src/components/meri-shell/recent-journey-deletion.test.ts](../src/components/meri-shell/recent-journey-deletion.test.ts) | 测试（对应模块边界） | 验证 owner-scoped DELETE、失败不报成功及并发重复删除的控制。 |
 | [src/components/meri-shell/recent-journey-deletion.ts](../src/components/meri-shell/recent-journey-deletion.ts) | 表现层 | 首页删除请求及请求去重，失败时仍允许重试。 |
-| [src/components/meri-shell/recent-journeys-markup.test.tsx](../src/components/meri-shell/recent-journeys-markup.test.tsx) | 测试（对应模块边界） | 验证旅程导航和操作控件为同级元素，避免交互控件嵌套造成误导航。 |
+| [src/components/meri-shell/recent-journeys-markup.test.tsx](../src/components/meri-shell/recent-journeys-markup.test.tsx) | 测试（对应模块边界） | 验证旅程导航和操作控件为同级元素，避免交互控件嵌套造成误导航；有封面的卡显示照片，没有的只留插画。 |
 | [src/components/meri-shell/recent-journeys-model.test.ts](../src/components/meri-shell/recent-journeys-model.test.ts) | 测试（对应模块边界） | 验证空/单/多旅程、显示数量、首尾循环切换与交互目标的导航规则。 |
 | [src/components/meri-shell/recent-journeys-model.ts](../src/components/meri-shell/recent-journeys-model.ts) | 表现层 | 纯前端规则：最近列表、可见数量、首尾循环的下一索引及点击导航边界。 |
 | [src/components/meri-shell/recent-journeys.module.css](../src/components/meri-shell/recent-journeys.module.css) | 表现层 | 最近旅程卡片、轮播箭头及操作样式；局部圆角与透明遮罩柔化两侧卡片及视口切口，中央卡片保持清晰。 |
-| [src/components/meri-shell/recent-journeys.tsx](../src/components/meri-shell/recent-journeys.tsx) | 表现层 | 最近旅程 React 组件，适配 Aceternity Carousel 的居中平移轨道、透视缩放及 Motion 悬停视差；支持循环切换、手势、键盘、导航和删除后的列表更新。 |
+| [src/components/meri-shell/recent-journeys.tsx](../src/components/meri-shell/recent-journeys.tsx) | 表现层 | 最近旅程 React 组件，适配 Aceternity Carousel 的居中平移轨道、透视缩放及 Motion 悬停视差；支持循环切换、手势、键盘、导航和删除后的列表更新；有封面照片的卡在插画上叠放该照片。 |
 | [src/components/i18n/messages.ts](../src/components/i18n/messages.ts) | 表现层 | 界面文字中英字典（首页、最近旅程、旅程页面各区域、我的旅程列表），英文定结构、中文类型上必须对应，带参数的句子与日期格式为函数。 |
 | [src/components/i18n/locale-context.tsx](../src/components/i18n/locale-context.tsx) | 表现层 | LocaleProvider 与 useLocale/useMessages；Provider 之外默认英文（仅测试中出现）。 |
 
@@ -357,6 +357,8 @@ LLM 解释自然语言并提出受限 JSON；应用校验、决定是否执行�
 | [src/capabilities/journey/journey-service.ts](../src/capabilities/journey/journey-service.ts) | 应用层/用例装配 | Trip + TripState 协调用例，创建（可带精确匹配的初始目的地）及补偿回滚、加载、删除、最新状态 patch 及最多三次 CAS 重试。 |
 | [src/capabilities/journey/journey-summary-repository-instance.ts](../src/capabilities/journey/journey-summary-repository-instance.ts) | 应用层/用例装配 | 将数据库装配为生产 PostgresJourneySummaryRepository。 |
 | [src/capabilities/journey/my-journeys.test.ts](../src/capabilities/journey/my-journeys.test.ts) | 测试（对应模块边界） | 验证匿名空列表、owner-scoped 列表及读取模型边界。 |
+| [src/capabilities/journey/journey-covers.ts](../src/capabilities/journey/journey-covers.ts) | 应用层/用例装配 | 首页旅程封面：每个旅程取第一个有照片的已选地点，卡片选过的地点沿用卡片照片，与 Workspace 标题缩略图一致；限时等待，超时或失败只是没有照片。 |
+| [src/capabilities/journey/journey-covers.test.ts](../src/capabilities/journey/journey-covers.test.ts) | 测试（对应模块边界） | 验证封面取第一个地点、无地点不查询、沿用卡片照片，以及慢或失败的查询只让那张卡没照片。 |
 | [src/capabilities/journey/my-journeys.ts](../src/capabilities/journey/my-journeys.ts) | 应用层/用例装配 | 用既有访客身份读取 JourneySummary，缺身份返回空列表，不创建新身份。 |
 | [src/capabilities/journey/prompts/trip-draft-prompt.test.ts](../src/capabilities/journey/prompts/trip-draft-prompt.test.ts) | 测试（对应模块边界） | 验证草稿 prompt 的不确定性/原话保留、共享字段语义及旅程名按首页语言。 |
 | [src/capabilities/journey/prompts/trip-draft-prompt.ts](../src/capabilities/journey/prompts/trip-draft-prompt.ts) | 应用层/用例装配 | 首页草稿提取系统 prompt，带参考日期、时区和首页语言（推断的旅程名用该语言写），约束 certainty 与目的地操作；地名规则按语言分写（中文原样，英文换成中文名）。 |
@@ -412,8 +414,8 @@ LLM 解释自然语言并提出受限 JSON；应用校验、决定是否执行�
 | [src/capabilities/destination/destination-selection-v2.test.ts](../src/capabilities/destination/destination-selection-v2.test.ts) | 测试（对应模块边界） | 验证多省追加、旧 replace 冲突、已确认/过期卡、安全重试及不恢复已删除目的地。 |
 | [src/capabilities/destination/location-service.test.ts](../src/capabilities/destination/location-service.test.ts) | 测试（对应模块边界） | 验证空表达不调用、原话查询、无结果和提供方异常归一化。 |
 | [src/capabilities/destination/location-service.ts](../src/capabilities/destination/location-service.ts) | 应用层/用例装配 | 调用 LocationProvider、规范化错误并执行名称解析；同名商业 POI 干扰时最多补查一次“原词＋市”，要求行政字段佐证；保留原始候选供手动选择。 |
-| [src/capabilities/destination/place-images.ts](../src/capabilities/destination/place-images.ts) | 应用层/用例装配 | 照片查询顺序（景点/县级市境内→地标→市的国家级景点；省级景点只给只有省的目的地）、卡片配图、同一照片只出现一次、沿用卡片照片的已选地点照片。 |
-| [src/capabilities/destination/place-images.test.ts](../src/capabilities/destination/place-images.test.ts) | 测试（对应模块边界） | 验证查询顺序（市卡不退到省）、逐个兜底、卡片配图、照片去重和沿用对话照片。 |
+| [src/capabilities/destination/place-images.ts](../src/capabilities/destination/place-images.ts) | 应用层/用例装配 | 照片查询顺序（景点/县级市境内→地标→市的国家级景点；省级景点只给只有省的目的地）、卡片配图、同一照片只出现一次、沿用卡片照片的已选地点照片，以及旅程封面（第一个有照片的地点，找到即停）。 |
+| [src/capabilities/destination/place-images.test.ts](../src/capabilities/destination/place-images.test.ts) | 测试（对应模块边界） | 验证查询顺序（市卡不退到省）、逐个兜底、卡片配图、照片去重、沿用对话照片和封面找到即停。 |
 | [src/capabilities/destination/destination-photos-route.test.ts](../src/capabilities/destination/destination-photos-route.test.ts) | 测试（对应模块边界） | 验证照片接口按当前地点返回、不共享缓存、not-found 与其他失败区分。 |
 | [src/capabilities/destination/location-suggestion-service.test.ts](../src/capabilities/destination/location-suggestion-service.test.ts) | 测试（对应模块边界） | 验证 query 规则、完整建议列表及调用前拒绝非法输入。 |
 | [src/capabilities/destination/location-suggestion-service.ts](../src/capabilities/destination/location-suggestion-service.ts) | 应用层/用例装配 | 输入建议用例，trim/长度校验，调用建议端口并转换错误。 |
@@ -486,9 +488,9 @@ LLM 解释自然语言并提出受限 JSON；应用校验、决定是否执行�
 | [src/platform/persistence/in-memory/in-memory-trip-repository.ts](../src/platform/persistence/in-memory/in-memory-trip-repository.ts) | 基础设施端口/适配器 | 内存 TripRepository，测试中保留 owner 读写隔离。 |
 | [src/platform/persistence/in-memory/in-memory-trip-state-repository.test.ts](../src/platform/persistence/in-memory/in-memory-trip-state-repository.test.ts) | 测试（对应模块边界） | 验证创建/读取、替换更新及内存比较更新。 |
 | [src/platform/persistence/in-memory/in-memory-trip-state-repository.ts](../src/platform/persistence/in-memory/in-memory-trip-state-repository.ts) | 基础设施端口/适配器 | 内存 TripStateRepository，实现存取和 CAS，供应用测试模拟状态冲突。 |
-| [src/platform/persistence/journey-summary-repository.ts](../src/platform/persistence/journey-summary-repository.ts) | 持久化端口/读模型 | JourneySummary 读模型和按 owner 列表接口，不作为可变状态仓库。 |
-| [src/platform/persistence/postgres/postgres-journey-summary-repository.test.ts](../src/platform/persistence/postgres/postgres-journey-summary-repository.test.ts) | 测试（对应模块边界） | mock 验证权威状态投影、owner 过滤、缺状态及 certainty 保留。 |
-| [src/platform/persistence/postgres/postgres-journey-summary-repository.ts](../src/platform/persistence/postgres/postgres-journey-summary-repository.ts) | 基础设施端口/适配器 | 关联 Trip 与当前状态，按 owner 查询并投影列表摘要，不使用旧 Trip 字段。 |
+| [src/platform/persistence/journey-summary-repository.ts](../src/platform/persistence/journey-summary-repository.ts) | 持久化端口/读模型 | JourneySummary 读模型（含已保存的省/市/景点，供封面照片用）和按 owner 列表接口，不作为可变状态仓库。 |
+| [src/platform/persistence/postgres/postgres-journey-summary-repository.test.ts](../src/platform/persistence/postgres/postgres-journey-summary-repository.test.ts) | 测试（对应模块边界） | mock 验证权威状态投影、owner 过滤、缺状态、certainty 保留及已保存地点的投影。 |
+| [src/platform/persistence/postgres/postgres-journey-summary-repository.ts](../src/platform/persistence/postgres/postgres-journey-summary-repository.ts) | 基础设施端口/适配器 | 关联 Trip 与当前状态，按 owner 查询并投影列表摘要（含已保存的地点结构），不使用旧 Trip 字段。 |
 | [src/platform/persistence/postgres/postgres-trip-message-repository.test.ts](../src/platform/persistence/postgres/postgres-trip-message-repository.test.ts) | 测试（对应模块边界） | mock 验证完整 turn 单次插入、原话/助手 presentation、时间顺序和重复 ID 处理。 |
 | [src/platform/persistence/postgres/postgres-trip-message-repository.ts](../src/platform/persistence/postgres/postgres-trip-message-repository.ts) | 基础设施端口/适配器 | PostgreSQL 消息插入/读取，完整双边 turn 单次 insert，稳定 ID 重试及 presentation 校验；按 id+trip+assistant 替换 presentation（推荐卡照片，唯一的消息更新）。 |
 | [src/platform/persistence/postgres/postgres-trip-repository.test.ts](../src/platform/persistence/postgres/postgres-trip-repository.test.ts) | 测试（对应模块边界） | mock 数据库验证字段映射、owner 条件、列表/删除及错误 cause。 |
@@ -559,13 +561,12 @@ LLM 解释自然语言并提出受限 JSON；应用校验、决定是否执行�
 | [assets/brand/meri-mark-preview.png](../assets/brand/meri-mark-preview.png) | 设计/素材制作 | 独立品牌图形的设计预览。 |
 | [assets/brand/meri-wordmark-preview.png](../assets/brand/meri-wordmark-preview.png) | 设计/素材制作 | 品牌文字标识的设计预览。 |
 | [assets/companion/bear/generate_bear_sprites.py](../assets/companion/bear/generate_bear_sprites.py) | 设计/素材制作 | 用 Pillow 从 home-v2-companion.png 生成 64px 底图并合成全部小熊帧，写出 public/companion/bear 下的精灵图和帧清单；可加 --preview 输出预览。不是运行时代码。 |
-| [assets/companion/Logo.png](../assets/companion/Logo.png) | 设计/素材制作 | 角色/品牌制作参考图片，不是业务逻辑。 |
-| [assets/companion/LogoSVG-framework.png](../assets/companion/LogoSVG-framework.png) | 设计/素材制作 | 品牌图形制作参考，不是运行时组件。 |
-| [assets/companion/Meri.png](../assets/companion/Meri.png) | 设计/素材制作 | Meri 角色制作参考原图。 |
-| [assets/design/visual-media-v1-prompts.json](../assets/design/visual-media-v1-prompts.json) | 设计/素材制作 | 两张视觉效果图的完整生成提示词、输出文件与讨论状态；使用内置图像生成工具。 |
-| [assets/design/home-visual-media-v2.png](../assets/design/home-visual-media-v2.png) | 设计/素材制作 | 当前首页截图引导的局部营地设计稿；保留最新背景和布局，非像素级实现。 |
-| [assets/design/workspace-visual-media-v2.png](../assets/design/workspace-visual-media-v2.png) | 设计/素材制作 | 当前 Workspace 截图引导的纸上营地设计稿；保留实际页面状态，未接入 3D。 |
-| [assets/design/visual-media-v2-prompts.json](../assets/design/visual-media-v2-prompts.json) | 设计/素材制作 | 第二轮截图引导生成的完整提示词、参考素材与未批准状态。 |
+| [assets/logo/Logo.png](../assets/logo/Logo.png) | 设计/素材制作 | 角色/品牌制作参考图片，不是业务逻辑。 |
+| [assets/logo/LogoSVG-framework.png](../assets/logo/LogoSVG-framework.png) | 设计/素材制作 | 品牌图形制作参考，不是运行时组件。 |
+| [assets/3Ddesign/visual-media-v1-prompts.json](../assets/3Ddesign/visual-media-v1-prompts.json) | 设计/素材制作 | 两张视觉效果图的完整生成提示词、输出文件与讨论状态；使用内置图像生成工具。 |
+| [assets/3Ddesign/home-visual-media-v2.png](../assets/3Ddesign/home-visual-media-v2.png) | 设计/素材制作 | 当前首页截图引导的局部营地设计稿；保留最新背景和布局，非像素级实现。 |
+| [assets/3Ddesign/workspace-visual-media-v2.png](../assets/3Ddesign/workspace-visual-media-v2.png) | 设计/素材制作 | 当前 Workspace 截图引导的纸上营地设计稿；保留实际页面状态，未接入 3D。 |
+| [assets/3Ddesign/visual-media-v2-prompts.json](../assets/3Ddesign/visual-media-v2-prompts.json) | 设计/素材制作 | 第二轮截图引导生成的完整提示词、参考素材与未批准状态。 |
 
 ### 6.18 历史目录占位文件
 

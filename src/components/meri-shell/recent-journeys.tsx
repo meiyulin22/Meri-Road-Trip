@@ -2,11 +2,13 @@
 
 import { ArrowLeft, ArrowRight } from "lucide-react";
 import { motion, useMotionValue, useReducedMotion, useSpring } from "motion/react";
+import Image from "next/image";
 import Link from "next/link";
 import { useRef, useState, type MouseEvent, type PointerEvent } from "react";
 
 import { useMessages } from "@/components/i18n/locale-context";
 import type { Messages } from "@/components/i18n/messages";
+import type { PlaceImage } from "@/domain/location/place-image";
 import type { JourneySummary } from "@/platform/persistence/journey-summary-repository";
 
 import {
@@ -19,9 +21,11 @@ import styles from "./recent-journeys.module.css";
 
 type RecentJourneysProps = {
   journeys: readonly JourneySummary[];
+  /** Cover photos by Journey ID; a Journey without one keeps the illustration. */
+  covers?: Readonly<Record<string, PlaceImage>>;
 };
 
-export function RecentJourneys({ journeys }: RecentJourneysProps) {
+export function RecentJourneys({ journeys, covers = {} }: RecentJourneysProps) {
   const text = useMessages().recentJourneys;
   const [deletedIds, setDeletedIds] = useState<readonly string[]>([]);
   const visibleJourneys = visibleRecentJourneys(journeys, deletedIds);
@@ -41,16 +45,17 @@ export function RecentJourneys({ journeys }: RecentJourneysProps) {
       </div>
       {visibleJourneys.length === 1 ? (
         <div className={styles.single}>
-          <JourneyCard journey={visibleJourneys[0]} isActive onDeleted={handleDeleted} />
+          <JourneyCard cover={covers[visibleJourneys[0].id]} journey={visibleJourneys[0]} isActive onDeleted={handleDeleted} />
         </div>
       ) : (
-        <JourneyCarousel journeys={visibleJourneys} onDeleted={handleDeleted} />
+        <JourneyCarousel covers={covers} journeys={visibleJourneys} onDeleted={handleDeleted} />
       )}
     </section>
   );
 }
 
 function JourneyCarousel({
+  covers = {},
   journeys,
   onDeleted,
 }: RecentJourneysProps & { readonly onDeleted: (tripId: string) => void }) {
@@ -123,6 +128,7 @@ function JourneyCarousel({
             {journeys.map((journey, index) => (
               <li className={styles.slide} data-active={index === selectedIndex} key={journey.id}>
                 <JourneyCard
+                  cover={covers[journey.id]}
                   isActive={index === selectedIndex}
                   journey={journey}
                   onDeleted={onDeleted}
@@ -166,11 +172,13 @@ function JourneyCarousel({
 }
 
 function JourneyCard({
+  cover,
   isActive,
   journey,
   onClick,
   onDeleted,
 }: {
+  cover?: PlaceImage;
   isActive: boolean;
   journey: JourneySummary;
   onClick?: (event: MouseEvent<HTMLAnchorElement>) => void;
@@ -208,7 +216,10 @@ function JourneyCard({
         tabIndex={isActive ? 0 : -1}
       >
         <motion.div aria-hidden="true" className={styles.cover}
-          style={{ x: isActive && !reduceMotion ? x : 0, y: isActive && !reduceMotion ? y : 0 }} />
+          style={{ x: isActive && !reduceMotion ? x : 0, y: isActive && !reduceMotion ? y : 0 }}>
+          {/* The Journey's first place, as its Workspace title shows it; without one, the illustration stays. */}
+          {cover ? <Image alt="" className={styles.coverPhoto} fill key={cover.url} sizes="(max-width: 600px) 80vw, 20rem" src={cover.url} /> : null}
+        </motion.div>
         <div className={styles.cardDetails}>
           <span className={styles.destination}>{journey.destination ?? text.destinationNotSet}</span>
           <span className={styles.name}>{journey.name}</span>

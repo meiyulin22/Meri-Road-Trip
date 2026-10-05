@@ -247,6 +247,8 @@
   background: url("/backgrounds/workspace-alpine-day.png") center 52% / cover;
 }
 
+.coverPhoto { object-fit: cover; }
+
 .card::after {
   content: "";
   position: absolute;

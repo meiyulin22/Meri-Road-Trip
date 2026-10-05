@@ -4,6 +4,9 @@ import test from "node:test";
 import { renderToStaticMarkup } from "react-dom/server";
 
 import type { JourneySummary } from "@/platform/persistence/journey-summary-repository";
+import { placePhotoHosts } from "@/platform/place-photos/place-photo-provider";
+import { imageConfigDefault } from "next/dist/shared/lib/image-config";
+import { ImageConfigContext } from "next/dist/shared/lib/image-config-context.shared-runtime";
 
 const nodeRequire = createRequire(import.meta.url);
 nodeRequire.extensions[".css"] = (module) => {
@@ -14,6 +17,7 @@ const journey: JourneySummary = {
   id: "3d17d2c7-fd9b-4748-b751-3a76a9a920be",
   name: "Dalian",
   destination: "Dalian",
+  destinationAreas: [],
   startDate: null,
   endDate: null,
   status: "planning",
@@ -44,4 +48,19 @@ test("in Chinese the cards, dates and delete dialog speak Chinese, and Journey n
   assert.match(markup, /删除「Dalian」？/);
   assert.match(markup, /aria-label="旅程操作"/);
   assert.doesNotMatch(markup, /Continue exploring|Delete/);
+});
+
+test("a card shows its cover photo when there is one, and only the illustration otherwise", async () => {
+  const { RecentJourneys } = await import("./recent-journeys");
+  const url = "https://store.is.autonavi.com/showpic/lijiang";
+  const other = { ...journey, id: "6c0f0c1e-2c51-4f0b-9a0e-3d7f2d1c9b11", name: "Hainan" };
+  // A build gives next/image the photo hosts allowed in next.config.ts; a test gives them here.
+  const images = { ...imageConfigDefault,
+    remotePatterns: placePhotoHosts.map((hostname) => ({ protocol: "https" as const, hostname })) };
+  const markup = renderToStaticMarkup(<ImageConfigContext.Provider value={images}>
+    <RecentJourneys covers={{ [journey.id]: { url, caption: "丽江古城" } }} journeys={[journey, other]} />
+  </ImageConfigContext.Provider>);
+  assert.equal(markup.match(/<img/g)?.length, 1);
+  assert.match(markup, /lijiang/);
+  assert.match(markup, /<img alt=""/);
 });

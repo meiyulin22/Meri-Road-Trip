@@ -3,7 +3,7 @@ import test from "node:test";
 
 import type { PlaceImage } from "@/domain/location/place-image";
 import type { PlacePhotoProvider, PlacePhotoQuery } from "@/platform/place-photos/place-photo-provider";
-import { findPlaceImage, imagesShownInConversation, photoQueriesFor, selectedPlaceImages, withChoiceImages, withoutRepeatedImages } from "./place-images";
+import { coverImage, findPlaceImage, imagesShownInConversation, photoQueriesFor, selectedPlaceImages, withChoiceImages, withoutRepeatedImages } from "./place-images";
 
 function photos(answers: (query: PlacePhotoQuery) => PlaceImage | null, seen: PlacePhotoQuery[] = []): PlacePhotoProvider {
   return { async findPhoto(query) { seen.push(query); return answers(query); } };
@@ -80,4 +80,14 @@ test("the same photo never shows under two places; the first keeps it", async ()
   const selected = await selectedPlaceImages([{ province: "广东省", places: [{ name: "广州市", spots: [] }, { name: "潮州市", spots: [] }] }],
     photos(() => shared));
   assert.deepEqual(selected.map((item) => item.label), ["广州市"]);
+});
+
+test("the cover is the first place with a photo, and lookups stop there", async () => {
+  const seen: PlacePhotoQuery[] = [];
+  const cover = await coverImage([{ province: "云南省", places: [
+    { name: "怒江傈僳族自治州", spots: [] }, { name: "丽江市", spots: [] }, { name: "大理白族自治州", spots: [] }] }],
+  photos((query) => query.kind === "scenic" && query.region === "丽江市" ? picture("丽江古城") : null, seen));
+  assert.equal(cover?.caption, "丽江古城");
+  assert.deepEqual(seen.map((query) => query.kind === "scenic" ? query.region : query.keywords), ["怒江傈僳族自治州", "丽江市"]);
+  assert.equal(await coverImage([], photos(() => picture("x"))), null);
 });

@@ -112,6 +112,33 @@ export function imagesShownInConversation(messages: readonly TripMessage[]): Rea
   return shown;
 }
 
+/** The places a destination shows photos for, in its order: each 市 by its first spot, or a bare province. */
+function photoSubjectsOf(areas: readonly DestinationArea[]): { key: string; label: string; subject: PhotoSubject }[] {
+  return areas.flatMap((area): { key: string; label: string; subject: PhotoSubject }[] => area.places.length === 0
+    ? [{ key: area.province, label: area.province, subject: { province: area.province, place: null, spot: null } }]
+    : area.places.map((place) => ({ key: `${area.province}/${place.name}`, label: place.name,
+      subject: { province: area.province, place: place.name, spot: place.spots[0] ?? null } })))
+    .slice(0, maxSelectedPlaceImages);
+}
+
+/**
+ * The Journey's cover: the first of its places that has a photo, which is the photo
+ * the Workspace title shows. It stops at the first found, so a list of Journeys costs
+ * one lookup each when photos exist rather than one per place.
+ */
+export async function coverImage(
+  areas: readonly DestinationArea[],
+  photos: PlacePhotoProvider,
+  shown: ReadonlyMap<string, PlaceImage> = new Map(),
+): Promise<PlaceImage | null> {
+  for (const { subject } of photoSubjectsOf(areas)) {
+    const image = shown.get(photoKey(subject.province, subject.place, subject.spot)) ??
+      await findPlaceImage(subject, photos);
+    if (image) return image;
+  }
+  return null;
+}
+
 /**
  * Photos for the places in the Journey, looked up from the destination as it is now,
  * so a removed place loses its photo with it and nothing about pictures is stored in
@@ -123,12 +150,7 @@ export async function selectedPlaceImages(
   photos: PlacePhotoProvider,
   shown: ReadonlyMap<string, PlaceImage> = new Map(),
 ): Promise<readonly SelectedPlaceImage[]> {
-  const subjects = areas.flatMap((area): { key: string; label: string; subject: PhotoSubject }[] => area.places.length === 0
-    ? [{ key: area.province, label: area.province, subject: { province: area.province, place: null, spot: null } }]
-    : area.places.map((place) => ({ key: `${area.province}/${place.name}`, label: place.name,
-      subject: { province: area.province, place: place.name, spot: place.spots[0] ?? null } })))
-    .slice(0, maxSelectedPlaceImages);
-  const found = await Promise.all(subjects.map(async ({ key, label, subject }) => {
+  const found = await Promise.all(photoSubjectsOf(areas).map(async ({ key, label, subject }) => {
     const image = shown.get(photoKey(subject.province, subject.place, subject.spot)) ??
       await findPlaceImage(subject, photos);
     return image ? { key, label, image } : null;
