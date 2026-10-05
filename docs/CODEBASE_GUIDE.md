@@ -154,7 +154,7 @@ LLM 解释自然语言并提出受限 JSON；应用校验、决定是否执行�
 
 下表按目录分类，每个路径都有独立一行。测试不是运行时业务层；同目录测试主要验证对应层的规则或适配边界，多数使用 mock/内存替身，不据此宣称真实提供方已验证。
 
-本次索引按路径去重共 318 个文件，其中 82 个测试文件。
+本次索引按路径去重共 320 个文件，其中 82 个测试文件。
 
 ### 6.1 根目录配置与入口
 
@@ -226,7 +226,7 @@ LLM 解释自然语言并提出受限 JSON；应用校验、决定是否执行�
 | [src/components/meri-shell/meri-app-shell.tsx](../src/components/meri-shell/meri-app-shell.tsx) | 表现层 | 首页服务端外壳，读取最近旅程和访客语言，组合 Profile、语言切换、品牌、标题（英文像素字体，中文用系统字体的普通 h1）、输入、角色和 HomeEntrance。 |
 | [src/components/meri-shell/new-trip-composer-model.test.ts](../src/components/meri-shell/new-trip-composer-model.test.ts) | 测试（对应模块边界） | 验证空输入、提取/创建失败、保留输入、真实 Trip ID 导航及重试不重复创建。 |
 | [src/components/meri-shell/new-trip-composer-model.ts](../src/components/meri-shell/new-trip-composer-model.ts) | 表现层 | 首页 reducer 与请求模型：提取草稿、创建 Journey、处理 opening_failed 和导航。 |
-| [src/components/meri-shell/new-trip-composer.tsx](../src/components/meri-shell/new-trip-composer.tsx) | 表现层 | 首页客户端输入组件，绑定阶段、错误、创建导航和 opening 重试操作。 |
+| [src/components/meri-shell/new-trip-composer.tsx](../src/components/meri-shell/new-trip-composer.tsx) | 表现层 | 首页客户端业务容器，组合 ChatComposer 展示组件，绑定阶段、错误、创建导航和 opening 重试操作。 |
 | [src/components/meri-shell/recent-journey-actions.tsx](../src/components/meri-shell/recent-journey-actions.tsx) | 表现层 | 首页单张卡片的操作菜单，触发删除并隔离卡片导航。 |
 | [src/components/meri-shell/recent-journey-deletion.test.ts](../src/components/meri-shell/recent-journey-deletion.test.ts) | 测试（对应模块边界） | 验证 owner-scoped DELETE、失败不报成功及并发重复删除的控制。 |
 | [src/components/meri-shell/recent-journey-deletion.ts](../src/components/meri-shell/recent-journey-deletion.ts) | 表现层 | 首页删除请求及请求去重，失败时仍允许重试。 |
@@ -294,6 +294,8 @@ LLM 解释自然语言并提出受限 JSON；应用校验、决定是否执行�
 
 | 文件地址 | 层/类别 | 做什么 |
 | --- | --- | --- |
+| [src/components/ui/chat-composer.tsx](../src/components/ui/chat-composer.tsx) | 表现层 | 受控多行输入、自动增高、滚动示例提示、发送/加载状态及禁用的文档和语音占位按钮；不调用 API，父组件提供文案与事件。 |
+| [src/components/ui/chat-composer.module.css](../src/components/ui/chat-composer.module.css) | 表现层 | 输入框与工具栏样式，移动端和减少动态效果适配。 |
 | [src/components/ui/animated-popover.tsx](../src/components/ui/animated-popover.tsx) | 表现层 | Radix Popover + Motion 封装，提供受控开关、浮层入退场及减少动态效果支持。 |
 | [src/components/ui/animated-checkbox.module.css](../src/components/ui/animated-checkbox.module.css) | 表现层 | 动画复选框的方框、选中、聚焦、禁用与减少动态效果样式。 |
 | [src/components/ui/animated-checkbox.tsx](../src/components/ui/animated-checkbox.tsx) | 表现层 | 保留原生 checkbox 语义的复选框，Motion 绘制对勾；用于两个目的地多选卡。 |

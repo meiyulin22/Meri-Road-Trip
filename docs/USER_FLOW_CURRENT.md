@@ -56,6 +56,8 @@ flowchart TD
 | Workspace 左侧新旅程 | [TripWorkspace](../src/components/trip-workspace/trip-workspace.tsx) | 返回首页输入入口 |
 | `/trips/new` | [重定向](../src/app/trips/new/page.tsx) | 返回首页 |
 
+首页输入框由 [NewTripComposer](../src/components/meri-shell/new-trip-composer.tsx) 管理创建流程，使用独立的 [ChatComposer](../src/components/ui/chat-composer.tsx) 展示输入区和底部工具栏（参考 Astryx ChatComposer 的布局，使用项目现有 CSS Modules、Motion 与 Lucide，并未安装 Astryx）。多行文字输入自动增高，最高 15rem 后内部滚动；Enter 提交，Shift+Enter 换行，中文输入法组合输入期间 Enter 不提交。空白且未聚焦时每 4 秒向上轮换一个旅行示例；聚焦、已有文字、输入被禁用或系统要求减少动态效果时停止轮换，隐藏页不轮换。示例只作提示，不写入输入或旅程状态。附件和麦克风图标按钮当前禁用，名称及悬停提示标明“上传文档 / 语音输入 · 即将支持”；不打开文件选择器、不请求麦克风权限，也没有上传、识别或模拟进度。发送仍走原有草稿提取与旅程创建流程，加载、失败保留输入和开场重试行为不变，新增文案由中英字典提供。
+
 ### 1.1 访客身份、列表与刷新
 
 1. 访客 cookie 提供 ownerGuestId；当前是访客所属 Journey，没有账号协作体系。
@@ -66,7 +68,7 @@ flowchart TD
 
 代码：[页面加载](../src/app/trips/[id]/page.tsx)、[访客身份](../src/platform/identity/guest-identity.ts)、[JourneyService](../src/capabilities/journey/journey-service.ts)、[消息服务](../src/capabilities/conversation/trip-message-service.ts)、[列表查询](../src/capabilities/journey/my-journeys.ts)。
 
-首页最近旅程最多显示按最近更新排序的 5 个 Journey；没有时隐藏，只有一个时静态显示。多个时使用适配 [Aceternity Carousel](https://ui.aceternity.com/components/carousel) 的居中轨道、两侧透视缩放和鼠标悬停视差，背景复用本地户外插画，只作装饰。下方箭头首尾循环，圆点定位；可左右滑动或用左右方向键切换。点击侧卡先居中，点击当前卡（含「打开旅程」）进入 Workspace，拖动不会打开。只有当前卡显示删除菜单；删除成功后保留仍存在的当前 Journey，当前 Journey 被删则选第一项，删至一个转为静态卡、删空隐藏；请求失败保留卡片并可重试。系统减少动态效果设置关闭轨道/卡片过渡及悬停视差。
+首页最近旅程最多显示按最近更新排序的 5 个 Journey；没有时隐藏，只有一个时静态显示。多个时使用适配 [Aceternity Carousel](https://ui.aceternity.com/components/carousel) 的居中轨道、两侧透视缩放和鼠标悬停视差，背景复用本地户外插画，只作装饰。下方箭头首尾循环，圆点定位；可左右滑动或用左右方向键切换。点击侧卡先居中，点击当前卡（含「打开旅程」）进入 Workspace，拖动不会打开。只有当前卡显示删除菜单；删除确认框在视口中央显示，窄屏留出边距、内容过高时内部滚动，取消或 Esc 关闭（删除请求进行中禁止取消）；删除成功后保留仍存在的当前 Journey，当前 Journey 被删则选第一项，删至一个转为静态卡、删空隐藏；请求失败保留卡片并可重试。系统减少动态效果设置关闭轨道/卡片过渡及悬停视差。
 
 ### 1.2 界面语言（中 / EN）
 

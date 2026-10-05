@@ -115,88 +115,6 @@
   text-align: left;
 }
 
-.composerInput {
-  min-height: 10rem;
-  padding: 1.1rem 1rem 0.9rem 1.2rem;
-  display: flex;
-  align-items: flex-end;
-  gap: 0.75rem;
-  border: 1px solid var(--home-line);
-  border-radius: 1.25rem;
-  background: #fffdfa;
-  box-shadow: 0 5px 18px rgba(36, 54, 46, 0.035);
-  transition: border-color 160ms ease, box-shadow 160ms ease;
-}
-
-.composerInput:focus-within {
-  border-color: #758f7d;
-  box-shadow: 0 0 0 3px rgba(86, 118, 94, 0.15);
-}
-
-.composerInput textarea {
-  width: 100%;
-  min-width: 0;
-  min-height: 7rem;
-  max-height: 18rem;
-  flex: 1 1 auto;
-  field-sizing: content;
-  resize: vertical;
-  overflow-y: auto;
-  border: 0;
-  outline: 0;
-  color: var(--home-ink);
-  background: transparent;
-  font: inherit;
-  font-size: 1.0625rem;
-  line-height: 1.55;
-}
-
-.composerInput textarea::placeholder {
-  color: #77847a;
-  opacity: 1;
-}
-
-.composerInput textarea:disabled {
-  opacity: 0.65;
-}
-
-.composerInput button {
-  width: 2.75rem;
-  height: 2.75rem;
-  flex: 0 0 auto;
-  display: grid;
-  place-items: center;
-  border: 0;
-  border-radius: 0.8rem;
-  color: #fff;
-  background: #27343d;
-  cursor: pointer;
-  transition: background-color 160ms ease, opacity 160ms ease, transform 160ms ease;
-}
-
-.composerInput button:not(:disabled):hover {
-  background: #394953;
-}
-
-.composerInput button:not(:disabled):active {
-  background: #1d2830;
-  transform: translateY(1px);
-}
-
-.composerInput button:focus-visible {
-  outline: 3px solid #527588;
-  outline-offset: 3px;
-}
-
-.composerInput button:disabled {
-  opacity: 0.46;
-  cursor: not-allowed;
-}
-
-.loadingIcon {
-  animation: composer-spin 900ms linear infinite;
-}
-
 .composerStatus,
 .composerError {
   margin-top: 0.7rem;
@@ -266,12 +184,6 @@
   border: 0;
 }
 
-@keyframes composer-spin {
-  to {
-    transform: rotate(360deg);
-  }
-}
-
 @media (max-width: 600px) {
   .brand > [data-slot="pixel-heading"] {
     width: min(10.9375rem, 48vw);
@@ -306,17 +218,6 @@
 
   .headlineName {
     font-size: clamp(1.45rem, 6.2vw, 1.65rem);
-  }
-
-  .composerInput {
-    min-height: 9rem;
-    padding: 0.9rem;
-    border-radius: 1.2rem;
-  }
-
-  .composerInput textarea {
-    min-height: 6.5rem;
-    font-size: 1rem;
   }
 
   .landscape {
@@ -383,14 +284,5 @@
   .entry > [data-home-entrance-item] {
     opacity: 1 !important;
     transform: none !important;
-  }
-
-  .composerInput,
-  .composerInput button {
-    transition: none;
-  }
-
-  .loadingIcon {
-    animation: none;
   }
 }

@@ -1,0 +1,84 @@
+.composer {
+  padding: 1.125rem 1.125rem 0.75rem;
+  border: 1px solid #ccd5c9;
+  border-radius: 1.5rem;
+  background: #fffdfa;
+  box-shadow: 0 4px 0 rgba(73, 98, 72, 0.055), 0 8px 24px rgba(36, 54, 46, 0.035);
+  transition: border-color 160ms ease, box-shadow 160ms ease;
+}
+
+.composer:focus-within {
+  border-color: #758f7d;
+  box-shadow: 0 0 0 3px rgba(86, 118, 94, 0.12);
+}
+
+.editor { position: relative; }
+
+.editor textarea {
+  display: block;
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 3.5rem;
+  max-height: 15rem;
+  padding: 0.125rem 0.25rem;
+  resize: none;
+  overflow-y: auto;
+  border: 0;
+  outline: 0;
+  color: #24362e;
+  background: transparent;
+  font: inherit;
+  font-size: 1.125rem;
+  line-height: 1.6;
+}
+
+.editor textarea:disabled { opacity: 0.65; }
+
+.placeholder {
+  position: absolute;
+  inset: 0.125rem 0.25rem auto;
+  overflow: hidden;
+  pointer-events: none;
+  color: #748173;
+  font-size: 1.125rem;
+  line-height: 1.6;
+}
+
+.placeholder span { display: block; }
+.toolbar, .actions { display: flex; align-items: center; }
+.toolbar { justify-content: space-between; margin-top: 0.5rem; }
+.actions { gap: 0.625rem; }
+.toolHint { display: inline-flex; cursor: not-allowed; }
+
+.toolButton, .sendButton {
+  width: 2.75rem;
+  height: 2.75rem;
+  display: grid;
+  place-items: center;
+  border: 0;
+  border-radius: 50%;
+}
+
+.toolButton { color: #879180; background: transparent; cursor: not-allowed; }
+.sendButton {
+  color: #fffdfa;
+  background: #486449;
+  cursor: pointer;
+  transition: background-color 160ms ease, transform 160ms ease;
+}
+.sendButton:not(:disabled):hover { background: #365138; }
+.sendButton:not(:disabled):active { transform: scale(0.95); }
+.sendButton:focus-visible { outline: 3px solid #758f7d; outline-offset: 3px; }
+.sendButton:disabled { color: #fffdfa; background: #a2ae9b; cursor: not-allowed; }
+.spinner { animation: spin 900ms linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+@media (max-width: 600px) {
+  .composer { padding: 1rem 0.875rem 0.625rem; border-radius: 1.25rem; }
+  .editor textarea, .placeholder { font-size: 1rem; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .composer, .sendButton { transition: none; }
+  .spinner { animation: none; }
+}

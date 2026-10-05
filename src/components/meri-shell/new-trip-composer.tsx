@@ -1,10 +1,10 @@
 "use client";
 
-import { ArrowUp, LoaderCircle } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useReducer, type FormEvent, type KeyboardEvent } from "react";
 
 import { useMessages } from "@/components/i18n/locale-context";
+import { ChatComposer } from "@/components/ui/chat-composer";
 
 import styles from "./meri-app-shell.module.css";
 import {
@@ -78,30 +78,18 @@ export function NewTripComposer() {
   return (
     <section className={styles.composer} id="new-trip" aria-label={text.startJourney}>
       <form autoComplete="off" aria-busy={isSubmitting} onSubmit={handleSubmit}>
-        <div className={styles.composerInput}>
-          <label className={styles.srOnly} htmlFor="trip-idea">
-            Tell Meri anything about your trip
-          </label>
-          <textarea
-            autoComplete="off"
-            disabled={isSubmitting || state.createdTripId !== null}
-            id="trip-idea"
-            onChange={(event) =>
-              dispatch({ type: "message.changed", message: event.target.value })
-            }
-            onKeyDown={handleTextareaKeyDown}
-            placeholder={text.composerPlaceholder}
-            rows={3}
-            value={state.message}
-          />
-          <button aria-label={text.sendIdea} disabled={!canSubmit} type="submit">
-            {isSubmitting ? (
-              <LoaderCircle aria-hidden="true" className={styles.loadingIcon} size={21} />
-            ) : (
-              <ArrowUp aria-hidden="true" size={22} strokeWidth={2.2} />
-            )}
-          </button>
-        </div>
+        <ChatComposer
+          id="trip-idea"
+          value={state.message}
+          onChange={(message) => dispatch({ type: "message.changed", message })}
+          onKeyDown={handleTextareaKeyDown}
+          disabled={isSubmitting || state.createdTripId !== null}
+          canSubmit={canSubmit}
+          pending={isSubmitting}
+          labels={{ input: text.composerPlaceholder, send: text.sendIdea,
+            attachment: text.documentUnavailable, voice: text.voiceUnavailable }}
+          prompts={text.composerPrompts}
+        />
 
         {isSubmitting ? (
           <p className={styles.composerStatus} role="status">
