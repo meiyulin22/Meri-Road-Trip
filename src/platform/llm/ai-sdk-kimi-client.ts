@@ -1,7 +1,4 @@
-import {
-  createOpenAICompatible,
-  type OpenAICompatibleProviderSettings,
-} from "@ai-sdk/openai-compatible";
+import type { OpenAICompatibleProviderSettings } from "@ai-sdk/openai-compatible";
 import { generateText, jsonSchema, NoObjectGeneratedError, Output, stepCountIs } from "ai";
 
 import {
@@ -12,11 +9,14 @@ import {
   type StructuredOutputModelRequest,
   type StructuredOutputModelResponse,
 } from "@/platform/llm/kimi-client";
+import {
+  createMoonshotChatModel,
+  DEFAULT_MOONSHOT_BASE_URL,
+  DEFAULT_MOONSHOT_MODEL,
+} from "@/platform/llm/moonshot-chat-model";
 import { logger, logEvents } from "@/platform/observability/logger";
 import { serializeError } from "@/platform/observability/serialize-error";
 
-const DEFAULT_MODEL = "kimi-k2.6";
-const DEFAULT_BASE_URL = "https://api.moonshot.cn/v1";
 const REQUEST_TIMEOUT_MS = 60_000;
 
 type ProviderFetch = NonNullable<OpenAICompatibleProviderSettings["fetch"]>;
@@ -210,18 +210,7 @@ export class AiSdkKimiClient implements StructuredOutputModelClient {
     );
 
     try {
-      const provider = createOpenAICompatible({
-        name: "moonshot",
-        apiKey: this.options.apiKey,
-        baseURL: this.options.baseUrl,
-        supportsStructuredOutputs: true,
-        ...(this.options.fetch ? { fetch: this.options.fetch } : {}),
-        transformRequestBody: (body) => ({
-          ...body,
-          thinking: { type: "disabled" },
-        }),
-      });
-      const model = provider.chatModel(this.options.model);
+      const model = createMoonshotChatModel(this.options);
       const messages = [
         ...(request.conversationHistory ?? []),
         ...(request.userMessage === undefined ? [] : [{ role: "user" as const, content: request.userMessage }]),
@@ -358,8 +347,8 @@ export function createAiSdkKimiClientFromEnvironment(options: { readonly debugRa
 
   return new AiSdkKimiClient({
     apiKey,
-    baseUrl: process.env.MOONSHOT_BASE_URL?.trim() || DEFAULT_BASE_URL,
-    model: process.env.LLM_MODEL?.trim() || DEFAULT_MODEL,
+    baseUrl: process.env.MOONSHOT_BASE_URL?.trim() || DEFAULT_MOONSHOT_BASE_URL,
+    model: process.env.LLM_MODEL?.trim() || DEFAULT_MOONSHOT_MODEL,
     debugRawOutput: options.debugRawOutput ?? (
       process.env.NODE_ENV === "development" &&
       process.env.LLM_DEBUG_OUTPUT === "true"

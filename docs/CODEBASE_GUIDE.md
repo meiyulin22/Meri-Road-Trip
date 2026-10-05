@@ -53,6 +53,8 @@
 | `src/capabilities/conversation/` | 模型解释、开场、历史上下文和消息保存 | 对话应用用例 |
 | `src/capabilities/destination/` | 高德查询协调、层级映射、候选准备、提交复核 | 目的地应用用例 |
 | `src/capabilities/recommendation/` | 搜索启发、结构化推荐、省份过滤和消息编排 | 推荐应用用例；确定性 workflow |
+| `src/agents/` | Mastra 入口、Agent 和它们的工具（工具是对 platform 端口的一层薄包装） | Agent 层；1.0300 只有验证技术栈用的试验 Agent，规划 Agent 尚未实现 |
+| `src/agents/tools/` | Agent 可调用的工具：地点核验、网页搜索 | Agent 工具 |
 | `src/platform/` | 提供外部调用接口和具体实现 | 基础设施/集成层（infrastructure layer），端口与适配器 |
 | `src/platform/llm/` | 模型客户端契约、Kimi 调用、SDK 错误与超时适配 | 模型提供方适配 |
 | `src/platform/location-provider/` | 地点搜索/输入建议接口和高德 HTTP 实现 | 地图提供方适配 |
@@ -154,7 +156,7 @@ LLM 解释自然语言并提出受限 JSON；应用校验、决定是否执行�
 
 下表按目录分类，每个路径都有独立一行。测试不是运行时业务层；同目录测试主要验证对应层的规则或适配边界，多数使用 mock/内存替身，不据此宣称真实提供方已验证。
 
-本次索引按路径去重共 330 个文件，其中 83 个测试文件。
+本次索引按路径去重共 337 个文件，其中 84 个测试文件。
 
 ### 6.1 根目录配置与入口
 
@@ -441,6 +443,16 @@ LLM 解释自然语言并提出受限 JSON；应用校验、决定是否执行�
 | [src/capabilities/recommendation/destination-recommendation-workflow.ts](../src/capabilities/recommendation/destination-recommendation-workflow.ts) | 应用层/用例装配 | Discovery Search→模型生成→省份过滤（within 限已定省，elsewhere 排除已保存省）→卡项 ID（带配图用的地标，不查照片）的确定性流程；搜索故障降级，无排序/访问检查。 |
 | [src/capabilities/recommendation/prompts/destination-recommendation-prompt.ts](../src/capabilities/recommendation/prompts/destination-recommendation-prompt.ts) | 应用层/用例装配 | 受限省市推荐 prompt，含聊天触发说明、真实上下文和未核验搜索启发；理由用首页语言写，省/市/地标名保持中文。 |
 
+### 6.11a Agent（Mastra）
+
+| 文件地址 | 层/类别 | 做什么 |
+| --- | --- | --- |
+| [src/agents/index.ts](../src/agents/index.ts) | Agent 层 | 唯一的 Mastra 实例，注册全部 Agent；默认关闭 Mastra 发往 PostHog 的使用统计（`MASTRA_TELEMETRY_DISABLED`）。未配置存储与追踪导出，运行记录只在内存。 |
+| [src/agents/scout-agent.ts](../src/agents/scout-agent.ts) | Agent 层 | 1.0300 试验 Agent：用两个现有工具回答一个关于中国地点的问题，只为验证 Kimi 经 Mastra 调用工具；将被规划 Agent 取代，不在其上扩建。模型首次使用时才读取环境变量。 |
+| [src/agents/tools/resolve-place.ts](../src/agents/tools/resolve-place.ts) | Agent 工具 | 用工作区同一套高德核验查一个中文地名，返回匹配地点（省/市/区、GCJ-02 坐标、是否景点）、最多 5 个候选或整省；不代表开放或可达。 |
+| [src/agents/tools/web-search.ts](../src/agents/tools/web-search.ts) | Agent 工具 | 经 Bocha 搜索近期公告（封闭、预约、季节通行），最多 5 条，每条带来源和发布日期；结果只是线索，提供方失败只返回 unavailable，不暴露带密钥的 URL。 |
+| [src/agents/tools/tools.test.ts](../src/agents/tools/tools.test.ts) | 测试（对应模块边界） | 验证地点结果的映射与 5 条上限、整省与失败状态，以及搜索 5 条上限、日期透传和失败降级。 |
+
 ### 6.12 外部集成：身份、模型、地图、搜索和日志
 
 | 文件地址 | 层/类别 | 做什么 |
@@ -452,6 +464,7 @@ LLM 解释自然语言并提出受限 JSON；应用校验、决定是否执行�
 | [src/platform/locale/request-locale.ts](../src/platform/locale/request-locale.ts) | 基础设施端口/适配器 | 服务端从当前请求的 cookies/headers 取语言。 |
 | [src/platform/llm/ai-sdk-kimi-client.test.ts](../src/platform/llm/ai-sdk-kimi-client.test.ts) | 测试（对应模块边界） | mock 验证 schema/历史转发、旧新 SDK 契约、非法/截断输出、超时/HTTP 错误及配置校验。 |
 | [src/platform/llm/ai-sdk-kimi-client.ts](../src/platform/llm/ai-sdk-kimi-client.ts) | 基础设施端口/适配器 | Kimi 的 Vercel AI SDK 适配器，结构化输出、finish reason/usage 归一化、60 秒超时、零自动重试和日志。 |
+| [src/platform/llm/moonshot-chat-model.ts](../src/platform/llm/moonshot-chat-model.ts) | 基础设施端口/适配器 | 唯一构造 Kimi 模型的地方（关闭 thinking、默认 kimi-k2.6 与 api.moonshot.cn），结构化输出客户端和 Agent 共用；可从环境变量构造。 |
 | [src/platform/llm/kimi-client.ts](../src/platform/llm/kimi-client.ts) | 基础设施端口/适配器 | StructuredOutputModelClient 端口及通用模型错误，同时保留旧 OpenAI SDK Kimi 实现；当前应用入口默认 AI SDK 客户端。 |
 | [src/platform/location-provider/amap-input-tips-provider.test.ts](../src/platform/location-provider/amap-input-tips-provider.test.ts) | 测试（对应模块边界） | mock 验证 query 编码、完整 tips、空/畸形响应及错误安全边界。 |
 | [src/platform/location-provider/amap-input-tips-provider.ts](../src/platform/location-provider/amap-input-tips-provider.ts) | 基础设施端口/适配器 | 高德 InputTips HTTP 适配（经共用节流器），规范化输入建议并区分空结果和故障。 |
@@ -529,6 +542,7 @@ LLM 解释自然语言并提出受限 JSON；应用校验、决定是否执行�
 | 文件地址 | 层/类别 | 做什么 |
 | --- | --- | --- |
 | [scripts/verify-destination-conversation-turns.ts](../scripts/verify-destination-conversation-turns.ts) | 开发验证工具 | 用多轮样例人工检查真实模型的地点/偏好解释、推荐意图、中国范围、错别字保留、天气/准备度/单问题规则、已有状态保护及回复语言和英文地名翻译（20–27 为英文界面或跨语言输入），需要模型配置。 |
+| [scripts/verify-agent-tools.ts](../scripts/verify-agent-tools.ts) | 开发验证工具 | 用真模型和真提供方跑试验 Agent 的 4 个问题，打印每一步的工具调用与结果、耗时、token 用量和回复；第 4 个验证"工具 + 结构化输出"必须用单独的结构化步骤，需要模型、高德和 Bocha 配置。 |
 | [scripts/verify-location-resolve.ts](../scripts/verify-location-resolve.ts) | 开发验证工具 | 人工验证真实高德查询及 LocationService/层级解析结果，不是自动单元测试。 |
 | [scripts/verify-workspace-location-tool.ts](../scripts/verify-workspace-location-tool.ts) | 开发验证工具 | 人工调用真实 Workspace 解释器，检查地点意图结构；文件名保留旧 tool 命名，当前不是开放式工具 Agent。 |
 

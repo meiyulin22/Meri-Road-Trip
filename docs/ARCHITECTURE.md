@@ -59,6 +59,7 @@ flowchart TB
 | react-day-picker 10 | “何时”范围日历（中文 locale，样式通过 CSS 变量换成 Meri 配色） | `src/components/trip-workspace/trip-dates-editor.tsx` | 已用于日期选择 |
 | Vercel AI SDK 6 / `@ai-sdk/react` 3 | 服务端结构化模型调用、前端 useChat/transport 适配 | `src/platform/llm/ai-sdk-kimi-client.ts`、`workspace-chat-transport.ts` | 当前 API 返回完整 JSON，前端逐字显示不是服务端 token 流 |
 | Kimi / Moonshot（默认 kimi-k2.6） | 草稿、Workspace 解释、opening 和推荐生成 | `src/platform/llm/`、各能力的 `prompts/` | `LLM_MODEL` 可覆盖；默认超时 60 秒、零 SDK 自动重试 |
+| Mastra 1.74（`@mastra/core`，精确锁定版本） | Agent 与工具调用（1.0300 试验阶段） | `src/agents/`、`src/platform/llm/moonshot-chat-model.ts` | 直接使用现有 AI SDK 的 Kimi 模型；默认关闭 Mastra 的 PostHog 使用统计；尚未配置存储和追踪导出；工具 + 结构化输出必须用单独的结构化步骤（Kimi 在同一调用里会跳过工具并用空行填充 JSON） |
 | OpenAI SDK 7 | 保留的旧 Kimi 兼容客户端 | `src/platform/llm/kimi-client.ts` | 当前主应用默认走 AI SDK；此文件同时定义共享客户端契约 |
 | Zod 4 / 自定义领域校验 | 推荐结构校验及其他输入/模型/状态契约验证 | `src/domain/` | 不把外部 JSON 直接当可信业务数据 |
 | Neon PostgreSQL / Neon serverless | 跨请求持久化身份、状态与消息 | `src/platform/persistence/database/db.ts` | HTTP 数据库客户端；数据不依赖 Web 实例内存 |
