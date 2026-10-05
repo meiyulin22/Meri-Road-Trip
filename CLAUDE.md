@@ -19,6 +19,10 @@ user-facing explanation material: preserve its chapters, operation-to-code mappi
 data changes, APIs, error paths, and concurrency boundaries. Do not replace it with
 a brief overview.
 
+For agent work — anything in `src/agents/`, or Generate plan — also read
+`src/agents/README.md`, the agents' design contract: what runs today, what is
+planned, the tools, budgets, validation rules, and what the live trials found.
+
 For database schema, repository, or migration work, also read
 `docs/DATABASE_SCHEMA.md` for the table/field directory, relationships, constraints,
 and code mappings. Keep it consistent with the actual schema and migration files.

@@ -6,6 +6,11 @@ Meri is a personal outdoor intelligence system, designed first for one
 traveler and tested on real trips. A Journey begins with an idea and
 remains useful as plans become clearer and conditions change.
 
+Meri is also an engineering showcase for production agent work: a
+tool-using agent that plans a trip, durable workflows, tracing, and an
+evaluation of cost, latency and quality. The product decisions below
+come first; the agent work is how Meri answers them.
+
 ## 1. Product vision
 
 Meri should help a traveler decide where to go, whether the trip is
@@ -65,8 +70,8 @@ conversation, edit state through supported controls, and review the
 saved conversation. A 「中 | EN」 toggle on the home page switches the
 interface language for every page (home, Workspace, My Journeys) and the
 default language of Meri's replies, recommendation reasons and Journey
-titles; when the user clearly writes in the other language, the model may
-follow them. Place names stay in Chinese.
+titles; when the user clearly writes in the other language, Meri's replies
+follow the language they wrote in. Place names stay in Chinese.
 
 Current TripState fields are name, origin, destination, start date, end
 date, duration, and transport preference. Ordinary values may be known,
@@ -124,8 +129,9 @@ Location identity does not establish access, safety, or travel feasibility.
 The active recommendation workflow does not run access checks or ranking. Cards,
 the photo ring around the Journey globe and the title thumbnail show Amap photos
 chosen by a recommended landmark or a national scenic area; they decorate a place
-and are not evidence about it. Research Agent, generated Plan, live weather intelligence, and route
-research remain planned.
+and are not evidence about it. The Planner agent, generated Plan, live weather intelligence, and route
+research remain planned. What exists of the agent stack is a trial (1.0300): Mastra with Kimi
+calling the Amap place check and web search; see [the agents README](../src/agents/README.md).
 
 ## 5. Product principles
 
@@ -156,9 +162,12 @@ is not asked again; the model's rewording of it is not.
 trips should expose what is missing, confusing, stale, or unreliable.
 Keep the product focused on decisions that matter in the field.
 
-**Deterministic when possible, agentic when necessary.** Known steps and
-critical business rules belong in workflows. Agentic research is
-appropriate only when the next action depends on observed results.
+**Agents research; code holds authority.** Planning and research are
+agentic: the next lookup depends on what the last one found, so an agent
+chooses its tools. Saving state, checking a place's identity and wording
+facts stay in code. An agent proposes and code validates before anything
+is saved; every agent run has a budget for steps, tool calls, time and
+tokens, and leaves a trace that an evaluation can read.
 
 ## 6. Near-term roadmap — planned
 
@@ -168,12 +177,16 @@ restricts them to settled provinces. Each place carries a representative landmar
 used only to pick its photo. Access checking and ranking are not connected to this
 workflow. Explicit selection and identity verification are required.
 
-**Generate Plan and Research:** after recommendation, a later Generate
-Plan action may start a Research Agent. It should inspect the Journey
-and use weather, route, transport, opening/access, risk, and
-destination-fact tools as needed. It should observe results, decide
-whether further research is needed, produce a research result, and then
-support a final Plan. This Agent is not implemented.
+**Generate Plan — the Planner agent:** Generate plan opens a new page
+and starts the Planner, an agent built on Mastra. It takes a snapshot of
+the current TripState, researches with tools (place identity, routes,
+weather, web notices) within a budget, and returns a plan of days, places
+and legs in which every fact carries its source and date and anything not
+found is listed as unknown. Code validates the plan against the snapshot
+and the tool results before saving it as a version; a later change to the
+Journey marks it stale. The run is a durable workflow that survives a
+restart and can pause for the user. Only the trial exists; the design is
+in [the agents README](../src/agents/README.md).
 
 The next planning input should come from current TripState, including city-level
 destination choices and their named spots. Deleted spots and unselected offers
@@ -190,7 +203,8 @@ rather than building a speculative platform first.
 
 ## 7. Non-goals for the current phase
 
-- A generic Agent or open-ended research loop in normal conversation.
+- An unbounded agent. Every agent run has a budget, and an ordinary chat
+  turn stays a fixed, validated flow rather than an agent loop.
 - Arbitrary UI, generated code, or a generic Gen UI router.
 - Hardcoded place-name mappings as a substitute for provider validation.
 - Treating a destination match as proof that access, weather, transport,

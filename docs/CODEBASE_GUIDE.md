@@ -145,6 +145,7 @@ LLM 解释自然语言并提出受限 JSON；应用校验、决定是否执行�
 | 推荐生成与搜索降级 | recommendation context/generator/prompt/workflow/use case、Discovery Search/Bocha | 第 4.1 节 |
 | 日期/交通/出发地直接编辑 | brief panel、location editor/model、trip-state persistence model、state/suggestions routes | 第 5.1 节 |
 | Generate plan 准备度 | planning-readiness、readiness route/model、generate-plan action | 第 5.4 节 |
+| Agent、工具、Planner | `src/agents/README.md`（先读）、`src/agents/` 源码与工具测试、`scripts/verify-agent-tools.ts`、`platform/llm/moonshot-chat-model.ts` | 尚无（Planner 未接入用户流程） |
 | 保存、并发、列表或删除 | Journey/Trip services、repository 接口、Postgres 实现、schema、my-journeys 和相关页面 | 第 1.1、2.3、7 节 |
 | 视觉或动画 | 对应 TSX/CSS、现有 UI 组件及引用的 public 资源 | 涉及操作变化时同步相应业务章节 |
 
@@ -156,7 +157,7 @@ LLM 解释自然语言并提出受限 JSON；应用校验、决定是否执行�
 
 下表按目录分类，每个路径都有独立一行。测试不是运行时业务层；同目录测试主要验证对应层的规则或适配边界，多数使用 mock/内存替身，不据此宣称真实提供方已验证。
 
-本次索引按路径去重共 337 个文件，其中 84 个测试文件。
+本次索引按路径去重共 338 个文件，其中 84 个测试文件。
 
 ### 6.1 根目录配置与入口
 
@@ -164,7 +165,7 @@ LLM 解释自然语言并提出受限 JSON；应用校验、决定是否执行�
 | --- | --- | --- |
 | [.env.example](../.env.example) | 工程配置 | 服务端环境变量模板，提供数据库、Kimi、高德、Bocha、时区和日志配置示例；不放真实密钥。 |
 | [.gitignore](../.gitignore) | 工程配置 | 忽略依赖、构建结果、环境密钥、日志和 TypeScript 生成文件。 |
-| [AGENTS.md](../AGENTS.md) | 文档/开发约定 | 所有 AI 的共同入口：必读文档、Git 修改保护、当前业务边界及 Next.js 本地指南要求。 |
+| [AGENTS.md](../AGENTS.md) | 文档/开发约定 | 所有 AI 的共同入口：必读文档（Agent 工作另读 `src/agents/README.md`）、Git 修改保护、当前业务边界及 Next.js 本地指南要求。 |
 | [.claude/launch.json](../.claude/launch.json) | 开发工具配置 | Claude 浏览器预览面板启动 `npm run dev`（端口 3000）的配置，不影响应用运行。 |
 | [CLAUDE.md](../CLAUDE.md) | 文档/开发约定 | Claude 入口，以 @AGENTS.md 引用共用规则，补充导航链接，避免复制规则。 |
 | [README.md](../README.md) | 文档/开发约定 | 本地运行、环境变量、检查命令、架构入口和部署说明。 |
@@ -447,6 +448,7 @@ LLM 解释自然语言并提出受限 JSON；应用校验、决定是否执行�
 
 | 文件地址 | 层/类别 | 做什么 |
 | --- | --- | --- |
+| [src/agents/README.md](../src/agents/README.md) | 文档（Agent 设计约定） | Agent 的主文档（英文）：已实现与计划分开写；试验结果与四条发现、Planner 的输入/运行/输出/代码校验/版本与过期、工具、预算、追踪与评估计划、部署与决策记录。docs 只链接到这里。 |
 | [src/agents/index.ts](../src/agents/index.ts) | Agent 层 | 唯一的 Mastra 实例，注册全部 Agent；默认关闭 Mastra 发往 PostHog 的使用统计（`MASTRA_TELEMETRY_DISABLED`）。未配置存储与追踪导出，运行记录只在内存。 |
 | [src/agents/scout-agent.ts](../src/agents/scout-agent.ts) | Agent 层 | 1.0300 试验 Agent：用两个现有工具回答一个关于中国地点的问题，只为验证 Kimi 经 Mastra 调用工具；将被规划 Agent 取代，不在其上扩建。模型首次使用时才读取环境变量。 |
 | [src/agents/tools/resolve-place.ts](../src/agents/tools/resolve-place.ts) | Agent 工具 | 用工作区同一套高德核验查一个中文地名，返回匹配地点（省/市/区、GCJ-02 坐标、是否景点）、最多 5 个候选或整省；不代表开放或可达。 |

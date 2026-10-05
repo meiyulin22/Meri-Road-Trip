@@ -78,6 +78,7 @@ src/app/          What the URLs are: App Router pages and route handlers
 src/components/   What the screen looks like: React components
 src/domain/       What Meri's concepts are: pure types and validation, no IO
 src/capabilities/ What Meri can do: one directory per capability
+src/agents/       What Meri decides for itself: Mastra agents and their tools
 src/platform/     How Meri talks to the outside world: ports and adapters
 ```
 
@@ -102,6 +103,13 @@ src/capabilities/conversation/    Interpreting a Workspace message and wording t
 src/capabilities/destination/     Confirming a destination names a real place
 src/capabilities/recommendation/  Turning preferences into validated, province-filtered suggestions
 ```
+
+`src/agents/` holds the parts that choose their own next step. A capability is a
+fixed flow written in code; an agent gets a goal and tools and decides which tool
+to call from what the last call returned. Its tools are thin wrappers over
+`src/platform/` ports, and nothing an agent produces is saved before code has
+validated it. Today it holds a trial agent; the Planner behind Generate plan is
+designed in [src/agents/README.md](src/agents/README.md).
 
 ```text
 src/platform/llm/                Structured-output port, Moonshot adapter
@@ -146,5 +154,6 @@ is not supported yet: there is no service worker or offline cache.
   implemented again in `destination-recommendation-use-case.ts`.
 - **Steer off-topic messages back to travel.** Meri should stay a travel
   companion instead of answering as a general chatbot.
-- **Generate Plan and the Research Agent.** Not implemented. See
-  [docs/PROJECT.md](docs/PROJECT.md) section 6.
+- **Generate plan as the Planner agent.** A Mastra agent that researches the
+  Journey with tools within a budget and returns a plan code validates before
+  saving. Only the 1.0300 trial exists; see [src/agents/README.md](src/agents/README.md).
