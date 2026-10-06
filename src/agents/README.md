@@ -7,7 +7,9 @@ call next from what the previous call returned.
 
 The first real agent is the **Planner**, which will stand behind the Generate plan
 button. This document is its design contract. It separates what runs today from what
-is planned; nothing under "planned" exists in code yet.
+is planned; nothing under "planned" exists in code yet. The planning discussion that
+shapes the Planner — business, page, run, tools, memory — is kept in Chinese in
+[docs/agent-planner/](../../docs/agent-planner/README.md); decisions move here once they are built.
 
 | Status | What |
 | --- | --- |
@@ -163,8 +165,7 @@ Runs will be traced in the OpenTelemetry GenAI conventions and stored in Postgre
 an evaluation can read any run without depending on Mastra. The evaluation runs a set
 of sample Journeys and reports cost, latency (p50/p95), tool calls, completion rate
 and quality scores (places drawn from TripState, no invented numbers, unknowns
-listed). A LangGraph build of the same planner, measured by the same evaluation, is
-the planned comparison.
+listed).
 
 ## 6. Running and deploying
 
@@ -178,7 +179,7 @@ come from a development machine and are not a measurement of the deployed app.
 | Date | Decision |
 | --- | --- |
 | 2026-10-05 | Generate plan is an agent, built on the agent architecture from the start rather than a fixed pipeline first. |
-| 2026-10-05 | Mastra over LangGraph: TypeScript like the rest of Meri, built on the Vercel AI SDK v6 Meri already uses, with workflows, tracing and evaluation built in. LangGraph comes later as the comparison. |
+| 2026-10-05 | Mastra over LangGraph: TypeScript like the rest of Meri, built on the Vercel AI SDK v6 Meri already uses, with workflows, tracing and evaluation built in. A LangGraph version is not planned. |
 | 2026-10-05 | Agents live in `src/agents/`; this README is their document, and `docs/` links here. |
 | 2026-10-05 | The plan opens on its own page after Generate plan. |
 | 2026-10-05 | Mastra's usage telemetry is off by default. |

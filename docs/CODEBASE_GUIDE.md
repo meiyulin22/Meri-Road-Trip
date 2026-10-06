@@ -21,6 +21,7 @@
 | `src/` | 应用入口、界面、业务规则、应用用例和外部系统适配 | 运行时代码，包含下述各层 |
 | `docs/` | 产品目标、当前架构、开发原则、详细业务流程和代码导航 | 文档，不参与运行 |
 | `docs/product/` | 尚未落地的产品方向说明 | 设计资料，不能当作已实现功能 |
+| `docs/agent-planner/` | Planner Agent 的规划讨论与 Agent 课程笔记 | 规划资料，定稿并实现后写入 `src/agents/README.md` |
 | `public/` | 通过网站 URL 直接访问的背景、品牌、角色图片等静态文件 | 展示资源 |
 | `assets/` | 设计参考、品牌预览、角色原图和素材处理脚本 | 设计与素材制作，不是业务层 |
 | `drizzle/` | 按顺序执行的数据库迁移 SQL 及生成元数据 | 基础设施：数据库演进 |
@@ -145,7 +146,7 @@ LLM 解释自然语言并提出受限 JSON；应用校验、决定是否执行�
 | 推荐生成与搜索降级 | recommendation context/generator/prompt/workflow/use case、Discovery Search/Bocha | 第 4.1 节 |
 | 日期/交通/出发地直接编辑 | brief panel、location editor/model、trip-state persistence model、state/suggestions routes | 第 5.1 节 |
 | Generate plan 准备度 | planning-readiness、readiness route/model、generate-plan action | 第 5.4 节 |
-| Agent、工具、Planner | `src/agents/README.md`（先读）、`src/agents/` 源码与工具测试、`scripts/verify-agent-tools.ts`、`platform/llm/moonshot-chat-model.ts` | 尚无（Planner 未接入用户流程） |
+| Agent、工具、Planner | `src/agents/README.md`（先读）、`docs/agent-planner/README.md`（已定未实现的决定）、`src/agents/` 源码与工具测试、`scripts/verify-agent-tools.ts`、`platform/llm/moonshot-chat-model.ts` | 尚无（Planner 未接入用户流程） |
 | 保存、并发、列表或删除 | Journey/Trip services、repository 接口、Postgres 实现、schema、my-journeys 和相关页面 | 第 1.1、2.3、7 节 |
 | 视觉或动画 | 对应 TSX/CSS、现有 UI 组件及引用的 public 资源 | 涉及操作变化时同步相应业务章节 |
 
@@ -157,7 +158,7 @@ LLM 解释自然语言并提出受限 JSON；应用校验、决定是否执行�
 
 下表按目录分类，每个路径都有独立一行。测试不是运行时业务层；同目录测试主要验证对应层的规则或适配边界，多数使用 mock/内存替身，不据此宣称真实提供方已验证。
 
-本次索引按路径去重共 338 个文件，其中 84 个测试文件。
+本次索引按路径去重共 341 个文件，其中 84 个测试文件。
 
 ### 6.1 根目录配置与入口
 
@@ -186,6 +187,9 @@ LLM 解释自然语言并提出受限 JSON；应用校验、决定是否执行�
 | [docs/DATABASE_SCHEMA.md](../docs/DATABASE_SCHEMA.md) | 文档/开发约定 | 数据库相关目录、三张表的字段/约束/关系、JSONB 状态、读写代码和迁移历史。 |
 | [docs/PROJECT.md](../docs/PROJECT.md) | 文档/开发约定 | 产品愿景、当前 MVP、用户决定原则、规划方向及当前非目标。 |
 | [docs/USER_FLOW_CURRENT.md](../docs/USER_FLOW_CURRENT.md) | 文档/开发约定 | 向用户讲解的详细业务材料：入口、模型 JSON、每个操作的 API/代码、状态变化、错误、并发与兼容。 |
+| [docs/agent-planner/README.md](../docs/agent-planner/README.md) | 文档/规划 | Planner Agent 的规划工作区（中文，边讨论边改）：背景与用户思考、业务、记忆、页面、运行、工具、数据草案、远期方向和决策记录，每节标明已定/草案/待讨论；不是已实现行为。 |
+| [docs/agent-planner/page-mockup-brief.md](../docs/agent-planner/page-mockup-brief.md) | 文档/规划 | 计划页效果图说明：过渡页、只有目的地时、信息填全后三张图的内容、共同视觉风格和可直接复制的英文生成提示；讨论稿，不是实现要求。 |
+| [docs/agent-planner/agent-lessons.md](../docs/agent-planner/agent-lessons.md) | 文档/规划 | 规划时讲过的 Agent 概念笔记：Agent 循环、生成者与验证者、MCP、记忆，用 Meri 的试验举例。 |
 | [docs/product/adaptive-workspace.md](../docs/product/adaptive-workspace.md) | 文档/开发约定 | 精简的未来界面方向：按用户决定调整信息重点，保留状态和受控组件边界，不预选框架。 |
 | [docs/product/companion-bear.md](../docs/product/companion-bear.md) | 文档/开发约定 | 小熊设计说明：营地小桌精灵图方案、动作清单和“反应优先、自由时间随机”的行为逻辑；素材与行为已实现，文中列出仍待定的部分。 |
 | [docs/product/visual-media-direction.md](../docs/product/visual-media-direction.md) | 文档/设计探索 | 保存页面评审与图像、视频、Web3D、分享产物讨论，区分已认可方向、待讨论细节和灵感；记录高德照片的当前展示位置，未在本次实施功能。 |

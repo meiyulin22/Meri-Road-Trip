@@ -22,6 +22,8 @@ a brief overview.
 For agent work — anything in `src/agents/`, or Generate plan — also read
 `src/agents/README.md`, the agents' design contract: what runs today, what is
 planned, the tools, budgets, validation rules, and what the live trials found.
+The Planner is still being planned in `docs/agent-planner/README.md`; read it for
+decisions that are agreed but not yet built.
 
 For database schema, repository, or migration work, also read
 `docs/DATABASE_SCHEMA.md` for the table/field directory, relationships, constraints,
