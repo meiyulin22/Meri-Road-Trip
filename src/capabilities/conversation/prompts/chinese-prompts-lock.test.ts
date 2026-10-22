@@ -42,5 +42,15 @@ function chinesePrompts(): string {
 
 test("the Chinese prompts and schemas are exactly the tuned ones", () => {
   if (process.env.UPDATE_PROMPT_SNAPSHOT === "1") writeFileSync(snapshotUrl, chinesePrompts());
-  assert.equal(chinesePrompts(), readFileSync(snapshotUrl, "utf8"));
+  assert.equal(chinesePrompts(), asLf(readFileSync(snapshotUrl, "utf8")));
 });
+
+/**
+ * Git may check a text file out with CRLF where core.autocrlf is on (Windows). The
+ * snapshot was written with LF and this test is about the prompts' characters, not their
+ * line endings, so the file is compared as LF — otherwise a Windows checkout fails on a
+ * file whose text is identical.
+ */
+function asLf(text: string): string {
+  return text.replaceAll("\r\n", "\n");
+}
