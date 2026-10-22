@@ -103,7 +103,7 @@ function OrbitPhoto({ photo, offset, turn, onSelect }: {
   if (failed) return null;
   return (
     <motion.li className={styles.orbitPhoto} style={{ left, top, scale, opacity, zIndex }}>
-      <button aria-label={`${photo.label}：${photo.image.caption}`} onClick={() => onSelect(offset)} title={`${photo.label} · ${photo.image.caption}`} type="button">
+      <button aria-label={`${photo.label}：${photo.image.caption}`} onClick={() => onSelect(offset)} title={[photo.label, photo.image.caption, photo.image.credit].filter(Boolean).join(" · ")} type="button">
         <Image alt="" fill onError={() => setFailed(true)} sizes="84px" src={photo.image.url} />
         <span>{photo.label}</span>
       </button>

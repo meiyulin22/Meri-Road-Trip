@@ -523,6 +523,8 @@ add/set 使用 Promise.all 查询表达。解析层保留不同 provider ID，�
 
 **来源：**[AmapPlacePhotoProvider](../src/platform/place-photos/amap-place-photo-provider.ts)调用高德 v5 地点搜索并加 `show_fields=photos`。高德返回的图片地址多为 http，页面是 https 会被浏览器拦截；同一主机支持 https（2026-10-03 实测），所以直接把协议换成 https，不做代理。只接受 [placePhotoHosts](../src/platform/place-photos/place-photo-provider.ts) 列出的两个主机（`store.is.autonavi.com`、`aos-comment.amap.com`），[next.config.ts](../next.config.ts) 也只允许 next/image 从这两个主机取图。图片最宽约 500px，部分来自用户评论。
 
+**天地图模式的来源：**[WikimediaPlacePhotoProvider](../src/platform/place-photos/wikimedia-place-photo-provider.ts)用 Wikidata 条目的 Commons 照片：有名字的地点要和条目的中文名完全一致才用（配错地方比没有图更糟）；只有区域时，取天地图该区域前几个风景名胜，用语言版本最多、有照片的那个。Commons 照片的许可要求署名，所以每张图带 `credit`（作者 · 许可 · Wikimedia Commons），卡片照片上显示，照片环悬停时显示；取不到许可的照片不用。图片链接 Commons 的缩略图（`upload.wikimedia.org`，已加入 placePhotoHosts），由 next/image 在服务器上取，所以大陆用户也能看到。
+
 **查什么：**[photoQueriesFor](../src/capabilities/destination/place-images.ts)按从具体到宽泛的顺序尝试，第一张找到就停：
 
 1. 用户说过的景点（梅里雪山）→ 在所属市内按名称查；景点本身是县级市/县/区名（香格里拉市、大理市）→ 在它境内找国家级景点（普达措、大理古城），因为城镇本身的图最没代表性；
@@ -560,6 +562,21 @@ add/set 使用 Promise.all 查询表达。解析层保留不同 provider ID，�
 | --- | --- | --- |
 | `GET /api/trips/[id]/destination-photos` | 无 body；guest cookie 决定 owner | 200 `{photos: [{key, label, image}]}`，`Cache-Control: private, no-store`；无 owner/旅程 404；其他失败 500，界面只显示地球 |
 | `POST /api/trips/[id]/destination-recommendation-photos` | `{messageId}`（只此一个字段），guest cookie 决定 owner | 200 流式 `application/x-ndjson`：每张还没照片的卡一行 `{id, image\|null}`，查完并保存后结束；没有待查的卡时为空响应。带 `X-Accel-Buffering: no`（nginx 反向代理默认缓冲，会把所有行攒到最后），`Cache-Control: private, no-store, no-transform`。body 不合法 400；无 owner、旅程不存在或该消息不是推荐卡 404；读取消息失败 500。保存失败不影响已发出的行 |
+
+### 5.7 地图提供方：高德（默认）或天地图
+
+`MAP_PROVIDER` 决定地点核验、输入提示和照片用哪一整套提供方（[map-providers](../src/platform/map-providers.ts)）：不设或 `amap` 是高德；`tianditu` 是天地图加 Wikidata 和 Wikimedia Commons；其他值启动请求时报配置错误。两套提供方都交给同一套判定规则（[destination-resolution-policy](../src/domain/location/destination-resolution-policy.ts)），保存进 TripState 的目的地只是省、市、景点的名字，所以换提供方不影响已保存的目的地。
+
+天地图模式下一次地点核验（[TiandituLocationProvider](../src/platform/tianditu/tianditu-location-provider.ts)）：
+
+1. 天地图普通搜索取 30 条（带省市区和类别；名字以 景区 / 风景名胜区 / 国家公园 / 古城 等结尾的也算景点，因为天地图把 黄山风景区 归为"区县级地名"）；用户说的是行政区（云南、丽江）时天地图直接返回行政区，再用逆地理编码补上一级。
+2. 问 Wikidata：用户的原话是不是某个中国景点的名字（完全一样，或只多一个 风景名胜区 这类后缀，如 九寨沟风景名胜区）。是的话取语言版本最多的那个（排除行政区、机场、车站）：天地图已经在它 10 公里内找到同名景点就排到最前；否则在它附近搜整个景区（只要名字就是原话或原话加景区后缀的，不要 峨眉山金顶华藏寺请香处 这种局部），附近搜不到就在它所在的市里按名字搜、只取 30 公里内的；都没有就用 Wikidata 的点（WGS-84，与 CGCS2000 相差不到一米）。找到以后，其他地方同名的地点去掉（泰州也有一个叫 九寨沟 的公园）。Wikidata 连不上（大陆网络）或被限流（429）时跳过这一步。
+3. 名字里含用户原话的整个景区排到前面；有这样的景区时，借用这个名字的饭店、商店去掉（重庆以外有三家叫 洪崖洞 的饭店）。
+4. 前 5 条交给判定规则，之后的流程（自动加入、出卡、待确认）和高德完全一样。
+
+输入提示用天地图的建议词搜索（`queryType 4`）。照片见 5.6。每个地点都带自己的坐标系：高德 GCJ-02，天地图 CGCS2000；起点选择和候选卡的坐标必须和它的提供方一致，校验在 [trip-state](../src/domain/trip-state/trip-state.ts) 和 [trip-message](../src/domain/trip-message/trip-message.ts)。
+
+**已知差别**（2026-10-22，[verify-tianditu-workspace](../scripts/verify-tianditu-workspace.ts) 用同一套规则比 24 个说法，Wikidata 可用、请求间隔 10 秒）：16/24 和高德结果一样，黄山 两家都让用户在 黄山 和 黄山市 之间选（高德多一条重复的 黄山市）。天地图更好：海南（高德判成找不到）、苍山（直接定到大理苍山，高德要用户确认）。不同但都对：长城（天地图给 慕田峪长城景区 待确认，高德给 北京 的三段长城让用户选）、稻城亚丁（天地图给 景区 和 地质公园 两张卡，高德直接定）。天地图较差：张家界（只给 张家界市，高德还给景区）；朝阳、潮汕 多出几个外地同名地点。慢：天地图模式一次 2–4 秒（多了 Wikidata 和逆地理编码），高德约 0.3 秒。天地图没有营业时间、评分。
 
 ## 6. 回复到底是谁写的：速查表
 

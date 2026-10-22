@@ -2,7 +2,7 @@ import { cookies } from "next/headers";
 
 import { addToDestination, destinationContains, removeFromDestination,
   type DestinationPick, type DestinationRemoval } from "@/domain/trip-state/destination-areas";
-import { AmapLocationProvider } from "@/platform/location-provider/amap-location-provider";
+import { createLocationProvider } from "@/platform/map-providers";
 import { readGuestId } from "@/platform/identity/guest-identity";
 import { journeyService } from "@/capabilities/journey/journey-service-instance";
 import { LocationService } from "@/capabilities/destination/location-service";
@@ -11,7 +11,7 @@ import { TripStateConflictError } from "@/capabilities/journey/journey-errors";
 import { logger } from "@/platform/observability/logger";
 
 type Context = { params: Promise<{ id: string }> };
-const service = new LocationService(new AmapLocationProvider());
+const service = new LocationService(createLocationProvider());
 
 async function ownerAndTrip(context: Context) {
   const owner = readGuestId(await cookies());

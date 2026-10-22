@@ -1,10 +1,15 @@
 import { z } from "zod";
 
-import type { LocationSuggestion } from "@/domain/location/location-suggestion";
+import { coordinateSystems } from "@/domain/location/location";
+import {
+  locationProviders,
+  providerCoordinateSystem,
+  type LocationSuggestion,
+} from "@/domain/location/location-suggestion";
 import type { TripStatePatch } from "@/domain/trip-state/trip-state";
 
 const suggestionSchema = z.object({
-  provider: z.literal("amap"),
+  provider: z.enum(locationProviders),
   providerId: z.string().nullable(),
   name: z.string().trim().min(1),
   region: z.string().nullable(),
@@ -13,9 +18,11 @@ const suggestionSchema = z.object({
   coordinates: z.object({
     longitude: z.number().finite().min(-180).max(180),
     latitude: z.number().finite().min(-90).max(90),
-    coordinateSystem: z.literal("GCJ-02"),
+    coordinateSystem: z.enum(coordinateSystems),
   }).nullable(),
-});
+}).refine((suggestion) => suggestion.coordinates === null ||
+  suggestion.coordinates.coordinateSystem === providerCoordinateSystem[suggestion.provider],
+{ message: "A suggestion's coordinates must be in its provider's coordinate system." });
 
 export function normalizeSuggestionQuery(value: string): string | null {
   const query = value.trim();

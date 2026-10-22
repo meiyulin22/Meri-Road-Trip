@@ -164,7 +164,7 @@ LLM 解释自然语言并提出受限 JSON；应用校验、决定是否执行�
 
 | 文件地址 | 层/类别 | 做什么 |
 | --- | --- | --- |
-| [.env.example](../.env.example) | 工程配置 | 服务端环境变量模板，提供数据库、Kimi、高德、Bocha、时区和日志配置示例；不放真实密钥。 |
+| [.env.example](../.env.example) | 工程配置 | 服务端环境变量模板，提供数据库、Kimi、高德、Bocha、时区和日志配置示例；末尾一组是 Generate plan 提供方试验的变量名（高德 JS 地图、和风天气、RollingGo、途牛、TypeSafe、AnySearch、天地图、阿里云百炼、华为位置服务），目前只有验证脚本读取；不放真实密钥。 |
 | [.gitignore](../.gitignore) | 工程配置 | 忽略依赖、构建结果、环境密钥、日志和 TypeScript 生成文件。 |
 | [AGENTS.md](../AGENTS.md) | 文档/开发约定 | 所有 AI 的共同入口：必读文档（Agent 工作另读 `src/agents/README.md`）、Git 修改保护、当前业务边界及 Next.js 本地指南要求。 |
 | [.claude/launch.json](../.claude/launch.json) | 开发工具配置 | Claude 浏览器预览面板启动 `npm run dev`（端口 3000）的配置，不影响应用运行。 |
@@ -323,9 +323,9 @@ LLM 解释自然语言并提出受限 JSON；应用校验、决定是否执行�
 | [src/domain/location/china-destination-scope.ts](../src/domain/location/china-destination-scope.ts) | 领域层 | 中国目的地省级行政区完整名/简称名单，共用范围校验；不替代城市/景点的提供方身份核验。 |
 | [src/domain/location/destination-resolution-policy.test.ts](../src/domain/location/destination-resolution-policy.test.ts) | 测试（对应模块边界） | 验证行政/景区后缀、自身市/州前缀、景点旁同名区县让位（行政名之间不让）、兜底前缀匹配（至少 3 字、只在无更严格匹配时）、最后兜底景点（排除设施与景点子项、最多 3 个）、同名歧义、省范围、重复身份及不合理/无效坐标候选。 |
 | [src/domain/location/destination-resolution-policy.ts](../src/domain/location/destination-resolution-policy.ts) | 领域层 | 合理名称匹配和候选解析纯规则：原话/后缀/自身市区县前缀匹配，同市景点旁的同名区县让位，兜底匹配带其他前缀的名称，最后兜底提供名称含原话的景点（最多 3 个，排除景点的一部分）；返回 resolved/ambiguous/area/unresolved，保留不同 POI 身份。 |
-| [src/domain/location/location-suggestion.ts](../src/domain/location/location-suggestion.ts) | 领域层 | 输入建议 LocationSuggestion 类型，包含可能缺失的身份/坐标，与最终目的地确认分开；本文件不执行校验。 |
-| [src/domain/location/location.ts](../src/domain/location/location.ts) | 领域层 | 规范化 LocationCandidate，包含提供方身份、行政归属、地址和坐标，以及可选的 kind（是否景点）。 |
-| [src/domain/location/place-image.ts](../src/domain/location/place-image.ts) | 领域层 | 地点照片类型（https 链接 + 说明文字）与读取校验，不合法时视为没有照片。 |
+| [src/domain/location/location-suggestion.ts](../src/domain/location/location-suggestion.ts) | 领域层 | 输入建议 LocationSuggestion 类型，包含可能缺失的身份/坐标，与最终目的地确认分开；地图提供方名单（amap、tianditu）和各自的坐标系；本文件不执行校验。 |
+| [src/domain/location/location.ts](../src/domain/location/location.ts) | 领域层 | 规范化 LocationCandidate，包含提供方身份、行政归属、地址和坐标（带坐标系 GCJ-02 或 CGCS2000，不互转），以及可选的 kind（是否景点）。 |
+| [src/domain/location/place-image.ts](../src/domain/location/place-image.ts) | 领域层 | 地点照片类型（https 链接 + 说明文字 + 可选署名 credit）与读取校验，不合法时视为没有照片。 |
 | [src/domain/locale/locale.ts](../src/domain/locale/locale.ts) | 领域层 | 支持的语言 zh/en、合法性判断及 `<html lang>` 取值。 |
 | [src/domain/location/recommendation-identity.test.ts](../src/domain/location/recommendation-identity.test.ts) | 测试（对应模块边界） | 验证等价名称归一化，保留不同山峰/路线/相似地名的独立性。 |
 | [src/domain/location/recommendation-identity.ts](../src/domain/location/recommendation-identity.ts) | 领域层 | 推荐名和地区名标准化，处理空白、全角及受支持后缀，不做地点网络核验。 |
@@ -488,6 +488,17 @@ LLM 解释自然语言并提出受限 JSON；应用校验、决定是否执行�
 | [src/platform/place-photos/place-photo-provider.ts](../src/platform/place-photos/place-photo-provider.ts) | 基础设施/端口 | 照片查询（按名称或按区域国家级景点）接口与允许的照片主机列表。 |
 | [src/platform/place-photos/amap-place-photo-provider.ts](../src/platform/place-photos/amap-place-photo-provider.ts) | 基础设施/适配器 | 高德 v5 搜索取照片：经共用节流器请求、http 升级 https、主机白名单、只缓存真实答案的进程内 7 天缓存（PlacePhotoMemory）、失败返回 null 并记 infocode。 |
 | [src/platform/place-photos/amap-place-photo-provider.test.ts](../src/platform/place-photos/amap-place-photo-provider.test.ts) | 测试（对应模块边界） | 验证查询参数、https 升级、主机过滤、各种失败，以及只缓存真实答案、过期重查。 |
+| [src/platform/place-photos/wikimedia-place-photo-provider.ts](../src/platform/place-photos/wikimedia-place-photo-provider.ts) | 基础设施/适配器 | 天地图模式的照片：有名字时用 Wikidata 条目（中文名完全一致）的 Commons 照片，只有区域时取天地图分类搜索的前几个风景名胜里最有名、有照片的；从 Commons 取作者和许可做 `credit`，没有许可不用；链接 MD5 路径的缩略图；共用 PlacePhotoMemory 7 天缓存。 |
+| [src/platform/place-photos/wikimedia-place-photo-provider.test.ts](../src/platform/place-photos/wikimedia-place-photo-provider.test.ts) | 测试（对应模块边界） | 验证缩略图路径、署名、名字不一致 / 非照片格式 / 没有许可时不配图、区域取最有名的景点。 |
+| [src/platform/tianditu/tianditu-fetch.ts](../src/platform/tianditu/tianditu-fetch.ts) | 基础设施/适配器 | 天地图请求客户端：独立排队（开始间隔 ≥300ms，复用 amap-fetch 的通用 pacer）、超时、key 只拼进天地图地址；418 或防火墙 HTML 页视为拒绝；失败只返回固定原因，不含 URL 和 key。 |
+| [src/platform/tianditu/tianditu-location-provider.ts](../src/platform/tianditu/tianditu-location-provider.ts) | 基础设施端口/适配器 | 天地图地点核验：普通搜索 30 条（`show: "2"`）、行政区结果用逆地理编码补上级、天地图类别码映射景点 / 其他、直辖市补市级；以景区后缀结尾的名字也算景点；Wikidata 说出"最有名"的景点后先在它附近、再在它所在市里找天地图的整个景区（找不到用 Wikidata 的点），并去掉别处的同名地点；整个景区排前并去掉借名的店；返回前 5 条，坐标 CGCS2000。 |
+| [src/platform/tianditu/tianditu-location-provider.test.ts](../src/platform/tianditu/tianditu-location-provider.test.ts) | 测试（对应模块边界） | 验证类别映射、POI / 行政区规范化、附近景点挑选（局部不算）、Wikidata 排前 / 已找到时前移 / 市内按名字找（黄山风景区）/ 用 Wikidata 的点、峨眉山这类行政区答案也给景点、整个景区排前、无数据 / 拒绝 / 空查询、key 只发给天地图。 |
+| [src/platform/tianditu/tianditu-input-tips-provider.ts](../src/platform/tianditu/tianditu-input-tips-provider.ts) | 基础设施端口/适配器 | 天地图建议词搜索（queryType 4）做输入提示：gbCode 去掉 156 变成六位 adcode，行政区文字放 region，坐标 CGCS2000。 |
+| [src/platform/tianditu/tianditu-input-tips-provider.test.ts](../src/platform/tianditu/tianditu-input-tips-provider.test.ts) | 测试（对应模块边界） | 验证建议规范化、空结果、超时、拒绝与畸形响应。 |
+| [src/platform/wikidata/wikidata-sights.ts](../src/platform/wikidata/wikidata-sights.ts) | 基础设施/适配器 | 同名地点里"最有名"的中国景点：Wikidata 搜索 + 条目，排除有行政区代码 / 人口 / 机场 / 车站代码的条目，按语言版本数取最多；返回中英文名、坐标、Commons 文件名；从不抛错，连不上或 429 返回 null；只缓存真实答案 7 天；`WIKIMEDIA_CONTACT` 进 User-Agent。 |
+| [src/platform/wikidata/wikidata-sights.test.ts](../src/platform/wikidata/wikidata-sights.test.ts) | 测试（对应模块边界） | 验证苍山选大理而不是兰陵县、排除机场 / 国外 / 无坐标、名字匹配规则（九寨沟风景名胜区算九寨沟）、缓存、连不上时返回 null 且下次重试。 |
+| [src/platform/map-providers.ts](../src/platform/map-providers.ts) | 基础设施装配 | 按 `MAP_PROVIDER`（默认 amap，可选 tianditu，其他值报配置错误）创建整套地点核验、输入提示和照片提供方；各 route 和页面都从这里取。 |
+| [src/platform/map-providers.test.ts](../src/platform/map-providers.test.ts) | 测试（对应模块边界） | 验证默认值、选择天地图和非法值报错。 |
 | [src/platform/search/bocha-web-search.test.ts](../src/platform/search/bocha-web-search.test.ts) | 测试（对应模块边界） | mock 验证 POST/envelope、webPages/images 区段、缺密钥不请求及错误脱敏。 |
 | [src/platform/search/bocha-web-search.ts](../src/platform/search/bocha-web-search.ts) | 基础设施端口/适配器 | 共享 Bocha Web Search HTTP 请求、响应 envelope 检查、日期转换、超时/网络/API 错误脱敏。 |
 | [src/platform/search/discovery-search.ts](../src/platform/search/discovery-search.ts) | 基础设施端口/适配器 | DiscoverySearch 端口、旅程搜索 query、失败降级空上下文和规范化错误。 |
@@ -549,6 +560,13 @@ LLM 解释自然语言并提出受限 JSON；应用校验、决定是否执行�
 | --- | --- | --- |
 | [scripts/verify-destination-conversation-turns.ts](../scripts/verify-destination-conversation-turns.ts) | 开发验证工具 | 用多轮样例人工检查真实模型的地点/偏好解释、推荐意图、中国范围、错别字保留、天气/准备度/单问题规则、已有状态保护及回复语言和英文地名翻译（20–27 为英文界面或跨语言输入），需要模型配置。 |
 | [scripts/verify-agent-tools.ts](../scripts/verify-agent-tools.ts) | 开发验证工具 | 用真模型和真提供方跑试验 Agent 的 4 个问题，打印每一步的工具调用与结果、耗时、token 用量和回复；第 4 个验证"工具 + 结构化输出"必须用单独的结构化步骤，需要模型、高德和 Bocha 配置。 |
+| [scripts/verify-tianditu.ts](../scripts/verify-tianditu.ts) | 开发验证工具 | 天地图能否替代高德的实测：连续 20 次搜索看拦截和延迟、15 个云南地点（全国搜索和云南行政区内搜索）反查省市、英文地名、驾车和 `style=3` 路线的距离和速度；需要 `TIANDITU_API_KEY`，不接入产品代码。 |
+| [scripts/verify-amap-baseline.ts](../scripts/verify-amap-baseline.ts) | 开发验证工具 | 天地图实测的高德对照：同一组地点、英文名和路线问高德，另外统计营业时间、电话、评分、照片的覆盖；约 40 次调用，需要 `AMAP_API_KEY`。 |
+| [scripts/verify-tianditu-workspace.ts](../scripts/verify-tianditu-workspace.ts) | 开发验证工具 | Workspace 地点核实：24 个说法（或命令行给的几个，间隔 10 秒）分别经高德和产品的天地图提供方（含 Wikidata 一步），走真实的 `LocationService` + `resolveDestinationPlace`，对比结果和耗时。 |
+| [scripts/verify-amap-mcp.ts](../scripts/verify-amap-mcp.ts) | 开发验证工具 | 百炼托管的高德 MCP 实测：列出工具，用共用测试集跑关键字搜索 + 详情（营业时间、电话、评分、照片）和路线；脚本内一个最小的 MCP 客户端（JSON-RPC over HTTP），需要 `DASHSCOPE_API_KEY`。 |
+| [scripts/verify-huawei-site.ts](../scripts/verify-huawei-site.ts) | 开发验证工具 | 华为位置服务（Site Kit）实测：共用测试集的中文搜索 + 详情（营业时间、电话、评分、照片）、英文名英文结果、自动补齐；对三个地点实时取高德和天地图的坐标并排打印，判断华为在大陆用哪种坐标系；需要 `HUAWEI_SITE_API_KEY`。 |
+| [scripts/verify-wikidata.ts](../scripts/verify-wikidata.ts) | 开发验证工具 | Wikidata 能否补天地图缺的东西：24 个说法在中国、有坐标的条目里按语言版本数挑"最有名"的，打印中英文名、所在行政区、Commons 照片的许可和作者；`--tianditu` 时再在该坐标 10 公里内搜天地图景点。大陆网络访问不了 Wikidata，要走代理或在境外运行。 |
+| [scripts/map-trial-cases.ts](../scripts/map-trial-cases.ts) | 开发验证工具 | 两个地图实测脚本共用的测试集：15 个云南地点（预期省市）、英文地名、4 条路线。 |
 | [scripts/verify-location-resolve.ts](../scripts/verify-location-resolve.ts) | 开发验证工具 | 人工验证真实高德查询及 LocationService/层级解析结果，不是自动单元测试。 |
 | [scripts/verify-workspace-location-tool.ts](../scripts/verify-workspace-location-tool.ts) | 开发验证工具 | 人工调用真实 Workspace 解释器，检查地点意图结构；文件名保留旧 tool 命名，当前不是开放式工具 Agent。 |
 

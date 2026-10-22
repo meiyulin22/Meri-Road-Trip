@@ -26,7 +26,7 @@ import { recommendationScopeForTurn } from "@/capabilities/recommendation/destin
 import { destinationEditReply, recommendationLeadIn } from "@/capabilities/conversation/turn-reply";
 import { meriReplies } from "@/capabilities/conversation/meri-replies";
 import { requestLocale } from "@/platform/locale/request-locale";
-import { AmapLocationProvider } from "@/platform/location-provider/amap-location-provider";
+import { createLocationProvider, createPlacePhotoProvider } from "@/platform/map-providers";
 import { TripStateNotFoundError, TripStateConflictError } from "@/capabilities/journey/journey-errors";
 import { journeyService } from "@/capabilities/journey/journey-service-instance";
 import { readGuestId } from "@/platform/identity/guest-identity";
@@ -34,7 +34,6 @@ import { LocationService } from "@/capabilities/destination/location-service";
 import { applyDestinationEdit } from "@/capabilities/destination/apply-destination-edit";
 import { resolveDestinationPlace } from "@/capabilities/destination/resolve-destination-place";
 import { withChoiceImages } from "@/capabilities/destination/place-images";
-import { AmapPlacePhotoProvider } from "@/platform/place-photos/amap-place-photo-provider";
 import { logger, logEvents } from "@/platform/observability/logger";
 import { tripMessageService } from "@/capabilities/conversation/trip-message-service-instance";
 import { serializeError } from "@/platform/observability/serialize-error";
@@ -171,7 +170,7 @@ export async function POST(request: Request) {
     let persistedTripState = patch
       ? await journeyService.updateTripState(tripId, ownerGuestId, patch)
       : tripState;
-    const locationService = new LocationService(new AmapLocationProvider());
+    const locationService = new LocationService(createLocationProvider());
     const destinationResult = await applyDestinationEdit(
       persistedTripState.destination,
       interpretation.destinationEdit,
@@ -210,7 +209,7 @@ export async function POST(request: Request) {
       recommendationScope ? recommendationLeadIn(interpretation.reply, replies) : interpretation.reply,
       tripState, persistedTripState, replies);
     const assistantPresentation = destinationResult.choices
-      ? await withChoiceImages(destinationResult.choices.presentation, new AmapPlacePhotoProvider())
+      ? await withChoiceImages(destinationResult.choices.presentation, createPlacePhotoProvider())
       : recommendationScope
         ? { type: "destination_recommendations_pending" as const, scope: recommendationScope }
         : undefined;

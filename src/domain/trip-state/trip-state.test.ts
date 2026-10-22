@@ -62,6 +62,23 @@ test("origin selection metadata remains validated independently", () => {
   } } }), InvalidTripStateError);
 });
 
+test("an origin selection must be in its own provider's coordinate system", () => {
+  const tianditu = { state: "known", value: "丽江古城", source: "user", selection: {
+    provider: "tianditu", region: "云南省丽江市古城区",
+    coordinates: { longitude: 100.23, latitude: 26.87, coordinateSystem: "CGCS2000" },
+  } } as const;
+  assert.deepEqual(validateTripStatePatch({ origin: tianditu }).origin, tianditu);
+  // A Tianditu point labelled GCJ-02 (or an Amap one labelled CGCS2000) would be drawn hundreds of metres off.
+  assert.throws(() => validateTripStatePatch({ origin: { ...tianditu, selection: {
+    ...tianditu.selection, coordinates: { ...tianditu.selection.coordinates, coordinateSystem: "GCJ-02" },
+  } } }), InvalidTripStateError);
+  assert.throws(() => validateTripStatePatch({ origin: { ...tianditu, selection: {
+    provider: "amap", coordinates: { longitude: 100.23, latitude: 26.87, coordinateSystem: "CGCS2000" },
+  } } }), InvalidTripStateError);
+  assert.throws(() => validateTripStatePatch({ origin: { ...tianditu, selection: { provider: "google" } } }),
+    InvalidTripStateError);
+});
+
 test("recommendations remain open for empty provinces and close after a city or legacy preference", () => {
   assert.equal(isDestinationOpenToRecommendations({ state: "missing" }), true);
   assert.equal(isDestinationOpenToRecommendations({ state: "known", source: "user",

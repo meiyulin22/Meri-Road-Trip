@@ -11,8 +11,7 @@ import {
   guestIdCookieOptions,
 } from "@/platform/identity/guest-identity";
 import { JourneyCreationError } from "@/capabilities/journey/journey-errors";
-import { AmapLocationProvider } from "@/platform/location-provider/amap-location-provider";
-import { AmapPlacePhotoProvider } from "@/platform/place-photos/amap-place-photo-provider";
+import { createLocationProvider, createPlacePhotoProvider } from "@/platform/map-providers";
 import { createJourneyWithOpening } from "@/capabilities/journey/create-journey-with-opening";
 import { journeyService } from "@/capabilities/journey/journey-service-instance";
 import { LocationService } from "@/capabilities/destination/location-service";
@@ -67,8 +66,8 @@ export async function POST(request: Request) {
       createJourney: (draft, ownerGuestId, message, openingAssistant, initialDestination) =>
         journeyService.createJourney(draft, ownerGuestId, message, openingAssistant, initialDestination),
       resolveDestination: (expression) =>
-        new LocationService(new AmapLocationProvider()).resolveExpression(expression),
-      photos: new AmapPlacePhotoProvider(),
+        new LocationService(createLocationProvider()).resolveExpression(expression),
+      photos: createPlacePhotoProvider(),
       initializeOpening: (input) => openingConversationService.initialize(input),
     });
     const { journey, opening } = result;

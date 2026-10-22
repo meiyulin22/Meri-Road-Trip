@@ -4,8 +4,20 @@
     {
       "name": "meri-dev",
       "runtimeExecutable": "npm",
-      "runtimeArgs": ["run", "dev"],
+      "runtimeArgs": [
+        "run",
+        "dev"
+      ],
       "port": 3000
+    },
+    {
+      "name": "meri-dev-tianditu",
+      "runtimeExecutable": "bash",
+      "runtimeArgs": [
+        "-c",
+        "MAP_PROVIDER=tianditu NODE_USE_ENV_PROXY=1 no_proxy=\"$no_proxy,api.tianditu.gov.cn,api.moonshot.cn,restapi.amap.com\" NODE_TLS_REJECT_UNAUTHORIZED=1 NODE_OPTIONS=--use-system-ca npx next dev --port 3100"
+      ],
+      "port": 3100
     }
   ]
 }

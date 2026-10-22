@@ -22,6 +22,20 @@ test("parses a complete suggestion response without truncating the list", () => 
   assert.throws(() => parseSuggestionResponse({ suggestions: [{ name: "missing fields" }] }));
 });
 
+test("a Tianditu suggestion parses only with Tianditu's own coordinate system", () => {
+  const suggestion = {
+    provider: "tianditu", providerId: null, name: "大理古城",
+    region: "云南省大理白族自治州大理市", adcode: "532901", address: null,
+    coordinates: { longitude: 100.16, latitude: 25.698, coordinateSystem: "CGCS2000" },
+  };
+  const [parsed] = parseSuggestionResponse({ suggestions: [suggestion] });
+  assert.deepEqual(parsed, suggestion);
+  assert.throws(() => parseSuggestionResponse({ suggestions: [{ ...suggestion,
+    coordinates: { ...suggestion.coordinates, coordinateSystem: "GCJ-02" } }] }));
+  // The picked suggestion becomes an origin TripState accepts as it is.
+  assert.equal(validateTripStatePatch(createSelectedLocationPatch("origin", parsed)).origin?.state, "known");
+});
+
 test("selection maps only supported metadata to the exact origin PATCH", () => {
   const suggestion = {
     provider: "amap", providerId: "tip-1", name: "香格里拉站",

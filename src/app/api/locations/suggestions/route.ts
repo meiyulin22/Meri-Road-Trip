@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 
-import { AmapInputTipsProvider } from "@/platform/location-provider/amap-input-tips-provider";
+import { createLocationSuggestionProvider, mapProviderName } from "@/platform/map-providers";
 import {
   InvalidLocationSuggestionQueryError,
   LocationSuggestionProviderError,
@@ -25,7 +25,7 @@ export async function handleLocationSuggestionsGet(
     logger.info({
       event: logEvents.locationSuggestionsCompleted,
       requestId,
-      provider: "amap",
+      provider: mapProviderName(),
       resultCount: suggestions.length,
       durationMs: Math.round(performance.now() - startedAt),
     }, "Location suggestions completed");
@@ -40,7 +40,7 @@ export async function handleLocationSuggestionsGet(
     logger.warn({
       event: logEvents.locationSuggestionsFailed,
       requestId,
-      provider: "amap",
+      provider: mapProviderName(),
       reason,
       statusCode: status,
       durationMs: Math.round(performance.now() - startedAt),
@@ -54,6 +54,6 @@ export async function handleLocationSuggestionsGet(
 export async function GET(request: Request): Promise<Response> {
   return handleLocationSuggestionsGet(
     request,
-    new LocationSuggestionService(new AmapInputTipsProvider()),
+    new LocationSuggestionService(createLocationSuggestionProvider()),
   );
 }

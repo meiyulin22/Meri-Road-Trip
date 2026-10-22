@@ -5,7 +5,11 @@ import {
   type TripDraftField,
   type TransportPreference,
 } from "@/domain/trip-draft/trip-draft";
-import type { LocationSuggestion } from "@/domain/location/location-suggestion";
+import {
+  isLocationProviderName,
+  providerCoordinateSystem,
+  type LocationSuggestion,
+} from "@/domain/location/location-suggestion";
 import {
   destinationAreasText,
   destinationAreasTitle,
@@ -175,7 +179,7 @@ function validateStateField<T extends string = string>(
 }
 
 function validateLocationSelection(value: unknown, label: "origin"): LocationSelection {
-  if (!isRecord(value) || value.provider !== "amap") {
+  if (!isRecord(value) || !isLocationProviderName(value.provider)) {
     throw new InvalidTripStateError(`${label}.selection.provider is invalid.`);
   }
 
@@ -201,7 +205,8 @@ function validateLocationSelection(value: unknown, label: "origin"): LocationSel
       typeof coordinates.latitude !== "number" ||
       !Number.isFinite(coordinates.latitude) ||
       coordinates.latitude < -90 || coordinates.latitude > 90 ||
-      coordinates.coordinateSystem !== "GCJ-02") {
+      // A point is only valid in the system its provider answers in.
+      coordinates.coordinateSystem !== providerCoordinateSystem[value.provider]) {
       throw new InvalidTripStateError(`${label}.selection.coordinates are invalid.`);
     }
   }

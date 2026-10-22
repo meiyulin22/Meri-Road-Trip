@@ -29,7 +29,8 @@ flowchart TB
   ui -->|HTTP 请求| entry
   adapters --> db[(Neon PostgreSQL)]
   adapters --> kimi[Kimi / Moonshot]
-  adapters --> amap[高德地点与输入建议]
+  adapters --> amap[高德地点与输入建议（默认）]
+  adapters --> tianditu[天地图 + Wikidata + Commons（MAP_PROVIDER=tianditu）]
   adapters --> bocha[Bocha Discovery Search]
 ```
 
@@ -67,6 +68,8 @@ flowchart TB
 | Drizzle ORM 0.45 / Drizzle Kit | schema、查询、JSONB 条件更新与迁移 | `src/platform/persistence/`、`drizzle/`、`drizzle.config.ts` | 迁移文件存在不代表在线环境已执行 |
 | 高德 Web API | 地点关键词核验与 InputTips 建议 | `src/platform/location-provider/`、`src/platform/amap/amap-fetch.ts`（所有高德调用共用一个队列：开始间隔 ≥350ms，超时从发出时起算；被限流时整队暂停 1 秒，被拒请求排队首重试，最多 3 次） | 身份核验不证明开放、安全、交通或可达 |
 | 高德地点照片（v5 搜索 `show_fields=photos`） | 卡片、照片环、标题图的装饰照片 | `src/platform/place-photos/`、`next.config.ts` 的 images.remotePatterns | http 地址升级为 https；只允许两个照片主机；只缓存真实答案的进程内缓存 7 天（不用 fetch 缓存，因限流也返回 HTTP 200）；失败即无图 |
+| 天地图 Web API（`MAP_PROVIDER=tianditu` 时） | 地点关键词核验（`show: "2"` 带省市区和类别）、建议词搜索作输入提示、逆地理编码 | `src/platform/tianditu/`（独立队列：开始间隔 ≥300ms；防火墙拦截页或 418 视为拒绝，不当作"没有这个地方"）、`src/platform/map-providers.ts` 按 `MAP_PROVIDER` 选择整套提供方 | 坐标 CGCS2000，不与高德 GCJ-02 互转；按文字排序，同名景点由 Wikidata 补"哪个最有名" |
+| Wikidata / Wikimedia Commons（天地图模式） | 同名景点里"最有名"的那个（排除行政区、机场、车站）；Commons 照片（带作者和许可） | `src/platform/wikidata/wikidata-sights.ts`、`src/platform/place-photos/wikimedia-place-photo-provider.ts` | 大陆网络访问不了，连不上或被限流（429）时跳过，只用天地图的结果；进程内缓存 7 天；`WIKIMEDIA_CONTACT` 填进 User-Agent；`WIKIMEDIA_ACCESS_TOKEN`（OAuth 2.0 个人令牌）作 Bearer 头，匿名请求按 IP 限流，共用代理出口会整体 429；所有 Wikimedia 请求共用一个队列，间隔 0.5 秒 |
 | Bocha Web Search | 推荐的启发性搜索上下文 | `src/platform/search/` | 最多 8 条；失败降级，不当作已核验证据 |
 | Pino 10 | 结构化事件与错误日志 | `src/platform/observability/` | requestId 关联请求；错误序列化脱敏 |
 | Node test runner / tsx / ESLint 9 / tsc | 相邻单元/边界测试、lint、类型检查 | `*.test.ts(x)`、`package.json`、`eslint.config.mjs` | mock 回归不代表真实外部接口验收 |

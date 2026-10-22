@@ -13,7 +13,7 @@ import { tripMessageService } from "@/capabilities/conversation/trip-message-ser
 import { imagesShownInConversation, selectedPlaceImages, type SelectedPlaceImage } from "@/capabilities/destination/place-images";
 import type { TripMessage } from "@/domain/trip-message/trip-message";
 import type { TripState } from "@/domain/trip-state/trip-state";
-import { AmapPlacePhotoProvider } from "@/platform/place-photos/amap-place-photo-provider";
+import { createPlacePhotoProvider } from "@/platform/map-providers";
 
 import { messages } from "@/components/i18n/messages";
 import { requestLocale } from "@/platform/locale/request-locale";
@@ -84,7 +84,7 @@ async function initialPlacePhotos(
 ): Promise<readonly SelectedPlaceImage[] | null> {
   const areas = tripState.destination.state === "known" ? tripState.destination.areas : [];
   if (areas.length === 0) return [];
-  const lookup = selectedPlaceImages(areas, new AmapPlacePhotoProvider(), imagesShownInConversation(messages))
+  const lookup = selectedPlaceImages(areas, createPlacePhotoProvider(), imagesShownInConversation(messages))
     .catch(() => null);
   const timeout = new Promise<null>((resolve) => setTimeout(() => resolve(null), 1_500));
   return Promise.race([lookup, timeout]);

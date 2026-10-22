@@ -175,7 +175,10 @@ function PlaceCard({ choice, checked, disabled, inJourney, onToggle, photoPendin
         <AnimatedCheckbox checked={checked} disabled={disabled} onChange={onToggle} />
       </span>
       {inJourney ? <span className={styles.inJourneyBadge}>{text.inJourney}</span> : null}
-      {image && !waiting ? <span className={styles.placeCaption}>{image.caption}</span> : null}
+      {image && !waiting ? <span className={styles.placeCaption} title={image.credit}>
+        {image.caption}
+        {image.credit ? <small className={styles.placeCredit}>{image.credit}</small> : null}
+      </span> : null}
     </span>
     <span className={styles.placeBody}>
       <span className={styles.name}>{choice.city ?? choice.name}</span>

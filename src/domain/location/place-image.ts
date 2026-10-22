@@ -9,17 +9,25 @@ export interface PlaceImage {
   readonly url: string;
   /** What the photo shows, in the provider's words: 玉龙雪山国家级风景名胜区. */
   readonly caption: string;
+  /**
+   * Who took it and under what licence, where the licence asks to be shown —
+   * Wikimedia Commons photos do: 「Brücke-Osteuropa · Public domain · Wikimedia Commons」.
+   * Absent for a provider's own photos.
+   */
+  readonly credit?: string;
 }
 
 export function parsePlaceImage(value: unknown): PlaceImage | null {
   if (typeof value !== "object" || value === null || Array.isArray(value)) return null;
-  const { url, caption } = value as Record<string, unknown>;
+  const { url, caption, credit } = value as Record<string, unknown>;
   if (typeof url !== "string" || url.length > 500 || typeof caption !== "string" ||
     caption.trim() === "" || caption.length > 60) {
     return null;
   }
+  const validCredit = typeof credit === "string" && credit.trim() !== "" && credit.length <= 120 ? credit.trim() : null;
   try {
-    return new URL(url).protocol === "https:" ? { url, caption: caption.trim() } : null;
+    return new URL(url).protocol === "https:"
+      ? { url, caption: caption.trim(), ...(validCredit ? { credit: validCredit } : {}) } : null;
   } catch {
     return null;
   }

@@ -90,6 +90,16 @@ test("validates provider-returned location candidate presentation without accept
   assert.throws(() => validateTripMessage({ ...message, presentation: { ...presentation, candidates: [candidate, { ...candidate, providerId: "" }] } }), InvalidTripMessageError);
 });
 
+test("a Tianditu candidate keeps its own coordinate system, and an unknown one is refused", () => {
+  const candidate = { providerId: "596A94C7A50DFA96", name: "玉龙雪山",
+    province: "云南省", city: "丽江市", district: "玉龙纳西族自治县", region: "云南省 丽江市 玉龙纳西族自治县",
+    address: null, longitude: 100.178, latitude: 27.0996, coordinateSystem: "CGCS2000", kind: "sight" };
+  const presentation = { type: "location_candidates", candidates: [candidate] };
+  assert.deepEqual(validateTripMessage({ ...message, presentation }).presentation, presentation);
+  assert.throws(() => validateTripMessage({ ...message, presentation: { ...presentation,
+    candidates: [{ ...candidate, coordinateSystem: "WGS-84" }] } }), InvalidTripMessageError);
+});
+
 test("a candidate stored before the administrative levels existed still opens", () => {
   // A Journey saved then has no such keys, and it still has to open, so an absent
   // level reads as an unknown one rather than as a corrupt message.

@@ -11,7 +11,7 @@ import { TripNotFoundError } from "@/domain/trip/trip-errors";
 import { readGuestId } from "@/platform/identity/guest-identity";
 import { logEvents, logger } from "@/platform/observability/logger";
 import { serializeError } from "@/platform/observability/serialize-error";
-import { AmapPlacePhotoProvider } from "@/platform/place-photos/amap-place-photo-provider";
+import { createPlacePhotoProvider } from "@/platform/map-providers";
 import type { PlacePhotoProvider } from "@/platform/place-photos/place-photo-provider";
 import { findRecommendationPhotos } from "@/capabilities/recommendation/recommendation-photos";
 
@@ -113,7 +113,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   const { tripMessageService } = await import("@/capabilities/conversation/trip-message-service-instance");
   return handleRecommendationPhotosPost(id, readGuestId(await cookies()), body, randomUUID(), {
     listMessages: (tripId, owner) => tripMessageService.listMessages(tripId, owner),
-    photos: new AmapPlacePhotoProvider(),
+    photos: createPlacePhotoProvider(),
     savePhotos: (input) => tripMessageService.saveRecommendationPhotos(input),
   });
 }

@@ -7,7 +7,7 @@ import { loadMyJourneys } from "@/capabilities/journey/my-journeys";
 import { journeyCovers } from "@/capabilities/journey/journey-covers";
 import { tripMessageService } from "@/capabilities/conversation/trip-message-service-instance";
 import { readGuestId } from "@/platform/identity/guest-identity";
-import { AmapPlacePhotoProvider } from "@/platform/place-photos/amap-place-photo-provider";
+import { createPlacePhotoProvider } from "@/platform/map-providers";
 import { messages } from "@/components/i18n/messages";
 import { requestLocale } from "@/platform/locale/request-locale";
 
@@ -28,7 +28,7 @@ export async function MeriAppShell() {
   // A short wait, as on the Workspace: photos it has seen come from the cache at once.
   const covers = ownerGuestId ? await journeyCovers(journeys, {
     listMessages: (tripId) => tripMessageService.listMessages(tripId, ownerGuestId),
-    photos: new AmapPlacePhotoProvider(),
+    photos: createPlacePhotoProvider(),
     waitMs: 1_500,
   }) : {};
   const locale = await requestLocale();

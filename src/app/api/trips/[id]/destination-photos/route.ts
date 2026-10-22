@@ -3,7 +3,7 @@ import { cookies } from "next/headers";
 import type { TripState } from "@/domain/trip-state/trip-state";
 import { TripNotFoundError } from "@/domain/trip/trip-errors";
 import { readGuestId } from "@/platform/identity/guest-identity";
-import { AmapPlacePhotoProvider } from "@/platform/place-photos/amap-place-photo-provider";
+import { createPlacePhotoProvider } from "@/platform/map-providers";
 import type { PlacePhotoProvider } from "@/platform/place-photos/place-photo-provider";
 import { TripStateNotFoundError } from "@/capabilities/journey/journey-errors";
 import { imagesShownInConversation, selectedPlaceImages } from "@/capabilities/destination/place-images";
@@ -46,6 +46,6 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
   return handleDestinationPhotosGet(id, readGuestId(await cookies()), {
     loadJourney: (tripId, owner) => journeyService.loadJourney(tripId, owner),
     listMessages: (tripId, owner) => tripMessageService.listMessages(tripId, owner),
-    photos: new AmapPlacePhotoProvider(),
+    photos: createPlacePhotoProvider(),
   });
 }

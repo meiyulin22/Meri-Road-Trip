@@ -5,7 +5,7 @@ import { destinationPreferenceId, groupDestinationChoices } from "@/domain/trip-
 import { addToDestination, destinationContains, type DestinationArea, type DestinationPick } from "@/domain/trip-state/destination-areas";
 import type { TripState, TripStatePatch, DestinationField } from "@/domain/trip-state/trip-state";
 import { TripNotFoundError } from "@/domain/trip/trip-errors";
-import { AmapLocationProvider } from "@/platform/location-provider/amap-location-provider";
+import { createLocationProvider } from "@/platform/map-providers";
 import { readGuestId } from "@/platform/identity/guest-identity";
 import { TripStateNotFoundError, TripStateConflictError } from "@/capabilities/journey/journey-errors";
 import { LocationService } from "@/capabilities/destination/location-service";
@@ -82,7 +82,7 @@ export async function handleDestinationRecommendationSelectionPost(
       return Response.json({ error: "Destination changed since this offer. Please ask again." }, { status: 409 });
     }
 
-    const service = new LocationService(new AmapLocationProvider());
+    const service = new LocationService(createLocationProvider());
     const verify = dependencies.verifyChoice ?? ((choice: DestinationChoice) => verifyDestinationChoice(choice, service));
     // Older cards submitted all POI IDs behind a displayed preference. Verify the
     // preference once instead of repeating identical map queries for that city.

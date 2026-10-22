@@ -1,4 +1,4 @@
-import type { LocationCandidate } from "@/domain/location/location";
+import { isCoordinateSystem, type LocationCandidate } from "@/domain/location/location";
 import { parsePlaceImage, type PlaceImage } from "@/domain/location/place-image";
 
 export const tripMessageRoles = ["user", "assistant"] as const;
@@ -266,7 +266,7 @@ function validateLocationCandidate(value: unknown): LocationCandidate {
     levels.some((key) => Object.hasOwn(value, key) && !(value[key] === null || isPresentText(value[key]))) ||
     typeof value.longitude !== "number" || !Number.isFinite(value.longitude) || Math.abs(value.longitude) > 180 ||
     typeof value.latitude !== "number" || !Number.isFinite(value.latitude) || Math.abs(value.latitude) > 90 ||
-    value.coordinateSystem !== "GCJ-02") {
+    !isCoordinateSystem(value.coordinateSystem)) {
     throw new InvalidTripMessageError("TripMessage location candidate is invalid.");
   }
   return { providerId: value.providerId, name: value.name,
@@ -274,7 +274,7 @@ function validateLocationCandidate(value: unknown): LocationCandidate {
     city: isPresentText(value.city) ? value.city : null,
     district: isPresentText(value.district) ? value.district : null,
     region: value.region as string | null, address: value.address as string | null,
-    longitude: value.longitude, latitude: value.latitude, coordinateSystem: "GCJ-02",
+    longitude: value.longitude, latitude: value.latitude, coordinateSystem: value.coordinateSystem,
     ...(value.kind === "sight" || value.kind === "other" ? { kind: value.kind } : {}) };
 }
 

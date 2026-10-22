@@ -37,7 +37,7 @@ Required:
 | --- | --- |
 | `MOONSHOT_API_KEY` | The LLM behind conversation, extraction, and recommendation |
 | `DATABASE_URL` | Neon Postgres connection string |
-| `AMAP_API_KEY` | Amap, which validates that a destination really exists |
+| `AMAP_API_KEY` | Amap, which validates that a destination really exists (default map provider) |
 
 Optional. Recommendation degrades without it rather than failing:
 
@@ -48,6 +48,29 @@ Optional. Recommendation degrades without it rather than failing:
 The remaining variables in `.env.example` override defaults:
 `LLM_MODEL`, `MOONSHOT_BASE_URL`, `MERI_TIMEZONE`, `LLM_DEBUG_OUTPUT`, and
 `LOG_LEVEL`.
+
+### Map provider
+
+`MAP_PROVIDER` picks the whole set used for place checks, input tips and photos:
+`amap` (the default) or `tianditu`. Tianditu mode needs `TIANDITU_API_KEY`
+instead of `AMAP_API_KEY`, and also asks Wikidata which of several same-named
+places is the famous one and Wikimedia Commons for photos; `WIKIMEDIA_CONTACT`
+(an email or site URL) goes into the User-Agent Wikimedia asks for, and
+`WIKIMEDIA_ACCESS_TOKEN` (an OAuth 2.0 owner-only access token from
+meta.wikimedia.org) lifts Wikimedia's per-IP limit for anonymous requests. Wikidata is
+unreachable from mainland networks; the app then uses Tianditu's own order.
+With a proxy on a mainland machine, send Wikimedia through it and Tianditu
+direct (Tianditu blocks some networks abroad):
+
+```bash
+MAP_PROVIDER=tianditu NODE_USE_ENV_PROXY=1 no_proxy="$no_proxy,api.tianditu.gov.cn" NODE_OPTIONS=--use-system-ca npm run dev
+```
+
+The block at the end of `.env.example` (`AMAP_JS_KEY`, `AMAP_JS_SECURITY_CODE`,
+`QWEATHER_API_KEY`, `QWEATHER_API_HOST`, `ROLLINGGO_API_KEY`, `TUNIU_API_KEY`,
+`TYPESAFE_API_KEY`, `ANYSEARCH_API_KEY`, `TIANDITU_API_KEY`, `DASHSCOPE_API_KEY`, `HUAWEI_SITE_API_KEY`) holds keys for the
+provider trials. The `scripts/verify-*.ts` scripts read them; of these the app
+itself reads only `TIANDITU_API_KEY`, and only with `MAP_PROVIDER=tianditu`.
 
 ## Validate
 
