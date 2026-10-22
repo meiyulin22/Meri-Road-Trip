@@ -32,9 +32,9 @@ function isTimeout(error: unknown): boolean {
 }
 
 /**
- * Tianditu's firewall answers a request it does not trust — too fast, or from some
- * networks abroad — with HTTP 418, or with HTTP 200 and an HTML page titled 访问被拦截
- * instead of JSON. Both are a refusal, not "no such place".
+ * Tianditu's firewall answers a request it does not trust — too fast — with HTTP 418,
+ * or with HTTP 200 and an HTML page titled 访问被拦截 instead of JSON. Both are a
+ * refusal, not "no such place".
  */
 function isRefusal(status: number, text: string): boolean {
   return status === 418 || /^\s*</u.test(text);

@@ -43,7 +43,6 @@ export const logEvents = {
   placePhotoLookupFailed: "place_photo.lookup.failed",
   amapRateLimited: "amap.rate_limited",
   tiandituRefused: "tianditu.refused",
-  wikidataLookupFailed: "wikidata.lookup.failed",
   destinationAccessUncertain: "destination_access.uncertain",
   destinationImageSearchFailed: "destination_image.search.failed",
 } as const;

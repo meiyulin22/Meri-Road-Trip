@@ -1,6 +1,5 @@
 import type { LocationCandidate, LocationKind } from "@/domain/location/location";
 import type { LocationProvider, LocationSearchResult } from "@/platform/location-provider/location-provider";
-import { foundSight, namesTheSight, sharedWikidataSights, type FamousSight, type FamousSightFinder } from "@/platform/wikidata/wikidata-sights";
 
 import { createTiandituClient, type TiandituAnswer, type TiandituClient } from "./tianditu-fetch";
 
@@ -13,8 +12,6 @@ const resultLimit = 5;
  */
 const pageSize = "30";
 const chinaBound = "73,3,136,54";
-/** How far from Wikidata's point a Tianditu sight may be and still be the same place. */
-const nearbyRadiusMetres = "10000";
 /** 直辖市 are their own province and their own 市; Tianditu leaves the 市 empty for them. */
 const municipalities = new Set(["北京市", "天津市", "上海市", "重庆市"]);
 
@@ -62,6 +59,8 @@ interface Levels {
   readonly city: string | null;
   readonly district: string | null;
 }
+
+const noLevels: Levels = { province: null, city: null, district: null };
 
 function withMunicipality(levels: Levels): Levels {
   return levels.city === null && levels.province !== null && municipalities.has(levels.province)
@@ -116,38 +115,10 @@ export function candidateFromArea(area: Record<string, unknown>, around: Levels)
   return candidate({ providerId: `area:${code}`, name, address: null, ...point, kind: "other" }, levels);
 }
 
-function metres(distance: unknown): number {
-  if (typeof distance !== "string") return Number.POSITIVE_INFINITY;
-  const match = /^([\d.]+)\s*(km|m)$/u.exec(distance.trim());
-  if (!match) return Number.POSITIVE_INFINITY;
-  return Number(match[1]) * (match[2] === "km" ? 1000 : 1);
-}
-
-
 function rank(name: string, words: string): number {
   if (name === words) return 0;
   if (wholePlaceSuffix.test(name)) return 1;
   return 2;
-}
-
-/**
- * Of the sights around Wikidata's point, the one the user named: exactly their words,
- * or their words inside a scenic area's or park's name. A part of the place does not
- * count, even when it carries the name — around 峨眉山 the nearest "sight" was
- * 峨眉山金顶华藏寺请香处, an incense stall — and then Wikidata's own point stands in.
- */
-export function nearbySightNamed(query: string, pois: readonly unknown[]): LocationCandidate | null {
-  const words = normalize(query);
-  const found = pois.flatMap((poi) => {
-    const place = candidateFromPoi(poi);
-    if (!place || place.kind !== "sight") return [];
-    const name = normalize(place.name);
-    if (!name.includes(words) || /[-－·(（]/u.test(name)) return [];
-    const placeRank = rank(name, words);
-    return placeRank < 2 ? [{ place, rank: placeRank, distance: metres(isRecord(poi) ? poi.distance : null) }] : [];
-  });
-  found.sort((left, right) => left.rank - right.rank || left.distance - right.distance);
-  return found[0]?.place ?? null;
 }
 
 /**
@@ -168,16 +139,6 @@ export function wholePlacesFirst(query: string, found: readonly LocationCandidat
   return [...wholePlaces, ...found.filter((place) => !isWholePlace(place) && place.kind === "sight")];
 }
 
-/** Straight-line distance in metres; close enough to tell 大理 from 广西. */
-export function distanceMetres(from: { longitude: number; latitude: number }, to: { longitude: number; latitude: number }): number {
-  const radians = (degrees: number) => degrees * Math.PI / 180;
-  const latitudeDelta = radians(to.latitude - from.latitude);
-  const longitudeDelta = radians(to.longitude - from.longitude);
-  const a = Math.sin(latitudeDelta / 2) ** 2 +
-    Math.cos(radians(from.latitude)) * Math.cos(radians(to.latitude)) * Math.sin(longitudeDelta / 2) ** 2;
-  return 2 * 6_371_000 * Math.asin(Math.sqrt(a));
-}
-
 function failure(answer: Extract<TiandituAnswer, { ok: false }>): LocationSearchResult {
   if (answer.reason === "missing_configuration") return { status: "failure", reason: "missing_configuration" };
   if (answer.reason === "http_error") return { status: "failure", reason: "http_error" };
@@ -196,17 +157,16 @@ function withoutRepeats(candidates: readonly LocationCandidate[]): LocationCandi
 
 /**
  * Meri's place check on Tianditu, the national map platform: free, and its provinces
- * and 市 are exact, but it ranks same-named places by text alone. So when the user's
- * words are exactly the name of a sight Wikidata knows, that sight is looked up around
- * Wikidata's point and offered first — 苍山 is Dali's, not one of the 7,000 others.
- * Everything after that is Meri's own rules, unchanged. Wikidata being unreachable
- * only means Tianditu's own order is used.
+ * and 市 are exact, but it ranks same-named places by text alone — 苍山 leads with the
+ * village in 广西, not the mountain in 大理 — and it offers no popularity signal to put
+ * the famous one first. wholePlacesFirst is all the ordering Meri adds. A Wikidata
+ * lookup filled that gap until 2026-10-23, when it was removed: a server in mainland
+ * China cannot reach Wikidata, so the step only ever helped a developer's machine.
+ * Everything after the provider is Amap's flow unchanged: one page, the same rules,
+ * the same confirmation before a place is saved.
  */
 export class TiandituLocationProvider implements LocationProvider {
-  constructor(
-    private readonly client: TiandituClient = createTiandituClient(),
-    private readonly sights: FamousSightFinder = sharedWikidataSights,
-  ) {}
+  constructor(private readonly client: TiandituClient = createTiandituClient()) {}
 
   async searchByKeyword(query: string): Promise<LocationSearchResult> {
     const words = normalize(query);
@@ -223,19 +183,18 @@ export class TiandituLocationProvider implements LocationProvider {
 
     const found = await this.found(search.body);
     if (found === null) return { status: "failure", reason: "network_or_response_error" };
-    const famous = await this.famousSight(words, found);
-    // Once the famous one is known, other places of exactly that name (a park called
-    // 九寨沟 in 泰州) are not what the user meant, any more than a shop borrowing it.
-    const rest = famous ? found.filter((place) => normalize(place.name) !== words) : found;
-    return { status: "success",
-      candidates: withoutRepeats([...(famous ? [famous] : []), ...wholePlacesFirst(words, rest)]).slice(0, resultLimit) };
+    return { status: "success", candidates: withoutRepeats(wholePlacesFirst(words, found)).slice(0, resultLimit) };
   }
 
   /** Tianditu's own answer: an administrative area, a page of POIs, or (for statistics) nothing. */
   private async found(body: Record<string, unknown>): Promise<LocationCandidate[] | null> {
     if (isRecord(body.area)) {
       const point = tiandituPoint(body.area.lonlat);
-      const around = point ? await this.levelsAt(point) : null;
+      // A province names itself; reverse geocoding is for the levels above a 市, and a
+      // wasted call there would turn an answer into a failure whenever the geocoder is down.
+      const around = String(body.area.adminCode ?? "").endsWith("0000")
+        ? noLevels
+        : point ? await this.levelsAt(point) : null;
       if (around === null) return null;
       const area = candidateFromArea(body.area, around);
       return area ? [area] : [];
@@ -245,66 +204,17 @@ export class TiandituLocationProvider implements LocationProvider {
   }
 
   /**
-   * Only for words that name a sight on Wikidata (namesTheSight) — so 丽江 stays 丽江市,
-   * while 峨眉山 (which Tianditu answers as 峨眉山市) also offers the mountain, as Amap
-   * does. A sight Tianditu already found near Wikidata's point just moves to the front;
-   * one it found far away (广西's 苍山 for Dali's) is why the area around the point is searched.
+   * The province, 市 and county a point sits in. An error body is a failure, not a place
+   * without a province: 丽江 as a 市 is useless to Meri's rules without its province.
    */
-  private async famousSight(words: string, found: readonly LocationCandidate[]): Promise<LocationCandidate | null> {
-    const sight = foundSight(await this.sights.findFamousSight(words));
-    if (sight === null || !namesTheSight(sight.label, words)) return null;
-    const alreadyFound = found.find((place) => place.kind === "sight" && normalize(place.name).includes(words) &&
-      distanceMetres(place, sight) <= Number(nearbyRadiusMetres));
-    if (alreadyFound) return alreadyFound;
-    const nearby = await this.client.get("/v2/search", {
-      type: "query",
-      postStr: JSON.stringify({ keyWord: words, queryType: "3", start: "0", count: "20",
-        pointLonlat: `${sight.longitude},${sight.latitude}`, queryRadius: nearbyRadiusMetres, show: "2" }),
-    });
-    const pois = nearby.ok && Array.isArray(nearby.body.pois) ? nearby.body.pois : [];
-    return nearbySightNamed(words, pois) ?? await this.inItsCity(words, sight) ?? await this.fromWikidata(sight);
-  }
-
-  /**
-   * Tianditu's nearby search ranks by distance and all but ignores the keyword — around
-   * 黄山's summit it gave peaks, toilets and a cable-car ticket office — so a scenic
-   * area whose centre is further off (黄山风景区) is looked for by name inside the 市
-   * Wikidata's point lies in, and taken only if it is near that point.
-   */
-  private async inItsCity(words: string, sight: FamousSight): Promise<LocationCandidate | null> {
-    const levels = await this.levelsAt(sight);
-    if (levels === null || levels.city === null) return null;
-    const answer = await this.client.get("/v2/search", {
-      type: "query",
-      postStr: JSON.stringify({ keyWord: words, queryType: "12", specify: levels.city, start: "0", count: pageSize, show: "2" }),
-    });
-    const pois = answer.ok && Array.isArray(answer.body.pois) ? answer.body.pois : [];
-    const near = pois.filter((poi) => {
-      const point = isRecord(poi) ? tiandituPoint(poi.lonlat) : null;
-      return point !== null && distanceMetres(point, sight) <= 3 * Number(nearbyRadiusMetres);
-    });
-    return nearbySightNamed(words, near);
-  }
-
-  /**
-   * A sight Tianditu has no point for under that name — a mountain range, say — is
-   * offered at Wikidata's point. That is WGS-84, which CGCS2000 matches to within a
-   * metre, so it is still drawn on Tianditu's map, never converted.
-   */
-  private async fromWikidata(sight: FamousSight): Promise<LocationCandidate | null> {
-    const levels = await this.levelsAt(sight);
-    if (levels === null || levels.province === null) return null;
-    return candidate({ providerId: `wikidata:${sight.id}`, name: sight.label, address: null,
-      longitude: sight.longitude, latitude: sight.latitude, kind: "sight" }, levels);
-  }
-
   private async levelsAt(point: { longitude: number; latitude: number }): Promise<Levels | null> {
     const answer = await this.client.get("/geocoder", {
       type: "geocode", postStr: JSON.stringify({ lon: point.longitude, lat: point.latitude, ver: 1 }),
     });
     if (!answer.ok) return null;
-    const result = isRecord(answer.body.result) ? answer.body.result : {};
-    const component = isRecord(result.addressComponent) ? result.addressComponent : {};
+    const result = isRecord(answer.body.result) ? answer.body.result : null;
+    const component = result && isRecord(result.addressComponent) ? result.addressComponent : null;
+    if (component === null) return null;
     return { province: optionalText(component.province), city: optionalText(component.city), district: optionalText(component.county) };
   }
 }

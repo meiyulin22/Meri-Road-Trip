@@ -51,19 +51,17 @@ The remaining variables in `.env.example` override defaults:
 
 ### Map provider
 
-`MAP_PROVIDER` picks the whole set used for place checks, input tips and photos:
-`amap` (the default) or `tianditu`. Tianditu mode needs `TIANDITU_API_KEY`
-instead of `AMAP_API_KEY`, and also asks Wikidata which of several same-named
-places is the famous one and Wikimedia Commons for photos; `WIKIMEDIA_CONTACT`
-(an email or site URL) goes into the User-Agent Wikimedia asks for, and
-`WIKIMEDIA_ACCESS_TOKEN` (an OAuth 2.0 owner-only access token from
-meta.wikimedia.org) lifts Wikimedia's per-IP limit for anonymous requests. Wikidata is
-unreachable from mainland networks; the app then uses Tianditu's own order.
-With a proxy on a mainland machine, send Wikimedia through it and Tianditu
-direct (Tianditu blocks some networks abroad):
+`MAP_PROVIDER` picks the whole set used for place checks and input tips: `amap` (the
+default) or `tianditu`. Tianditu mode needs `TIANDITU_API_KEY` instead of
+`AMAP_API_KEY`. Tianditu has no popularity signal — it ranks same-named places by text,
+so 苍山 may lead with the village in 广西 rather than the mountain in 大理 — and it has
+no photo source yet, so its cards and covers show no photos. A Wikidata lookup with
+Wikimedia Commons photos stood in for both until 2026-10-23, when it was removed: a
+server in mainland China cannot reach either, so it only ever worked on a developer's
+proxied machine.
 
 ```bash
-MAP_PROVIDER=tianditu NODE_USE_ENV_PROXY=1 no_proxy="$no_proxy,api.tianditu.gov.cn" NODE_OPTIONS=--use-system-ca npm run dev
+MAP_PROVIDER=tianditu npm run dev
 ```
 
 The block at the end of `.env.example` (`AMAP_JS_KEY`, `AMAP_JS_SECURITY_CODE`,

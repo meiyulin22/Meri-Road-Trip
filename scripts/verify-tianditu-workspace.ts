@@ -2,8 +2,7 @@
  * Does the Tianditu place check answer the Workspace as Amap does? Each expression goes
  * through Meri's real resolution rules (LocationService + resolveDestinationPlace) with
  * each provider, so the difference shown is what a user would see. Tianditu here is the
- * product adapter (src/platform/tianditu/), Wikidata step included; on a mainland
- * network Wikidata needs the proxy and Tianditu must go direct:
+ * product adapter (src/platform/tianditu/), with no fame signal in front of it:
  *
  *   NODE_USE_ENV_PROXY=1 no_proxy="$no_proxy,api.tianditu.gov.cn,restapi.amap.com" NODE_TLS_REJECT_UNAUTHORIZED=1 \
  *     node --use-system-ca --env-file=.env.local --import tsx scripts/verify-tianditu-workspace.ts
@@ -34,7 +33,7 @@ async function main(): Promise<void> {
   if (!process.env.TIANDITU_API_KEY || !process.env.AMAP_API_KEY) throw new Error("TIANDITU_API_KEY and AMAP_API_KEY are both needed");
   const amap = new LocationService(new AmapLocationProvider());
   const tianditu = new LocationService(new TiandituLocationProvider());
-  // `-- 苍山 长城` checks just those, ten seconds apart, for when Wikidata is rate-limiting this network.
+  // `-- 苍山 长城` checks just those, ten seconds apart, for when Tianditu is rate-limiting this network.
   const only = process.argv.slice(2);
   const chosen = only.length > 0 ? only : expressions;
   let same = 0;

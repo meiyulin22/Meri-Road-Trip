@@ -172,7 +172,8 @@ LLM 解释自然语言并提出受限 JSON；应用校验、决定是否执行�
 | [README.md](../README.md) | 文档/开发约定 | 本地运行、环境变量、检查命令、架构入口和部署说明。 |
 | [drizzle.config.ts](../drizzle.config.ts) | 工程配置 | 加载本地环境，指定 PostgreSQL schema 和迁移目录，检查 DATABASE_URL。 |
 | [eslint.config.mjs](../eslint.config.mjs) | 工程配置 | ESLint flat config，组合 Next.js 和 TypeScript 规则及忽略项。 |
-| [next.config.ts](../next.config.ts) | 工程配置 | Next.js 配置入口：允许 next/image 从高德两个照片主机取图。 |
+| [next.config.ts](../next.config.ts) | 工程配置 | Next.js 配置入口：允许 next/image 从照片提供方的白名单主机取图；开发模式下 `images.dangerouslyAllowLocalIP`，因为本机 Mihomo TUN 的 fake-IP（198.18.x.x）会被优化器当内网地址拒绝，远端照片全部 400。 |
+| [.gitattributes](../.gitattributes) | 工程配置 | `* text=auto eol=lf`：所有文本文件在任何平台上都按 LF 检出（图片等二进制按 binary 处理）。没有它，Windows 上 `core.autocrlf=true` 会把快照转成 CRLF，中文 prompt 锁定测试因行尾不同而失败（2026-10-23）。 |
 | [package-lock.json](../package-lock.json) | 工程配置 | 锁定 npm 依赖解析结果，保证安装版本可重现。 |
 | [package.json](../package.json) | 工程配置 | 项目信息、依赖与 dev/build/start/lint/test/typecheck 命令。 |
 | [tsconfig.json](../tsconfig.json) | 工程配置 | TypeScript 编译/检查、路径别名及 Next.js 类型配置。 |
@@ -394,7 +395,7 @@ LLM 解释自然语言并提出受限 JSON；应用校验、决定是否执行�
 | [src/capabilities/conversation/prompts/workspace-conversation-prompt.ts](../src/capabilities/conversation/prompts/workspace-conversation-prompt.ts) | 应用层/用例装配 | 聊天系统 prompt：用户决定、地点提案、推荐/规划边界、中国目的地范围（仅遇境外地点时说明）、回复语言和 opening 规则。 |
 | [src/capabilities/conversation/prompts/reply-language-guidance.ts](../src/capabilities/conversation/prompts/reply-language-guidance.ts) | 应用层/用例装配 | 提示词里的语言名和回复语言规则：按用户这条消息的语言回复，分不清时用首页选择的语言（由模型判断），旅程名用首页语言；只管文字，不管 destinationEdit 地名怎么写。 |
 | [src/capabilities/conversation/prompts/workspace-conversation-locale-rules.ts](../src/capabilities/conversation/prompts/workspace-conversation-locale-rules.ts) | 应用层/用例装配 | 聊天 prompt 里按语言分写的部分：地点修改规则与示例、推荐意图示例、天气反例；中文为调好的原文，英文用英文示例并要求把英文/拼音地名换成中文名交给高德。 |
-| [src/capabilities/conversation/prompts/chinese-prompts-lock.test.ts](../src/capabilities/conversation/prompts/chinese-prompts-lock.test.ts) | 测试（对应模块边界） | 把中文界面的聊天/开场/草稿 prompt 与两份 JSON schema 和快照逐字比较；有意修改时用 UPDATE_PROMPT_SNAPSHOT=1 重写快照并重跑 harness 中文用例。 |
+| [src/capabilities/conversation/prompts/chinese-prompts-lock.test.ts](../src/capabilities/conversation/prompts/chinese-prompts-lock.test.ts) | 测试（对应模块边界） | 把中文界面的聊天/开场/草稿 prompt 与两份 JSON schema 和快照逐字比较；有意修改时用 UPDATE_PROMPT_SNAPSHOT=1 重写快照并重跑 harness 中文用例。比较前把快照的 CRLF 归一成 LF，所以 Windows 上 `core.autocrlf` 的检出方式不会让测试失败。 |
 | [src/capabilities/conversation/prompts/chinese-prompts.snapshot.txt](../src/capabilities/conversation/prompts/chinese-prompts.snapshot.txt) | 测试数据 | 上面锁定测试的快照：1.0034 调好的中文 prompt 和 schema 原文。 |
 | [src/capabilities/conversation/trip-message-service-instance.ts](../src/capabilities/conversation/trip-message-service-instance.ts) | 应用层/用例装配 | 装配 Postgres message repository 和 TripRepository 为生产消息服务。 |
 | [src/capabilities/conversation/trip-message-service.test.ts](../src/capabilities/conversation/trip-message-service.test.ts) | 测试（对应模块边界） | 验证真实双边消息、候选 presentation、确认幂等和所有权保护。 |
@@ -488,17 +489,14 @@ LLM 解释自然语言并提出受限 JSON；应用校验、决定是否执行�
 | [src/platform/place-photos/place-photo-provider.ts](../src/platform/place-photos/place-photo-provider.ts) | 基础设施/端口 | 照片查询（按名称或按区域国家级景点）接口与允许的照片主机列表。 |
 | [src/platform/place-photos/amap-place-photo-provider.ts](../src/platform/place-photos/amap-place-photo-provider.ts) | 基础设施/适配器 | 高德 v5 搜索取照片：经共用节流器请求、http 升级 https、主机白名单、只缓存真实答案的进程内 7 天缓存（PlacePhotoMemory）、失败返回 null 并记 infocode。 |
 | [src/platform/place-photos/amap-place-photo-provider.test.ts](../src/platform/place-photos/amap-place-photo-provider.test.ts) | 测试（对应模块边界） | 验证查询参数、https 升级、主机过滤、各种失败，以及只缓存真实答案、过期重查。 |
-| [src/platform/place-photos/wikimedia-place-photo-provider.ts](../src/platform/place-photos/wikimedia-place-photo-provider.ts) | 基础设施/适配器 | 天地图模式的照片：有名字时用 Wikidata 条目（中文名完全一致）的 Commons 照片，只有区域时取天地图分类搜索的前几个风景名胜里最有名、有照片的；从 Commons 取作者和许可做 `credit`，没有许可不用；链接 MD5 路径的缩略图；共用 PlacePhotoMemory 7 天缓存。 |
-| [src/platform/place-photos/wikimedia-place-photo-provider.test.ts](../src/platform/place-photos/wikimedia-place-photo-provider.test.ts) | 测试（对应模块边界） | 验证缩略图路径、署名、名字不一致 / 非照片格式 / 没有许可时不配图、区域取最有名的景点。 |
+| [src/platform/place-photos/no-place-photo-provider.ts](../src/platform/place-photos/no-place-photo-provider.ts) | 基础设施/适配器 | 天地图模式的照片：没有来源，任何查询都返回 null，卡片画定位图标。1.0500 的 Wikimedia Commons 实现 2026-10-23 删除（大陆服务器连不上 Wikidata 和 Commons，只在本机代理下能用）；换国内照片来源时只改这个适配器。 |
 | [src/platform/tianditu/tianditu-fetch.ts](../src/platform/tianditu/tianditu-fetch.ts) | 基础设施/适配器 | 天地图请求客户端：独立排队（开始间隔 ≥300ms，复用 amap-fetch 的通用 pacer）、超时、key 只拼进天地图地址；418 或防火墙 HTML 页视为拒绝；失败只返回固定原因，不含 URL 和 key。 |
-| [src/platform/tianditu/tianditu-location-provider.ts](../src/platform/tianditu/tianditu-location-provider.ts) | 基础设施端口/适配器 | 天地图地点核验：普通搜索 30 条（`show: "2"`）、行政区结果用逆地理编码补上级、天地图类别码映射景点 / 其他、直辖市补市级；以景区后缀结尾的名字也算景点；Wikidata 说出"最有名"的景点后先在它附近、再在它所在市里找天地图的整个景区（找不到用 Wikidata 的点），并去掉别处的同名地点；整个景区排前并去掉借名的店；返回前 5 条，坐标 CGCS2000。 |
-| [src/platform/tianditu/tianditu-location-provider.test.ts](../src/platform/tianditu/tianditu-location-provider.test.ts) | 测试（对应模块边界） | 验证类别映射、POI / 行政区规范化、附近景点挑选（局部不算）、Wikidata 排前 / 已找到时前移 / 市内按名字找（黄山风景区）/ 用 Wikidata 的点、峨眉山这类行政区答案也给景点、整个景区排前、无数据 / 拒绝 / 空查询、key 只发给天地图。 |
+| [src/platform/tianditu/tianditu-location-provider.ts](../src/platform/tianditu/tianditu-location-provider.ts) | 基础设施端口/适配器 | 天地图地点核验：普通搜索 30 条（`show: "2"`）、市/区县结果用逆地理编码补上级（省级不调，且拿不到 addressComponent 算故障）、天地图类别码映射景点 / 其他、直辖市补市级；以景区后缀结尾的名字也算景点；整个景区排前并去掉借名的店；返回前 5 条，坐标 CGCS2000。没有热度信号：Wikidata 那一步 2026-10-23 移除（大陆服务器连不上），同名的外地景点可能排在前面。 |
+| [src/platform/tianditu/tianditu-location-provider.test.ts](../src/platform/tianditu/tianditu-location-provider.test.ts) | 测试（对应模块边界） | 验证类别映射、POI / 行政区规范化、一次搜索只发一个请求、市/省答案的逆地理编码取舍、逆地理编码失败算故障、整个景区排前、无数据 / 拒绝 / 空查询、key 只发给天地图。 |
 | [src/platform/tianditu/tianditu-input-tips-provider.ts](../src/platform/tianditu/tianditu-input-tips-provider.ts) | 基础设施端口/适配器 | 天地图建议词搜索（queryType 4）做输入提示：gbCode 去掉 156 变成六位 adcode，行政区文字放 region，坐标 CGCS2000。 |
 | [src/platform/tianditu/tianditu-input-tips-provider.test.ts](../src/platform/tianditu/tianditu-input-tips-provider.test.ts) | 测试（对应模块边界） | 验证建议规范化、空结果、超时、拒绝与畸形响应。 |
-| [src/platform/wikidata/wikidata-sights.ts](../src/platform/wikidata/wikidata-sights.ts) | 基础设施/适配器 | 同名地点里"最有名"的中国景点：Wikidata 搜索 + 条目，排除有行政区代码 / 人口 / 机场 / 车站代码的条目，按语言版本数取最多；返回中英文名、坐标、Commons 文件名；从不抛错，连不上或 429 返回 null；只缓存真实答案 7 天；`WIKIMEDIA_CONTACT` 进 User-Agent。 |
-| [src/platform/wikidata/wikidata-sights.test.ts](../src/platform/wikidata/wikidata-sights.test.ts) | 测试（对应模块边界） | 验证苍山选大理而不是兰陵县、排除机场 / 国外 / 无坐标、名字匹配规则（九寨沟风景名胜区算九寨沟）、缓存、连不上时返回 null 且下次重试。 |
-| [src/platform/map-providers.ts](../src/platform/map-providers.ts) | 基础设施装配 | 按 `MAP_PROVIDER`（默认 amap，可选 tianditu，其他值报配置错误）创建整套地点核验、输入提示和照片提供方；各 route 和页面都从这里取。 |
-| [src/platform/map-providers.test.ts](../src/platform/map-providers.test.ts) | 测试（对应模块边界） | 验证默认值、选择天地图和非法值报错。 |
+| [src/platform/map-providers.ts](../src/platform/map-providers.ts) | 基础设施装配 | 按 `MAP_PROVIDER`（默认 amap，可选 tianditu，其他值报配置错误）创建整套地点核验、输入提示和照片提供方；天地图档的照片是 NoPlacePhotoProvider（返回 null）；各 route 和页面都从这里取。 |
+| [src/platform/map-providers.test.ts](../src/platform/map-providers.test.ts) | 测试（对应模块边界） | 验证默认值、选择天地图、非法值报错，以及天地图档确实拿到无照片提供方、高德档仍是高德照片。 |
 | [src/platform/search/bocha-web-search.test.ts](../src/platform/search/bocha-web-search.test.ts) | 测试（对应模块边界） | mock 验证 POST/envelope、webPages/images 区段、缺密钥不请求及错误脱敏。 |
 | [src/platform/search/bocha-web-search.ts](../src/platform/search/bocha-web-search.ts) | 基础设施端口/适配器 | 共享 Bocha Web Search HTTP 请求、响应 envelope 检查、日期转换、超时/网络/API 错误脱敏。 |
 | [src/platform/search/discovery-search.ts](../src/platform/search/discovery-search.ts) | 基础设施端口/适配器 | DiscoverySearch 端口、旅程搜索 query、失败降级空上下文和规范化错误。 |
@@ -562,10 +560,9 @@ LLM 解释自然语言并提出受限 JSON；应用校验、决定是否执行�
 | [scripts/verify-agent-tools.ts](../scripts/verify-agent-tools.ts) | 开发验证工具 | 用真模型和真提供方跑试验 Agent 的 4 个问题，打印每一步的工具调用与结果、耗时、token 用量和回复；第 4 个验证"工具 + 结构化输出"必须用单独的结构化步骤，需要模型、高德和 Bocha 配置。 |
 | [scripts/verify-tianditu.ts](../scripts/verify-tianditu.ts) | 开发验证工具 | 天地图能否替代高德的实测：连续 20 次搜索看拦截和延迟、15 个云南地点（全国搜索和云南行政区内搜索）反查省市、英文地名、驾车和 `style=3` 路线的距离和速度；需要 `TIANDITU_API_KEY`，不接入产品代码。 |
 | [scripts/verify-amap-baseline.ts](../scripts/verify-amap-baseline.ts) | 开发验证工具 | 天地图实测的高德对照：同一组地点、英文名和路线问高德，另外统计营业时间、电话、评分、照片的覆盖；约 40 次调用，需要 `AMAP_API_KEY`。 |
-| [scripts/verify-tianditu-workspace.ts](../scripts/verify-tianditu-workspace.ts) | 开发验证工具 | Workspace 地点核实：24 个说法（或命令行给的几个，间隔 10 秒）分别经高德和产品的天地图提供方（含 Wikidata 一步），走真实的 `LocationService` + `resolveDestinationPlace`，对比结果和耗时。 |
+| [scripts/verify-tianditu-workspace.ts](../scripts/verify-tianditu-workspace.ts) | 开发验证工具 | Workspace 地点核实：24 个说法（或命令行给的几个，间隔 10 秒）分别经高德和产品的天地图提供方，走真实的 `LocationService` + `resolveDestinationPlace`，对比结果和耗时。 |
 | [scripts/verify-amap-mcp.ts](../scripts/verify-amap-mcp.ts) | 开发验证工具 | 百炼托管的高德 MCP 实测：列出工具，用共用测试集跑关键字搜索 + 详情（营业时间、电话、评分、照片）和路线；脚本内一个最小的 MCP 客户端（JSON-RPC over HTTP），需要 `DASHSCOPE_API_KEY`。 |
 | [scripts/verify-huawei-site.ts](../scripts/verify-huawei-site.ts) | 开发验证工具 | 华为位置服务（Site Kit）实测：共用测试集的中文搜索 + 详情（营业时间、电话、评分、照片）、英文名英文结果、自动补齐；对三个地点实时取高德和天地图的坐标并排打印，判断华为在大陆用哪种坐标系；需要 `HUAWEI_SITE_API_KEY`。 |
-| [scripts/verify-wikidata.ts](../scripts/verify-wikidata.ts) | 开发验证工具 | Wikidata 能否补天地图缺的东西：24 个说法在中国、有坐标的条目里按语言版本数挑"最有名"的，打印中英文名、所在行政区、Commons 照片的许可和作者；`--tianditu` 时再在该坐标 10 公里内搜天地图景点。大陆网络访问不了 Wikidata，要走代理或在境外运行。 |
 | [scripts/map-trial-cases.ts](../scripts/map-trial-cases.ts) | 开发验证工具 | 两个地图实测脚本共用的测试集：15 个云南地点（预期省市）、英文地名、4 条路线。 |
 | [scripts/verify-location-resolve.ts](../scripts/verify-location-resolve.ts) | 开发验证工具 | 人工验证真实高德查询及 LocationService/层级解析结果，不是自动单元测试。 |
 | [scripts/verify-workspace-location-tool.ts](../scripts/verify-workspace-location-tool.ts) | 开发验证工具 | 人工调用真实 Workspace 解释器，检查地点意图结构；文件名保留旧 tool 命名，当前不是开放式工具 Agent。 |

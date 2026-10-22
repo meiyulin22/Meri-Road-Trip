@@ -4,16 +4,17 @@ import { AmapLocationProvider } from "@/platform/location-provider/amap-location
 import type { LocationProvider } from "@/platform/location-provider/location-provider";
 import type { LocationSuggestionProvider } from "@/platform/location-provider/location-suggestion-provider";
 import { AmapPlacePhotoProvider } from "@/platform/place-photos/amap-place-photo-provider";
+import { NoPlacePhotoProvider } from "@/platform/place-photos/no-place-photo-provider";
 import type { PlacePhotoProvider } from "@/platform/place-photos/place-photo-provider";
-import { WikimediaPlacePhotoProvider } from "@/platform/place-photos/wikimedia-place-photo-provider";
 import { TiandituInputTipsProvider } from "@/platform/tianditu/tianditu-input-tips-provider";
 import { TiandituLocationProvider } from "@/platform/tianditu/tianditu-location-provider";
 
 /**
  * Which map provider the app verifies places with. Amap is the default and what the
- * product was built on; Tianditu (with Wikidata and Wikimedia Commons beside it) is
- * the free alternative, chosen with MAP_PROVIDER=tianditu. Each provider brings its
- * own place check, input tips and photos, so one Journey's points come from one source.
+ * product was built on; Tianditu is the free alternative, chosen with
+ * MAP_PROVIDER=tianditu. Each provider brings its own place check and input tips, so one
+ * Journey's points come from one source. Tianditu has no photo source yet, so its
+ * journeys show no place photos.
  */
 export function mapProviderName(environment: Readonly<Record<string, string | undefined>> = process.env): LocationProviderName {
   const value = environment.MAP_PROVIDER?.trim();
@@ -31,5 +32,5 @@ export function createLocationSuggestionProvider(): LocationSuggestionProvider {
 }
 
 export function createPlacePhotoProvider(): PlacePhotoProvider {
-  return mapProviderName() === "tianditu" ? new WikimediaPlacePhotoProvider() : new AmapPlacePhotoProvider();
+  return mapProviderName() === "tianditu" ? new NoPlacePhotoProvider() : new AmapPlacePhotoProvider();
 }

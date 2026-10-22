@@ -10,9 +10,8 @@ export interface PlaceImage {
   /** What the photo shows, in the provider's words: 玉龙雪山国家级风景名胜区. */
   readonly caption: string;
   /**
-   * Who took it and under what licence, where the licence asks to be shown —
-   * Wikimedia Commons photos do: 「Brücke-Osteuropa · Public domain · Wikimedia Commons」.
-   * Absent for a provider's own photos.
+   * Who took it and under what licence, where the licence asks to be shown. Absent for
+   * a provider's own photos: Amap's carry none.
    */
   readonly credit?: string;
 }
