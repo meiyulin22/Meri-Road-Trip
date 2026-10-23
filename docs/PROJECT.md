@@ -127,9 +127,12 @@ The implemented destination flow includes:
 
 Location identity does not establish access, safety, or travel feasibility.
 The active recommendation workflow does not run access checks or ranking. Cards,
-the photo ring around the Journey globe and the title thumbnail show Amap photos
-chosen by a recommended landmark or a national scenic area; they decorate a place
-and are not evidence about it. The Planner agent, generated Plan, live weather intelligence, and route
+the photo ring around the Journey globe and the title thumbnail use representative photos.
+Amap mode queries Amap; Tianditu mode uses a bundled local photo catalog. Catalog lookups
+require an explicit region and a matching place name or registered alias; administrative
+representatives are configured separately. Missing coverage produces no photo. Photos
+decorate a place and are not evidence about its identity or current conditions.
+The Planner agent, generated Plan, live weather intelligence, and route
 research remain planned. What exists of the agent stack is a trial (1.0300): Mastra with Kimi
 calling the Amap place check and web search; see [the agents README](../src/agents/README.md).
 

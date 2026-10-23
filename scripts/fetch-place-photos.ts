@@ -1,20 +1,22 @@
 /**
- * 预抓景点照片:Pixabay → public/photos/*.jpg + photos.json。
+ * 预抓景点照片:Pixabay → public/photos/*.(jpg|png|webp) + photos.json。
  *
  *   npx tsx scripts/fetch-place-photos.ts            # 只补缺的
  *   npx tsx scripts/fetch-place-photos.ts --refresh  # 全部重抓
  *   npx tsx scripts/fetch-place-photos.ts 布达拉宫   # 只处理指定地点
  *
  * 规则(2026-10-23 实测确定):
- *   - Pixabay 禁止热链、图片 URL 只有 24 小时有效期 → 必须下载到 public/photos
+ *   - Pixabay 禁止图片永久热链、webformatURL 有效期 24 小时 → 下载到 public/photos
  *   - per_page 最小 3,最大 200
- *   - 相关性靠 tags:返回的 tags 必须含查询词之一,否则这张图不算这个地点
+ *   - tags 只筛候选,不能证明地点归属;新照片需人工核对并登记地区后才启用
  *   - 授权:免费商用;API 使用要求告知来源 → 记 artist + pageUrl,卡片上显示
  */
+import { createHash } from "node:crypto";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
+import { parsePhotoCatalog, type CatalogEntry } from "../src/platform/place-photos/photo-catalog";
 
-interface Place { readonly zh: string; readonly en: string; readonly require?: string }
+interface Place { readonly zh: string; readonly en: string; readonly require?: string; readonly imageId?: number }
 interface Hit {
   readonly id: number;
   readonly tags: string;
@@ -25,10 +27,13 @@ interface Hit {
   readonly user: string;
   readonly pageURL: string;
 }
-interface Entry { file: string; artist: string; pageUrl: string; fetchedAt: string }
+type Entry = Pick<CatalogEntry, "file" | "artist" | "pageUrl" | "fetchedAt">;
+type SearchAnswer = { readonly hits: Hit[] };
 
 const photosDirectory = join(process.cwd(), "public", "photos");
 const catalogPath = join(photosDirectory, "photos.json");
+const searchCacheDirectory = join(process.cwd(), ".cache", "pixabay-search");
+const searchCacheTtlMs = 24 * 60 * 60 * 1000;
 
 const places: readonly Place[] = [
   { zh: "布达拉宫", en: "Potala Palace" },
@@ -50,17 +55,17 @@ const places: readonly Place[] = [
   { zh: "故宫", en: "Forbidden City" },
   { zh: "长城", en: "Great Wall China" },
   { zh: "洱海", en: "Erhai Lake" },
-  { zh: "青海湖", en: "Qinghai Lake" },
+  { zh: "青海湖", en: "Qinghai Lake", imageId: 2631421 },
   { zh: "纳木错", en: "Namtso Lake" },
   { zh: "珠穆朗玛峰", en: "Mount Everest" },
   { zh: "泸沽湖", en: "Lugu Lake" },
   { zh: "喀纳斯", en: "Kanas Lake" },
-  { zh: "天山天池", en: "Tianchi Lake" },
+  { zh: "天山天池", en: "Tianchi Xinjiang", imageId: 2077003 },
   { zh: "敦煌莫高窟", en: "Mogao Caves" },
   { zh: "呼伦贝尔", en: "Hulunbuir" },
   { zh: "婺源", en: "Wuyuan" },
   { zh: "稻城", en: "Daocheng" },
-  { zh: "香格里拉", en: "Shangri-La Yunnan" },
+  { zh: "松赞林寺", en: "Songzanlin", imageId: 4424995 },
 ];
 
 function slugOf(english: string): string {
@@ -80,27 +85,76 @@ function keywordsOf(english: string): string[] {
   return distinctive.length > 0 ? distinctive : words;
 }
 
-function readCatalog(): Record<string, Entry> {
+function readCatalog(): Record<string, CatalogEntry> {
   try {
     const parsed: unknown = JSON.parse(readFileSync(catalogPath, "utf8"));
-    return typeof parsed === "object" && parsed !== null && !Array.isArray(parsed) ? parsed as Record<string, Entry> : {};
+    return { ...parsePhotoCatalog(parsed) };
   } catch {
     return {};
   }
 }
 
-async function pickHit(key: string, place: Place): Promise<Hit | null> {
-  const url = `https://pixabay.com/api/?key=${encodeURIComponent(key)}`
-    + `&q=${encodeURIComponent(place.en)}&image_type=photo&orientation=horizontal`
-    + `&safesearch=true&per_page=5`;
-  const response = await fetch(url);
-  if (!response.ok) {
-    console.log(`  ${place.zh}: API HTTP ${response.status}`);
+function isSearchAnswer(value: unknown): value is SearchAnswer {
+  if (typeof value !== "object" || value === null || Array.isArray(value)) return false;
+  const hits = (value as Record<string, unknown>).hits;
+  return Array.isArray(hits) && hits.every((raw: unknown) => {
+    if (typeof raw !== "object" || raw === null || Array.isArray(raw)) return false;
+    const hit = raw as Record<string, unknown>;
+    return typeof hit.id === "number" && Number.isSafeInteger(hit.id) && hit.id > 0 &&
+      typeof hit.tags === "string" && typeof hit.largeImageURL === "string" &&
+      typeof hit.webformatURL === "string" && typeof hit.user === "string" &&
+      typeof hit.pageURL === "string" && typeof hit.imageWidth === "number" &&
+      Number.isFinite(hit.imageWidth) && hit.imageWidth > 0 && typeof hit.imageHeight === "number" &&
+      Number.isFinite(hit.imageHeight) && hit.imageHeight > 0;
+  });
+}
+
+function readSearchCache(file: string): SearchAnswer | null {
+  try {
+    const parsed: unknown = JSON.parse(readFileSync(file, "utf8"));
+    if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) return null;
+    const cached = parsed as Record<string, unknown>;
+    const now = Date.now();
+    if (typeof cached.fetchedAt !== "number" || !Number.isFinite(cached.fetchedAt) ||
+      cached.fetchedAt <= 0 || cached.fetchedAt > now || now - cached.fetchedAt >= searchCacheTtlMs ||
+      !isSearchAnswer(cached.body)) return null;
+    return cached.body;
+  } catch {
     return null;
   }
-  const body = await response.json() as { hits?: Hit[] };
+}
+
+async function searchPhotos(key: string, place: Place): Promise<SearchAnswer> {
+  // The cache identity describes the lookup, never the credential used to make it.
+  const lookup = place.imageId === undefined
+    ? new URLSearchParams({ q: place.en, image_type: "photo", orientation: "horizontal",
+      safesearch: "true", per_page: "5" })
+    : new URLSearchParams({ id: String(place.imageId) });
+  const cacheKey = createHash("sha256").update(lookup.toString()).digest("hex");
+  const cacheFile = join(searchCacheDirectory, `${cacheKey}.json`);
+  const remembered = readSearchCache(cacheFile);
+  if (remembered) return remembered;
+  const url = new URL("https://pixabay.com/api/");
+  url.search = lookup.toString();
+  url.searchParams.set("key", key);
+  const response = await fetch(url);
+  if (!response.ok) throw new Error(`${place.zh}: Pixabay API HTTP ${response.status}`);
+  const body: unknown = await response.json();
+  if (!isSearchAnswer(body)) throw new Error(`${place.zh}: Pixabay 响应格式异常`);
+  mkdirSync(searchCacheDirectory, { recursive: true });
+  writeFileSync(cacheFile, JSON.stringify({ fetchedAt: Date.now(), body }));
+  return body;
+}
+
+async function pickHit(key: string, place: Place): Promise<Hit | null> {
+  const body = await searchPhotos(key, place);
   const words = keywordsOf(place.en);
-  const hits = body.hits ?? [];
+  const hits = body.hits;
+  if (place.imageId !== undefined) {
+    const pinned = hits.find((hit) => hit.id === place.imageId) ?? null;
+    if (!pinned) console.log(`  ${place.zh}: 未返回指定图片 ${place.imageId}`);
+    return pinned;
+  }
   // 必须命中第一个特征词(最具体的那个),其余词只加分:
   // 否则 "Cangshan Dali" 里的 dali 会把洱海的照片当成苍山。
   const tagWordsOf = (hit: Hit) => new Set(hit.tags.toLowerCase().split(/[^a-z0-9]+/u).filter(Boolean));
@@ -120,6 +174,16 @@ async function pickHit(key: string, place: Place): Promise<Hit | null> {
     return null;
   }
 
+}
+
+function imageExtension(body: Uint8Array): "jpg" | "png" | "webp" | null {
+  if (body[0] === 0xff && body[1] === 0xd8 && body[2] === 0xff) return "jpg";
+  const pngSignature = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a];
+  if (pngSignature.every((byte, index) => body[index] === byte)) return "png";
+  if (body.length >= 12 && body[0] === 0x52 && body[1] === 0x49 &&
+    body[2] === 0x46 && body[3] === 0x46 && body[8] === 0x57 &&
+    body[9] === 0x45 && body[10] === 0x42 && body[11] === 0x50) return "webp";
+  return null;
 }
 
 async function fetchPhoto(key: string, place: Place): Promise<Entry | null> {
@@ -142,8 +206,13 @@ async function fetchPhoto(key: string, place: Place): Promise<Entry | null> {
     console.log(`  ${place.zh}: 图片太小(${Math.round(body.byteLength / 1024)}KB)`);
     return null;
   }
+  const extension = imageExtension(body);
+  if (!extension) {
+    console.log(`  ${place.zh}: 不支持的图片格式`);
+    return null;
+  }
   mkdirSync(photosDirectory, { recursive: true });
-  const file = `${slugOf(place.en)}.jpg`;
+  const file = `${slugOf(place.en)}-${hit.id}.${extension}`;
   writeFileSync(join(photosDirectory, file), body);
   console.log(`  ${place.zh} ✅ ${file}  ${hit.imageWidth}x${hit.imageHeight}  ${Math.round(body.byteLength / 1024)}KB  by ${hit.user}`);
   return { file, artist: hit.user, pageUrl: hit.pageURL, fetchedAt: new Date().toISOString().slice(0, 10) };
@@ -175,7 +244,19 @@ async function main(): Promise<void> {
       continue;
     }
     const entry = await fetchPhoto(key, place);
-    if (entry) { catalog[place.zh] = entry; added += 1; }
+    if (entry) {
+      const previous = catalog[place.zh];
+      // A different source photo must not inherit the previous photo's location approval.
+      const previousId = previous?.pageUrl.match(/-(\d+)\/?$/u)?.[1];
+      const nextId = entry.pageUrl.match(/-(\d+)\/?$/u)?.[1];
+      // Locale and translated slugs can change the page URL for the same upload.
+      const samePhoto = previous?.pageUrl === entry.pageUrl ||
+        (previousId !== undefined && previousId === nextId);
+      catalog[place.zh] = { ...entry, aliases: previous?.aliases ?? [],
+        regions: samePhoto ? previous.regions : [], scenicFor: samePhoto ? previous.scenicFor : [] };
+      if (!samePhoto) console.log(`  ${place.zh}: 候选已下载,核对内容并填写 regions/scenicFor 后才会用于卡片。`);
+      added += 1;
+    }
     else { missed += 1; }
     // 100 次/60 秒:每个地点 2 次请求(搜索 + 下载),这里只需要给搜索留间隔。
     await new Promise((resolve) => setTimeout(resolve, 800));
@@ -186,4 +267,12 @@ async function main(): Promise<void> {
   console.log(`\n新增 ${added} 个,未命中 ${missed} 个,索引共 ${Object.keys(catalog).length} 条 → ${catalogPath}`);
 }
 
-void main();
+function reportFailure(error: unknown): void {
+  const message = (error instanceof Error ? error.message : "未知错误").replace(/https?:\/\/\S+/giu, "[URL]");
+  const key = process.env.PIXABAY_API_KEY?.trim();
+  const safe = key ? message.replaceAll(key, "[REDACTED]").replaceAll(encodeURIComponent(key), "[REDACTED]") : message;
+  console.error(`抓图已停止：${safe}`);
+  process.exitCode = 1;
+}
+
+void main().catch(reportFailure);

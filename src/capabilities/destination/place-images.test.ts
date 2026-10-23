@@ -30,6 +30,13 @@ test("each lookup is tried in turn until one has a photo", async () => {
   assert.deepEqual(seen, [{ kind: "scenic", region: "朝阳县" }, { kind: "scenic", region: "朝阳市" }]);
 });
 
+test("scenic-area suffixes do not turn a named sight into an administrative-region query", () => {
+  for (const spot of ["黄山风景区", "玉龙雪山风景名胜区", "贡嘎山国家级自然保护区"]) {
+    assert.deepEqual(photoQueriesFor({ province: "四川省", place: "测试市", spot })[0],
+      { kind: "named", keywords: spot, region: "测试市" });
+  }
+});
+
 test("offered places gain photos where found and stay as they were otherwise", async () => {
   const result = await withChoiceImages({ type: "destination_choices", mode: "add", choices: [
     { id: "a", name: "迪庆藏族自治州", province: "云南省", city: "迪庆藏族自治州", spot: "梅里雪山" },

@@ -16,7 +16,7 @@ export interface PlacePhotoProvider {
 /**
  * The hosts photos may come from. next.config.ts lets the image optimizer fetch only
  * these, so a URL from anywhere else would not render and is not offered. The Wikimedia
- * hosts are no longer produced — Tianditu mode has no photo source yet — but are kept so
+ * hosts are no longer produced — Tianditu mode uses our local catalog — but are kept so
  * that a message stored during the 1.0500 trial still renders.
  */
 export const placePhotoHosts: readonly string[] = ["store.is.autonavi.com", "aos-comment.amap.com", "upload.wikimedia.org", "thumb.wikimedia.org"];
