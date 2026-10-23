@@ -27,7 +27,8 @@ export interface PhotoSubject {
 export function photoQueriesFor(subject: PhotoSubject): readonly PlacePhotoQuery[] {
   const queries: PlacePhotoQuery[] = [];
   const area = subject.place ?? subject.province;
-  if (subject.spot && /(?:市|县|区|旗)$/u.test(subject.spot)) {
+  if (subject.spot && /(?:市|县|区|旗)$/u.test(subject.spot) &&
+    !/(?:景区|风景名胜区|保护区|度假区)$/u.test(subject.spot)) {
     queries.push({ kind: "scenic", region: subject.spot });
   } else if (subject.spot ?? subject.landmark) {
     queries.push({ kind: "named", keywords: (subject.spot ?? subject.landmark) as string, region: area });

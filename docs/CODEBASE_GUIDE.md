@@ -62,7 +62,7 @@
 | `src/platform/llm/` | 模型客户端契约、Kimi 调用、SDK 错误与超时适配 | 模型提供方适配 |
 | `src/platform/location-provider/` | 地点搜索/输入建议接口和高德 HTTP 实现 | 地图提供方适配 |
 | `src/platform/search/` | Discovery Search 接口及 Bocha 请求/响应适配 | 搜索提供方适配 |
-| `src/platform/place-photos/` | 地点照片接口和高德照片实现（https 升级、主机白名单、只存真实答案的 7 天缓存） | 照片提供方适配 |
+| `src/platform/place-photos/` | 地点照片接口、高德照片适配（https 升级、主机白名单、7 天缓存）和天地图模式的本地图集（地区与名称匹配） | 照片提供方适配 |
 | `src/platform/amap/` | 所有高德请求共用的节流与限流重试 | 高德提供方共用基础设施 |
 | `src/platform/persistence/` | repository 接口，隔离应用层与数据库实现 | 持久化端口；这里的接口不等于 SQL 实现 |
 | `src/platform/persistence/postgres/` | PostgreSQL repository，读取校验、错误包装、CAS 更新 | 持久化适配器 |
@@ -113,7 +113,7 @@ UI 同步状态；刷新从数据库恢复
 
 LLM 解释自然语言并提出受限 JSON；应用校验、决定是否执行、核验地点并保存。助手建议即使经过高德核验，仍需要用户显式确认才成为目的地。Gen UI 是受限数据驱动的预写 React 组件，不是模型生成 JSX。
 
-推荐是确定性流程：Discovery Search → Kimi 结构化推荐（含配图用的代表地标）→ 校验/去重 → 省份过滤 → 保存建议（卡片带地标、无照片）→ 浏览器另行请求照片，服务器按地标查高德、逐张流式返回并写回卡片消息 → 显式选中时复核高德。代码没有接通访问检查、排序或开放式 Research Agent；照片只是装饰。Generate plan 当前只检查准备度；PWA 有 manifest 和图标，没有离线 service worker。
+推荐是确定性流程：Discovery Search → Kimi 结构化推荐（含配图用的代表地标）→ 校验/去重 → 省份过滤 → 保存建议（卡片带地标、无照片）→ 浏览器另行请求照片，服务器按地标和地区查询当前照片提供方、逐张流式返回并写回卡片消息 → 显式选中时复核地点。代码没有接通访问检查、排序或开放式 Research Agent；照片只是装饰。Generate plan 当前只检查准备度；PWA 有 manifest 和图标，没有离线 service worker。
 
 ### 3.4 两条实际操作链
 
@@ -432,7 +432,7 @@ LLM 解释自然语言并提出受限 JSON；应用校验、决定是否执行�
 | [src/capabilities/destination/region-hint.ts](../src/capabilities/destination/region-hint.ts) | 应用层/用例装配 | 冷启动地区提示：旅程还没有任何目的地时，问一次模型“这个名字通常在哪个地级市”，返回 `[prefecture, province]` 当先验。4 秒上限（超时等于没有提示）、进程内缓存 7 天且只缓存真实答案、带行政后缀和省级简称不问。只是搜索中心，不是结论。 |
 | [src/capabilities/destination/region-hint.test.ts](../src/capabilities/destination/region-hint.test.ts) | 测试（对应模块边界） | 验证市在省前、行政名和省级简称不调用模型、未知/空答案/模型报错都返回空、真实答案只问一次、永不返回的模型被超时放弃。 |
 | [src/capabilities/destination/place-images.ts](../src/capabilities/destination/place-images.ts) | 应用层/用例装配 | 照片查询顺序（景点/县级市境内→地标→市的国家级景点；省级景点只给只有省的目的地）、卡片配图、同一照片只出现一次、沿用卡片照片的已选地点照片，以及旅程封面（第一个有照片的地点，找到即停）。 |
-| [src/capabilities/destination/place-images.test.ts](../src/capabilities/destination/place-images.test.ts) | 测试（对应模块边界） | 验证查询顺序（市卡不退到省）、逐个兜底、卡片配图、照片去重、沿用对话照片和封面找到即停。 |
+| [src/capabilities/destination/place-images.test.ts](../src/capabilities/destination/place-images.test.ts) | 测试（对应模块边界） | 验证查询顺序（市卡不退到省）、景区后缀仍按名称查询、逐个兜底、卡片配图、照片去重、沿用对话照片和封面找到即停。 |
 | [src/capabilities/destination/destination-photos-route.test.ts](../src/capabilities/destination/destination-photos-route.test.ts) | 测试（对应模块边界） | 验证照片接口按当前地点返回、不共享缓存、not-found 与其他失败区分。 |
 | [src/capabilities/destination/location-suggestion-service.test.ts](../src/capabilities/destination/location-suggestion-service.test.ts) | 测试（对应模块边界） | 验证 query 规则、完整建议列表及调用前拒绝非法输入。 |
 | [src/capabilities/destination/location-suggestion-service.ts](../src/capabilities/destination/location-suggestion-service.ts) | 应用层/用例装配 | 输入建议用例，trim/长度校验，调用建议端口并转换错误。 |
@@ -500,11 +500,11 @@ LLM 解释自然语言并提出受限 JSON；应用校验、决定是否执行�
 | [src/platform/place-photos/place-photo-provider.ts](../src/platform/place-photos/place-photo-provider.ts) | 基础设施/端口 | 照片查询（按名称或按区域国家级景点）接口与允许的照片主机列表。 |
 | [src/platform/place-photos/amap-place-photo-provider.ts](../src/platform/place-photos/amap-place-photo-provider.ts) | 基础设施/适配器 | 高德 v5 搜索取照片：经共用节流器请求、http 升级 https、主机白名单、只缓存真实答案的进程内 7 天缓存（PlacePhotoMemory）、失败返回 null 并记 infocode。 |
 | [src/platform/place-photos/amap-place-photo-provider.test.ts](../src/platform/place-photos/amap-place-photo-provider.test.ts) | 测试（对应模块边界） | 验证查询参数、https 升级、主机过滤、各种失败，以及只缓存真实答案、过期重查。 |
-| [src/platform/place-photos/photo-catalog.ts](../src/platform/place-photos/photo-catalog.ts) | 基础设施/索引 | 本地照片索引：`photos.json` 把地名映射到 `public/photos/*.jpg`，按归一化名字（去空格、去括号后缀）精确匹配；命中时给出 `/photos/…` 相对地址和 `Photo: 作者 / Pixabay` 署名；不命中就是没有照片。 |
-| [src/platform/place-photos/catalog-photo-provider.ts](../src/platform/place-photos/catalog-photo-provider.ts) | 基础设施/适配器 | 天地图模式的照片来源：只读本地索引，不联网、不消耗任何额度；一次进程内缓存索引，文件缺失或损坏当作空目录，`findPhoto` 永不抛错。 |
-| [src/platform/place-photos/photo-catalog.test.ts](../src/platform/place-photos/photo-catalog.test.ts) | 测试（对应模块边界） | 验证署名行、未收录地点返回 null、名字归一化、根相对路径被 domain 接受而 http 与 `..` 被拒绝。 |
-| [scripts/fetch-place-photos.ts](../scripts/fetch-place-photos.ts) | 开发验证工具 | 预抓照片：Pixabay 搜索 → **tags 必须含第一个特征词**（整词匹配；`Mount Tai` 曾被 `britain` 里的 `tai` 命中而抓成富士山）→ 下载 `largeImageURL`（>600KB 换 640px）→ 存 `public/photos/` 并写 `photos.json`（作者、原图页、抓取日期）。支持 `--refresh` 与指定地名。 |
-| [public/photos/](../public/photos) | 静态资源 | 已抓取的景点照片与 `photos.json` 索引。Pixabay 内容许可：免费商用、不强制署名；其 API 明文禁止热链、要求下载到自己的服务器，且 640px 链接仅 24 小时有效——所以图片落在仓库里，运行时零请求。 |
+| [src/platform/place-photos/photo-catalog.ts](../src/platform/place-photos/photo-catalog.ts) | 基础设施/索引 | 本地图集校验和匹配：明确地区与完整名称／显式别名同时命中；保留括号地区，不猜子串或后缀；`scenicFor` 单独登记行政区代表图且必须属于允许地区；未命中、配置不合法或歧义返回 null；返回同域路径、真实主题和作者署名。 |
+| [src/platform/place-photos/catalog-photo-provider.ts](../src/platform/place-photos/catalog-photo-provider.ts) | 基础设施/适配器 | 天地图模式的照片适配器：读取并缓存本地索引，保留查询类型和地区；不请求外部 API；文件缺失或损坏按空目录处理。 |
+| [src/platform/place-photos/photo-catalog.test.ts](../src/platform/place-photos/photo-catalog.test.ts) | 测试（对应模块边界） | 验证地区错配、无地区拒绝、明确别名、括号信息、歧义及不合法配置、实际文件完整性、真实查图路径的景区完整名称、跨地区景点、撤图及待审核候选不启用；离线查询不调用 fetch。 |
+| [scripts/fetch-place-photos.ts](../scripts/fetch-place-photos.ts) | 开发验证工具 | Pixabay 关键词和 tags 筛候选后下载到 public/photos 并记录来源；tags 不证明地点身份。新照片或更换来源时清空地区配置，人工核对填写后才启用；同一来源刷新保留配置。支持指定地名和 --refresh，不重新抓取本轮已撤下的青海湖／天山天池。 |
+| [public/photos/](../public/photos) | 静态资源 | 预下载候选照片与带来源、明确地区、别名、行政区代表图配置的 photos.json；运行时由本站提供文件，无外部图片 API 调用。不代表全国覆盖或逐张审核完成；香格里拉候选暂未启用。 |
 | [src/platform/tianditu/tianditu-fetch.ts](../src/platform/tianditu/tianditu-fetch.ts) | 基础设施/适配器 | 天地图请求客户端：独立排队（开始间隔 ≥300ms，复用 amap-fetch 的通用 pacer）、超时、key 只拼进天地图地址；418 或防火墙 HTML 页视为拒绝、不重试；**429 视为限流**，整队暂停 1 秒、被拒请求排队首、最多重试 3 次；失败只返回固定原因，不含 URL 和 key。 |
 | [src/platform/tianditu/classification-memory.ts](../src/platform/tianditu/classification-memory.ts) | 基础设施/缓存 | 分类搜索缓存：按「行政区 + 类别」把 `queryType 13` 的一页存到 `.cache/tianditu-classification.json`，7 天、上限 50 页、只存真实答案（拒绝和空结果不存）；文件损坏按空缓存处理；写入用临时文件 + 改名，写失败不影响本次查询。 |
 | [src/platform/tianditu/classification-memory.test.ts](../src/platform/tianditu/classification-memory.test.ts) | 测试（对应模块边界） | 验证只存真实答案、重启后仍在、7 天过期、超 50 页淘汰最旧、文件损坏当空缓存、统计顺序。 |
@@ -513,8 +513,8 @@ LLM 解释自然语言并提出受限 JSON；应用校验、决定是否执行�
 | [src/platform/tianditu/tianditu-location-provider.test.ts](../src/platform/tianditu/tianditu-location-provider.test.ts) | 测试（对应模块边界） | 验证类别映射、POI / 行政区规范化、一次搜索只发一个请求、市/省答案的逆地理编码取舍、逆地理编码失败算故障、整个景区排前、两类合成一次请求且按分组解析、缓存命中不再请求、分类被拒绝算失败、无数据 / 拒绝 / 空查询、key 只发给天地图。 |
 | [src/platform/tianditu/tianditu-input-tips-provider.ts](../src/platform/tianditu/tianditu-input-tips-provider.ts) | 基础设施端口/适配器 | 天地图建议词搜索（queryType 4）做输入提示：gbCode 去掉 156 变成六位 adcode，行政区文字放 region，坐标 CGCS2000。 |
 | [src/platform/tianditu/tianditu-input-tips-provider.test.ts](../src/platform/tianditu/tianditu-input-tips-provider.test.ts) | 测试（对应模块边界） | 验证建议规范化、空结果、超时、拒绝与畸形响应。 |
-| [src/platform/map-providers.ts](../src/platform/map-providers.ts) | 基础设施装配 | 按 `MAP_PROVIDER`（默认 amap，可选 tianditu，其他值报配置错误）创建整套地点核验、输入提示和照片提供方；天地图档的照片是 NoPlacePhotoProvider（返回 null）；各 route 和页面都从这里取。 |
-| [src/platform/map-providers.test.ts](../src/platform/map-providers.test.ts) | 测试（对应模块边界） | 验证默认值、选择天地图、非法值报错，以及天地图档确实拿到无照片提供方、高德档仍是高德照片。 |
+| [src/platform/map-providers.ts](../src/platform/map-providers.ts) | 基础设施装配 | 按 MAP_PROVIDER（默认 amap，可选 tianditu，其他值报配置错误）创建整套地点核验、输入提示和照片提供方；天地图使用 CatalogPhotoProvider 本地图集；各 route 和页面都从这里取。 |
+| [src/platform/map-providers.test.ts](../src/platform/map-providers.test.ts) | 测试（对应模块边界） | 验证默认值、选择天地图、非法值报错，以及天地图使用本地图集适配器、高德仍用高德照片。 |
 | [src/platform/search/bocha-web-search.test.ts](../src/platform/search/bocha-web-search.test.ts) | 测试（对应模块边界） | mock 验证 POST/envelope、webPages/images 区段、缺密钥不请求及错误脱敏。 |
 | [src/platform/search/bocha-web-search.ts](../src/platform/search/bocha-web-search.ts) | 基础设施端口/适配器 | 共享 Bocha Web Search HTTP 请求、响应 envelope 检查、日期转换、超时/网络/API 错误脱敏。 |
 | [src/platform/search/discovery-search.ts](../src/platform/search/discovery-search.ts) | 基础设施端口/适配器 | DiscoverySearch 端口、旅程搜索 query、失败降级空上下文和规范化错误。 |

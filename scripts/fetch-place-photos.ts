@@ -6,13 +6,14 @@
  *   npx tsx scripts/fetch-place-photos.ts 布达拉宫   # 只处理指定地点
  *
  * 规则(2026-10-23 实测确定):
- *   - Pixabay 禁止热链、图片 URL 只有 24 小时有效期 → 必须下载到 public/photos
+ *   - Pixabay 禁止图片永久热链、webformatURL 有效期 24 小时 → 下载到 public/photos
  *   - per_page 最小 3,最大 200
- *   - 相关性靠 tags:返回的 tags 必须含查询词之一,否则这张图不算这个地点
+ *   - tags 只筛候选,不能证明地点归属;新照片需人工核对并登记地区后才启用
  *   - 授权:免费商用;API 使用要求告知来源 → 记 artist + pageUrl,卡片上显示
  */
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
+import { parsePhotoCatalog, type CatalogEntry } from "../src/platform/place-photos/photo-catalog";
 
 interface Place { readonly zh: string; readonly en: string; readonly require?: string }
 interface Hit {
@@ -25,7 +26,7 @@ interface Hit {
   readonly user: string;
   readonly pageURL: string;
 }
-interface Entry { file: string; artist: string; pageUrl: string; fetchedAt: string }
+type Entry = Pick<CatalogEntry, "file" | "artist" | "pageUrl" | "fetchedAt">;
 
 const photosDirectory = join(process.cwd(), "public", "photos");
 const catalogPath = join(photosDirectory, "photos.json");
@@ -50,12 +51,10 @@ const places: readonly Place[] = [
   { zh: "故宫", en: "Forbidden City" },
   { zh: "长城", en: "Great Wall China" },
   { zh: "洱海", en: "Erhai Lake" },
-  { zh: "青海湖", en: "Qinghai Lake" },
   { zh: "纳木错", en: "Namtso Lake" },
   { zh: "珠穆朗玛峰", en: "Mount Everest" },
   { zh: "泸沽湖", en: "Lugu Lake" },
   { zh: "喀纳斯", en: "Kanas Lake" },
-  { zh: "天山天池", en: "Tianchi Lake" },
   { zh: "敦煌莫高窟", en: "Mogao Caves" },
   { zh: "呼伦贝尔", en: "Hulunbuir" },
   { zh: "婺源", en: "Wuyuan" },
@@ -80,10 +79,10 @@ function keywordsOf(english: string): string[] {
   return distinctive.length > 0 ? distinctive : words;
 }
 
-function readCatalog(): Record<string, Entry> {
+function readCatalog(): Record<string, CatalogEntry> {
   try {
     const parsed: unknown = JSON.parse(readFileSync(catalogPath, "utf8"));
-    return typeof parsed === "object" && parsed !== null && !Array.isArray(parsed) ? parsed as Record<string, Entry> : {};
+    return { ...parsePhotoCatalog(parsed) };
   } catch {
     return {};
   }
@@ -175,7 +174,15 @@ async function main(): Promise<void> {
       continue;
     }
     const entry = await fetchPhoto(key, place);
-    if (entry) { catalog[place.zh] = entry; added += 1; }
+    if (entry) {
+      const previous = catalog[place.zh];
+      // A different source photo must not inherit the previous photo's location approval.
+      const samePhoto = previous?.pageUrl === entry.pageUrl;
+      catalog[place.zh] = { ...entry, aliases: previous?.aliases ?? [],
+        regions: samePhoto ? previous.regions : [], scenicFor: samePhoto ? previous.scenicFor : [] };
+      if (!samePhoto) console.log(`  ${place.zh}: 候选已下载,核对内容并填写 regions/scenicFor 后才会用于卡片。`);
+      added += 1;
+    }
     else { missed += 1; }
     // 100 次/60 秒:每个地点 2 次请求(搜索 + 下载),这里只需要给搜索留间隔。
     await new Promise((resolve) => setTimeout(resolve, 800));

@@ -525,14 +525,18 @@ add/set 使用 Promise.all 查询表达。解析层保留不同 provider ID，�
 
 **来源：**[AmapPlacePhotoProvider](../src/platform/place-photos/amap-place-photo-provider.ts)调用高德 v5 地点搜索并加 `show_fields=photos`。高德返回的图片地址多为 http，页面是 https 会被浏览器拦截；同一主机支持 https（2026-10-03 实测），所以直接把协议换成 https，不做代理。只接受 [placePhotoHosts](../src/platform/place-photos/place-photo-provider.ts) 列出的两个主机（`store.is.autonavi.com`、`aos-comment.amap.com`），[next.config.ts](../next.config.ts) 也只允许 next/image 从这两个主机取图。图片最宽约 500px，部分来自用户评论。
 
-**天地图模式的来源：**没有。[NoPlacePhotoProvider](../src/platform/place-photos/no-place-photo-provider.ts) 对任何查询都返回 null，所以天地图模式下卡片、照片环和标题缩略图都没有照片，画定位图标。1.0500 曾用 Wikidata 条目的 Wikimedia Commons 照片（`WIKIMEDIA_CONTACT` / `WIKIMEDIA_ACCESS_TOKEN` 两个变量），2026-10-23 整段移除：大陆服务器连不上 Wikidata 和 Commons，那套代码只在本机走代理时能用。国内的替代照片来源还没定；定的时候只换这一个适配器，其他层不动。
+**天地图模式的来源：本地图集。**天地图本身没有照片 API；[CatalogPhotoProvider](../src/platform/place-photos/catalog-photo-provider.ts) 从 [photos.json](../public/photos/photos.json) 读取索引，文件随应用部署在 `public/photos/`。`named` 查询必须同时匹配目录中明确登记的地区和完整地点名称或显式别名；不做子串扩展，也不删除括号里的地区信息。缺少地区、地区不在名单内或存在多个匹配时返回 null。`scenic` 只取该行政区在 `scenicFor` 中显式指定的代表图，不把行政地名当作景点同义名，不从同省其他市借图。运行时不请求 Pixabay、天地图或其他图片 API；浏览器仍下载本站图片。
+
+每项的 `aliases` 是同一地点的明确别名，`regions` 是按名称查图允许的地区，`scenicFor` 是可使用此图的行政区代表图名单。三者均使用完整精确匹配，支持的地区简称也须显式登记；裸“城关区”“西湖区”等不证明所属城市。跨地区景点可以登记多个地区，如泸沽湖的丽江市／凉山州、纳木错的拉萨市／那曲市。索引读取时跳过结构或文件名不合法的记录，不影响其他图片。
+
+2026-10-24 撤下错配的青海湖（茶卡盐湖图）和天山天池（长白山天池图）的索引及文件；香格里拉的来源待复核，暂留候选文件但清空 `regions`／`scenicFor`，新查询不使用。其他地区和别名配置不代表照片已逐张完成内容审核。人工抓图脚本只筛候选：新增或更换来源页的照片默认不配置地区，核对内容、填写地区后才启用；同一来源刷新才保留原地区。当前脚本不重新抓取这两张已撤下的错图。
 
 **查什么：**[photoQueriesFor](../src/capabilities/destination/place-images.ts)按从具体到宽泛的顺序尝试，第一张找到就停：
 
-1. 用户说过的景点（梅里雪山）→ 在所属市内按名称查；景点本身是县级市/县/区名（香格里拉市、大理市）→ 在它境内找国家级景点（普达措、大理古城），因为城镇本身的图最没代表性；
-2. 推荐生成器给出的代表地标（丽江市 → 玉龙雪山）→ 在该市内按名称查；
-3. 该市的国家级景点（高德类别 110202；普通“风景名胜”类别实测会给购物中心、纪念馆）；
-4. 只有省、没有市的目的地才查该省的国家级景点。市的卡片查到第 3 步为止，查不到就不配图：退到省级会给出别处的照片（柳州市配上桂林的芦笛岩），比没有图更糟。
+1. 用户说过的景点（梅里雪山）→ 在所属市内按名称查；景点本身是县级市/县/区名（香格里拉市、大理市）→ 按该行政区查代表景点。以景区、风景名胜区、保护区、度假区结尾的名称仍按景点查，避免“黄山风景区”丢失名称和地区的关联；
+2. 没有用户景点时，使用推荐生成器给出的代表地标（丽江市 → 玉龙雪山）→ 在该市内按名称查；
+3. 按该市查代表景点：高德查询国家级景点（类别 110202），本地图集只取显式登记的行政区代表图。名称查询未命中后可能使用同市代表图，caption 保留照片实际主题，不改成未命中的景点名称；
+4. 只有省、没有市的目的地才查该省的代表景点，本地图集没有明确配置时返回 null。市的卡片查到第 3 步为止，查不到就不配图：退到省级会给出别处的照片（柳州市配上桂林的芦笛岩），比没有图更糟。
 
 同一批卡片、以及照片环里，同一张照片只出现一次（[withoutRepeatedImages](../src/capabilities/destination/place-images.ts)）：第一个地点保留，后面重复的不配图，避免两个城市看起来是同一个地方。
 
@@ -540,7 +544,7 @@ add/set 使用 Promise.all 查询表达。解析层保留不同 provider ID，�
 
 1. `POST /api/trips/[id]/destination-recommendations` 拿到模型结果就保存并返回卡片，每张卡带 `landmark`，`image` 未设置。
 2. 卡片一出现，[ConversationPanel](../src/components/trip-workspace/conversation-panel.tsx)对这条卡片消息调用 `POST /api/trips/[id]/destination-recommendation-photos`（[streamRecommendationPhotos](../src/components/trip-workspace/destination-recommendation-model.ts)）。还没有答案的卡显示骨架块。
-3. 服务器（[findRecommendationPhotos](../src/capabilities/recommendation/recommendation-photos.ts)）同时开始每张卡的查图，由高德共用队列排开；**每查到一张就推一行 JSON**（`{"id":…,"image":{url,caption}|null}`，NDJSON），浏览器收到就把照片放到对应卡片上淡入。同一批里已经出现过的照片，后到的卡不再用（先到先得）。
+3. 服务器（[findRecommendationPhotos](../src/capabilities/recommendation/recommendation-photos.ts)）按当前照片提供方查询每张卡：高德请求由共用队列排开，本地图集只读取本地索引；**每查完一张就推一行 JSON**（`{"id":…,"image":{url,caption,credit?}|null}`，NDJSON），浏览器收到就把照片放到对应卡片上淡入。同一批里已经出现过的照片，后到的卡不再用（先到先得）。
 4. 全部查完后，把结果一次写回这条卡片消息的 presentation（[saveRecommendationPhotos](../src/capabilities/conversation/trip-message-service.ts)，只改 presentation），然后结束响应。刷新后直接读出，不再查询。
 
 卡片的 `image` 有三种状态：**未设置**＝还没人查过（显示骨架并会去查）；**照片**；**null**＝查过、没有可用照片（显示定位图标，不再查）。存储的 image 不合法时按 null 处理，不让整张卡失效，也不会每次加载都重查。一次只为一条卡片消息请求照片；打开旅程时，旧的、还没查过照片的推荐卡（包括 1.0025 之前的卡）也会这样补上照片。
@@ -548,13 +552,17 @@ add/set 使用 Promise.all 查询表达。解析层保留不同 provider ID，�
 浏览器中途离开（刷新、关页）时，服务器照样查完并保存；保存失败只记 `recommendation.photos.failed`，下次打开再查一次。请求失败时卡片保持原样（定位图标），下次加载再试。高德被限流时整个队列暂停，表现为骨架多闪一会儿，不单独提示。
 
 **存在哪：**
-- 推荐卡：见上，`image: {url, caption}` 或 null 存进那条卡片消息的 presentation，只存链接和说明文字，不存图片本身。
+- 推荐卡：见上，`image: {url, caption, credit?}` 或 null 存进那条卡片消息的 presentation，只存链接、说明及可选署名，不存图片本身。本地图集的 URL 为 `/photos/...` 同域路径。
 - 地点候选卡（聊天里“潮汕”这类的待选卡，通常 1–3 张）仍在出卡时一并查好，没有 null 状态：没有 image 就显示定位图标。图片链接失效时卡片显示兜底样式。
 - 已选地点的照片不进 TripState：[selectedPlaceImages](../src/capabilities/destination/place-images.ts)按当前目的地现查，删掉地点照片也随之消失。某地点若在对话的卡片上展示过照片（[imagesShownInConversation](../src/capabilities/destination/place-images.ts)），沿用那张，保证从卡片选进来的丽江仍显示卡片上的玉龙雪山，而不是重新查到的玉水寨。
 - 页面服务端渲染时带上照片（最多等 1.5 秒，超时则不带，浏览器打开后再请求），刷新时不闪烁。目的地变化后，[TripWorkspace](../src/components/trip-workspace/trip-workspace.tsx)调用 `GET /api/trips/[id]/destination-photos` 重新取。
 - 标题左侧缩略图是第一个已选地点的照片（[coverPhoto](../src/components/trip-workspace/destination-photos-model.ts)），只在第一个地点变化时才换；没有地点时仍是默认风景图。
 
-**缓存：**[PlacePhotoMemory](../src/platform/place-photos/amap-place-photo-provider.ts)在服务器进程内存里保存查询结果 7 天（最多 500 条），**只保存真实答案**（找到照片，或高德确认这里没有照片），被限流、超时、接口错误都不保存。不用 Next 的 `fetch` 缓存（`next.revalidate`），因为高德被限流时仍返回 HTTP 200，fetch 缓存会把“被限流”当成答案保存 7 天。长期运行的服务器（自托管 VPS）缓存持续有效；Vercel 这类短生命周期实例命中率低，代价只是多查一次，卡片照片本身已存在消息里。将来换成 Redis 等共享缓存时，替换的就是这一层，规则不变。地点搜索/核验不缓存。图片文件本身由 next/image 缓存（自托管在 `.next/cache/images`），浏览器另有图片缓存。查图失败记录 `place_photo.lookup.failed`（带高德 infocode），不影响聊天或保存。
+图集更新只影响新的照片查询，不重写历史消息的 presentation；已选地点仍可能优先复用历史卡片的 image。已撤文件的历史 URL 在没有已有缓存时会加载失败并走现有 UI 兜底，不会自动替换为另一张照片；已缓存图片可能继续显示至缓存失效。当前卡片仍为 4:3；无图或加载失败显示图钉，署名为不可点击文本。16:9、无图省略图片区和可点击来源页尚未实现。
+
+**本地图集缓存：**索引在进程内读取并复用，修改文件后需重启进程才能读取新版。查图不消耗外部图片 API 额度；本站图片下载和 next/image 优化仍有流量、CPU 与磁盘缓存开销。
+
+**高德查询缓存：**[PlacePhotoMemory](../src/platform/place-photos/amap-place-photo-provider.ts)在服务器进程内存里保存查询结果 7 天（最多 500 条），**只保存真实答案**（找到照片，或高德确认这里没有照片），被限流、超时、接口错误都不保存。不用 Next 的 `fetch` 缓存（`next.revalidate`），因为高德被限流时仍返回 HTTP 200，fetch 缓存会把“被限流”当成答案保存 7 天。长期运行的服务器（自托管 VPS）缓存持续有效；Vercel 这类短生命周期实例命中率低，代价只是多查一次，卡片照片本身已存在消息里。将来换成 Redis 等共享缓存时，替换的就是这一层，规则不变。地点搜索/核验不缓存。图片文件本身由 next/image 缓存（自托管在 `.next/cache/images`），浏览器另有图片缓存。查图失败记录 `place_photo.lookup.failed`（带高德 infocode），不影响聊天或保存。
 
 **防盗链：**高德的 http 图片地址会检查 Referer，网页里直接用 `<img src="http://...">` 加载常返回 400；https 地址带 Referer 也正常（2026-10-03 实测）。Meri 的照片都经 next/image：浏览器只请求本站的 `/_next/image`，由服务器无 Referer 地去高德取图，所以部署在任何域名都不受防盗链影响。不要在页面里直接使用高德原始图片地址。
 
@@ -567,7 +575,7 @@ add/set 使用 Promise.all 查询表达。解析层保留不同 provider ID，�
 
 ### 5.7 地图提供方：高德（默认）或天地图
 
-`MAP_PROVIDER` 决定地点核验和输入提示用哪一整套提供方（[map-providers](../src/platform/map-providers.ts)）：不设或 `amap` 是高德；`tianditu` 是天地图，暂时没有照片来源（见 5.6）；其他值启动请求时报配置错误。两套提供方都交给同一套判定规则（[destination-resolution-policy](../src/domain/location/destination-resolution-policy.ts)），保存进 TripState 的目的地只是省、市、景点的名字，所以换提供方不影响已保存的目的地。
+`MAP_PROVIDER` 决定地点核验和输入提示用哪一整套提供方（[map-providers](../src/platform/map-providers.ts)）：不设或 `amap` 是高德；`tianditu` 是天地图，照片使用本地图集（见 5.6）；其他值启动请求时报配置错误。两套提供方都交给同一套判定规则（[destination-resolution-policy](../src/domain/location/destination-resolution-policy.ts)），保存进 TripState 的目的地只是省、市、景点的名字，所以换提供方不影响已保存的目的地。
 
 天地图模式下一次地点核验（[TiandituLocationProvider](../src/platform/tianditu/tianditu-location-provider.ts)）：
 

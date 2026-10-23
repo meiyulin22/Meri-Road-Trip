@@ -3,180 +3,513 @@
   "file": "potala-palace.jpg",
   "artist": "InkMagiStudio",
   "pageUrl": "https://pixabay.com/photos/potala-palace-tibet-potala-lhasa-4742065/",
-  "fetchedAt": "2026-10-23"
+  "fetchedAt": "2026-10-23",
+  "aliases": [
+   "布达拉宫景区",
+   "布达拉宫（拉萨）"
+  ],
+  "regions": [
+   "拉萨市",
+   "拉萨"
+  ],
+  "scenicFor": [
+   "拉萨市",
+   "拉萨"
+  ]
  },
  "稻城亚丁": {
   "file": "daocheng-yading.jpg",
   "artist": "sfkjrgk",
   "pageUrl": "https://pixabay.com/photos/snow-mountain-nature-outdoors-8037980/",
-  "fetchedAt": "2026-10-23"
+  "fetchedAt": "2026-10-23",
+  "aliases": [
+   "亚丁",
+   "稻城亚丁景区",
+   "稻城亚丁风景区",
+   "甘孜州稻城亚丁景区"
+  ],
+  "regions": [
+   "甘孜藏族自治州",
+   "甘孜州",
+   "稻城县"
+  ],
+  "scenicFor": []
  },
  "张家界": {
   "file": "zhangjiajie.jpg",
   "artist": "ddcreativohn",
   "pageUrl": "https://pixabay.com/photos/lake-baofeng-zhangjiajie-china-3854206/",
-  "fetchedAt": "2026-10-23"
+  "fetchedAt": "2026-10-23",
+  "aliases": [],
+  "regions": [
+   "张家界市",
+   "张家界"
+  ],
+  "scenicFor": [
+   "张家界市",
+   "张家界"
+  ]
  },
  "峨眉山": {
   "file": "mount-emei.jpg",
   "artist": "lshhweb",
   "pageUrl": "https://pixabay.com/photos/mount-emei-golden-top-scenery-view-4279733/",
-  "fetchedAt": "2026-10-23"
+  "fetchedAt": "2026-10-23",
+  "aliases": [
+   "峨眉山景区",
+   "峨眉山风景名胜区"
+  ],
+  "regions": [
+   "乐山市",
+   "乐山",
+   "峨眉山市"
+  ],
+  "scenicFor": [
+   "乐山市",
+   "乐山",
+   "峨眉山市"
+  ]
  },
  "贡嘎山": {
   "file": "gongga-mountain.jpg",
   "artist": "yongxinz",
   "pageUrl": "https://pixabay.com/photos/gongga-snow-mountain-cloud-on-foot-2411063/",
-  "fetchedAt": "2026-10-23"
+  "fetchedAt": "2026-10-23",
+  "aliases": [
+   "贡嘎山国家级自然保护区"
+  ],
+  "regions": [
+   "甘孜藏族自治州",
+   "甘孜州"
+  ],
+  "scenicFor": [
+   "甘孜藏族自治州",
+   "甘孜州"
+  ]
  },
  "四姑娘山": {
   "file": "siguniang-mountain.jpg",
   "artist": "lin2015",
   "pageUrl": "https://pixabay.com/photos/siguniang-mountain-yaomeifeng-8568913/",
-  "fetchedAt": "2026-10-23"
+  "fetchedAt": "2026-10-23",
+  "aliases": [
+   "四姑娘山景区",
+   "四姑娘山风景名胜区"
+  ],
+  "regions": [
+   "阿坝藏族羌族自治州",
+   "阿坝州",
+   "小金县"
+  ],
+  "scenicFor": [
+   "小金县"
+  ]
  },
  "长白山天池": {
   "file": "changbai-mountain.jpg",
   "artist": "r-q",
   "pageUrl": "https://pixabay.com/photos/rainbow-lake-changbai-mountain-7390568/",
-  "fetchedAt": "2026-10-23"
+  "fetchedAt": "2026-10-23",
+  "aliases": [],
+  "regions": [
+   "延边朝鲜族自治州",
+   "延边州",
+   "白山市",
+   "白山",
+   "安图县",
+   "抚松县",
+   "长白朝鲜族自治县"
+  ],
+  "scenicFor": [
+   "延边朝鲜族自治州",
+   "延边州",
+   "白山市",
+   "白山"
+  ]
  },
  "玉龙雪山": {
   "file": "jade-dragon-snow-mountain.jpg",
   "artist": "we-o_rd35vacfthjzxteky",
   "pageUrl": "https://pixabay.com/photos/mountain-peak-landscape-8070188/",
-  "fetchedAt": "2026-10-23"
+  "fetchedAt": "2026-10-23",
+  "aliases": [
+   "玉龙雪山景区",
+   "玉龙雪山风景名胜区",
+   "玉龙雪山国家级风景名胜区"
+  ],
+  "regions": [
+   "丽江市",
+   "丽江",
+   "玉龙纳西族自治县"
+  ],
+  "scenicFor": [
+   "玉龙纳西族自治县"
+  ]
  },
  "苍山": {
   "file": "cangshan-dali.jpg",
   "artist": "pony96",
   "pageUrl": "https://pixabay.com/photos/dali-cangshan-erhai-lake-1804795/",
-  "fetchedAt": "2026-10-23"
+  "fetchedAt": "2026-10-23",
+  "aliases": [
+   "点苍山",
+   "大理苍山",
+   "苍山世界地质公园"
+  ],
+  "regions": [
+   "大理白族自治州",
+   "大理州",
+   "大理市"
+  ],
+  "scenicFor": []
  },
  "九寨沟": {
   "file": "jiuzhaigou.jpg",
   "artist": "xcazmm",
   "pageUrl": "https://pixabay.com/photos/mountain-nature-travel-exploration-6782959/",
-  "fetchedAt": "2026-10-23"
+  "fetchedAt": "2026-10-23",
+  "aliases": [
+   "九寨沟景区",
+   "九寨沟风景名胜区"
+  ],
+  "regions": [
+   "阿坝藏族羌族自治州",
+   "阿坝州",
+   "九寨沟县"
+  ],
+  "scenicFor": [
+   "阿坝藏族羌族自治州",
+   "阿坝州",
+   "九寨沟县"
+  ]
  },
  "黄山": {
   "file": "huangshan.jpg",
   "artist": "sfkjrgk",
   "pageUrl": "https://pixabay.com/photos/mountain-sunrise-nature-outdoors-8251186/",
-  "fetchedAt": "2026-10-23"
+  "fetchedAt": "2026-10-23",
+  "aliases": [
+   "黄山风景区",
+   "黄山风景名胜区"
+  ],
+  "regions": [
+   "黄山市",
+   "黄山区"
+  ],
+  "scenicFor": [
+   "黄山市"
+  ]
  },
  "泰山": {
   "file": "mount-tai.jpg",
   "artist": "JWKang",
   "pageUrl": "https://pixabay.com/photos/sunrise-mountains-fog-foggy-mist-5676316/",
-  "fetchedAt": "2026-10-23"
+  "fetchedAt": "2026-10-23",
+  "aliases": [
+   "泰山景区",
+   "泰山风景名胜区"
+  ],
+  "regions": [
+   "泰安市",
+   "泰安"
+  ],
+  "scenicFor": [
+   "泰安市",
+   "泰安"
+  ]
  },
  "西湖": {
   "file": "west-lake-hangzhou.jpg",
   "artist": "啊花在跑步",
   "pageUrl": "https://pixabay.com/photos/hangzhou-west-lake-scenery-4912365/",
-  "fetchedAt": "2026-10-23"
+  "fetchedAt": "2026-10-23",
+  "aliases": [
+   "杭州西湖",
+   "西湖风景名胜区",
+   "杭州西湖风景名胜区",
+   "西湖（杭州）"
+  ],
+  "regions": [
+   "杭州市",
+   "杭州"
+  ],
+  "scenicFor": [
+   "杭州市",
+   "杭州"
+  ]
  },
  "丽江古城": {
   "file": "lijiang-old-town.jpg",
   "artist": "Charlottees",
   "pageUrl": "https://pixabay.com/photos/yunnan-china-traveling-relax-town-4648681/",
-  "fetchedAt": "2026-10-23"
+  "fetchedAt": "2026-10-23",
+  "aliases": [
+   "丽江古城景区"
+  ],
+  "regions": [
+   "丽江市",
+   "丽江"
+  ],
+  "scenicFor": [
+   "丽江市",
+   "丽江"
+  ]
  },
  "阳朔": {
   "file": "yangshuo.jpg",
   "artist": "mercierzeng",
   "pageUrl": "https://pixabay.com/photos/cormorant-fishermen-boats-lake-7175037/",
-  "fetchedAt": "2026-10-23"
+  "fetchedAt": "2026-10-23",
+  "aliases": [
+   "阳朔县"
+  ],
+  "regions": [
+   "桂林市",
+   "桂林",
+   "阳朔县"
+  ],
+  "scenicFor": [
+   "桂林市",
+   "桂林",
+   "阳朔县"
+  ]
  },
  "故宫": {
   "file": "forbidden-city.jpg",
   "artist": "Jack_Jiao",
   "pageUrl": "https://pixabay.com/photos/forbidden-city-beijing-building-4428906/",
-  "fetchedAt": "2026-10-23"
+  "fetchedAt": "2026-10-23",
+  "aliases": [
+   "北京故宫",
+   "故宫博物院",
+   "北京故宫博物院"
+  ],
+  "regions": [
+   "北京市",
+   "北京"
+  ],
+  "scenicFor": [
+   "北京市",
+   "北京"
+  ]
  },
  "长城": {
   "file": "great-wall-china.jpg",
   "artist": "viarami",
   "pageUrl": "https://pixabay.com/photos/great-wall-of-china-beijing-china-5483516/",
-  "fetchedAt": "2026-10-23"
+  "fetchedAt": "2026-10-23",
+  "aliases": [
+   "中国长城"
+  ],
+  "regions": [
+   "北京市",
+   "北京"
+  ],
+  "scenicFor": []
  },
  "洱海": {
   "file": "erhai-lake.jpg",
   "artist": "4537668",
   "pageUrl": "https://pixabay.com/photos/dali-erhai-lake-yunnan-landscape-2064559/",
-  "fetchedAt": "2026-10-23"
- },
- "青海湖": {
-  "file": "qinghai-lake.jpg",
-  "artist": "newtjitsu",
-  "pageUrl": "https://pixabay.com/photos/chaka-salt-lake-railway-salt-lake-6469429/",
-  "fetchedAt": "2026-10-23"
+  "fetchedAt": "2026-10-23",
+  "aliases": [],
+  "regions": [
+   "大理白族自治州",
+   "大理州",
+   "大理市"
+  ],
+  "scenicFor": [
+   "大理白族自治州",
+   "大理州",
+   "大理市"
+  ]
  },
  "纳木错": {
   "file": "namtso-lake.jpg",
   "artist": "nrxfly",
   "pageUrl": "https://pixabay.com/photos/tibet-tibetan-namtso-lake-yak-895491/",
-  "fetchedAt": "2026-10-23"
+  "fetchedAt": "2026-10-23",
+  "aliases": [
+   "纳木措",
+   "纳木错湖"
+  ],
+  "regions": [
+   "拉萨市",
+   "拉萨",
+   "那曲市",
+   "那曲",
+   "当雄县",
+   "班戈县"
+  ],
+  "scenicFor": [
+   "那曲市",
+   "那曲",
+   "当雄县",
+   "班戈县"
+  ]
  },
  "珠穆朗玛峰": {
   "file": "mount-everest.jpg",
   "artist": "Eknbg",
   "pageUrl": "https://pixabay.com/photos/tibet-china-mountains-landscape-4025999/",
-  "fetchedAt": "2026-10-23"
+  "fetchedAt": "2026-10-23",
+  "aliases": [
+   "珠峰"
+  ],
+  "regions": [
+   "日喀则市",
+   "日喀则",
+   "定日县"
+  ],
+  "scenicFor": [
+   "日喀则市",
+   "日喀则",
+   "定日县"
+  ]
  },
  "泸沽湖": {
   "file": "lugu-lake.jpg",
   "artist": "Charlottees",
   "pageUrl": "https://pixabay.com/photos/lugu-lake-china-yunnan-mountain-4648775/",
-  "fetchedAt": "2026-10-23"
+  "fetchedAt": "2026-10-23",
+  "aliases": [
+   "泸沽湖风景区"
+  ],
+  "regions": [
+   "丽江市",
+   "丽江",
+   "凉山彝族自治州",
+   "凉山州",
+   "宁蒗彝族自治县",
+   "盐源县"
+  ],
+  "scenicFor": [
+   "凉山彝族自治州",
+   "凉山州",
+   "宁蒗彝族自治县",
+   "盐源县"
+  ]
  },
  "喀纳斯": {
   "file": "kanas-lake.jpg",
   "artist": "xiaofengzi-traveler",
   "pageUrl": "https://pixabay.com/photos/kanas-little-black-lake-xinjiang-2356424/",
-  "fetchedAt": "2026-10-23"
- },
- "天山天池": {
-  "file": "tianchi-lake.jpg",
-  "artist": "r-q",
-  "pageUrl": "https://pixabay.com/photos/rainbow-lake-changbai-mountain-7390568/",
-  "fetchedAt": "2026-10-23"
+  "fetchedAt": "2026-10-23",
+  "aliases": [
+   "喀纳斯景区"
+  ],
+  "regions": [
+   "阿勒泰地区",
+   "阿勒泰",
+   "布尔津县"
+  ],
+  "scenicFor": [
+   "阿勒泰地区",
+   "阿勒泰",
+   "布尔津县"
+  ]
  },
  "敦煌莫高窟": {
   "file": "mogao-caves.jpg",
   "artist": "nhluoj",
   "pageUrl": "https://pixabay.com/photos/china-gansu-dunhuang-2550684/",
-  "fetchedAt": "2026-10-23"
+  "fetchedAt": "2026-10-23",
+  "aliases": [
+   "莫高窟"
+  ],
+  "regions": [
+   "酒泉市",
+   "酒泉",
+   "敦煌市",
+   "敦煌"
+  ],
+  "scenicFor": [
+   "酒泉市",
+   "酒泉",
+   "敦煌市",
+   "敦煌"
+  ]
  },
  "呼伦贝尔": {
   "file": "hulunbuir.jpg",
   "artist": "Mikasacolin",
   "pageUrl": "https://pixabay.com/photos/golden-autumn-in-october-national-day-3731934/",
-  "fetchedAt": "2026-10-23"
+  "fetchedAt": "2026-10-23",
+  "aliases": [
+   "呼伦贝尔市"
+  ],
+  "regions": [
+   "呼伦贝尔市",
+   "呼伦贝尔"
+  ],
+  "scenicFor": [
+   "呼伦贝尔市",
+   "呼伦贝尔"
+  ]
  },
  "婺源": {
   "file": "wuyuan.jpg",
   "artist": "TheKov",
   "pageUrl": "https://pixabay.com/photos/building-huizhou-architecture-6603320/",
-  "fetchedAt": "2026-10-23"
+  "fetchedAt": "2026-10-23",
+  "aliases": [
+   "婺源县"
+  ],
+  "regions": [
+   "上饶市",
+   "上饶",
+   "婺源县"
+  ],
+  "scenicFor": [
+   "上饶市",
+   "上饶",
+   "婺源县"
+  ]
  },
  "稻城": {
   "file": "daocheng.jpg",
   "artist": "Alyn",
   "pageUrl": "https://pixabay.com/photos/tibet-daocheng-1145941/",
-  "fetchedAt": "2026-10-23"
+  "fetchedAt": "2026-10-23",
+  "aliases": [
+   "稻城县"
+  ],
+  "regions": [
+   "甘孜藏族自治州",
+   "甘孜州",
+   "稻城县"
+  ],
+  "scenicFor": [
+   "稻城县"
+  ]
  },
  "香格里拉": {
   "file": "shangri-la-yunnan.jpg",
   "artist": "vic1108",
   "pageUrl": "https://pixabay.com/photos/snow-mountain-lijiang-7114997/",
-  "fetchedAt": "2026-10-23"
+  "fetchedAt": "2026-10-23",
+  "aliases": [
+   "香格里拉市"
+  ],
+  "regions": [],
+  "scenicFor": []
  },
  "南迦巴瓦峰": {
   "file": "namjagbarwa.jpg",
   "artist": "snorlaxsha",
   "pageUrl": "https://pixabay.com/photos/mountain-snow-namjagbarwa-peak-8292807/",
-  "fetchedAt": "2026-10-23"
+  "fetchedAt": "2026-10-23",
+  "aliases": [
+   "南迦巴瓦",
+   "南迦巴瓦山"
+  ],
+  "regions": [
+   "林芝市",
+   "林芝"
+  ],
+  "scenicFor": [
+   "林芝市",
+   "林芝"
+  ]
  }
 }
