@@ -166,14 +166,40 @@ function isWholePlace(words: string, place: LocationCandidate): boolean {
  * The districts the national page filed its results under, in page order. A keyword page
  * for 稻城亚丁 is all 稻城县, which is exactly the area whose clean list is worth asking for.
  */
-function areaNamesOf(candidates: readonly LocationCandidate[]): string[] {
-  const names: string[] = [];
-  for (const place of candidates) {
-    const area = place.district ?? place.city;
-    if (area !== null && !names.includes(area)) names.push(area);
-    if (names.length === maxAreas) break;
+/**
+ * The areas whose clean list is worth asking for: the trip's own areas when it has any,
+ * otherwise the districts the national page filed its results under. A keyword page for
+ * 稻城亚丁 is all 稻城县, while 苍山's page is all 广西 — only the trip itself can say 大理.
+ * Mixing both would put the page's district back in front (宾阳县 also has a 苍山), so the
+ * trip's areas replace them rather than joining them; if nothing there matches, the page
+ * still stands untouched. A province is dropped from the prior, because its 600-row page
+ * rarely holds the place and the 市 or 区县 is what actually narrows the search.
+ */
+function areaNamesOf(candidates: readonly LocationCandidate[], prior: readonly string[] = []): string[] {
+  const fromTrip = prior
+    .map((area) => area.trim())
+    .filter((name) => name !== "" && !/(?:省|自治区|特别行政区)$/u.test(name));
+  const names: string[] = [...new Set(fromTrip)];
+  if (names.length === 0) {
+    for (const place of candidates) {
+      const area = place.district ?? place.city;
+      if (area !== null && !names.includes(area)) names.push(area);
+    }
   }
-  return names;
+  return names.slice(0, maxAreas);
+}
+
+/**
+ * Whether a place sits in one of the areas the trip already is. The same place carries
+ * different suffixes across levels (大理市 / 大理白族自治州 / 云南省), and its own two
+ * characters come first in every case Meri meets — two is enough to keep 河北 and 河南,
+ * or 湖南 and 湖北, apart.
+ */
+function insideAnyArea(place: LocationCandidate, areas: readonly string[]): boolean {
+  if (areas.length === 0) return true;
+  const own = [place.province, place.city, place.district].filter((level): level is string => level !== null)
+    .map((level) => normalize(level).slice(0, 2));
+  return areas.some((area) => own.includes(normalize(area).slice(0, 2)));
 }
 
 /** Closest names first: the words themselves, then a scenic suffix, then the shortest prefix. */
@@ -216,7 +242,7 @@ function withoutRepeats(candidates: readonly LocationCandidate[]): LocationCandi
 export class TiandituLocationProvider implements LocationProvider {
   constructor(private readonly client: TiandituClient = createTiandituClient()) {}
 
-  async searchByKeyword(query: string): Promise<LocationSearchResult> {
+  async searchByKeyword(query: string, areas: readonly string[] = []): Promise<LocationSearchResult> {
     const words = normalize(query);
     if (words === "") return { status: "failure", reason: "invalid_query" };
     const search = await this.client.get("/v2/search", {
@@ -239,8 +265,11 @@ export class TiandituLocationProvider implements LocationProvider {
     // list: a district's scenic areas come back without the airport, the hotels or the
     // management office that outrank them by name.
     const provinceAnswer = area !== null && String(area.adminCode ?? "").endsWith("0000");
-    const answered = isWholePlace(words, found[0]) || provinceAnswer;
-    const clean = answered ? [] : await this.inAreas(areaNamesOf(found), words);
+    // A whole place answers only when it is also somewhere this trip could be: with 大理
+    // saved, 苍山's page leads with the 广西 village, which is not the answer the user wants
+    // and is exactly what the trip's own area can correct.
+    const answered = provinceAnswer || (isWholePlace(words, found[0]) && insideAnyArea(found[0], areas));
+    const clean = answered ? [] : await this.inAreas(areaNamesOf(found, areas), words);
     // An administrative answer stays first: the user may mean the 市 itself, and Meri's
     // rules offer both rather than deciding. A page of POIs puts the clean list first.
     const ordered = area !== null ? [...direct, ...clean] : [...clean, ...direct];

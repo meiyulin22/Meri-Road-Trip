@@ -43,6 +43,38 @@ export function suggestionFromTianditu(value: unknown): LocationSuggestion | nul
   };
 }
 
+/**
+ * What a suggestion is worth typing for. Tianditu's suggestion payload carries only
+ * name, address, gbCode and lonlat (2026-10-23) — no category and no popularity — so a
+ * government office can only be recognised by its name, and a place outside China only by
+ * an empty gbCode (the input 大 returns 大马士革). Real places whose name ends in an
+ * administrative suffix come first: a village that shares a city's name is never what
+ * someone typing that city means, and this is exactly the order the official site lacks.
+ */
+const governmentOffice = /(?:政府|人大|政协|法院|检察院|纪检委|党工委|党委|委|局|厅|办|部|所)$/u;
+const administrativeArea = /(?:省|市|自治州|地区|盟|县|自治县|自治旗|区|旗)$/u;
+/** 超市, 夜市 and 门市 end in 市 without being a city. */
+const shopEnding = /(?:超市|夜市|门市|菜市|集市|花市)$/u;
+
+function isAdministrativeArea(name: string): boolean {
+  return administrativeArea.test(name) && !shopEnding.test(name);
+}
+
+function preferredSuggestions(suggestions: readonly LocationSuggestion[], query: string): LocationSuggestion[] {
+  const usable = suggestions.filter((suggestion) => suggestion.adcode !== null && !governmentOffice.test(suggestion.name));
+  // A word whose every suggestion is an office (丽江 returns its 市委 and its 水务局) must
+  // still answer something: an empty list would read as "this place does not exist".
+  if (usable.length === 0) return [...suggestions];
+  const wanted = query.trim().length;
+  // An administrative name is a place somebody can travel to and a village or a shop that
+  // borrows the same words is not, so it comes first; then the shorter name, because 丽江古城
+  // is the place while 丽江古城行政服务中心 merely contains it. Equal scores keep
+  // Tianditu's own order.
+  const score = (suggestion: LocationSuggestion) =>
+    (isAdministrativeArea(suggestion.name) ? 0 : 100) + Math.min(Math.abs(suggestion.name.length - wanted), 99);
+  return [...usable].sort((left, right) => score(left) - score(right));
+}
+
 /** The editor's search-as-you-type, from Tianditu's suggestion search (queryType 4). */
 export class TiandituInputTipsProvider implements LocationSuggestionProvider {
   constructor(private readonly client: TiandituClient = createTiandituClient(fetch, { timeoutMs: 6_000 })) {}
@@ -64,6 +96,6 @@ export class TiandituInputTipsProvider implements LocationSuggestionProvider {
     const suggestions = answer.body.suggests.map(suggestionFromTianditu)
       .filter((suggestion): suggestion is LocationSuggestion => suggestion !== null);
     if (suggestions.length === 0 && answer.body.suggests.length > 0) return { status: "failure", reason: "malformed_response" };
-    return { status: "success", suggestions };
+    return { status: "success", suggestions: preferredSuggestions(suggestions, query) };
   }
 }

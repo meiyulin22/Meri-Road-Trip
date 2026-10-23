@@ -14,12 +14,15 @@ const geopark = {
   province: "云南省", city: "大理白族自治州", county: "大理市", typeCode: "180301", typeName: "公园", distance: "3.2km",
 };
 
-function client(answers: (path: string, postStr: Record<string, unknown>) => TiandituAnswer): TiandituClient & { calls: string[] } {
+function client(answers: (path: string, postStr: Record<string, unknown>) => TiandituAnswer): TiandituClient & { calls: string[]; posts: Record<string, unknown>[] } {
   const calls: string[] = [];
+  const posts: Record<string, unknown>[] = [];
   return {
     calls,
+    posts,
     async get(path, params) {
       const postStr = JSON.parse(params.postStr) as Record<string, unknown>;
+      posts.push(postStr);
       calls.push(`${path}:${String(postStr.queryType ?? "geocode")}`);
       return answers(path, postStr);
     },
@@ -97,6 +100,30 @@ test("a page of airport, hotels and the scenic area's office is replaced by the 
   assert.equal(result.status === "success" && result.candidates[0].name, "甘孜州稻城亚丁景区");
   // The national page, then 风景名胜 and 山 inside 稻城县.
   assert.deepEqual(tianditu.calls, ["/v2/search:1", "/v2/search:13", "/v2/search:13"]);
+});
+
+test("the trip's own area decides where the clean list is asked for", async () => {
+  const diancang = { ...xishan, name: "点苍山", hotPointID: "DIANCANG", typeCode: "260203",
+    province: "云南省", city: "大理白族自治州", county: "大理市" };
+  const shop = { ...xishan, name: "苍山饭店", hotPointID: "SHOP", typeCode: "110101" };
+  // The national page leads with 广西's village, a whole place by name — but the trip is not
+  // there, so the trip's own 市 is asked instead and 点苍山 comes back first.
+  const tianditu = client((path, post) => post.queryType === "13"
+    ? ok({ resultType: 1, pois: [diancang] })
+    : ok({ resultType: 1, pois: [xishan, shop] }));
+  const result = await new TiandituLocationProvider(tianditu).searchByKeyword("苍山", ["云南省", "大理白族自治州"]);
+  assert.equal(result.status === "success" && result.candidates[0].name, "点苍山");
+  const specifies = tianditu.posts.filter((post) => post.queryType === "13").map((post) => post.specify);
+  // The province is dropped — its own page never holds the place — and the trip's areas
+  // replace the page's districts, which would otherwise put 宾阳县's 苍山 back in front.
+  assert.deepEqual(specifies, ["大理白族自治州", "大理白族自治州"]);
+});
+
+test("a whole place inside the trip's area answers without another search", async () => {
+  const tianditu = client(() => ok({ resultType: 1, pois: [geopark] }));
+  const result = await new TiandituLocationProvider(tianditu).searchByKeyword("苍山", ["云南省", "大理白族自治州"]);
+  assert.equal(result.status === "success" && result.candidates[0].name, "苍山世界地质公园");
+  assert.deepEqual(tianditu.calls, ["/v2/search:1"]);
 });
 
 test("a 市 answer keeps the city first and offers the scenic area filed inside it", async () => {
