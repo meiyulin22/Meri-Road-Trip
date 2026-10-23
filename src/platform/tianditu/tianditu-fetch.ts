@@ -8,11 +8,25 @@ const apiBase = "https://api.tianditu.gov.cn";
  * generic one the Amap adapters use, with a queue of its own.
  */
 const minStartIntervalMs = 300;
+/**
+ * A rate limit answers HTTP 429 and lifts within seconds (measured 2026-10-23: six
+ * requests in a row, the last two 429, the same request 200 eight seconds later). The
+ * queue cools down, then the refused call goes first, up to `maxRetries` times.
+ */
+const cooldownMs = 1_000;
+const maxRetries = 3;
 
 /** One queue per server process, shared by every Tianditu adapter. */
 const sharedGate = createPacer(minStartIntervalMs);
 
-export type TiandituFailure = "missing_configuration" | "http_error" | "refused" | "malformed_response" | "timeout" | "network_error";
+export type TiandituFailure =
+  | "missing_configuration"
+  | "http_error"
+  | "refused"
+  | "rate_limited"
+  | "malformed_response"
+  | "timeout"
+  | "network_error";
 
 export type TiandituAnswer =
   | { readonly ok: true; readonly body: Record<string, unknown> }
@@ -51,26 +65,40 @@ export function createTiandituClient(
       const key = process.env.TIANDITU_API_KEY?.trim();
       if (!key) return { ok: false, reason: "missing_configuration" };
       const url = `${apiBase}${path}?${new URLSearchParams({ ...params, tk: key })}`;
-      try {
-        // The timeout starts when the request leaves the queue, as with Amap.
-        const response = await gate.run(() => fetcher(url, {
-          // Tianditu's firewall refuses requests without a browser-like User-Agent.
-          headers: { "User-Agent": "Mozilla/5.0 (compatible; Meri)" },
-          cache: "no-store",
-          signal: AbortSignal.timeout(timeoutMs),
-        }));
-        const text = await response.text();
-        if (isRefusal(response.status, text)) {
-          logger.warn({ event: logEvents.tiandituRefused, path, statusCode: response.status }, "Tianditu refused a request");
-          return { ok: false, reason: "refused" };
+      for (let attempt = 0; ; attempt += 1) {
+        try {
+          // The timeout starts when the request leaves the queue, as with Amap.
+          const response = await gate.run(() => fetcher(url, {
+            // Tianditu's firewall refuses requests without a browser-like User-Agent.
+            headers: { "User-Agent": "Mozilla/5.0 (compatible; Meri)" },
+            cache: "no-store",
+            signal: AbortSignal.timeout(timeoutMs),
+          }), { first: attempt > 0 });
+          const text = await response.text();
+          // 429 is a rate limit that lifts by itself: measured 2026-10-23, six requests in a
+          // row lost the last two and the same request answered 200 eight seconds later. The
+          // queue cools down and the refused call goes first when it does — unlike 418, which
+          // is the firewall's block and only gets worse with retries.
+          if (response.status === 429) {
+            const retrying = attempt < maxRetries;
+            logger.warn({ event: logEvents.tiandituRateLimited, path, attempt: attempt + 1, retrying },
+              "Tianditu refused a request for exceeding its rate limit");
+            if (!retrying) return { ok: false, reason: "rate_limited" };
+            gate.pause(cooldownMs);
+            continue;
+          }
+          if (isRefusal(response.status, text)) {
+            logger.warn({ event: logEvents.tiandituRefused, path, statusCode: response.status }, "Tianditu refused a request");
+            return { ok: false, reason: "refused" };
+          }
+          if (!response.ok) return { ok: false, reason: "http_error" };
+          const body: unknown = JSON.parse(text);
+          return isRecord(body) ? { ok: true, body } : { ok: false, reason: "malformed_response" };
+        } catch (error) {
+          // Fetch errors can include the request URL, which carries the key; keep only a reason.
+          if (error instanceof SyntaxError) return { ok: false, reason: "malformed_response" };
+          return { ok: false, reason: isTimeout(error) ? "timeout" : "network_error" };
         }
-        if (!response.ok) return { ok: false, reason: "http_error" };
-        const body: unknown = JSON.parse(text);
-        return isRecord(body) ? { ok: true, body } : { ok: false, reason: "malformed_response" };
-      } catch (error) {
-        // Fetch errors can include the request URL, which carries the key; keep only a reason.
-        if (error instanceof SyntaxError) return { ok: false, reason: "malformed_response" };
-        return { ok: false, reason: isTimeout(error) ? "timeout" : "network_error" };
       }
     },
   };

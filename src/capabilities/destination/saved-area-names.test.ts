@@ -3,7 +3,7 @@ import test from "node:test";
 
 import type { TripState } from "@/domain/trip-state/trip-state";
 
-import { savedAreaNames } from "./saved-area-names";
+import { savedAreaNames, savedCityNames } from "./saved-area-names";
 
 const base: TripState = {
   name: { state: "missing" },
@@ -22,9 +22,14 @@ test("a trip with no destination has no areas to narrow by", () => {
 });
 
 test("the provinces and 市 a trip already holds, without spots and without repeats", () => {
-  assert.deepEqual(savedAreaNames({ ...base, destination: { state: "known", source: "user", areas: [
+  const state: TripState = { ...base, destination: { state: "known", source: "user", areas: [
     { province: "云南省", places: [{ name: "大理白族自治州", spots: ["苍山", "洱海"] }] },
     { province: "云南省", places: [{ name: "丽江市", spots: [] }] },
     { province: "四川省", places: [] },
-  ] } }), ["云南省", "大理白族自治州", "丽江市", "四川省"]);
+  ] } };
+  assert.deepEqual(savedAreaNames(state), ["云南省", "大理白族自治州", "丽江市", "四川省"]);
+  // Only the 市 narrows a search; a province-only trip is what the model hint is for.
+  assert.deepEqual(savedCityNames(state), ["大理白族自治州", "丽江市"]);
+  assert.deepEqual(savedCityNames({ ...base, destination: { state: "known", source: "user",
+    areas: [{ province: "云南省", places: [] }] } }), []);
 });

@@ -15,6 +15,7 @@ import { createLocationProvider, createPlacePhotoProvider } from "@/platform/map
 import { createJourneyWithOpening } from "@/capabilities/journey/create-journey-with-opening";
 import { journeyService } from "@/capabilities/journey/journey-service-instance";
 import { LocationService } from "@/capabilities/destination/location-service";
+import { hintedAreas } from "@/capabilities/destination/region-hint";
 import { logger, logEvents } from "@/platform/observability/logger";
 import { serializeError } from "@/platform/observability/serialize-error";
 import { openingConversationService } from "@/capabilities/conversation/opening-conversation-service-instance";
@@ -65,8 +66,11 @@ export async function POST(request: Request) {
     }, {
       createJourney: (draft, ownerGuestId, message, openingAssistant, initialDestination) =>
         journeyService.createJourney(draft, ownerGuestId, message, openingAssistant, initialDestination),
-      resolveDestination: (expression) =>
-        new LocationService(createLocationProvider()).resolveExpression(expression),
+      // A brand-new Journey has no saved area, so a name the user wrote in the first message
+      // is placed by asking the model where it usually is — 苍山 said on the front page is the
+      // mountain in 大理, not the 广西 village of the same name.
+      resolveDestination: async (expression) => new LocationService(createLocationProvider(),
+        await hintedAreas(expression)).resolveExpression(expression),
       photos: createPlacePhotoProvider(),
       initializeOpening: (input) => openingConversationService.initialize(input),
     });

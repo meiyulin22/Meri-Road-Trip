@@ -14,3 +14,13 @@ export function savedAreaNames(state: TripState): readonly string[] {
   }
   return [...new Set(names)];
 }
+
+/**
+ * The 市 and prefectures only. A Journey that holds nothing but a province is the common
+ * early state ("我想去云南"), and a province is too wide to narrow a same-named place — the
+ * model hint is what turns that state into a usable prior.
+ */
+export function savedCityNames(state: TripState): readonly string[] {
+  if (state.destination.state !== "known") return [];
+  return [...new Set(state.destination.areas.flatMap((area) => area.places.map((place) => place.name)))];
+}
