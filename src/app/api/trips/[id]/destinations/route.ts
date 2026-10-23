@@ -9,6 +9,7 @@ import { LocationService } from "@/capabilities/destination/location-service";
 import { savedAreaNames } from "@/capabilities/destination/saved-area-names";
 import { picksFromSearch } from "@/capabilities/destination/resolve-destination-place";
 import { TripStateConflictError } from "@/capabilities/journey/journey-errors";
+import { TripNotFoundError } from "@/domain/trip/trip-errors";
 import { logger } from "@/platform/observability/logger";
 
 type Context = { params: Promise<{ id: string }> };
@@ -21,20 +22,38 @@ function serviceFor(tripState: Awaited<ReturnType<typeof journeyService.loadJour
   return new LocationService(createLocationProvider(), savedAreaNames(tripState));
 }
 
-async function ownerAndTrip(context: Context) {
+/**
+ * The trip, or why it could not be read. A Journey that is not there and a database that
+ * did not answer are different answers: saying "not found" for a timeout told the traveller
+ * their journey had vanished, and asked them to search again into the same failure.
+ */
+async function ownerAndTrip(context: Context): Promise<
+  | { readonly trip: { id: string; owner: string; journey: Awaited<ReturnType<typeof journeyService.loadJourney>> } }
+  | { readonly error: "not_found" | "unavailable" }
+> {
   const owner = readGuestId(await cookies());
   const { id } = await context.params;
-  if (!owner) return null;
-  try { return { id, owner, journey: await journeyService.loadJourney(id, owner) }; }
-  catch { return null; }
+  if (!owner) return { error: "not_found" };
+  try {
+    return { trip: { id, owner, journey: await journeyService.loadJourney(id, owner) } };
+  } catch (error) {
+    return { error: error instanceof TripNotFoundError ? "not_found" : "unavailable" };
+  }
+}
+
+/** 404 for a Journey that is not there, 503 for a database that did not answer. */
+function accessFailure(access: { readonly error: "not_found" | "unavailable" }): Response {
+  return access.error === "not_found"
+    ? Response.json({ error: "Journey not found." }, { status: 404 })
+    : Response.json({ error: "Journey unavailable. Please retry." }, { status: 503 });
 }
 
 export async function GET(request: Request, context: Context): Promise<Response> {
   const access = await ownerAndTrip(context);
-  if (!access) return Response.json({ error: "Journey not found." }, { status: 404 });
+  if ("error" in access) return accessFailure(access);
   const query = new URL(request.url).searchParams.get("q")?.trim() ?? "";
   if (query.length < 2 || query.length > 80) return Response.json({ error: "Invalid query." }, { status: 400 });
-  const result = await serviceFor(access.journey.tripState).search(query);
+  const result = await serviceFor(access.trip.journey.tripState).search(query);
   if (result.status !== "success") return Response.json({ error: "Search unavailable." }, { status: 503 });
   const choices = picksFromSearch(result.candidates).slice(0, 12).map((pick) => ({
     id: pick.id, name: pick.spot ?? pick.place ?? pick.province, province: pick.province,
@@ -45,7 +64,7 @@ export async function GET(request: Request, context: Context): Promise<Response>
 
 async function addDestination(request: Request, context: Context): Promise<Response> {
   const access = await ownerAndTrip(context);
-  if (!access) return Response.json({ error: "Journey not found." }, { status: 404 });
+  if ("error" in access) return accessFailure(access);
   let body: unknown;
   try { body = await request.json(); } catch { return Response.json({ error: "Invalid choice." }, { status: 400 }); }
   if (typeof body !== "object" || body === null || Array.isArray(body) || Object.keys(body).length !== 2 ||
@@ -54,14 +73,14 @@ async function addDestination(request: Request, context: Context): Promise<Respo
     typeof body.id !== "string" || body.id.trim() === "") {
     return Response.json({ error: "Invalid choice." }, { status: 400 });
   }
-  const result = await serviceFor(access.journey.tripState).search(body.query);
+  const result = await serviceFor(access.trip.journey.tripState).search(body.query);
   if (result.status !== "success") return Response.json({ error: "Search unavailable." }, { status: 503 });
   const verified = picksFromSearch(result.candidates).find((pick) => pick.id === body.id);
   if (!verified) return Response.json({ error: "Choice expired. Search again." }, { status: 409 });
   const pick: DestinationPick = { province: verified.province, place: verified.place, spot: verified.spot };
-  const current = (await journeyService.loadJourney(access.id, access.owner)).tripState;
+  const current = (await journeyService.loadJourney(access.trip.id, access.trip.owner)).tripState;
   const areas = addToDestination(current.destination.state === "known" ? current.destination.areas : [], pick);
-  const tripState = await journeyService.updateTripState(access.id, access.owner,
+  const tripState = await journeyService.updateTripState(access.trip.id, access.trip.owner,
     { destination: { state: "known", source: "user", areas,
       ...(current.destination.state === "known" && current.destination.legacyText
         ? { legacyText: current.destination.legacyText } : {}) } }, current.destination);
@@ -70,17 +89,17 @@ async function addDestination(request: Request, context: Context): Promise<Respo
 
 async function deleteDestination(request: Request, context: Context): Promise<Response> {
   const access = await ownerAndTrip(context);
-  if (!access) return Response.json({ error: "Journey not found." }, { status: 404 });
+  if ("error" in access) return accessFailure(access);
   let body: unknown;
   try { body = await request.json(); } catch { return Response.json({ error: "Invalid removal." }, { status: 400 }); }
   if (typeof body === "object" && body !== null && Object.keys(body).length === 1 &&
     "legacy" in body && body.legacy === true) {
-    const current = (await journeyService.loadJourney(access.id, access.owner)).tripState;
+    const current = (await journeyService.loadJourney(access.trip.id, access.trip.owner)).tripState;
     if (current.destination.state !== "known" || !current.destination.legacyText) {
       return Response.json({ error: "Old destination record no longer exists." }, { status: 409 });
     }
     const areas = current.destination.areas;
-    const tripState = await journeyService.updateTripState(access.id, access.owner, { destination: areas.length
+    const tripState = await journeyService.updateTripState(access.trip.id, access.trip.owner, { destination: areas.length
       ? { state: "known", source: "user", areas } : { state: "missing" } }, current.destination);
     return Response.json({ tripState });
   }
@@ -93,13 +112,13 @@ async function deleteDestination(request: Request, context: Context): Promise<Re
     return Response.json({ error: "Invalid removal." }, { status: 400 });
   }
   const removal = body as DestinationRemoval;
-  const current = (await journeyService.loadJourney(access.id, access.owner)).tripState;
+  const current = (await journeyService.loadJourney(access.trip.id, access.trip.owner)).tripState;
   if (current.destination.state !== "known" || !destinationContains(current.destination.areas, removal)) {
     return Response.json({ error: "Place no longer exists." }, { status: 409 });
   }
   const areas = removeFromDestination(current.destination.areas, removal);
   const legacyText = current.destination.legacyText;
-  const tripState = await journeyService.updateTripState(access.id, access.owner,
+  const tripState = await journeyService.updateTripState(access.trip.id, access.trip.owner,
     { destination: areas.length || legacyText
       ? { state: "known", source: "user", areas, ...(legacyText ? { legacyText } : {}) }
       : { state: "missing" } }, current.destination);

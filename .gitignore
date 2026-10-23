@@ -40,3 +40,6 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# the Tianditu classification cache (scripts/cache-stats.ts shows what it holds)
+/.cache/

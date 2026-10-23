@@ -225,6 +225,7 @@
 .destinationEditorSearch input { width: 100%; min-width: 0; border: 0; outline: none; background: transparent; color: var(--ink); font: inherit; font-size: 13px; }
 .destinationEditorSearch ul { margin: 6px 0 0; padding: 0; list-style: none; }
 .destinationSearchCount { margin: 8px 0 0; font-size: 11.5px; color: #7d8b81; }
+.destinationSearchCredit { margin: 8px 0 0; font-size: 10.5px; color: #9aa79d; letter-spacing: .01em; }
 .destinationSearchResults { display: grid; gap: 6px; max-height: 260px; overflow-y: auto; }
 .destinationSearchResult { display: flex; align-items: center; justify-content: space-between; gap: 10px;
   padding: 10px 12px; border: 1px solid #e3e9dc; border-radius: 10px; background: #fbfcf9;

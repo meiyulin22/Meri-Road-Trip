@@ -160,6 +160,8 @@ export function DestinationEditor({ tripId, tripState, onTripStateChange, initia
         </li>;
         })}</ul>
       </> : null}
+      {/* Tianditu asks to be credited wherever its place data appears. */}
+      <p className={styles.destinationSearchCredit}>{text.dataCredit}</p>
     </dd> : null}
   </div>;
 }

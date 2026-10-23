@@ -3,6 +3,7 @@ import { isFacilityName } from "@/domain/location/place-name";
 import type { LocationProvider, LocationSearchResult } from "@/platform/location-provider/location-provider";
 
 import { createTiandituClient, type TiandituAnswer, type TiandituClient } from "./tianditu-fetch";
+import { sharedClassificationMemory, type ClassificationMemory } from "./classification-memory";
 
 /** As many as the Amap adapter hands to Meri's rules, so both are judged on the same page. */
 const resultLimit = 5;
@@ -242,7 +243,10 @@ function withoutRepeats(candidates: readonly LocationCandidate[]): LocationCandi
  * same confirmation before a place is saved.
  */
 export class TiandituLocationProvider implements LocationProvider {
-  constructor(private readonly client: TiandituClient = createTiandituClient()) {}
+  constructor(
+    private readonly client: TiandituClient = createTiandituClient(),
+    private readonly memory: ClassificationMemory = sharedClassificationMemory,
+  ) {}
 
   async searchByKeyword(query: string, areas: readonly string[] = []): Promise<LocationSearchResult> {
     const words = normalize(query);
@@ -287,21 +291,37 @@ export class TiandituLocationProvider implements LocationProvider {
    * 甘孜州稻城亚丁景区; 黄山市 665 rows with 黄山风景区 inside the first page; 九寨沟县
    * 93 rows, first is 九寨沟风景名胜区. 山 covers what a scenic-area list leaves out —
    * 大理市 山 212 rows holds 点苍山.
+   *
+   * Each page is cached (see `ClassificationMemory`), and 山 is only asked for when the
+   * 风景名胜 page had nothing that names the user's words — 黄山 matches on page one, while
+   * 苍山 does not match at all and still needs the 山 page.
    */
   private async inAreas(names: readonly string[], words: string): Promise<LocationCandidate[]> {
     const found: LocationCandidate[] = [];
     for (const area of names) {
       for (const dataType of sightDataTypes) {
-        const answer = await this.client.get("/v2/search", {
-          type: "query",
-          postStr: JSON.stringify({ queryType: "13", specify: area, dataTypes: dataType, start: "0", count: "300", mapBound: chinaBound, show: "2" }),
-        });
-        // One refused or empty area is not "no such place": keep whatever the others gave.
-        if (!answer.ok || !Array.isArray(answer.body.pois)) continue;
-        found.push(...answer.body.pois.map(candidateFromPoi).filter((place): place is LocationCandidate => place !== null));
+        const places = await this.classificationPage(area, dataType);
+        found.push(...places);
+        if (namedFirst(words, places).length > 0) break;
       }
     }
     return namedFirst(words, found);
+  }
+
+  /** One cached classification page; only a real page is remembered. */
+  private async classificationPage(area: string, dataType: string): Promise<readonly LocationCandidate[]> {
+    const remembered = this.memory.get(area, dataType);
+    if (remembered !== null) return remembered;
+    const answer = await this.client.get("/v2/search", {
+      type: "query",
+      postStr: JSON.stringify({ queryType: "13", specify: area, dataTypes: dataType, start: "0", count: "300", mapBound: chinaBound, show: "2" }),
+    });
+    // A refusal or an empty answer is not remembered: it would freeze a miss for a week.
+    if (!answer.ok || !Array.isArray(answer.body.pois)) return [];
+    const places = answer.body.pois.map(candidateFromPoi)
+      .filter((place): place is LocationCandidate => place !== null);
+    if (places.length > 0) this.memory.set(area, dataType, places);
+    return places;
   }
 
   /** Tianditu's own answer: an administrative area, a page of POIs, or (for statistics) nothing. */

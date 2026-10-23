@@ -115,11 +115,22 @@ export function resolveDestinationCandidates(
   if (expression === "") return { status: "unresolved" };
 
   const seen = new Set<string>();
+  // One card per administrative place: a range is filed as several points a few kilometres
+  // apart (梅里雪山 has three inside 德钦县), and five identical names are no choice at all.
+  // A different county keeps its own card, because that is a choice the user can make.
+  const seenPlaces = new Set<string>();
   const reasonable = candidates.filter((candidate) => {
     if (!isReasonableMatch(expression, candidate)) return false;
     const identity = `${candidate.providerId}:${candidate.longitude},${candidate.latitude}`;
     if (seen.has(identity)) return false;
     seen.add(identity);
+    // Keyed by province too: two same-named places in different provinces are a real
+    // choice (the test data has a 香格里拉市 in both), while three points inside one county
+    // are one mountain.
+    const place = [candidate.name, candidate.province, candidate.district ?? candidate.city]
+      .map((part) => normalize(part ?? "")).join("|");
+    if (seenPlaces.has(place)) return false;
+    seenPlaces.add(place);
     return true;
   });
 
