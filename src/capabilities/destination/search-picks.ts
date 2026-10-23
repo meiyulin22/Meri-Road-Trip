@@ -1,4 +1,39 @@
 import type { LocationCandidate } from "@/domain/location/location";
+import { z } from "zod";
+
+import { picksFromSearch, type IdentifiedPick } from "./resolve-destination-place";
+
+const searchQuery = z.string().trim().min(2).max(80);
+export const destinationSelectionSchema = z.union([
+  z.object({ query: searchQuery, id: z.string().trim().min(1) }).strict(),
+  z.object({ query: searchQuery, region: z.string().trim().min(1).max(200).nullable() }).strict(),
+]);
+
+/** Input tips have no reliable POI ID. Recheck the full name and area before saving. */
+export function pickFromSuggestion(
+  candidates: readonly LocationCandidate[],
+  name: string,
+  region: string | null,
+): IdentifiedPick | null {
+  const matches = candidates.filter((candidate) => {
+    if (normalize(candidate.name) !== normalize(name)) return false;
+    if (region === null) return true;
+    // A city's tip and lookup can locate its centre in different districts. Those
+    // districts are not part of the selected city preference; for a spot they are.
+    const parts = normalize(candidate.name) === normalize(candidate.province ?? "") ? [candidate.province]
+      : normalize(candidate.name) === normalize(candidate.city ?? "") ? [candidate.province, candidate.city]
+      : [candidate.province, candidate.city, candidate.district];
+    const area = normalize([...new Set(parts
+      .filter((part): part is string => Boolean(part)))].join(""));
+    const suggestedArea = normalize(region);
+    return area !== "" && (area.startsWith(suggestedArea) || suggestedArea.startsWith(area));
+  });
+  const picks = picksFromSearch(matches);
+  const preferences = new Set(picks.map((pick) => JSON.stringify([pick.province, pick.place, pick.spot])));
+  // Repeated provider POIs can describe one saved preference, but different destinations
+  // must never be silently reduced to whichever happens to appear first.
+  return preferences.size === 1 ? picks[0] : null;
+}
 
 /** Suffixes that turn the user's words into an administrative name: 大连 + 市, 大理 + 白族自治州. */
 const areaEndings = ["省", "市", "区", "县", "州", "盟", "旗"];

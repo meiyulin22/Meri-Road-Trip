@@ -1,6 +1,6 @@
 "use client";
 
-import { Check, MapPin, Minus, Plus, Search, X } from "lucide-react";
+import { Check, LoaderCircle, MapPin, Minus, Plus, Search, X } from "lucide-react";
 import { motion, useReducedMotion } from "motion/react";
 import { useEffect, useRef, useState } from "react";
 import { z } from "zod";
@@ -20,7 +20,7 @@ const searchResponseSchema = z.object({ choices: z.array(z.object({
   id: z.string().min(1), name: z.string().min(1), province: z.string().min(1),
   city: z.string().min(1).nullable(), spot: z.string().min(1).nullable(), detail: z.string().nullable(),
 }).refine((choice) => choice.spot === null || choice.city !== null)) });
-// Only what a one-character hint needs: the name, and where it is if the provider said.
+// Input tips are selected by full name and area; the server verifies their identity.
 const suggestionResponseSchema = z.object({ suggestions: z.array(z.object({
   name: z.string().min(1), region: z.string().min(1).nullable(),
 })) });
@@ -40,6 +40,7 @@ export function DestinationEditor({ tripId, tripState, onTripStateChange, initia
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const inFlight = useRef(false);
+  const searchRevision = useRef(0);
   const areas = tripState.destination.state === "known" ? tripState.destination.areas : [];
 
   useEffect(() => {
@@ -53,7 +54,7 @@ export function DestinationEditor({ tripId, tripState, onTripStateChange, initia
         if (suggestionOnly) {
           // A single character is too wide to search: 大 matches a crowd of places, and the
           // classification pages behind a search would answer with shops named after a city.
-          // The suggestion list costs one small request and the user picks which place to type.
+          // The suggestion list costs one small request; selecting one verifies its full name.
           const response = await fetch(`/api/locations/suggestions?q=${encodeURIComponent(normalized)}`,
             { signal: controller.signal });
           if (!response.ok) throw new Error("suggestion_failed");
@@ -80,17 +81,25 @@ export function DestinationEditor({ tripId, tripState, onTripStateChange, initia
     return () => { controller.abort(); window.clearTimeout(timer); };
   }, [open, query, tripId]);
 
-  async function mutate(method: "POST" | "DELETE", payload: unknown, key: string) {
+  async function mutate(method: "POST" | "DELETE", payload: unknown, key: string, conflictMessage = text.saveFailed) {
     if (inFlight.current) return;
+    const submittedSearchRevision = searchRevision.current;
     inFlight.current = true; setBusy(key); setError(null);
     try {
       const response = await fetch(`/api/trips/${encodeURIComponent(tripId)}/destinations`, {
         method, headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload),
       });
-      if (!response.ok) throw new Error("save_failed");
+      if (!response.ok) {
+        setError(response.status === 409 ? conflictMessage : text.saveFailed);
+        return;
+      }
       const body: unknown = await response.json();
       if (typeof body !== "object" || body === null || !("tripState" in body)) throw new Error("invalid_response");
       onTripStateChange(validateTripState(body.tripState));
+      // Only clear the search that produced this addition, not a newer query typed while saving.
+      if (method === "POST" && searchRevision.current === submittedSearchRevision) {
+        setQuery(""); setChoices([]); setSuggestions([]); setSearchState("idle");
+      }
     } catch {
       setError(text.saveFailed);
     } finally { inFlight.current = false; setBusy(null); }
@@ -110,7 +119,7 @@ export function DestinationEditor({ tripId, tripState, onTripStateChange, initia
         aria-label={open ? text.collapseSearch : text.add}
         whileTap={reduceMotion ? undefined : { scale: 0.97 }}
         transition={{ duration: 0.15, ease: "easeOut" }}
-        onClick={() => { setOpen((value) => !value); setChoices([]); setSearchState("idle"); }}>
+        onClick={() => { setOpen((value) => !value); setChoices([]); setSuggestions([]); setSearchState("idle"); }}>
         {open ? <Minus size={14} aria-hidden="true" /> : <Plus size={14} aria-hidden="true" />}
         <span>{open ? text.collapseShort : text.addShort}</span>
       </motion.button>
@@ -155,7 +164,7 @@ export function DestinationEditor({ tripId, tripState, onTripStateChange, initia
     {open ? <dd className={styles.destinationEditorSearch}>
       <label><Search size={15} aria-hidden="true" />
         <input aria-label={text.search} autoComplete="off" autoFocus={initiallyOpen} placeholder={text.searchPlaceholder}
-          value={query} onChange={(event) => { setQuery(event.target.value); setChoices([]); setSuggestions([]);
+          value={query} onChange={(event) => { searchRevision.current += 1; setQuery(event.target.value); setChoices([]); setSuggestions([]);
             setSearchState(event.target.value.trim().length < 1 ? "idle" : "loading"); setError(null); }} />
       </label>
       {searchState === "loading" ? <ul className={styles.destinationSearchSkeleton} aria-hidden="true"><li /><li /></ul>
@@ -163,18 +172,28 @@ export function DestinationEditor({ tripId, tripState, onTripStateChange, initia
       {searchState === "loading" ? <p role="status" className={styles.destinationSearchCount}>{text.searching}</p> : null}
       {searchState === "empty" ? <p role="status">{text.noResults}</p> : null}
       {searchState === "error" ? <p role="alert">{text.searchUnavailable}</p> : null}
-      {suggestions.length ? <ul className={styles.destinationSearchResults}>{suggestions.map((suggestion) => (
-        <li key={suggestion.name} className={styles.destinationSearchResult}>
+      {suggestions.length ? <>
+        <p className={styles.destinationSearchCount} role="status">{text.resultCount(suggestions.length)}</p>
+        <ul className={styles.destinationSearchResults}>{suggestions.map((suggestion) => {
+        const key = `suggestion:${suggestion.name}|${suggestion.region ?? ""}`;
+        const selected = areas.some((area) => suggestion.region?.includes(area.province) &&
+          (suggestion.name === area.province || area.places.some((place) => suggestion.region?.includes(place.name) &&
+            (suggestion.name === place.name || place.spots.includes(suggestion.name)))));
+        return <li key={key} className={styles.destinationSearchResult}>
           <span className={styles.destinationSearchName}>
             <strong>{suggestion.name}</strong>
             {suggestion.region ? <small>{suggestion.region}</small> : null}</span>
-          {/* A name typed on: the search itself then runs on two or more characters. */}
           <button type="button" className={styles.destinationSearchAdd}
-            onClick={() => { setQuery(suggestion.name); setSuggestions([]); setSearchState("loading"); }}>
-            {text.continueTyping}
+            disabled={busy !== null || selected || suggestion.name.trim().length < 2}
+            aria-label={selected ? text.addedPlace(suggestion.name) : text.addPlace(suggestion.name)}
+            aria-busy={busy === key}
+            onClick={() => void mutate("POST", { query: suggestion.name, region: suggestion.region }, key, text.suggestionUnverified)}>
+            {selected ? <><Check size={14} aria-hidden="true" />{text.added}</>
+              : busy === key ? <><LoaderCircle size={14} className={styles.loadingIcon} aria-hidden="true" />{text.adding}</>
+              : <><Plus size={14} aria-hidden="true" />{text.addOne}</>}
           </button>
-        </li>
-      ))}</ul> : null}
+        </li>;
+      })}</ul></> : null}
       {choices.length ? <>
         <p className={styles.destinationSearchCount} role="status">{text.resultCount(choices.length)}</p>
         <ul className={styles.destinationSearchResults}>{choices.map((choice) => {
@@ -188,8 +207,12 @@ export function DestinationEditor({ tripId, tripState, onTripStateChange, initia
             {choice.detail ? <small>{choice.detail}</small> : null}</span>
           <button type="button" className={styles.destinationSearchAdd}
             disabled={busy !== null || selected || indistinguishable}
+            aria-label={selected ? text.addedPlace(choice.name) : text.addPlace(choice.name)}
+            aria-busy={busy === choice.id}
             onClick={() => void mutate("POST", { query, id: choice.id }, choice.id)}>
-            {indistinguishable ? text.refine : selected ? <><Check size={13} />{text.added}</> : busy === choice.id ? text.adding : text.addOne}
+            {indistinguishable ? text.refine : selected ? <><Check size={14} aria-hidden="true" />{text.added}</>
+              : busy === choice.id ? <><LoaderCircle size={14} className={styles.loadingIcon} aria-hidden="true" />{text.adding}</>
+              : <><Plus size={14} aria-hidden="true" />{text.addOne}</>}
           </button>
         </li>;
         })}</ul>

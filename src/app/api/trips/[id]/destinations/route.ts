@@ -8,7 +8,7 @@ import { journeyService } from "@/capabilities/journey/journey-service-instance"
 import { LocationService } from "@/capabilities/destination/location-service";
 import { savedAreaNames } from "@/capabilities/destination/saved-area-names";
 import { picksFromSearch } from "@/capabilities/destination/resolve-destination-place";
-import { withoutAreaNamesakes } from "@/capabilities/destination/search-picks";
+import { destinationSelectionSchema, pickFromSuggestion, withoutAreaNamesakes } from "@/capabilities/destination/search-picks";
 import { TripStateConflictError } from "@/capabilities/journey/journey-errors";
 import { TripNotFoundError } from "@/domain/trip/trip-errors";
 import { logger } from "@/platform/observability/logger";
@@ -68,17 +68,17 @@ async function addDestination(request: Request, context: Context): Promise<Respo
   if ("error" in access) return accessFailure(access);
   let body: unknown;
   try { body = await request.json(); } catch { return Response.json({ error: "Invalid choice." }, { status: 400 }); }
-  if (typeof body !== "object" || body === null || Array.isArray(body) || Object.keys(body).length !== 2 ||
-    !("query" in body) || !("id" in body) ||
-    typeof body.query !== "string" || body.query.trim().length < 2 || body.query.length > 80 ||
-    typeof body.id !== "string" || body.id.trim() === "") {
+  const parsed = destinationSelectionSchema.safeParse(body);
+  if (!parsed.success) {
     return Response.json({ error: "Invalid choice." }, { status: 400 });
   }
-  const result = await serviceFor(access.trip.journey.tripState).search(body.query);
+  const selection = parsed.data;
+  const result = await serviceFor(access.trip.journey.tripState).search(selection.query);
   if (result.status !== "success") return Response.json({ error: "Search unavailable." }, { status: 503 });
   // The same filter as the search: an id the list never showed cannot be added through it.
-  const verified = picksFromSearch(withoutAreaNamesakes(result.candidates, body.query))
-    .find((pick) => pick.id === body.id);
+  const verified = "id" in selection
+    ? picksFromSearch(withoutAreaNamesakes(result.candidates, selection.query)).find((pick) => pick.id === selection.id)
+    : pickFromSuggestion(result.candidates, selection.query, selection.region);
   if (!verified) return Response.json({ error: "Choice expired. Search again." }, { status: 409 });
   const pick: DestinationPick = { province: verified.province, place: verified.place, spot: verified.spot };
   const current = (await journeyService.loadJourney(access.trip.id, access.trip.owner)).tripState;

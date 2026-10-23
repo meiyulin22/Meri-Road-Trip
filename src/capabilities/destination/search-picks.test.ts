@@ -3,7 +3,7 @@ import test from "node:test";
 
 import type { LocationCandidate } from "@/domain/location/location";
 
-import { withoutAreaNamesakes } from "./search-picks";
+import { destinationSelectionSchema, pickFromSuggestion, withoutAreaNamesakes } from "./search-picks";
 
 function candidate(name: string, kind: LocationCandidate["kind"]): LocationCandidate {
   return {
@@ -56,4 +56,54 @@ test("an autonomous prefecture counts as the area, and a one-character query cha
   assert.deepEqual(withoutAreaNamesakes([prefecture, shop], "大理").map((place) => place.name),
     ["大理白族自治州"]);
   assert.equal(withoutAreaNamesakes([prefecture, shop], "大").length, 2);
+});
+
+test("a selected one-character tip verifies its full city name and region", () => {
+  const city = candidate("大连市", "other");
+  const pick = pickFromSuggestion([candidate("大连老虎滩海洋公园", "sight"), city],
+    "大连市", "辽宁省大连市西岗区");
+  // The tip's district locates the city centre; it must not turn the city into a spot.
+  assert.equal(pick?.province, "辽宁省");
+  assert.equal(pick?.place, "大连市");
+  assert.equal(pick?.spot, null);
+});
+
+test("suggestion verification refuses a namesake in a different province, city or district", () => {
+  const spot = { ...candidate("大观区", "other"), province: "安徽省", city: "安庆市", district: "大观区" };
+  for (const region of ["云南省大理白族自治州", "安徽省合肥市", "安徽省安庆市迎江区"]) {
+    assert.equal(pickFromSuggestion([spot], "大观区", region), null);
+  }
+  assert.equal(pickFromSuggestion([spot], "大观区", "安徽省安庆市大观区")?.spot, "大观区");
+  assert.equal(pickFromSuggestion([spot], "大观", "安徽省安庆市大观区"), null);
+});
+
+test("missing, foreign or ambiguous suggestions never become a saved preference", () => {
+  const first = { ...candidate("大连市", "other"), district: null };
+  const other = { ...first, providerId: "other", province: "吉林省", city: "大连市" };
+  assert.equal(pickFromSuggestion([], "大连市", null), null);
+  assert.equal(pickFromSuggestion([first, other], "大连市", null), null);
+  assert.equal(pickFromSuggestion([{ ...first, province: "安大略省" }], "大连市", null), null);
+  assert.equal(pickFromSuggestion([first], "大连市", null)?.place, "大连市");
+});
+
+test("duplicate POIs for the same suggestion save one province/city/spot preference", () => {
+  const first = candidate("大连老虎滩海洋公园", "sight");
+  assert.equal(pickFromSuggestion([first, { ...first, providerId: "duplicate" }], first.name,
+    "辽宁省大连市金州区")?.id, first.providerId);
+  const province = { ...candidate("辽宁省", "other"), city: null, district: null };
+  assert.equal(pickFromSuggestion([province], "辽宁省", "辽宁省")?.place, null);
+  const municipality = { ...candidate("北京市", "other"), province: "北京市", city: "北京市", district: null };
+  assert.equal(pickFromSuggestion([municipality], "北京市", "北京市东城区")?.place, "北京市");
+});
+
+test("manual selection accepts either a provider ID or a full suggestion name and region", () => {
+  assert.deepEqual(destinationSelectionSchema.parse({ query: " 大连市 ", region: "辽宁省大连市西岗区" }),
+    { query: "大连市", region: "辽宁省大连市西岗区" });
+  assert.equal(destinationSelectionSchema.safeParse({ query: "大连", id: "city" }).success, true);
+  assert.equal(destinationSelectionSchema.safeParse({ query: "大连市", region: null }).success, true);
+  for (const input of [{ query: "大", region: null }, { query: "大连市" },
+    { query: "大连市", region: "" }, { query: "大连市", id: "city", region: null },
+    { query: "大连市", region: null, province: "辽宁省" }, { query: "大连市", region: 12 }]) {
+    assert.equal(destinationSelectionSchema.safeParse(input).success, false);
+  }
 });

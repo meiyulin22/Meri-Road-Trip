@@ -405,8 +405,8 @@ add/set 使用 Promise.all 查询表达。解析层保留不同 provider ID，�
 | 选择“何时” | [TripDatesField](../src/components/trip-workspace/trip-dates-editor.tsx)范围日历 + 天数步进器；state PATCH 只发送用户选的值，服务器补算第三个 | 无 LLM，无聊天正文 |
 | 修改出发地 | [LocationEditor](../src/components/trip-workspace/location-editor.tsx)、[suggestions API](../src/app/api/locations/suggestions/route.ts)、选中后 state PATCH | 仍是 origin 身份结构，不走 destinationEdit |
 | 展开目的地搜索 | 目的地行右侧“＋ 添加”（展开后变“收起”） | 本地展开，无状态写入 |
-| 搜索城市/景点 | GET /api/trips/{id}/destinations?q=… | 高德，无 LLM，无消息 |
-| 添加搜索结果 | POST 同路径 `{query,id}` | 重查身份后保存，无助手消息 |
+| 搜索城市/景点 | 单字 GET /api/locations/suggestions?q=…；2 字及以上 GET /api/trips/{id}/destinations?q=… | 当前地图提供方，无 LLM，无消息 |
+| 添加搜索结果或单字建议 | POST destinations：搜索结果 `{query,id}`；建议 `{query:完整名称,region}` | 重查身份后保存，无助手消息 |
 | 删除省、市、spot | DELETE 同路径 `{province,place,spot}` | 确定性级联，同步状态 |
 | 清除旧文本 | DELETE `{legacy:true}` | 删除 legacyText，保留已添加 areas |
 | Generate plan（唯一，位于聊天下方） | [GeneratePlanAction](../src/components/trip-workspace/generate-plan-action.tsx) 调用 [planning-readiness API](../src/app/api/trips/[id]/planning-readiness/route.ts) | 只检查，不执行规划；右侧面板不再有 Generate plan |
@@ -447,13 +447,15 @@ add/set 使用 Promise.all 查询表达。解析层保留不同 provider ID，�
 
 目的地标题行右侧是“＋ 添加”按钮，采用与铅笔入口同色的浅绿圆角矩形（高 30px、宽 66px、圆角 8px）。展开后显示“− 收起”，宽度不变；悬停、键盘聚焦和展开时底色加深，按下轻缩至 0.97；减少动态效果偏好下关闭动画。其下横跨整行，每个省一块浅底区域：省名在左、删除省的 ✕ 统一在右；每个城市占一行：城市是带 ✕ 的标签，想去的景点以带定位图标的浅色标签排在同一行城市右侧，景点多时只在右侧区域内换行（例如“丽江市 · 玉龙雪山”一行、“迪庆藏族自治州 · 香格里拉市 · 梅里雪山”一行）。以前所有标签挤在一行里换行，第二行的景点看起来像属于上一行的城市。没有城市的省显示“全省”标签和“规划时按整省考虑”，表示整省范围的目的地，而不是未完成项。展开后搜索横跨字段行。手动搜索仍用单个结果添加，聊天则多选统一提交。
 
-- 至少 2 字开始查询，250ms 防抖，新输入/收起取消旧请求；已取消响应不得覆盖新列表。
+- 输入 1 字时查输入建议，2 字及以上查目的地；均为 250ms 防抖，新输入/收起取消旧请求，已取消响应不得覆盖新列表。单字建议直接显示“＋ 添加”，不再先“补全”再点添加；点选时仅对该项完整名称做服务端核验，不逐条预查列表。
 - [picksFromSearch](../src/capabilities/destination/resolve-destination-place.ts)过滤省份缺失或不在中国省级名单内的结果；POST 重查后使用同一过滤，无法核验则返回 409，不写入目的地。聊天地点解析也执行相同范围检查。已有历史记录保持可读、可删除，不自动清理或搬到其他省份。
 - [destinations API](../src/app/api/trips/[id]/destinations/route.ts)限制表达 2–80 字符，最多返回 12 项，GET 响应 no-store。
 - 候选提供 id、name、province、city、spot、detail，前端 Zod 校验，spot 必须有 city。
 - 详情可显示规范名称差异、区县及地址；无法区分的同名结果要求细化搜索。
-- POST 用 query 和 id 重新查高德，身份消失返回 409，不信任缓存候选。
+- POST 搜索结果用 query 和 id 重新查当前地图提供方，身份消失返回 409，不信任缓存候选。单字建议没有可靠 POI ID，传完整名称和 region（允许 null），服务端只接受提供方同名、地区前缀一致且唯一的省/市/spot 偏好；同一偏好的重复 POI 可合并，不同偏好或地区不符返回 409，界面提示输入完整名称和地区，不静默添加第一项。
 - 核验后重读最新状态再合并；busy/inFlight 防重入，成功使用返回 TripState，没有乐观假保存。
+- 添加成功后清空本次搜索输入和结果，搜索框保持展开以便继续添加；添加失败保留输入和结果供重试。保存期间若已输入新查询，旧添加成功不会清掉新查询；删除操作也不清空搜索。
+- 列表中的“添加”统一为深绿实心、加号图标、至少 44px 高的按钮，独立覆盖字段通用按钮重置；有键盘焦点轮廓、添加中状态和已添加反馈。搜索计数和来源署名使用各自样式，只有错误提示使用错误色。请求失败即显示错误，不继续保存。
 - 已有城市但新 spot 未添加仍可保存；追加时保留待确认旧文本。
 
 ### 5.3 层级、级联与具体景点偏好
