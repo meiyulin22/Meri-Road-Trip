@@ -223,11 +223,27 @@
 .destinationEditorSearch { grid-column: 1 / -1; margin-top: 3px; padding-top: 5px; }
 .destinationEditorSearch label { display: flex; align-items: center; gap: 6px; padding: 6px 8px; border: 1px solid #cdd8c9; border-radius: 8px; background: white; }
 .destinationEditorSearch input { width: 100%; min-width: 0; border: 0; outline: none; background: transparent; color: var(--ink); font: inherit; font-size: 13px; }
-.destinationEditorSearch ul { margin: 6px 0 0; padding: 0; list-style: none; max-height: 230px; overflow-y: auto; }
-.destinationEditorSearch li { display: flex; align-items: center; justify-content: space-between; gap: 7px; padding: 6px 2px; border-bottom: 1px solid #edf0e8; font-size: 12px; }
-.destinationEditorSearch li span { display: grid; min-width: 0; overflow-wrap: anywhere; }
-.destinationEditorSearch li small { color: #849188; }
-.destinationEditorSearch li button { flex: none; padding: 5px 8px; border-radius: 7px; background: #eaf2e6; }
+.destinationEditorSearch ul { margin: 6px 0 0; padding: 0; list-style: none; }
+.destinationSearchCount { margin: 8px 0 0; font-size: 11.5px; color: #7d8b81; }
+.destinationSearchResults { display: grid; gap: 6px; max-height: 260px; overflow-y: auto; }
+.destinationSearchResult { display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  padding: 10px 12px; border: 1px solid #e3e9dc; border-radius: 10px; background: #fbfcf9;
+  transition: background-color .16s ease, border-color .16s ease; }
+.destinationSearchResult:hover, .destinationSearchResult:focus-within { background: #f3f7ef; border-color: #cddcc4; }
+.destinationSearchName { display: grid; gap: 2px; min-width: 0; }
+.destinationSearchName strong { font-size: 14px; font-weight: 600; line-height: 1.25; color: #24402f; overflow-wrap: anywhere; }
+.destinationSearchName small { font-size: 11.5px; color: #7d8b81; overflow-wrap: anywhere; }
+.destinationSearchAdd { flex: none; display: inline-flex; align-items: center; gap: 4px; min-height: 30px;
+  padding: 5px 12px; border: 0; border-radius: 999px; background: #2f6b4a; color: #fff;
+  font-size: 12.5px; font-weight: 500; cursor: pointer; transition: background-color .16s ease; }
+.destinationSearchAdd:hover:not(:disabled) { background: #275a3e; }
+.destinationSearchAdd:disabled { background: #e6ece2; color: #8a978d; cursor: default; }
+.destinationSearchSkeleton { display: grid; gap: 6px; }
+.destinationSearchSkeleton li { height: 46px; border-radius: 10px; border: 1px solid #eef1e8;
+  background: linear-gradient(90deg, #f1f4ec 25%, #f8faf5 37%, #f1f4ec 63%);
+  background-size: 400% 100%; animation: searchShimmer 1.4s ease infinite; }
+@keyframes searchShimmer { 0% { background-position: 100% 50%; } 100% { background-position: 0 50%; } }
+@media (prefers-reduced-motion: reduce) { .destinationSearchSkeleton li { animation: none; } }
 .destinationEditorSearch p, .destinationEditorError { margin: 6px 0; font-size: 12px; color: #9e5b49; }
 .stateField { display: grid; grid-template-columns: minmax(94px, .95fr) minmax(0, 1fr); gap: 8px; align-items: center; min-height: 42px; padding: 7px 3px; border-bottom: 1px solid rgba(107, 99, 78, .065); }
 .stateField:last-child { border-bottom: 0; }

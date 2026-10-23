@@ -136,21 +136,30 @@ export function DestinationEditor({ tripId, tripState, onTripStateChange, initia
           value={query} onChange={(event) => { setQuery(event.target.value); setChoices([]);
             setSearchState(event.target.value.trim().length < 2 ? "idle" : "loading"); setError(null); }} />
       </label>
-      {searchState === "loading" ? <p role="status">{text.searching}</p> : null}
+      {searchState === "loading" ? <ul className={styles.destinationSearchSkeleton} aria-hidden="true"><li /><li /></ul>
+        : null}
+      {searchState === "loading" ? <p role="status" className={styles.destinationSearchCount}>{text.searching}</p> : null}
       {searchState === "empty" ? <p role="status">{text.noResults}</p> : null}
       {searchState === "error" ? <p role="alert">{text.searchUnavailable}</p> : null}
-      {choices.length ? <ul>{choices.map((choice) => {
+      {choices.length ? <>
+        <p className={styles.destinationSearchCount} role="status">{text.resultCount(choices.length)}</p>
+        <ul className={styles.destinationSearchResults}>{choices.map((choice) => {
         const selected = destinationContains(areas, { province: choice.province, place: choice.city, spot: choice.spot });
         const indistinguishable = choices.filter((item) => item.name === choice.name &&
           item.province === choice.province && item.city === choice.city && item.detail === choice.detail).length > 1;
-        return <li key={choice.id}>
-          <span><strong>{choice.name}</strong><small>{choice.province}{choice.city ? ` · ${choice.city}` : ""}</small>
+        return <li key={choice.id} className={styles.destinationSearchResult}>
+          <span className={styles.destinationSearchName}>
+            <strong>{choice.name}</strong>
+            <small>{choice.province}{choice.city ? ` · ${choice.city}` : ""}</small>
             {choice.detail ? <small>{choice.detail}</small> : null}</span>
-          <button type="button" disabled={busy !== null || selected || indistinguishable} onClick={() => void mutate("POST", { query, id: choice.id }, choice.id)}>
+          <button type="button" className={styles.destinationSearchAdd}
+            disabled={busy !== null || selected || indistinguishable}
+            onClick={() => void mutate("POST", { query, id: choice.id }, choice.id)}>
             {indistinguishable ? text.refine : selected ? <><Check size={13} />{text.added}</> : busy === choice.id ? text.adding : text.addOne}
           </button>
         </li>;
-      })}</ul> : null}
+        })}</ul>
+      </> : null}
     </dd> : null}
   </div>;
 }
