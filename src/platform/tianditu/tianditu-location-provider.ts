@@ -1,4 +1,5 @@
 import type { LocationCandidate, LocationKind } from "@/domain/location/location";
+import { isFacilityName } from "@/domain/location/place-name";
 import type { LocationProvider, LocationSearchResult } from "@/platform/location-provider/location-provider";
 
 import { createTiandituClient, type TiandituAnswer, type TiandituClient } from "./tianditu-fetch";
@@ -202,11 +203,12 @@ function insideAnyArea(place: LocationCandidate, areas: readonly string[]): bool
   return areas.some((area) => own.includes(normalize(area).slice(0, 2)));
 }
 
-/** Closest names first: the words themselves, then a scenic suffix, then the shortest prefix. */
+/** Closest names first: the words themselves, then a scenic suffix, then the shortest prefix; a facility last. */
 function namedFirst(words: string, places: readonly LocationCandidate[]): LocationCandidate[] {
   return places
     .filter((place) => normalize(place.name).includes(words))
     .sort((left, right) => rank(normalize(left.name), words) - rank(normalize(right.name), words) ||
+      Number(isFacilityName(left.name)) - Number(isFacilityName(right.name)) ||
       normalize(left.name).length - normalize(right.name).length);
 }
 

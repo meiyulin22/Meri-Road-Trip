@@ -327,6 +327,8 @@ LLM 解释自然语言并提出受限 JSON；应用校验、决定是否执行�
 | [src/domain/location/destination-resolution-policy.ts](../src/domain/location/destination-resolution-policy.ts) | 领域层 | 合理名称匹配和候选解析纯规则：原话/后缀/自身市区县前缀匹配，同市景点旁的同名区县让位，兜底匹配带其他前缀的名称，最后兜底提供名称含原话的景点（最多 3 个，排除景点的一部分）；返回 resolved/ambiguous/area/unresolved，保留不同 POI 身份。 |
 | [src/domain/location/location-suggestion.ts](../src/domain/location/location-suggestion.ts) | 领域层 | 输入建议 LocationSuggestion 类型，包含可能缺失的身份/坐标，与最终目的地确认分开；地图提供方名单（amap、tianditu）和各自的坐标系；本文件不执行校验。 |
 | [src/domain/location/location.ts](../src/domain/location/location.ts) | 领域层 | 规范化 LocationCandidate，包含提供方身份、行政归属、地址和坐标（带坐标系 GCJ-02 或 CGCS2000，不互转），以及可选的 kind（是否景点）。 |
+| [src/domain/location/place-name.ts](../src/domain/location/place-name.ts) | 领域层 | `isFacilityName(name)`：名字以 大门/北门/入口/出口/游客中心/停车场/观景台/索道/售票处/验票点… 结尾的是设施，不是地点本身。天地图把它们和景区本体归在同一个类别（180400），只能看名字分辨。 |
+| [src/domain/location/place-name.test.ts](../src/domain/location/place-name.test.ts) | 测试（对应模块边界） | 验证设施后缀被识别，以及 天安门 / 观复博物馆 / 玉龙雪山国家级风景名胜区 这类名字不被误判。 |
 | [src/domain/location/place-image.ts](../src/domain/location/place-image.ts) | 领域层 | 地点照片类型（https 链接 + 说明文字 + 可选署名 credit）与读取校验，不合法时视为没有照片。 |
 | [src/domain/locale/locale.ts](../src/domain/locale/locale.ts) | 领域层 | 支持的语言 zh/en、合法性判断及 `<html lang>` 取值。 |
 | [src/domain/location/recommendation-identity.test.ts](../src/domain/location/recommendation-identity.test.ts) | 测试（对应模块边界） | 验证等价名称归一化，保留不同山峰/路线/相似地名的独立性。 |

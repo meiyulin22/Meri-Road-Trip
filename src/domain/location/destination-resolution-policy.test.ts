@@ -181,3 +181,23 @@ test("as a last resort, sights whose name holds the user's words are offered, ne
   // A place the provider did not call a sight is not offered.
   assert.deepEqual(resolveDestinationCandidates("故宫", [located("故宫博物院", "unknown-kind", "北京市")]), { status: "unresolved" });
 });
+
+test("a ticket office or a viewing platform inside the place is never offered as the place", () => {
+  const sight = (name: string, id: string) => ({ ...located(name, id, "四川省", "稻城县"), kind: "sight" as const });
+  const area = sight("甘孜州稻城亚丁景区", "area");
+  // Tianditu files all of these under 180400, the same category as the scenic area itself.
+  const facilities = [
+    sight("稻城亚丁风景区仁村观景台", "platform-1"),
+    sight("稻城亚丁风景区亚丁观景台", "platform-2"),
+    sight("稻城亚丁风景区游客中心", "centre"),
+    sight("稻城亚丁风景区停车场", "parking"),
+  ];
+  // With the place itself present, only it remains.
+  assert.deepEqual(resolveDestinationCandidates("稻城亚丁", [facilities[0], area, facilities[2]]),
+    { status: "resolved", candidate: area });
+  // With nothing but facilities, the answer is "not found" rather than a car park.
+  assert.deepEqual(resolveDestinationCandidates("稻城亚丁", facilities), { status: "unresolved" });
+  // Typing one in full is still the user's own words, and is accepted.
+  assert.deepEqual(resolveDestinationCandidates("稻城亚丁风景区仁村观景台", facilities),
+    { status: "resolved", candidate: facilities[0] });
+});

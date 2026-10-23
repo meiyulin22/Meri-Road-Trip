@@ -1,4 +1,5 @@
 import type { LocationCandidate } from "./location";
+import { isFacilityName } from "./place-name";
 
 export type DestinationResolution =
   | { readonly status: "resolved"; readonly candidate: LocationCandidate }
@@ -157,6 +158,9 @@ function sightsNamingExpression(expression: string, candidates: readonly Locatio
     if (!isUsableCandidate(candidate) || candidate.kind !== "sight") return false;
     const name = normalize(candidate.name);
     if (!name.includes(expression) || /[-－·(（]/u.test(name)) return false;
+    // A ticket office or a viewing platform inside the place is not the place: it is only
+    // reached by typing "黄山风景区北门" in full, which the exact rules above already accept.
+    if (isFacilityName(name)) return false;
     const identity = `${candidate.providerId}:${candidate.longitude},${candidate.latitude}`;
     if (seen.has(identity)) return false;
     seen.add(identity);
