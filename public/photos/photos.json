@@ -1,0 +1,182 @@
+{
+ "布达拉宫": {
+  "file": "potala-palace.jpg",
+  "artist": "InkMagiStudio",
+  "pageUrl": "https://pixabay.com/photos/potala-palace-tibet-potala-lhasa-4742065/",
+  "fetchedAt": "2026-10-23"
+ },
+ "稻城亚丁": {
+  "file": "daocheng-yading.jpg",
+  "artist": "sfkjrgk",
+  "pageUrl": "https://pixabay.com/photos/snow-mountain-nature-outdoors-8037980/",
+  "fetchedAt": "2026-10-23"
+ },
+ "张家界": {
+  "file": "zhangjiajie.jpg",
+  "artist": "ddcreativohn",
+  "pageUrl": "https://pixabay.com/photos/lake-baofeng-zhangjiajie-china-3854206/",
+  "fetchedAt": "2026-10-23"
+ },
+ "峨眉山": {
+  "file": "mount-emei.jpg",
+  "artist": "lshhweb",
+  "pageUrl": "https://pixabay.com/photos/mount-emei-golden-top-scenery-view-4279733/",
+  "fetchedAt": "2026-10-23"
+ },
+ "贡嘎山": {
+  "file": "gongga-mountain.jpg",
+  "artist": "yongxinz",
+  "pageUrl": "https://pixabay.com/photos/gongga-snow-mountain-cloud-on-foot-2411063/",
+  "fetchedAt": "2026-10-23"
+ },
+ "四姑娘山": {
+  "file": "siguniang-mountain.jpg",
+  "artist": "lin2015",
+  "pageUrl": "https://pixabay.com/photos/siguniang-mountain-yaomeifeng-8568913/",
+  "fetchedAt": "2026-10-23"
+ },
+ "长白山天池": {
+  "file": "changbai-mountain.jpg",
+  "artist": "r-q",
+  "pageUrl": "https://pixabay.com/photos/rainbow-lake-changbai-mountain-7390568/",
+  "fetchedAt": "2026-10-23"
+ },
+ "玉龙雪山": {
+  "file": "jade-dragon-snow-mountain.jpg",
+  "artist": "we-o_rd35vacfthjzxteky",
+  "pageUrl": "https://pixabay.com/photos/mountain-peak-landscape-8070188/",
+  "fetchedAt": "2026-10-23"
+ },
+ "苍山": {
+  "file": "cangshan-dali.jpg",
+  "artist": "pony96",
+  "pageUrl": "https://pixabay.com/photos/dali-cangshan-erhai-lake-1804795/",
+  "fetchedAt": "2026-10-23"
+ },
+ "九寨沟": {
+  "file": "jiuzhaigou.jpg",
+  "artist": "xcazmm",
+  "pageUrl": "https://pixabay.com/photos/mountain-nature-travel-exploration-6782959/",
+  "fetchedAt": "2026-10-23"
+ },
+ "黄山": {
+  "file": "huangshan.jpg",
+  "artist": "sfkjrgk",
+  "pageUrl": "https://pixabay.com/photos/mountain-sunrise-nature-outdoors-8251186/",
+  "fetchedAt": "2026-10-23"
+ },
+ "泰山": {
+  "file": "mount-tai.jpg",
+  "artist": "JWKang",
+  "pageUrl": "https://pixabay.com/photos/sunrise-mountains-fog-foggy-mist-5676316/",
+  "fetchedAt": "2026-10-23"
+ },
+ "西湖": {
+  "file": "west-lake-hangzhou.jpg",
+  "artist": "啊花在跑步",
+  "pageUrl": "https://pixabay.com/photos/hangzhou-west-lake-scenery-4912365/",
+  "fetchedAt": "2026-10-23"
+ },
+ "丽江古城": {
+  "file": "lijiang-old-town.jpg",
+  "artist": "Charlottees",
+  "pageUrl": "https://pixabay.com/photos/yunnan-china-traveling-relax-town-4648681/",
+  "fetchedAt": "2026-10-23"
+ },
+ "阳朔": {
+  "file": "yangshuo.jpg",
+  "artist": "mercierzeng",
+  "pageUrl": "https://pixabay.com/photos/cormorant-fishermen-boats-lake-7175037/",
+  "fetchedAt": "2026-10-23"
+ },
+ "故宫": {
+  "file": "forbidden-city.jpg",
+  "artist": "Jack_Jiao",
+  "pageUrl": "https://pixabay.com/photos/forbidden-city-beijing-building-4428906/",
+  "fetchedAt": "2026-10-23"
+ },
+ "长城": {
+  "file": "great-wall-china.jpg",
+  "artist": "viarami",
+  "pageUrl": "https://pixabay.com/photos/great-wall-of-china-beijing-china-5483516/",
+  "fetchedAt": "2026-10-23"
+ },
+ "洱海": {
+  "file": "erhai-lake.jpg",
+  "artist": "4537668",
+  "pageUrl": "https://pixabay.com/photos/dali-erhai-lake-yunnan-landscape-2064559/",
+  "fetchedAt": "2026-10-23"
+ },
+ "青海湖": {
+  "file": "qinghai-lake.jpg",
+  "artist": "newtjitsu",
+  "pageUrl": "https://pixabay.com/photos/chaka-salt-lake-railway-salt-lake-6469429/",
+  "fetchedAt": "2026-10-23"
+ },
+ "纳木错": {
+  "file": "namtso-lake.jpg",
+  "artist": "nrxfly",
+  "pageUrl": "https://pixabay.com/photos/tibet-tibetan-namtso-lake-yak-895491/",
+  "fetchedAt": "2026-10-23"
+ },
+ "珠穆朗玛峰": {
+  "file": "mount-everest.jpg",
+  "artist": "Eknbg",
+  "pageUrl": "https://pixabay.com/photos/tibet-china-mountains-landscape-4025999/",
+  "fetchedAt": "2026-10-23"
+ },
+ "泸沽湖": {
+  "file": "lugu-lake.jpg",
+  "artist": "Charlottees",
+  "pageUrl": "https://pixabay.com/photos/lugu-lake-china-yunnan-mountain-4648775/",
+  "fetchedAt": "2026-10-23"
+ },
+ "喀纳斯": {
+  "file": "kanas-lake.jpg",
+  "artist": "xiaofengzi-traveler",
+  "pageUrl": "https://pixabay.com/photos/kanas-little-black-lake-xinjiang-2356424/",
+  "fetchedAt": "2026-10-23"
+ },
+ "天山天池": {
+  "file": "tianchi-lake.jpg",
+  "artist": "r-q",
+  "pageUrl": "https://pixabay.com/photos/rainbow-lake-changbai-mountain-7390568/",
+  "fetchedAt": "2026-10-23"
+ },
+ "敦煌莫高窟": {
+  "file": "mogao-caves.jpg",
+  "artist": "nhluoj",
+  "pageUrl": "https://pixabay.com/photos/china-gansu-dunhuang-2550684/",
+  "fetchedAt": "2026-10-23"
+ },
+ "呼伦贝尔": {
+  "file": "hulunbuir.jpg",
+  "artist": "Mikasacolin",
+  "pageUrl": "https://pixabay.com/photos/golden-autumn-in-october-national-day-3731934/",
+  "fetchedAt": "2026-10-23"
+ },
+ "婺源": {
+  "file": "wuyuan.jpg",
+  "artist": "TheKov",
+  "pageUrl": "https://pixabay.com/photos/building-huizhou-architecture-6603320/",
+  "fetchedAt": "2026-10-23"
+ },
+ "稻城": {
+  "file": "daocheng.jpg",
+  "artist": "Alyn",
+  "pageUrl": "https://pixabay.com/photos/tibet-daocheng-1145941/",
+  "fetchedAt": "2026-10-23"
+ },
+ "香格里拉": {
+  "file": "shangri-la-yunnan.jpg",
+  "artist": "vic1108",
+  "pageUrl": "https://pixabay.com/photos/snow-mountain-lijiang-7114997/",
+  "fetchedAt": "2026-10-23"
+ },
+ "南迦巴瓦峰": {
+  "file": "namjagbarwa.jpg",
+  "artist": "snorlaxsha",
+  "pageUrl": "https://pixabay.com/photos/mountain-snow-namjagbarwa-peak-8292807/",
+  "fetchedAt": "2026-10-23"
+ }
+}

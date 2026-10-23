@@ -5,7 +5,11 @@
  * Only the link is stored — the image itself stays with the provider.
  */
 export interface PlaceImage {
-  /** https only: the PWA is served over https, and an http image is blocked as mixed content. */
+  /**
+   * https only for an external host: the PWA is served over https, and an http image is
+   * blocked as mixed content. A root-relative path (`/photos/potala-palace.jpg`) is also
+   * accepted: it is our own copy on our own origin, which is https wherever the page is.
+   */
   readonly url: string;
   /** What the photo shows, in the provider's words: 玉龙雪山国家级风景名胜区. */
   readonly caption: string;
@@ -24,6 +28,10 @@ export function parsePlaceImage(value: unknown): PlaceImage | null {
     return null;
   }
   const validCredit = typeof credit === "string" && credit.trim() !== "" && credit.length <= 120 ? credit.trim() : null;
+  // Our own copy of a photo lives under /photos and is served from this origin.
+  if (url.startsWith("/photos/") && !url.includes("..")) {
+    return { url, caption: caption.trim(), ...(validCredit ? { credit: validCredit } : {}) };
+  }
   try {
     return new URL(url).protocol === "https:"
       ? { url, caption: caption.trim(), ...(validCredit ? { credit: validCredit } : {}) } : null;
