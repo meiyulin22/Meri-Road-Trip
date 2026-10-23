@@ -318,16 +318,21 @@ export class TiandituLocationProvider implements LocationProvider {
     { readonly places: LocationCandidate[]; readonly failure: TiandituFailure | null }
   > {
     const found: LocationCandidate[] = [];
-    let failure: TiandituFailure | null = null;
     for (const area of names) {
-      const pages = await this.classificationPages(area);
-      if (!pages.ok) {
-        failure ??= pages.reason;
+      // A cached 风景名胜 page that already names the words is the answer; asking for 山 as
+      // well would spend a request — and could fail the whole check — for nothing.
+      const remembered = this.memory.get(area, "风景名胜");
+      if (remembered !== null && namedFirst(words, remembered).length > 0) {
+        found.push(...remembered);
         continue;
       }
+      const pages = await this.classificationPages(area);
+      // A refusal ends the check: a second area answering does not make the refused area's
+      // contents known, so a partial view would be reported as success while being wrong.
+      if (!pages.ok) return { places: [], failure: pages.reason };
       for (const places of pages.pages.values()) found.push(...places);
     }
-    return { places: namedFirst(words, found), failure };
+    return { places: namedFirst(words, found), failure: null };
   }
 
   /** Both sight categories for one area, from the cache where known, in one request otherwise. */
@@ -350,7 +355,9 @@ export class TiandituLocationProvider implements LocationProvider {
         start: "0", count: "300", mapBound: chinaBound, show: "2" }),
     });
     if (!answer.ok) return { ok: false, reason: answer.reason };
-    for (const [dataType, places] of this.pagesOf(answer.body, missing)) {
+    const parsed = this.pagesOf(answer.body, missing);
+    if (!parsed.ok) return { ok: false, reason: parsed.reason };
+    for (const [dataType, places] of parsed.pages) {
       pages.set(dataType, places);
       // Only a real page is remembered; a refusal or an empty answer would freeze a miss.
       if (places.length > 0) this.memory.set(area, dataType, places);
@@ -361,21 +368,33 @@ export class TiandituLocationProvider implements LocationProvider {
   /**
    * The category pages in an answer. More than one requested category is answered as an object
    * keyed by category name; a single category is answered as a flat `pois` array.
+   *
+   * 1000 is an answer and 3001 is "no data" — a real answer that happens to be empty. Anything
+   * else (3000 server error, a body shaped like nothing we know) is a failure: read as "empty",
+   * it would let the national page's same-named place elsewhere become the answer.
    */
-  private pagesOf(body: Record<string, unknown>, requested: readonly string[]): Map<string, LocationCandidate[]> {
+  private pagesOf(body: Record<string, unknown>, requested: readonly string[]):
+    | { readonly ok: true; readonly pages: Map<string, LocationCandidate[]> }
+    | { readonly ok: false; readonly reason: TiandituFailure } {
     const pages = new Map<string, LocationCandidate[]>();
     const toPlaces = (pois: unknown[]): LocationCandidate[] => pois.map(candidateFromPoi)
       .filter((place): place is LocationCandidate => place !== null);
+    const infocodeOf = (page: Record<string, unknown>) =>
+      isRecord(page.status) ? page.status.infocode : undefined;
     const grouped = requested.filter((dataType) => isRecord(body[dataType]));
     if (grouped.length > 0) {
       for (const dataType of grouped) {
         const page = body[dataType] as Record<string, unknown>;
-        pages.set(dataType, Array.isArray(page.pois) ? toPlaces(page.pois) : []);
+        const infocode = infocodeOf(page);
+        if (infocode !== 1000 && infocode !== 3001) return { ok: false, reason: "malformed_response" };
+        pages.set(dataType, infocode === 3001 || !Array.isArray(page.pois) ? [] : toPlaces(page.pois));
       }
-      return pages;
+      return { ok: true, pages };
     }
-    if (Array.isArray(body.pois)) pages.set(requested[0], toPlaces(body.pois));
-    return pages;
+    const infocode = infocodeOf(body);
+    if (infocode !== 1000 && infocode !== 3001) return { ok: false, reason: "malformed_response" };
+    if (Array.isArray(body.pois) && infocode === 1000) pages.set(requested[0], toPlaces(body.pois));
+    return { ok: true, pages };
   }
 
   /** Tianditu's own answer: an administrative area, a page of POIs, or (for statistics) nothing. */

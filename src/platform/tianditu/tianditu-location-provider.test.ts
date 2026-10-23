@@ -4,6 +4,7 @@ import test from "node:test";
 import { createTiandituClient, type TiandituAnswer, type TiandituClient } from "./tianditu-fetch";
 import { ClassificationMemory } from "./classification-memory";
 import { candidateFromArea, candidateFromPoi, TiandituLocationProvider, tiandituKind, wholePlacesFirst } from "./tianditu-location-provider";
+import type { LocationCandidate } from "@/domain/location/location";
 
 /** A detailed (`show: "2"`) POI as Tianditu answered on 2026-10-22. */
 const xishan = {
@@ -126,13 +127,18 @@ test("the trip's own area decides where the clean list is asked for", async () =
   assert.deepEqual(specifies, ["大理白族自治州"]);
 });
 
+/** One category of a grouped classification answer, as Tianditu really shapes it. */
+function page(pois: readonly Record<string, unknown>[], infocode = 1000): Record<string, unknown> {
+  return { count: pois.length, pois, resultType: 1, lineData: [], status: { infocode, cndesc: infocode === 1000 ? "服务正常" : "错误" } };
+}
+
 test("both sight categories are fetched in one request, grouped by category", async () => {
   const diancang = { ...xishan, name: "点苍山", hotPointID: "DIANCANG", typeCode: "260203",
     province: "云南省", city: "大理白族自治州", county: "大理市" };
   const tianditu = client((path, post) => {
     if (post.queryType !== "13") return ok({ resultType: 1, pois: [xishan] });
     // The measured shape: one request, answered as an object keyed by category.
-    return ok({ 风景名胜: { count: 1, pois: [] }, 山: { count: 1, pois: [diancang] } });
+    return ok({ 风景名胜: page([]), 山: page([diancang]) });
   });
   const result = await newProvider(tianditu).searchByKeyword("苍山", ["云南省", "大理白族自治州"]);
   assert.equal(result.status === "success" && result.candidates[0].name, "点苍山");
@@ -145,7 +151,7 @@ test("a cached page answers without another request", async () => {
     province: "云南省", city: "大理白族自治州", county: "大理市" };
   const memory = new ClassificationMemory(null);
   const first = client((path, post) => post.queryType === "13"
-    ? ok({ 风景名胜: { count: 1, pois: [diancang] }, 山: { count: 1, pois: [diancang] } })
+    ? ok({ 风景名胜: page([diancang]), 山: page([diancang]) })
     : ok({ resultType: 1, pois: [xishan] }));
   await new TiandituLocationProvider(first, memory).searchByKeyword("苍山", ["大理白族自治州"]);
   const second = client(() => ok({ resultType: 1, pois: [xishan] }));
@@ -164,6 +170,60 @@ test("a refused classification page is a failure, never a success with the natio
   });
   const result = await newProvider(tianditu).searchByKeyword("苍山", ["云南省", "大理白族自治州"]);
   assert.deepEqual(result, { status: "failure", reason: "network_or_response_error" });
+});
+
+test("a refusal in one area ends the check, even though the next area would answer", async () => {
+  const diancang = { ...xishan, name: "点苍山", hotPointID: "DIANCANG", typeCode: "260203",
+    province: "云南省", city: "大理白族自治州", county: "大理市" };
+  // A name no rule accepts as a whole place, so the clean list asks its district and 市.
+  const gate = { ...xishan, name: "苍山石门关", hotPointID: "GATE" };
+  let classificationCalls = 0;
+  const tianditu = client((path, post) => {
+    if (post.queryType === "13") {
+      classificationCalls += 1;
+      // The first area refused; the next area would have answered with a place. A partial
+      // view must not pass as success, so the check stops instead of asking.
+      return classificationCalls === 1
+        ? { ok: false, reason: "refused" }
+        : ok({ 风景名胜: page([diancang]), 山: page([]) });
+    }
+    return ok({ resultType: 1, pois: [gate] });
+  });
+  const result = await newProvider(tianditu).searchByKeyword("苍山");
+  assert.equal(result.status, "failure");
+  assert.equal(classificationCalls, 1);
+});
+
+test("an API-level error in a classification answer is a failure, not an empty page", async () => {
+  const tianditu = client((path, post) => post.queryType === "13"
+    ? ok({ 风景名胜: page([], 3000), 山: page([], 3000) })
+    : ok({ resultType: 1, pois: [xishan] }));
+  const result = await newProvider(tianditu).searchByKeyword("苍山", ["云南省", "大理白族自治州"]);
+  assert.deepEqual(result, { status: "failure", reason: "api_or_response_error" });
+});
+
+test("3001 means no data, which is an answer and not a failure", async () => {
+  const diancang = { ...xishan, name: "点苍山", hotPointID: "DIANCANG", typeCode: "260203",
+    province: "云南省", city: "大理白族自治州", county: "大理市" };
+  const tianditu = client((path, post) => post.queryType === "13"
+    ? ok({ 风景名胜: page([], 3001), 山: page([diancang]) })
+    : ok({ resultType: 1, pois: [xishan] }));
+  const result = await newProvider(tianditu).searchByKeyword("苍山", ["大理白族自治州"]);
+  assert.equal(result.status === "success" && result.candidates[0].name, "点苍山");
+});
+
+test("a cached 风景名胜 page that names the words answers without asking for 山", async () => {
+  const cached: LocationCandidate = { providerId: "DIANCANG", name: "点苍山", province: "云南省",
+    city: "大理白族自治州", district: "大理市", region: "云南省 大理白族自治州 大理市",
+    address: null, longitude: 100.1, latitude: 25.7, coordinateSystem: "CGCS2000", kind: "sight" };
+  const memory = new ClassificationMemory(null);
+  memory.set("大理白族自治州", "风景名胜", [cached]);
+  // 山 is not cached, and asking for it would be the wasted call this test forbids.
+  const tianditu = client(() => ok({ resultType: 1, pois: [xishan] }));
+  const result = await new TiandituLocationProvider(tianditu, memory)
+    .searchByKeyword("苍山", ["大理白族自治州"]);
+  assert.equal(result.status === "success" && result.candidates[0].name, "点苍山");
+  assert.deepEqual(tianditu.calls, ["/v2/search:1"]);
 });
 
 test("a whole place inside the trip's area answers without another search", async () => {
