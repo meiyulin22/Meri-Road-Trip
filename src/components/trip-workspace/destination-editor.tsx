@@ -15,10 +15,15 @@ import styles from "./trip-workspace.module.css";
 
 type SearchChoice = { readonly id: string; readonly name: string; readonly province: string;
   readonly city: string | null; readonly spot: string | null; readonly detail: string | null };
+type Suggestion = { readonly name: string; readonly region: string | null };
 const searchResponseSchema = z.object({ choices: z.array(z.object({
   id: z.string().min(1), name: z.string().min(1), province: z.string().min(1),
   city: z.string().min(1).nullable(), spot: z.string().min(1).nullable(), detail: z.string().nullable(),
 }).refine((choice) => choice.spot === null || choice.city !== null)) });
+// Only what a one-character hint needs: the name, and where it is if the provider said.
+const suggestionResponseSchema = z.object({ suggestions: z.array(z.object({
+  name: z.string().min(1), region: z.string().min(1).nullable(),
+})) });
 
 export function DestinationEditor({ tripId, tripState, onTripStateChange, initiallyOpen = false }: {
   readonly tripId: string; readonly tripState: TripState;
@@ -30,6 +35,7 @@ export function DestinationEditor({ tripId, tripState, onTripStateChange, initia
   const reduceMotion = useReducedMotion();
   const [query, setQuery] = useState("");
   const [choices, setChoices] = useState<readonly SearchChoice[]>([]);
+  const [suggestions, setSuggestions] = useState<readonly Suggestion[]>([]);
   const [searchState, setSearchState] = useState<"idle" | "loading" | "empty" | "error" | "results">("idle");
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -38,21 +44,37 @@ export function DestinationEditor({ tripId, tripState, onTripStateChange, initia
 
   useEffect(() => {
     const normalized = query.trim();
-    if (!open || normalized.length < 2) return;
+    if (!open || normalized.length < 1) return;
+    const suggestionOnly = normalized.length === 1;
     const controller = new AbortController();
     const timer = window.setTimeout(async () => {
       setSearchState("loading");
       try {
+        if (suggestionOnly) {
+          // A single character is too wide to search: 大 matches a crowd of places, and the
+          // classification pages behind a search would answer with shops named after a city.
+          // The suggestion list costs one small request and the user picks which place to type.
+          const response = await fetch(`/api/locations/suggestions?q=${encodeURIComponent(normalized)}`,
+            { signal: controller.signal });
+          if (!response.ok) throw new Error("suggestion_failed");
+          const parsed = suggestionResponseSchema.parse(await response.json());
+          if (controller.signal.aborted) return;
+          setSuggestions(parsed.suggestions);
+          setChoices([]);
+          setSearchState(parsed.suggestions.length ? "results" : "empty");
+          return;
+        }
         const response = await fetch(`/api/trips/${encodeURIComponent(tripId)}/destinations?q=${encodeURIComponent(normalized)}`,
           { signal: controller.signal });
         if (!response.ok) throw new Error("search_failed");
         const body: unknown = await response.json();
         const parsed = searchResponseSchema.parse(body);
         if (controller.signal.aborted) return;
+        setSuggestions([]);
         setChoices(parsed.choices);
         setSearchState(parsed.choices.length ? "results" : "empty");
       } catch {
-        if (!controller.signal.aborted) { setChoices([]); setSearchState("error"); }
+        if (!controller.signal.aborted) { setChoices([]); setSuggestions([]); setSearchState("error"); }
       }
     }, 250);
     return () => { controller.abort(); window.clearTimeout(timer); };
@@ -133,14 +155,26 @@ export function DestinationEditor({ tripId, tripState, onTripStateChange, initia
     {open ? <dd className={styles.destinationEditorSearch}>
       <label><Search size={15} aria-hidden="true" />
         <input aria-label={text.search} autoComplete="off" autoFocus={initiallyOpen} placeholder={text.searchPlaceholder}
-          value={query} onChange={(event) => { setQuery(event.target.value); setChoices([]);
-            setSearchState(event.target.value.trim().length < 2 ? "idle" : "loading"); setError(null); }} />
+          value={query} onChange={(event) => { setQuery(event.target.value); setChoices([]); setSuggestions([]);
+            setSearchState(event.target.value.trim().length < 1 ? "idle" : "loading"); setError(null); }} />
       </label>
       {searchState === "loading" ? <ul className={styles.destinationSearchSkeleton} aria-hidden="true"><li /><li /></ul>
         : null}
       {searchState === "loading" ? <p role="status" className={styles.destinationSearchCount}>{text.searching}</p> : null}
       {searchState === "empty" ? <p role="status">{text.noResults}</p> : null}
       {searchState === "error" ? <p role="alert">{text.searchUnavailable}</p> : null}
+      {suggestions.length ? <ul className={styles.destinationSearchResults}>{suggestions.map((suggestion) => (
+        <li key={suggestion.name} className={styles.destinationSearchResult}>
+          <span className={styles.destinationSearchName}>
+            <strong>{suggestion.name}</strong>
+            {suggestion.region ? <small>{suggestion.region}</small> : null}</span>
+          {/* A name typed on: the search itself then runs on two or more characters. */}
+          <button type="button" className={styles.destinationSearchAdd}
+            onClick={() => { setQuery(suggestion.name); setSuggestions([]); setSearchState("loading"); }}>
+            {text.continueTyping}
+          </button>
+        </li>
+      ))}</ul> : null}
       {choices.length ? <>
         <p className={styles.destinationSearchCount} role="status">{text.resultCount(choices.length)}</p>
         <ul className={styles.destinationSearchResults}>{choices.map((choice) => {

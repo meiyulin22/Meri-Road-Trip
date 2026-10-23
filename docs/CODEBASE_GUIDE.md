@@ -436,6 +436,8 @@ LLM 解释自然语言并提出受限 JSON；应用校验、决定是否执行�
 | [src/capabilities/destination/location-suggestion-service.ts](../src/capabilities/destination/location-suggestion-service.ts) | 应用层/用例装配 | 输入建议用例，trim/长度校验，调用建议端口并转换错误。 |
 | [src/capabilities/destination/planning-readiness-route.test.ts](../src/capabilities/destination/planning-readiness-route.test.ts) | 测试（对应模块边界） | 验证无 owner 不加载、读取当前权威状态、准备度只读及不调用地点研究。 |
 | [src/capabilities/destination/resolve-destination-place.ts](../src/capabilities/destination/resolve-destination-place.ts) | 应用层/用例装配 | 将核验候选映射为 province/place/spot，保留不同 provider 身份及显示细节；同一偏好的多条记录视为一个地点，并给出 exact（namesSamePlace：原话＋行政/景区后缀，可带记录自身市/区县前缀；其他前缀不算）。 |
+| [src/capabilities/destination/search-picks.ts](../src/capabilities/destination/search-picks.ts) | 应用层/用例装配 | 手动搜索结果的噪声过滤：候选里已有行政区答案时，只保留该行政区、名字恰好等于原话的条目，以及以地名后缀结尾的条目；同名的店/公司/节庆（大连上升、大连CS、大连啤酒节）被去掉。天地图把这些也标成 sight，所以只能看名字；旅游区因后缀过长不算行政区。 |
+| [src/capabilities/destination/search-picks.test.ts](../src/capabilities/destination/search-picks.test.ts) | 测试（对应模块边界） | 验证店/公司/节庆被去掉而真景点保留、没有行政区答案时不隐藏、名字恰为原话的保留、白族自治州算行政区、旅游区不算行政区、单字查询不生效。 |
 | [src/capabilities/destination/verified-destination-choice.ts](../src/capabilities/destination/verified-destination-choice.ts) | 应用层/用例装配 | 对持久化卡项按偏好 ID/旧 provider 身份重新验证；已核验省范围有专门处理。 |
 
 ### 6.11 Recommendation 应用用例

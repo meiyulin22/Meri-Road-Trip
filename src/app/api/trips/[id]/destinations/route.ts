@@ -8,6 +8,7 @@ import { journeyService } from "@/capabilities/journey/journey-service-instance"
 import { LocationService } from "@/capabilities/destination/location-service";
 import { savedAreaNames } from "@/capabilities/destination/saved-area-names";
 import { picksFromSearch } from "@/capabilities/destination/resolve-destination-place";
+import { withoutAreaNamesakes } from "@/capabilities/destination/search-picks";
 import { TripStateConflictError } from "@/capabilities/journey/journey-errors";
 import { TripNotFoundError } from "@/domain/trip/trip-errors";
 import { logger } from "@/platform/observability/logger";
@@ -55,7 +56,7 @@ export async function GET(request: Request, context: Context): Promise<Response>
   if (query.length < 2 || query.length > 80) return Response.json({ error: "Invalid query." }, { status: 400 });
   const result = await serviceFor(access.trip.journey.tripState).search(query);
   if (result.status !== "success") return Response.json({ error: "Search unavailable." }, { status: 503 });
-  const choices = picksFromSearch(result.candidates).slice(0, 12).map((pick) => ({
+  const choices = picksFromSearch(withoutAreaNamesakes(result.candidates, query)).slice(0, 12).map((pick) => ({
     id: pick.id, name: pick.spot ?? pick.place ?? pick.province, province: pick.province,
     city: pick.place, spot: pick.spot, detail: pick.detail ?? null,
   }));
@@ -75,7 +76,9 @@ async function addDestination(request: Request, context: Context): Promise<Respo
   }
   const result = await serviceFor(access.trip.journey.tripState).search(body.query);
   if (result.status !== "success") return Response.json({ error: "Search unavailable." }, { status: 503 });
-  const verified = picksFromSearch(result.candidates).find((pick) => pick.id === body.id);
+  // The same filter as the search: an id the list never showed cannot be added through it.
+  const verified = picksFromSearch(withoutAreaNamesakes(result.candidates, body.query))
+    .find((pick) => pick.id === body.id);
   if (!verified) return Response.json({ error: "Choice expired. Search again." }, { status: 409 });
   const pick: DestinationPick = { province: verified.province, place: verified.place, spot: verified.spot };
   const current = (await journeyService.loadJourney(access.trip.id, access.trip.owner)).tripState;
