@@ -275,6 +275,14 @@ Adaptive Workspace 的简短方向见 [product/adaptive-workspace.md](product/ad
 
 运行配置见 README 和 `.env.example`：数据库/Kimi/高德在服务端读取密钥，Bocha 缺失可降级。页面有 manifest 和图标，未实现 service worker/offline cache。文档记录仓库支持标准 Next.js 部署，不证明已部署到任何指定平台。
 
+### 8.1 本地数据库（开发期）
+
+`src/platform/persistence/database/db.ts` 按 `DATABASE_URL` 的 host 选驱动：`localhost` / `127.0.0.1` 用 `pg` + `drizzle-orm/node-postgres`（长连接池），其余用 Neon HTTP（无连接池）。两个驱动的仓库操作一致，类型边界在 `db.ts` 里一次断言并注明原因；`db.test.ts` 用子进程检查选择结果，不建立连接。
+
+本地库流程：`npm run db:local`（`scripts/db-local.ps1`）起 `docker-compose.yml` 里的 `postgres:17-alpine`（5433 → 5432，命名卷 `meri-pgdata`，`pg_isready` 健康检查），等就绪后用**强制覆盖的** `DATABASE_URL` 跑 `drizzle-kit migrate`，最后打印要粘进 `.env.local` 的连接串；`npm run db:local -- -Stop` 停容器但保留数据卷。迁移文件和 schema 完全来自仓库（`drizzle/*.sql` + `src/platform/persistence/database/schema/`），换一台机器只需 Docker + 两条命令，不需要手工建表。
+
+本地库是**空的**：仓库不导入线上数据；需要看 Neon 上的旧旅程时，把 `.env.local` 的 `DATABASE_URL` 换回线上连接串。实测同一台机器：本地 `select 1` 约 0.6 ms，线上 Neon（新加坡，经代理）数百毫秒到数秒，所以开发期默认用本地库，速度差异只出在数据库这一段，与天地图无关。
+
 ## 9. 本文更新格式
 
 后续新增技术/能力时，按现有栏目补充，不另造一份平行架构说明：

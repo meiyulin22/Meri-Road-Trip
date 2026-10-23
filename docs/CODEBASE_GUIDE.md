@@ -515,7 +515,11 @@ LLM 解释自然语言并提出受限 JSON；应用校验、决定是否执行�
 
 | 文件地址 | 层/类别 | 做什么 |
 | --- | --- | --- |
-| [src/platform/persistence/database/db.ts](../src/platform/persistence/database/db.ts) | 数据库基础设施 | 检查 DATABASE_URL，装配 Neon HTTP 客户端与 Drizzle/schema。 |
+| [src/platform/persistence/database/db.ts](../src/platform/persistence/database/db.ts) | 数据库基础设施 | 检查 DATABASE_URL，按 host 选驱动：localhost/127.0.0.1 用 `pg` + `drizzle-orm/node-postgres` 长连接池，其余用 Neon HTTP；两个驱动的仓库操作一致，类型边界在此一次断言并注明原因。 |
+| [src/platform/persistence/database/db.test.ts](../src/platform/persistence/database/db.test.ts) | 测试（对应模块边界） | 用子进程检查驱动选择而不建立连接：localhost / 127.0.0.1 / LOCALHOST 走 pg，neon.tech 与 localhost.example.com 仍走 Neon，缺失或空白 DATABASE_URL 报错。 |
+| [docker-compose.yml](../docker-compose.yml) | 开发环境 | 本地 PostgreSQL 17（5433 → 5432，用户/库均为 meri，命名卷 meri-pgdata，pg_isready 健康检查）；由 `npm run db:local` 启动。 |
+| [scripts/db-local.ps1](../scripts/db-local.ps1) | 开发验证工具 | `npm run db:local`：起容器 → 轮询就绪 → 强制用本地 URL 跑 `drizzle-kit migrate` → 打印 .env.local 要粘贴的连接串；`-Stop` 停容器并保留数据卷。 |
+| [.env.example](../.env.example) | 开发环境 | 环境变量模板，含 DATABASE_URL（本地/线上两种写法）、地图提供方与各外部服务的 key 占位。 |
 | [src/platform/persistence/database/schema/index.ts](../src/platform/persistence/database/schema/index.ts) | 数据库基础设施 | 导出当前三张表的 schema，不包含旧 user actions 表。 |
 | [src/platform/persistence/database/schema/trip-messages.ts](../src/platform/persistence/database/schema/trip-messages.ts) | 数据库基础设施 | trip_messages 表和角色 enum，正文/presentation/时间戳及 Trip 外键级联。 |
 | [src/platform/persistence/database/schema/trip-states.ts](../src/platform/persistence/database/schema/trip-states.ts) | 数据库基础设施 | trip_states 表，以 Trip ID 为主键，JSONB 保存状态，删除 Trip 时级联。 |
