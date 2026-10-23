@@ -61,7 +61,9 @@ function imageSize(bytes: Uint8Array): { width: number; height: number } | null 
   // WebP (VP8X/VP8 /VP8L 简化处理)
   if (bytes.length > 30 && bytes[0] === 0x52 && bytes[1] === 0x49 && bytes[2] === 0x46 && bytes[3] === 0x46) {
     const chunk = String.fromCharCode(bytes[12]!, bytes[13]!, bytes[14]!, bytes[15]!);
-    if (chunk === "VP8X") return { width: 1 + view.getUintLE(24, 3), height: 1 + view.getUintLE(27, 3) };
+    const read24 = (offset: number): number =>
+      (bytes[offset] ?? 0) | ((bytes[offset + 1] ?? 0) << 8) | ((bytes[offset + 2] ?? 0) << 16);
+    if (chunk === "VP8X") return { width: 1 + read24(24), height: 1 + read24(27) };
     if (chunk === "VP8 ") return { width: view.getUint16(26, true) & 0x3fff, height: view.getUint16(28, true) & 0x3fff };
   }
   return null;
