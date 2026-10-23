@@ -1,0 +1,23 @@
+name: meri
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    ports:
+      - "5433:5432"
+    environment:
+      POSTGRES_USER: meri
+      POSTGRES_PASSWORD: meri
+      POSTGRES_DB: meri
+    volumes:
+      - meri-pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD", "pg_isready", "-h", "127.0.0.1", "-U", "meri", "-d", "meri"]
+      interval: 2s
+      timeout: 5s
+      retries: 30
+      start_period: 5s
+
+volumes:
+  meri-pgdata:
+    name: meri-pgdata

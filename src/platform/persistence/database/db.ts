@@ -1,5 +1,7 @@
 import { neon } from "@neondatabase/serverless";
-import { drizzle } from "drizzle-orm/neon-http";
+import { drizzle as drizzleNeon } from "drizzle-orm/neon-http";
+import { drizzle as drizzlePostgres } from "drizzle-orm/node-postgres";
+import { Pool } from "pg";
 
 import * as schema from "./schema";
 
@@ -13,6 +15,28 @@ function getDatabaseUrl(): string {
   return databaseUrl;
 }
 
-const client = neon(getDatabaseUrl());
+function createNeonDatabase(databaseUrl: string) {
+  return drizzleNeon(neon(databaseUrl), { schema });
+}
 
-export const db = drizzle(client, { schema });
+function createDatabase(): ReturnType<typeof createNeonDatabase> {
+  const databaseUrl = getDatabaseUrl();
+  const hostname = new URL(databaseUrl).hostname.toLowerCase();
+
+  if (hostname === "localhost" || hostname === "127.0.0.1") {
+    const pool = new Pool({
+      connectionString: databaseUrl,
+      connectionTimeoutMillis: 5_000,
+      allowExitOnIdle: true,
+    });
+    // Both drivers use the same schema and PostgreSQL query builders. Repositories
+    // only use select/insert/update/delete (including returning), never Neon-only
+    // batch/auth methods or $client. Keep their existing db type at this boundary;
+    // the drivers' client and session types differ, not those repository operations.
+    return drizzlePostgres(pool, { schema }) as unknown as ReturnType<typeof createNeonDatabase>;
+  }
+
+  return createNeonDatabase(databaseUrl);
+}
+
+export const db = createDatabase();

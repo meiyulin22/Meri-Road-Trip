@@ -8,7 +8,9 @@
     "start": "next start",
     "lint": "eslint",
     "test": "tsx --test \"src/**/*.test.ts\" \"src/**/*.test.tsx\"",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "db:local": "powershell -ExecutionPolicy Bypass -File scripts/db-local.ps1",
+    "db:migrate": "drizzle-kit migrate"
   },
   "dependencies": {
     "@ai-sdk/openai-compatible": "2.0.76",
@@ -24,6 +26,7 @@
     "motion": "^13.4.3",
     "next": "16.3.5",
     "openai": "7.15.0",
+    "pg": "^8.23.1",
     "pino": "^10.3.1",
     "react": "19.2.8",
     "react-day-picker": "^10.0.2",
@@ -32,6 +35,7 @@
   },
   "devDependencies": {
     "@types/node": "^20",
+    "@types/pg": "^8.23.1",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "drizzle-kit": "^0.31.10",
