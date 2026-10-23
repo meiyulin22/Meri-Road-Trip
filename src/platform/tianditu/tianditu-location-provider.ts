@@ -383,17 +383,27 @@ export class TiandituLocationProvider implements LocationProvider {
       isRecord(page.status) ? page.status.infocode : undefined;
     const grouped = requested.filter((dataType) => isRecord(body[dataType]));
     if (grouped.length > 0) {
-      for (const dataType of grouped) {
+      // Measured 2026-10-23: every category that was asked for comes back, even with 0 rows.
+      // A requested category missing from the answer is unknown, not empty — and 苍山 lives in
+      // the 山 page, so reading a missing page as "not here" would answer with 广西's village.
+      if (grouped.length !== requested.length) return { ok: false, reason: "malformed_response" };
+      for (const dataType of requested) {
         const page = body[dataType] as Record<string, unknown>;
         const infocode = infocodeOf(page);
-        if (infocode !== 1000 && infocode !== 3001) return { ok: false, reason: "malformed_response" };
-        pages.set(dataType, infocode === 3001 || !Array.isArray(page.pois) ? [] : toPlaces(page.pois));
+        if (infocode === 3001) {
+          pages.set(dataType, []);
+          continue;
+        }
+        // 1000 promises a pois array; an empty one is a real "nothing here" answer.
+        if (infocode !== 1000 || !Array.isArray(page.pois)) return { ok: false, reason: "malformed_response" };
+        pages.set(dataType, toPlaces(page.pois));
       }
       return { ok: true, pages };
     }
     const infocode = infocodeOf(body);
-    if (infocode !== 1000 && infocode !== 3001) return { ok: false, reason: "malformed_response" };
-    if (Array.isArray(body.pois) && infocode === 1000) pages.set(requested[0], toPlaces(body.pois));
+    if (infocode === 3001) return { ok: true, pages };
+    if (infocode !== 1000 || !Array.isArray(body.pois)) return { ok: false, reason: "malformed_response" };
+    pages.set(requested[0], toPlaces(body.pois));
     return { ok: true, pages };
   }
 

@@ -212,6 +212,40 @@ test("3001 means no data, which is an answer and not a failure", async () => {
   assert.equal(result.status === "success" && result.candidates[0].name, "点苍山");
 });
 
+test("a grouped answer that omits a requested category is not accepted", async () => {
+  // Measured 2026-10-23: both requested categories always come back, so one missing is a
+  // broken answer — and reading the 山 page as empty would lose 点苍山.
+  const tianditu = client((path, post) => post.queryType === "13"
+    ? ok({ 风景名胜: page([]) })
+    : ok({ resultType: 1, pois: [xishan] }));
+  const result = await newProvider(tianditu).searchByKeyword("苍山", ["大理白族自治州"]);
+  assert.deepEqual(result, { status: "failure", reason: "api_or_response_error" });
+});
+
+test("1000 without a pois array is a failure, while an empty array is a real answer", async () => {
+  const missingPois = { count: 0, resultType: 1, lineData: [], status: { infocode: 1000 } };
+  const brokenGroup = client((path, post) => post.queryType === "13"
+    ? ok({ 风景名胜: missingPois, 山: page([]) })
+    : ok({ resultType: 1, pois: [xishan] }));
+  const broken = await newProvider(brokenGroup).searchByKeyword("苍山", ["大理白族自治州"]);
+  assert.equal(broken.status, "failure");
+
+  // A flat answer past the last row: 1000 with pois: [] — an answer that says "nothing here".
+  const emptyPage = client((path, post) => post.queryType === "13"
+    ? ok({ count: 0, resultType: 1, lineData: [], status: { infocode: 1000 }, pois: [] })
+    : ok({ resultType: 1, pois: [xishan] }));
+  const empty = await newProvider(emptyPage).searchByKeyword("苍山", ["大理白族自治州"]);
+  assert.equal(empty.status, "success");
+});
+
+test("a flat answer with no pois array is a failure", async () => {
+  const tianditu = client((path, post) => post.queryType === "13"
+    ? ok({ count: 0, resultType: 1, lineData: [], status: { infocode: 1000 } })
+    : ok({ resultType: 1, pois: [xishan] }));
+  const result = await newProvider(tianditu).searchByKeyword("苍山", ["大理白族自治州"]);
+  assert.deepEqual(result, { status: "failure", reason: "api_or_response_error" });
+});
+
 test("a cached 风景名胜 page that names the words answers without asking for 山", async () => {
   const cached: LocationCandidate = { providerId: "DIANCANG", name: "点苍山", province: "云南省",
     city: "大理白族自治州", district: "大理市", region: "云南省 大理白族自治州 大理市",
@@ -246,9 +280,11 @@ test("a 市 answer keeps the city first and offers the scenic area filed inside 
 });
 
 test("a 市 answer takes its province from reverse geocoding; a province answer needs none", async () => {
-  const city = client((path) => path === "/geocoder"
+  const city = client((path, post) => path === "/geocoder"
     ? ok({ result: { addressComponent: { province: "云南省", city: "丽江市", county: "古城区" } } })
-    : ok({ resultType: 3, area: { name: "丽江市", adminCode: 156530700, lonlat: "100.22,26.85" } }));
+    : post.queryType === "13"
+      ? ok({ count: 0, resultType: 1, lineData: [], pois: [] })
+      : ok({ resultType: 3, area: { name: "丽江市", adminCode: 156530700, lonlat: "100.22,26.85" } }));
   const cityResult = await newProvider(city).searchByKeyword("丽江");
   assert.deepEqual(cityResult.status === "success" &&
     [cityResult.candidates[0].province, cityResult.candidates[0].city], ["云南省", "丽江市"]);
