@@ -422,7 +422,11 @@ LLM 解释自然语言并提出受限 JSON；应用校验、决定是否执行�
 | [src/capabilities/destination/destination-selection-reply.ts](../src/capabilities/destination/destination-selection-reply.ts) | 应用层/用例装配 | 从保存前后的 TripState 构造只说新增地点的确认，首次可规划时附准备度和补充信息邀请，固定正文无 LLM 调用，措辞按首页选择的语言（meri-replies）。 |
 | [src/capabilities/destination/destination-selection-v2.test.ts](../src/capabilities/destination/destination-selection-v2.test.ts) | 测试（对应模块边界） | 验证多省追加、旧 replace 冲突、已确认/过期卡、安全重试及不恢复已删除目的地。 |
 | [src/capabilities/destination/location-service.test.ts](../src/capabilities/destination/location-service.test.ts) | 测试（对应模块边界） | 验证空表达不调用、原话查询、无结果和提供方异常归一化。 |
-| [src/capabilities/destination/location-service.ts](../src/capabilities/destination/location-service.ts) | 应用层/用例装配 | 调用 LocationProvider、规范化错误并执行名称解析；同名商业 POI 干扰时最多补查一次“原词＋市”，要求行政字段佐证；保留原始候选供手动选择。 |
+| [src/capabilities/destination/location-service.ts](../src/capabilities/destination/location-service.ts) | 应用层/用例装配 | 调用 LocationProvider、规范化错误并执行名称解析；同名商业 POI 干扰时最多补查一次“原词＋市”，要求行政字段佐证；保留原始候选供手动选择。构造时可带 `areas`（旅程已存的省/市），原样传给提供方当搜索先验。 |
+| [src/capabilities/destination/saved-area-names.ts](../src/capabilities/destination/saved-area-names.ts) | 应用层/用例装配 | 从 TripState 取出省名 + 市名（不含 spot、去重），作为搜索先验；目的地缺失或只有旧文本时返回空。 |
+| [src/capabilities/destination/saved-area-names.test.ts](../src/capabilities/destination/saved-area-names.test.ts) | 测试（对应模块边界） | 验证空旅程返回空、只取省和市、spot 不参与、跨省去重。 |
+| [src/capabilities/destination/region-hint.ts](../src/capabilities/destination/region-hint.ts) | 应用层/用例装配 | 冷启动地区提示：旅程还没有任何目的地时，问一次模型“这个名字通常在哪个地级市”，返回 `[prefecture, province]` 当先验。4 秒上限（超时等于没有提示）、进程内缓存 7 天且只缓存真实答案、带行政后缀和省级简称不问。只是搜索中心，不是结论。 |
+| [src/capabilities/destination/region-hint.test.ts](../src/capabilities/destination/region-hint.test.ts) | 测试（对应模块边界） | 验证市在省前、行政名和省级简称不调用模型、未知/空答案/模型报错都返回空、真实答案只问一次、永不返回的模型被超时放弃。 |
 | [src/capabilities/destination/place-images.ts](../src/capabilities/destination/place-images.ts) | 应用层/用例装配 | 照片查询顺序（景点/县级市境内→地标→市的国家级景点；省级景点只给只有省的目的地）、卡片配图、同一照片只出现一次、沿用卡片照片的已选地点照片，以及旅程封面（第一个有照片的地点，找到即停）。 |
 | [src/capabilities/destination/place-images.test.ts](../src/capabilities/destination/place-images.test.ts) | 测试（对应模块边界） | 验证查询顺序（市卡不退到省）、逐个兜底、卡片配图、照片去重、沿用对话照片和封面找到即停。 |
 | [src/capabilities/destination/destination-photos-route.test.ts](../src/capabilities/destination/destination-photos-route.test.ts) | 测试（对应模块边界） | 验证照片接口按当前地点返回、不共享缓存、not-found 与其他失败区分。 |

@@ -9,6 +9,7 @@ import { createLocationProvider } from "@/platform/map-providers";
 import { readGuestId } from "@/platform/identity/guest-identity";
 import { TripStateNotFoundError, TripStateConflictError } from "@/capabilities/journey/journey-errors";
 import { LocationService } from "@/capabilities/destination/location-service";
+import { savedAreaNames } from "@/capabilities/destination/saved-area-names";
 import { picksFromSearch } from "@/capabilities/destination/resolve-destination-place";
 import { verifyDestinationChoice } from "@/capabilities/destination/verified-destination-choice";
 import { destinationSelectionReply } from "@/capabilities/destination/destination-selection-reply";
@@ -82,7 +83,7 @@ export async function handleDestinationRecommendationSelectionPost(
       return Response.json({ error: "Destination changed since this offer. Please ask again." }, { status: 409 });
     }
 
-    const service = new LocationService(createLocationProvider());
+    const service = new LocationService(createLocationProvider(), savedAreaNames(currentState));
     const verify = dependencies.verifyChoice ?? ((choice: DestinationChoice) => verifyDestinationChoice(choice, service));
     // Older cards submitted all POI IDs behind a displayed preference. Verify the
     // preference once instead of repeating identical map queries for that city.

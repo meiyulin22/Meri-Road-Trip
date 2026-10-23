@@ -65,6 +65,18 @@ test("search uses the user's expression and empty results stay unresolved",async
  const queries:string[]=[];const service=new LocationService({async searchByKeyword(q){queries.push(q);return {status:"success",candidates:[]};}});
  assert.deepEqual(await service.resolveExpression("梅里雪山"),{status:"unresolved"});assert.deepEqual(queries,["梅里雪山"]);
 });
+test("the trip's areas reach the provider unchanged",async()=>{
+ const seen: Array<readonly string[]|undefined> = [];
+ const providerWithAreas = { async searchByKeyword(_query: string, areas?: readonly string[]) {
+   seen.push(areas); return { status: "success" as const, candidates: [city] };
+ } };
+ const service=new LocationService(providerWithAreas, ["云南省","大理白族自治州"]);
+ assert.equal((await service.resolveExpression("香格里拉")).status,"resolved");
+ assert.deepEqual(seen,[["云南省","大理白族自治州"]]);
+ await new LocationService(providerWithAreas).resolveExpression("香格里拉");
+ // Without a trip the service still hands the provider an empty prior, never undefined.
+ assert.deepEqual(seen[1],[]);
+});
 for(const mode of ["failure","throw"] as const)test("provider "+mode+" becomes a safe error",async()=>{
  const provider:LocationProvider={async searchByKeyword(){if(mode==="throw")throw new Error("secret-key");return {status:"failure",reason:"http_error"};}};
  assert.deepEqual(await new LocationService(provider).resolveExpression("西湖"),{status:"provider_error"});

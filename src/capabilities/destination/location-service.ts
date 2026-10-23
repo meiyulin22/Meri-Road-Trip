@@ -9,7 +9,15 @@ export type LocationResolveResult =
   | { readonly status: "provider_error" };
 
 export class LocationService {
-  constructor(private readonly provider: LocationProvider) {}
+  /**
+   * `areas` is where the trip already is. It is passed to the provider unchanged and only
+   * narrows where it looks first — never what the answer is; the resolution rules below
+   * stay the same either way.
+   */
+  constructor(
+    private readonly provider: LocationProvider,
+    private readonly areas: readonly string[] = [],
+  ) {}
 
   async resolveExpression(query: string): Promise<LocationResolveResult> {
     if (query.trim() === "") {
@@ -39,7 +47,7 @@ export class LocationService {
     | { readonly status: "provider_error" }
   > {
     try {
-      const search = await this.provider.searchByKeyword(query);
+      const search = await this.provider.searchByKeyword(query, this.areas);
       if (search.status === "success") return search;
       logger.warn(
         { event: logEvents.locationResolveFailed, reason: search.reason },

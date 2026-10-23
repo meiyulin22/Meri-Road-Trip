@@ -270,9 +270,12 @@ export class TiandituLocationProvider implements LocationProvider {
     // and is exactly what the trip's own area can correct.
     const answered = provinceAnswer || (isWholePlace(words, found[0]) && insideAnyArea(found[0], areas));
     const clean = answered ? [] : await this.inAreas(areaNamesOf(found, areas), words);
-    // An administrative answer stays first: the user may mean the 市 itself, and Meri's
-    // rules offer both rather than deciding. A page of POIs puts the clean list first.
-    const ordered = area !== null ? [...direct, ...clean] : [...clean, ...direct];
+    // Once the trip's own area answered, the country's same-named places are noise: Meri's
+    // rules would put an exactly-named 广西 village ahead of 点苍山 and ask the user to choose
+    // between them. An area with nothing to say still falls back to the national page.
+    const tripAnswered = areas.length > 0 && clean.length > 0;
+    const ordered = tripAnswered ? [...clean]
+      : area !== null ? [...direct, ...clean] : [...clean, ...direct];
     return { status: "success", candidates: withoutRepeats(ordered).slice(0, resultLimit) };
   }
 

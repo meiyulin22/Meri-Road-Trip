@@ -6,12 +6,20 @@ import { createLocationProvider } from "@/platform/map-providers";
 import { readGuestId } from "@/platform/identity/guest-identity";
 import { journeyService } from "@/capabilities/journey/journey-service-instance";
 import { LocationService } from "@/capabilities/destination/location-service";
+import { savedAreaNames } from "@/capabilities/destination/saved-area-names";
 import { picksFromSearch } from "@/capabilities/destination/resolve-destination-place";
 import { TripStateConflictError } from "@/capabilities/journey/journey-errors";
 import { logger } from "@/platform/observability/logger";
 
 type Context = { params: Promise<{ id: string }> };
-const service = new LocationService(createLocationProvider());
+
+/**
+ * A service built for this trip: its saved areas are the prior a provider may narrow by, so
+ * a search inside a 大理 trip finds 点苍山 rather than the 广西 village of the same name.
+ */
+function serviceFor(tripState: Awaited<ReturnType<typeof journeyService.loadJourney>>["tripState"]) {
+  return new LocationService(createLocationProvider(), savedAreaNames(tripState));
+}
 
 async function ownerAndTrip(context: Context) {
   const owner = readGuestId(await cookies());
@@ -22,10 +30,11 @@ async function ownerAndTrip(context: Context) {
 }
 
 export async function GET(request: Request, context: Context): Promise<Response> {
-  if (!await ownerAndTrip(context)) return Response.json({ error: "Journey not found." }, { status: 404 });
+  const access = await ownerAndTrip(context);
+  if (!access) return Response.json({ error: "Journey not found." }, { status: 404 });
   const query = new URL(request.url).searchParams.get("q")?.trim() ?? "";
   if (query.length < 2 || query.length > 80) return Response.json({ error: "Invalid query." }, { status: 400 });
-  const result = await service.search(query);
+  const result = await serviceFor(access.journey.tripState).search(query);
   if (result.status !== "success") return Response.json({ error: "Search unavailable." }, { status: 503 });
   const choices = picksFromSearch(result.candidates).slice(0, 12).map((pick) => ({
     id: pick.id, name: pick.spot ?? pick.place ?? pick.province, province: pick.province,
@@ -45,7 +54,7 @@ async function addDestination(request: Request, context: Context): Promise<Respo
     typeof body.id !== "string" || body.id.trim() === "") {
     return Response.json({ error: "Invalid choice." }, { status: 400 });
   }
-  const result = await service.search(body.query);
+  const result = await serviceFor(access.journey.tripState).search(body.query);
   if (result.status !== "success") return Response.json({ error: "Search unavailable." }, { status: 503 });
   const verified = picksFromSearch(result.candidates).find((pick) => pick.id === body.id);
   if (!verified) return Response.json({ error: "Choice expired. Search again." }, { status: 409 });

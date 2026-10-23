@@ -31,6 +31,8 @@ import { TripStateNotFoundError, TripStateConflictError } from "@/capabilities/j
 import { journeyService } from "@/capabilities/journey/journey-service-instance";
 import { readGuestId } from "@/platform/identity/guest-identity";
 import { LocationService } from "@/capabilities/destination/location-service";
+import { savedAreaNames } from "@/capabilities/destination/saved-area-names";
+import { hintedAreas } from "@/capabilities/destination/region-hint";
 import { applyDestinationEdit } from "@/capabilities/destination/apply-destination-edit";
 import { resolveDestinationPlace } from "@/capabilities/destination/resolve-destination-place";
 import { withChoiceImages } from "@/capabilities/destination/place-images";
@@ -170,12 +172,17 @@ export async function POST(request: Request) {
     let persistedTripState = patch
       ? await journeyService.updateTripState(tripId, ownerGuestId, patch)
       : tripState;
-    const locationService = new LocationService(createLocationProvider());
+    const savedAreas = savedAreaNames(persistedTripState);
+    // The trip's own region narrows where a same-named place is looked for — 苍山 in a 大理
+    // trip is the mountain, not the village in 广西. Before any destination exists there is
+    // nothing saved to narrow by, so the model is asked where the name usually is; that hint
+    // is only a search centre, and the provider still has to find the place there.
+    const resolve = async (query: string) => new LocationService(createLocationProvider(),
+      savedAreas.length > 0 ? savedAreas : await hintedAreas(query)).resolveExpression(query);
     const destinationResult = await applyDestinationEdit(
       persistedTripState.destination,
       interpretation.destinationEdit,
-      (expression) => resolveDestinationPlace(expression,
-        (query) => locationService.resolveExpression(query)),
+      (expression) => resolveDestinationPlace(expression, resolve),
       body.message,
     );
     if (destinationResult.changed) {
