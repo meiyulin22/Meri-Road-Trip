@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
 import { existsSync, readFileSync } from "node:fs";
 import test from "node:test";
 
@@ -96,14 +97,19 @@ test("new candidate downloads stay inactive until their regions are configured",
   assert.equal(photoFromCatalog(candidate, { kind: "scenic", region: "拉萨市" }), null);
 });
 
-test("the shipped catalog has files, unique names per region and unique representatives", () => {
+test("the shipped catalog has distinct files, unique names per region and unique representatives", () => {
   const raw = JSON.parse(readFileSync(new URL("../../../public/photos/photos.json", import.meta.url), "utf8"));
   const shipped = parsePhotoCatalog(raw);
   assert.deepEqual(Object.keys(shipped), Object.keys(raw));
   const representatives = new Set<string>();
   const namesInRegion = new Set<string>();
+  const images = new Set<string>();
   for (const [name, entry] of Object.entries(shipped)) {
-    assert.ok(existsSync(new URL(`../../../public/photos/${entry.file}`, import.meta.url)), entry.file);
+    const file = new URL(`../../../public/photos/${entry.file}`, import.meta.url);
+    assert.ok(existsSync(file), entry.file);
+    const digest = createHash("sha256").update(readFileSync(file)).digest("hex");
+    assert.equal(images.has(digest), false, `Same photo assigned to different places: ${name}`);
+    images.add(digest);
     for (const region of entry.scenicFor) {
       const key = normalizePlaceName(region);
       assert.equal(representatives.has(key), false, `Duplicate representative: ${region}`);
@@ -174,17 +180,30 @@ test("administrative places use explicit representatives and never another city 
   assert.equal(fallback?.caption, "丽江古城");
 });
 
-test("withdrawn photos cannot be looked up or served from their old local files", async () => {
+test("reviewed replacements use new URLs while the incorrect old photos stay withdrawn", async () => {
   const provider = new CatalogPhotoProvider();
-  assert.equal(await provider.findPhoto(named("青海湖", "海南藏族自治州")), null);
-  assert.equal(await provider.findPhoto(named("天山天池", "昌吉回族自治州")), null);
-  for (const file of ["qinghai-lake.jpg", "tianchi-lake.jpg"]) {
+  for (const region of ["海南藏族自治州", "海北藏族自治州"]) {
+    assert.equal((await provider.findPhoto(named("青海湖", region)))?.url, "/photos/qinghai-lake-2631421.jpg");
+  }
+  assert.equal((await provider.findPhoto(named("天山天池", "昌吉回族自治州")))?.url,
+    "/photos/tianchi-xinjiang-2077003.jpg");
+  assert.equal(await provider.findPhoto(named("天山天池", "白山市")), null);
+  assert.equal(await provider.findPhoto(named("长白山天池", "昌吉回族自治州")), null);
+  assert.equal(await provider.findPhoto(named("天池", "昌吉回族自治州")), null);
+  for (const file of ["qinghai-lake.jpg", "tianchi-lake.jpg", "shangri-la-yunnan.jpg"]) {
     assert.equal(existsSync(new URL(`../../../public/photos/${file}`, import.meta.url)), false);
   }
 });
 
-test("the uncertain Shangri-La source stays inactive pending review", async () => {
+test("Shangri-La uses a named local landmark as its representative, not a landmark alias", async () => {
   const provider = new CatalogPhotoProvider();
   assert.equal(await provider.findPhoto(named("香格里拉", "迪庆藏族自治州")), null);
-  assert.equal(await provider.findPhoto({ kind: "scenic", region: "香格里拉市" }), null);
+  assert.equal((await provider.findPhoto(named("噶丹·松赞林寺", "香格里拉市")))?.caption, "松赞林寺");
+  assert.equal(await provider.findPhoto(named("松赞林寺", "丽江市")), null);
+  for (const spot of ["香格里拉", "香格里拉市"]) {
+    const image = await findPlaceImage({ province: "云南省", place: "迪庆藏族自治州", spot }, provider);
+    assert.equal(image?.url, "/photos/songzanlin-4424995.jpg");
+    assert.equal(image?.caption, "松赞林寺");
+    assert.equal(image?.credit, "Photo: samyo / Pixabay");
+  }
 });

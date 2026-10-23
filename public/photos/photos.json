@@ -483,17 +483,6 @@
    "稻城县"
   ]
  },
- "香格里拉": {
-  "file": "shangri-la-yunnan.jpg",
-  "artist": "vic1108",
-  "pageUrl": "https://pixabay.com/photos/snow-mountain-lijiang-7114997/",
-  "fetchedAt": "2026-10-23",
-  "aliases": [
-   "香格里拉市"
-  ],
-  "regions": [],
-  "scenicFor": []
- },
  "南迦巴瓦峰": {
   "file": "namjagbarwa.jpg",
   "artist": "snorlaxsha",
@@ -510,6 +499,75 @@
   "scenicFor": [
    "林芝市",
    "林芝"
+  ]
+ },
+ "青海湖": {
+  "file": "qinghai-lake-2631421.jpg",
+  "artist": "Ponyo-",
+  "pageUrl": "https://pixabay.com/photos/qinghai-lake-sky-2631421/",
+  "fetchedAt": "2026-10-23",
+  "aliases": [
+   "青海湖景区",
+   "青海湖风景名胜区"
+  ],
+  "regions": [
+   "海南藏族自治州",
+   "海南州",
+   "海北藏族自治州",
+   "海北州",
+   "共和县",
+   "刚察县",
+   "海晏县"
+  ],
+  "scenicFor": [
+   "海南藏族自治州",
+   "海南州",
+   "海北藏族自治州",
+   "海北州",
+   "共和县",
+   "刚察县",
+   "海晏县"
+  ]
+ },
+ "天山天池": {
+  "file": "tianchi-xinjiang-2077003.jpg",
+  "artist": "ccp877",
+  "pageUrl": "https://pixabay.com/photos/tianchi-lake-snow-xinjiang-pond-2077003/",
+  "fetchedAt": "2026-10-23",
+  "aliases": [
+   "天山天池风景名胜区",
+   "新疆天山天池",
+   "新疆天山天池风景名胜区"
+  ],
+  "regions": [
+   "昌吉回族自治州",
+   "昌吉州",
+   "阜康市"
+  ],
+  "scenicFor": [
+   "昌吉回族自治州",
+   "昌吉州",
+   "阜康市"
+  ]
+ },
+ "松赞林寺": {
+  "file": "songzanlin-4424995.jpg",
+  "artist": "samyo",
+  "pageUrl": "https://pixabay.com/photos/songzanlin-lamasery-yunnan-temple-4424995/",
+  "fetchedAt": "2026-10-23",
+  "aliases": [
+   "噶丹松赞林寺",
+   "噶丹·松赞林寺"
+  ],
+  "regions": [
+   "迪庆藏族自治州",
+   "迪庆州",
+   "香格里拉市"
+  ],
+  "scenicFor": [
+   "迪庆藏族自治州",
+   "迪庆州",
+   "香格里拉市"
   ]
  }
 }
