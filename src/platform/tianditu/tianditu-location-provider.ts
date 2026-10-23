@@ -12,18 +12,39 @@ const resultLimit = 5;
  */
 const pageSize = "30";
 const chinaBound = "73,3,136,54";
+/**
+ * The categories the classification search is asked for, in the order that matters:
+ * 风景名胜 is a tourist scenic area, 山 catches the mountains filed only as natural
+ * features (点苍山). `dataTypes` takes one value per request — a comma-separated list
+ * answered zero rows on 2026-10-23.
+ */
+const sightDataTypes = ["风景名胜", "山"] as const;
+/** How many districts from the national page are searched inside; each costs two requests. */
+const maxAreas = 2;
 /** 直辖市 are their own province and their own 市; Tianditu leaves the 市 empty for them. */
 const municipalities = new Set(["北京市", "天津市", "上海市", "重庆市"]);
 
 /**
- * Tianditu's own category codes, as seen on 2026-10-22: 1803xx parks and zoos, 1804xx
- * 风景名胜, 1602xx museums, 2602xx mountains and gorges, 2603xx rivers and lakes,
- * 2608xx islands. Everything else — restaurants 11xxxx, governments 19xxxx, ticket
- * offices 2103xx, place names 2601xx (villages, districts) — is not somewhere to go.
+ * Tianditu's own category codes, taken from the official table
+ * (https://download.tianditu.gov.cn/download/xzqh/Type.csv, GBK, 339 rows, 2026-10-23):
+ * 180400 风景名胜, 1602xx 文化场馆 (图书馆、博物馆、美术馆、科技馆), 2602xx 自然地物
+ * (山、河流、湖泊、岛屿、山洞、泉). Everything else is not somewhere to go — 1802xx is
+ * 休闲娱乐 (彩票销售、网吧、夜总会), 2601xx 行政地名, 2603xx 门牌信息, 1801xx 运动场馆.
+ * The earlier guess "2603xx rivers and lakes, 2608xx islands" was wrong: 2603 is house
+ * numbers and no 2608 family exists, so both are gone.
  */
+const sightTypeCodes = /^(180400|1602|2602)/u;
+/**
+ * Inside 1803 休闲度假 only some entries are places to visit. 180306 广场 is left out on
+ * purpose: 潮汕站南广场 is a station square, not a sight, and it once made 潮汕 resolve
+ * to a square. 180301 农家乐 and 180302 度假村 are lodging, not destinations.
+ */
+const parkTypeCodes = new Set(["180303", "180304", "180305", "180307", "180308", "180309", "180310"]);
+
 export function tiandituKind(typeCode: unknown): LocationKind | undefined {
   if (typeof typeCode !== "string" || typeCode.trim() === "") return undefined;
-  return /^(1803|1804|1602|2602|2603|2608)/u.test(typeCode) ? "sight" : "other";
+  const code = typeCode.trim();
+  return sightTypeCodes.test(code) || parkTypeCodes.has(code) ? "sight" : "other";
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -130,13 +151,37 @@ function rank(name: string, words: string): number {
  */
 export function wholePlacesFirst(query: string, found: readonly LocationCandidate[]): LocationCandidate[] {
   const words = normalize(query);
-  const isWholePlace = (place: LocationCandidate) => {
-    const name = normalize(place.name);
-    return place.kind === "sight" && name.includes(words) && !/[-－·(（]/u.test(name) && rank(name, words) < 2;
-  };
-  const wholePlaces = found.filter(isWholePlace);
+  const wholePlaces = found.filter((place) => isWholePlace(words, place));
   if (wholePlaces.length === 0) return [...found];
-  return [...wholePlaces, ...found.filter((place) => !isWholePlace(place) && place.kind === "sight")];
+  return [...wholePlaces, ...found.filter((place) => !isWholePlace(words, place) && place.kind === "sight")];
+}
+
+/** The whole place the user named, rather than a part of it or a shop that borrowed the name. */
+function isWholePlace(words: string, place: LocationCandidate): boolean {
+  const name = normalize(place.name);
+  return place.kind === "sight" && name.includes(words) && !/[-－·(（]/u.test(name) && rank(name, words) < 2;
+}
+
+/**
+ * The districts the national page filed its results under, in page order. A keyword page
+ * for 稻城亚丁 is all 稻城县, which is exactly the area whose clean list is worth asking for.
+ */
+function areaNamesOf(candidates: readonly LocationCandidate[]): string[] {
+  const names: string[] = [];
+  for (const place of candidates) {
+    const area = place.district ?? place.city;
+    if (area !== null && !names.includes(area)) names.push(area);
+    if (names.length === maxAreas) break;
+  }
+  return names;
+}
+
+/** Closest names first: the words themselves, then a scenic suffix, then the shortest prefix. */
+function namedFirst(words: string, places: readonly LocationCandidate[]): LocationCandidate[] {
+  return places
+    .filter((place) => normalize(place.name).includes(words))
+    .sort((left, right) => rank(normalize(left.name), words) - rank(normalize(right.name), words) ||
+      normalize(left.name).length - normalize(right.name).length);
 }
 
 function failure(answer: Extract<TiandituAnswer, { ok: false }>): LocationSearchResult {
@@ -157,13 +202,16 @@ function withoutRepeats(candidates: readonly LocationCandidate[]): LocationCandi
 
 /**
  * Meri's place check on Tianditu, the national map platform: free, and its provinces
- * and 市 are exact, but it ranks same-named places by text alone — 苍山 leads with the
- * village in 广西, not the mountain in 大理 — and it offers no popularity signal to put
- * the famous one first. wholePlacesFirst is all the ordering Meri adds. A Wikidata
- * lookup filled that gap until 2026-10-23, when it was removed: a server in mainland
- * China cannot reach Wikidata, so the step only ever helped a developer's machine.
- * Everything after the provider is Amap's flow unchanged: one page, the same rules,
- * the same confirmation before a place is saved.
+ * and 市 are exact, but it ranks same-named places by text alone and offers no popularity
+ * signal. Two things make up for it: wholePlacesFirst moves a whole scenic area up the
+ * page, and when the page itself has no whole place to offer (a row of airport, hotels
+ * and the scenic area's own office), the classification search lists that district's
+ * scenic areas by category instead — one request per area and category.
+ *
+ * A Wikidata lookup did the fame ranking until 2026-10-23, when it was removed: a server
+ * in mainland China cannot reach Wikidata, so it only ever helped a developer's machine.
+ * Everything after the provider is Amap's flow unchanged: one page, the same rules, the
+ * same confirmation before a place is saved.
  */
 export class TiandituLocationProvider implements LocationProvider {
   constructor(private readonly client: TiandituClient = createTiandituClient()) {}
@@ -183,7 +231,43 @@ export class TiandituLocationProvider implements LocationProvider {
 
     const found = await this.found(search.body);
     if (found === null) return { status: "failure", reason: "network_or_response_error" };
-    return { status: "success", candidates: withoutRepeats(wholePlacesFirst(words, found)).slice(0, resultLimit) };
+    if (found.length === 0) return { status: "success", candidates: [] };
+    const direct = wholePlacesFirst(words, found);
+    const area = isRecord(search.body.area) ? search.body.area : null;
+    // A province names itself and is almost always what the user meant, so it is left
+    // alone. A district answer (黄山, 丽江) and a page of POIs are both worth the clean
+    // list: a district's scenic areas come back without the airport, the hotels or the
+    // management office that outrank them by name.
+    const provinceAnswer = area !== null && String(area.adminCode ?? "").endsWith("0000");
+    const answered = isWholePlace(words, found[0]) || provinceAnswer;
+    const clean = answered ? [] : await this.inAreas(areaNamesOf(found), words);
+    // An administrative answer stays first: the user may mean the 市 itself, and Meri's
+    // rules offer both rather than deciding. A page of POIs puts the clean list first.
+    const ordered = area !== null ? [...direct, ...clean] : [...clean, ...direct];
+    return { status: "success", candidates: withoutRepeats(ordered).slice(0, resultLimit) };
+  }
+
+  /**
+   * Tianditu's classification search: every 风景名胜 and 山 filed under an area, matched
+   * against the user's words. Measured 2026-10-23: 稻城县 40 rows, first is
+   * 甘孜州稻城亚丁景区; 黄山市 665 rows with 黄山风景区 inside the first page; 九寨沟县
+   * 93 rows, first is 九寨沟风景名胜区. 山 covers what a scenic-area list leaves out —
+   * 大理市 山 212 rows holds 点苍山.
+   */
+  private async inAreas(names: readonly string[], words: string): Promise<LocationCandidate[]> {
+    const found: LocationCandidate[] = [];
+    for (const area of names) {
+      for (const dataType of sightDataTypes) {
+        const answer = await this.client.get("/v2/search", {
+          type: "query",
+          postStr: JSON.stringify({ queryType: "13", specify: area, dataTypes: dataType, start: "0", count: "300", mapBound: chinaBound, show: "2" }),
+        });
+        // One refused or empty area is not "no such place": keep whatever the others gave.
+        if (!answer.ok || !Array.isArray(answer.body.pois)) continue;
+        found.push(...answer.body.pois.map(candidateFromPoi).filter((place): place is LocationCandidate => place !== null));
+      }
+    }
+    return namedFirst(words, found);
   }
 
   /** Tianditu's own answer: an administrative area, a page of POIs, or (for statistics) nothing. */

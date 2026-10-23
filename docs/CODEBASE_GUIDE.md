@@ -188,6 +188,7 @@ LLM 解释自然语言并提出受限 JSON；应用校验、决定是否执行�
 | [docs/DATABASE_SCHEMA.md](../docs/DATABASE_SCHEMA.md) | 文档/开发约定 | 数据库相关目录、三张表的字段/约束/关系、JSONB 状态、读写代码和迁移历史。 |
 | [docs/PROJECT.md](../docs/PROJECT.md) | 文档/开发约定 | 产品愿景、当前 MVP、用户决定原则、规划方向及当前非目标。 |
 | [docs/USER_FLOW_CURRENT.md](../docs/USER_FLOW_CURRENT.md) | 文档/开发约定 | 向用户讲解的详细业务材料：入口、模型 JSON、每个操作的 API/代码、状态变化、错误、并发与兼容。 |
+| [docs/TODO.md](../docs/TODO.md) | 文档/开发约定 | 待办清单（T1–T7）：天地图 429 重试、输入联想 infocode、建议词过滤、上下文搜索回退、别名归一、© 天地图署名、向人工客服索取商用与审图号书面答复；以及明确不做的三件事（照片、全国景点索引、LLM 排序）。 |
 | [docs/agent-planner/README.md](../docs/agent-planner/README.md) | 文档/规划 | Planner Agent 的规划工作区（中文，边讨论边改）：背景与用户思考、业务、记忆、页面、运行、工具、数据草案、远期方向和决策记录，每节标明已定/草案/待讨论；不是已实现行为。 |
 | [docs/agent-planner/page-mockup-brief.md](../docs/agent-planner/page-mockup-brief.md) | 文档/规划 | 计划页效果图说明：过渡页、只有目的地时、信息填全后三张图的内容、共同视觉风格和可直接复制的英文生成提示；讨论稿，不是实现要求。 |
 | [docs/agent-planner/agent-lessons.md](../docs/agent-planner/agent-lessons.md) | 文档/规划 | 规划时讲过的 Agent 概念笔记：Agent 循环、生成者与验证者、MCP、记忆，用 Meri 的试验举例。 |

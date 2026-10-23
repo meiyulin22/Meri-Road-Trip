@@ -29,10 +29,18 @@ function client(answers: (path: string, postStr: Record<string, unknown>) => Tia
 const ok = (body: Record<string, unknown>): TiandituAnswer => ({ ok: true, body: { status: { infocode: 1000 }, ...body } });
 
 test("Tianditu's categories map to sight or other, and its POIs to Meri candidates", () => {
+  // 180400 风景名胜, 2602xx 自然地物, 1602xx 文化场馆, 1803xx 公园类 — the official table's sights.
   assert.equal(tiandituKind("180400"), "sight");
   assert.equal(tiandituKind("260203"), "sight");
-  assert.equal(tiandituKind("110101"), "other");
+  assert.equal(tiandituKind("160203"), "sight");
+  assert.equal(tiandituKind("180304"), "sight");
+  // Not sights: 门牌信息 2603xx, 行政地名 2601xx, 休闲娱乐 1802xx, 市广场 180306, 运动场馆 1801xx.
+  assert.equal(tiandituKind("260301"), "other");
   assert.equal(tiandituKind("260108"), "other");
+  assert.equal(tiandituKind("180208"), "other");
+  assert.equal(tiandituKind("180306"), "other");
+  assert.equal(tiandituKind("180104"), "other");
+  assert.equal(tiandituKind("110101"), "other");
   assert.equal(tiandituKind(undefined), undefined);
   assert.deepEqual(candidateFromPoi(xishan), {
     providerId: "F62357388B9FD2F2", name: "苍山", province: "广西壮族自治区", city: "南宁市", district: "宾阳县",
@@ -67,13 +75,40 @@ test("a whole scenic area moves first, and the shops that borrowed its name drop
     .map((place) => place.providerId), ["R1", "S2"]);
 });
 
-test("one search, and Tianditu's own page stands with a whole scenic area moved to the front", async () => {
+test("a page whose first place is the whole sight is answered without the classification search", async () => {
   const shop = { ...xishan, name: "苍山饭店", hotPointID: "SHOP", typeCode: "110101" };
-  const tianditu = client(() => ok({ resultType: 1, pois: [shop, geopark] }));
+  const tianditu = client(() => ok({ resultType: 1, pois: [geopark, shop] }));
   const result = await new TiandituLocationProvider(tianditu).searchByKeyword("苍山");
   assert.deepEqual(result.status === "success" && result.candidates.map((place) => place.name), ["苍山世界地质公园"]);
-  // Exactly one request: no fame lookup sits in front of the search any more.
+  // Exactly one request: the page already held the whole place.
   assert.deepEqual(tianditu.calls, ["/v2/search:1"]);
+});
+
+test("a page of airport, hotels and the scenic area's office is replaced by the district's scenic areas", async () => {
+  const county = { province: "四川省", city: "甘孜藏族自治州", county: "稻城县" };
+  const airport = { ...xishan, ...county, name: "稻城亚丁机场", hotPointID: "AIR", typeCode: "230109" };
+  const office = { ...xishan, ...county, name: "稻城亚丁景区管理局", hotPointID: "OFFICE", typeCode: "190109" };
+  const hotel = { ...xishan, ...county, name: "稻城亚丁暖南酒店", hotPointID: "HOTEL", typeCode: "120102" };
+  const scenic = { ...xishan, ...county, name: "甘孜州稻城亚丁景区", hotPointID: "SCENIC", typeCode: "180400" };
+  const tianditu = client((path, post) => post.queryType === "13"
+    ? ok({ resultType: 1, pois: [scenic] })
+    : ok({ resultType: 1, pois: [airport, hotel, office] }));
+  const result = await new TiandituLocationProvider(tianditu).searchByKeyword("稻城亚丁");
+  assert.equal(result.status === "success" && result.candidates[0].name, "甘孜州稻城亚丁景区");
+  // The national page, then 风景名胜 and 山 inside 稻城县.
+  assert.deepEqual(tianditu.calls, ["/v2/search:1", "/v2/search:13", "/v2/search:13"]);
+});
+
+test("a 市 answer keeps the city first and offers the scenic area filed inside it", async () => {
+  const scenicArea = { ...xishan, name: "黄山风景区", hotPointID: "HS", typeCode: "180400",
+    province: "安徽省", city: "黄山市", county: "黄山区" };
+  const tianditu = client((path, post) => {
+    if (path === "/geocoder") return ok({ result: { addressComponent: { province: "安徽省", city: "黄山市", county: "屯溪区" } } });
+    if (post.queryType === "13") return ok({ resultType: 1, pois: [scenicArea] });
+    return ok({ resultType: 3, area: { name: "黄山市", adminCode: 156341000, lonlat: "118.33,29.71" } });
+  });
+  const result = await new TiandituLocationProvider(tianditu).searchByKeyword("黄山");
+  assert.deepEqual(result.status === "success" && result.candidates.map((place) => place.name), ["黄山市", "黄山风景区"]);
 });
 
 test("a 市 answer takes its province from reverse geocoding; a province answer needs none", async () => {
@@ -83,12 +118,14 @@ test("a 市 answer takes its province from reverse geocoding; a province answer 
   const cityResult = await new TiandituLocationProvider(city).searchByKeyword("丽江");
   assert.deepEqual(cityResult.status === "success" &&
     [cityResult.candidates[0].province, cityResult.candidates[0].city], ["云南省", "丽江市"]);
-  assert.deepEqual(city.calls, ["/v2/search:1", "/geocoder:geocode"]);
+  // The national answer, its reverse geocoding, then the two classification requests.
+  assert.deepEqual(city.calls, ["/v2/search:1", "/geocoder:geocode", "/v2/search:13", "/v2/search:13"]);
 
   const province = client(() => ok({ resultType: 3, area: { name: "云南省", adminCode: 156530000, lonlat: "100.5,25" } }));
   const provinceResult = await new TiandituLocationProvider(province).searchByKeyword("云南");
   assert.deepEqual(provinceResult.status === "success" &&
     [provinceResult.candidates[0].name, provinceResult.candidates[0].province], ["云南省", "云南省"]);
+  // A province is left alone: one request, no classification search.
   assert.deepEqual(province.calls, ["/v2/search:1"]);
 });
 
