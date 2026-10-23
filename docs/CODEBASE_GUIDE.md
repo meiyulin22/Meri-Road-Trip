@@ -8,6 +8,7 @@
 - 第 6 节是完整文件索引，按任务查找对应模块，再阅读真实源码和相邻测试。不要求每次把所有文件全文放入上下文；引用文档路径也不等于 AI 已经读取了文件内容。
 - 修改用户操作、聊天、API 或持久化时，阅读 `USER_FLOW_CURRENT.md` 的对应详细章节；它保留操作与代码映射，不用本文替代。
 - 数据库表、字段、关系与迁移的专门目录见 [DATABASE_SCHEMA.md](DATABASE_SCHEMA.md)；改 schema/repository/migration 时查阅。
+- 天地图接口的请求形态、真实返回、字段含义与已证伪的猜想见 [TIANDITU_FIELDS.md](TIANDITU_FIELDS.md)；改 `src/platform/tianditu/` 或排查地点核验问题时查阅。
 - 核对实现时以实际入口及调用链为准。一个 helper 有导出和测试，不代表页面正在调用它；历史 SQL 也不代表当前数据库表仍存在。
 - 文件索引覆盖版本控制内的源码、测试、配置、迁移、文档和资源，每个文件单独列出。不枚举 `.git/`、`node_modules/`、`.next/`、本地环境密钥、日志及生成缓存。`next-env.d.ts` 和 `*.tsbuildinfo` 是本地生成文件，按 `.gitignore` 排除。
 - 此文是维护时的源码快照。增删或移动项目文件时同步索引和引用；文档无法代替实际检查 `git status`、diff 和当前源码。
