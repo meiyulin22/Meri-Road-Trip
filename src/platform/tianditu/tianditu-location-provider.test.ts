@@ -126,18 +126,18 @@ test("the trip's own area decides where the clean list is asked for", async () =
   assert.deepEqual(specifies, ["大理白族自治州"]);
 });
 
-test("the 山 page is asked for only when 风景名胜 has nothing naming the user's words", async () => {
+test("both sight categories are fetched in one request, grouped by category", async () => {
   const diancang = { ...xishan, name: "点苍山", hotPointID: "DIANCANG", typeCode: "260203",
     province: "云南省", city: "大理白族自治州", county: "大理市" };
   const tianditu = client((path, post) => {
     if (post.queryType !== "13") return ok({ resultType: 1, pois: [xishan] });
-    // 大理州's 风景名胜 page has no 苍山; its 山 page holds 点苍山 — the measured shape.
-    return post.dataTypes === "山" ? ok({ resultType: 1, pois: [diancang] }) : ok({ resultType: 1, pois: [] });
+    // The measured shape: one request, answered as an object keyed by category.
+    return ok({ 风景名胜: { count: 1, pois: [] }, 山: { count: 1, pois: [diancang] } });
   });
   const result = await newProvider(tianditu).searchByKeyword("苍山", ["云南省", "大理白族自治州"]);
   assert.equal(result.status === "success" && result.candidates[0].name, "点苍山");
   assert.deepEqual(tianditu.posts.filter((post) => post.queryType === "13").map((post) => post.dataTypes),
-    ["风景名胜", "山"]);
+    ["风景名胜,山"]);
 });
 
 test("a cached page answers without another request", async () => {
@@ -145,15 +145,25 @@ test("a cached page answers without another request", async () => {
     province: "云南省", city: "大理白族自治州", county: "大理市" };
   const memory = new ClassificationMemory(null);
   const first = client((path, post) => post.queryType === "13"
-    ? ok({ resultType: 1, pois: [diancang] }) : ok({ resultType: 1, pois: [xishan] }));
+    ? ok({ 风景名胜: { count: 1, pois: [diancang] }, 山: { count: 1, pois: [diancang] } })
+    : ok({ resultType: 1, pois: [xishan] }));
   await new TiandituLocationProvider(first, memory).searchByKeyword("苍山", ["大理白族自治州"]);
-  const firstCalls = first.calls.length;
   const second = client(() => ok({ resultType: 1, pois: [xishan] }));
   const result = await new TiandituLocationProvider(second, memory).searchByKeyword("苍山", ["大理白族自治州"]);
   assert.equal(result.status === "success" && result.candidates[0].name, "点苍山");
-  // Only the national page went out; the classification page came from the cache.
+  // Only the national page went out; both classification pages came from the cache.
   assert.deepEqual(second.calls, ["/v2/search:1"]);
-  assert.ok(firstCalls > 1);
+});
+
+test("a refused classification page is a failure, never a success with the national page", async () => {
+  // 苍山's national page leads with 广西's village; answering with it because the clean list
+  // was refused is exactly the wrong answer this path exists to prevent.
+  const tianditu = client((path, post) => {
+    if (post.queryType === "13") return { ok: false, reason: "refused" };
+    return ok({ resultType: 1, pois: [xishan] });
+  });
+  const result = await newProvider(tianditu).searchByKeyword("苍山", ["云南省", "大理白族自治州"]);
+  assert.deepEqual(result, { status: "failure", reason: "network_or_response_error" });
 });
 
 test("a whole place inside the trip's area answers without another search", async () => {
@@ -182,8 +192,9 @@ test("a 市 answer takes its province from reverse geocoding; a province answer 
   const cityResult = await newProvider(city).searchByKeyword("丽江");
   assert.deepEqual(cityResult.status === "success" &&
     [cityResult.candidates[0].province, cityResult.candidates[0].city], ["云南省", "丽江市"]);
-  // The national answer, its reverse geocoding, then the two classification requests.
-  assert.deepEqual(city.calls, ["/v2/search:1", "/geocoder:geocode", "/v2/search:13", "/v2/search:13"]);
+  // The national answer, its reverse geocoding, then one classification request for both
+  // categories (the answer is grouped by category), never two.
+  assert.deepEqual(city.calls, ["/v2/search:1", "/geocoder:geocode", "/v2/search:13"]);
 
   const province = client(() => ok({ resultType: 3, area: { name: "云南省", adminCode: 156530000, lonlat: "100.5,25" } }));
   const provinceResult = await newProvider(province).searchByKeyword("云南");

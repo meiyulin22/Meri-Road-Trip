@@ -211,7 +211,7 @@ LLM 解释自然语言并提出受限 JSON；应用校验、决定是否执行�
 | [src/app/api/trips/[id]/destination-recommendations/route.ts](../src/app/api/trips/%5Bid%5D/destination-recommendations/route.ts) | HTTP 接口层 | POST 推荐卡片：只接受 `{messageId}`，从保存的对话还原 pending 请求，仅为仍是最新消息的 pending 运行推荐工作流，以派生 ID 保存卡片；已存在则直接返回，过期 409，失败 502。 |
 | [src/app/api/trips/[id]/destination-recommendation-photos/route.ts](../src/app/api/trips/%5Bid%5D/destination-recommendation-photos/route.ts) | HTTP 接口层 | POST 推荐卡照片：只接受 `{messageId}`，owner 检查，为该推荐卡消息里还没查过照片的卡逐张查图，每查到一张以 NDJSON 推一行，全部查完写回消息再结束；浏览器离开也查完并保存；非推荐卡 404。 |
 | [src/app/api/trips/[id]/destination-photos/route.ts](../src/app/api/trips/%5Bid%5D/destination-photos/route.ts) | HTTP 接口层 | GET 已选地点照片：owner 检查，按当前目的地和对话里卡片展示过的照片返回每个地点一张，private/no-store，不写入任何数据。 |
-| [src/app/api/trips/[id]/destinations/route.ts](../src/app/api/trips/%5Bid%5D/destinations/route.ts) | HTTP 接口层 | GET 手动搜索、POST 重查并添加、DELETE 完整元组/旧记录；归属检查、目标核验及目的地并发控制。 |
+| [src/app/api/trips/[id]/destinations/route.ts](../src/app/api/trips/%5Bid%5D/destinations/route.ts) | HTTP 接口层 | GET 手动搜索、POST 按 query/id 或建议完整名称/地区重查并添加、DELETE 完整元组/旧记录；归属检查、唯一目标核验及目的地并发控制。 |
 | [src/app/api/trips/[id]/planning-readiness/route.ts](../src/app/api/trips/%5Bid%5D/planning-readiness/route.ts) | HTTP 接口层 | GET 读取新鲜 TripState，返回 missing/unverified/selected 准备度；不生成计划。 |
 | [src/app/api/trips/[id]/route.ts](../src/app/api/trips/%5Bid%5D/route.ts) | HTTP 接口层 | DELETE /api/trips/[id] 只删除当前访客拥有的 Trip，数据库级联清理状态和消息。 |
 | [src/app/api/trips/[id]/state/route.ts](../src/app/api/trips/%5Bid%5D/state/route.ts) | HTTP 接口层 | GET 状态/PATCH 领域校验后的 patch；调用 JourneyService，不自行做高德核验，冲突错误当前未单独映射 409。 |
@@ -264,7 +264,7 @@ LLM 解释自然语言并提出受限 JSON；应用校验、决定是否执行�
 | [src/components/trip-workspace/conversation-reveal.ts](../src/components/trip-workspace/conversation-reveal.ts) | 表现层 | 已提交助手正文的客户端可见字符数/显示节奏纯函数；不是服务端 token 流。 |
 | [src/components/trip-workspace/destination-choices-card.test.tsx](../src/components/trip-workspace/destination-choices-card.test.tsx) | 测试（对应模块边界） | 验证同市新 spot 可添加、replace 可选已有市、重复 POI 归并及历史/已确认卡禁用。 |
 | [src/components/trip-workspace/destination-choices-card.tsx](../src/components/trip-workspace/destination-choices-card.tsx) | 表现层 | 当前聊天多选卡：每省一行 Embla 横滑、照片在上的地点卡（查照片或下载中显示骨架块、照片淡入，失败或没有照片显示兜底），同偏好归并、统一提交，处理已在行程（勾选锁定）/只读/pending/失败状态，拖动不误勾选。 |
-| [src/components/trip-workspace/destination-editor.tsx](../src/components/trip-workspace/destination-editor.tsx) | 表现层 | 右侧目的地行：“＋ 添加”展开搜索；每省一块，每个城市一行、其景点标签排在同一行右侧，均可删除，无城市的省显示“全省”；搜索/显式添加/精确删除及旧记录清除，处理 busy 和错误。 |
+| [src/components/trip-workspace/destination-editor.tsx](../src/components/trip-workspace/destination-editor.tsx) | 表现层 | 右侧目的地行：“＋ 添加”展开搜索；每省一块，每个城市一行、其景点标签排在同一行右侧，均可删除，无城市的省显示“全省”；单字建议和完整搜索结果均可一键添加，建议按完整名称/地区提交核验；精确删除及旧记录清除，处理 busy 和错误。 |
 | [src/components/trip-workspace/destination-recommendation-model.test.ts](../src/components/trip-workspace/destination-recommendation-model.test.ts) | 测试（对应模块边界） | 验证推荐卡选择资格、省分组、统一提交请求及旧 Picker 渲染兼容。 |
 | [src/components/trip-workspace/destination-recommendation-model.ts](../src/components/trip-workspace/destination-recommendation-model.ts) | 表现层 | 提交推荐选卡、请求 pending 回复的推荐卡片、读取推荐卡照片的 NDJSON 流（跨块拼行、坏行跳过、坏照片当无图）、按省归组及选择资格等前端辅助规则。 |
 | [src/components/trip-workspace/destination-photos-model.ts](../src/components/trip-workspace/destination-photos-model.ts) | 表现层 | 请求已选地点照片并丢弃不合法项；封面取第一个地点的照片。 |
@@ -436,8 +436,8 @@ LLM 解释自然语言并提出受限 JSON；应用校验、决定是否执行�
 | [src/capabilities/destination/location-suggestion-service.ts](../src/capabilities/destination/location-suggestion-service.ts) | 应用层/用例装配 | 输入建议用例，trim/长度校验，调用建议端口并转换错误。 |
 | [src/capabilities/destination/planning-readiness-route.test.ts](../src/capabilities/destination/planning-readiness-route.test.ts) | 测试（对应模块边界） | 验证无 owner 不加载、读取当前权威状态、准备度只读及不调用地点研究。 |
 | [src/capabilities/destination/resolve-destination-place.ts](../src/capabilities/destination/resolve-destination-place.ts) | 应用层/用例装配 | 将核验候选映射为 province/place/spot，保留不同 provider 身份及显示细节；同一偏好的多条记录视为一个地点，并给出 exact（namesSamePlace：原话＋行政/景区后缀，可带记录自身市/区县前缀；其他前缀不算）。 |
-| [src/capabilities/destination/search-picks.ts](../src/capabilities/destination/search-picks.ts) | 应用层/用例装配 | 手动搜索结果的噪声过滤：候选里已有行政区答案时，只保留该行政区、名字恰好等于原话的条目，以及以地名后缀结尾的条目；同名的店/公司/节庆（大连上升、大连CS、大连啤酒节）被去掉。天地图把这些也标成 sight，所以只能看名字；旅游区因后缀过长不算行政区。 |
-| [src/capabilities/destination/search-picks.test.ts](../src/capabilities/destination/search-picks.test.ts) | 测试（对应模块边界） | 验证店/公司/节庆被去掉而真景点保留、没有行政区答案时不隐藏、名字恰为原话的保留、白族自治州算行政区、旅游区不算行政区、单字查询不生效。 |
+| [src/capabilities/destination/search-picks.ts](../src/capabilities/destination/search-picks.ts) | 应用层/用例装配 | 手动搜索结果的噪声过滤：候选里已有行政区答案时，只保留该行政区、名字恰好等于原话的条目，以及以地名后缀结尾的条目；同名的店/公司/节庆（大连上升、大连CS、大连啤酒节）被去掉。天地图把这些也标成 sight，所以只能看名字；旅游区因后缀过长不算行政区。另校验手动添加请求，按完整名称和地区核验单字建议，只返回唯一省/市/spot 偏好。 |
+| [src/capabilities/destination/search-picks.test.ts](../src/capabilities/destination/search-picks.test.ts) | 测试（对应模块边界） | 验证搜索噪声过滤；单字建议完整名称/地区核验、市中心区县差异、同名异地/歧义/境外拒绝、同偏好 POI 合并及添加请求结构。 |
 | [src/capabilities/destination/verified-destination-choice.ts](../src/capabilities/destination/verified-destination-choice.ts) | 应用层/用例装配 | 对持久化卡项按偏好 ID/旧 provider 身份重新验证；已核验省范围有专门处理。 |
 
 ### 6.11 Recommendation 应用用例
@@ -503,8 +503,8 @@ LLM 解释自然语言并提出受限 JSON；应用校验、决定是否执行�
 | [src/platform/tianditu/classification-memory.ts](../src/platform/tianditu/classification-memory.ts) | 基础设施/缓存 | 分类搜索缓存：按「行政区 + 类别」把 `queryType 13` 的一页存到 `.cache/tianditu-classification.json`，7 天、上限 50 页、只存真实答案（拒绝和空结果不存）；文件损坏按空缓存处理；写入用临时文件 + 改名，写失败不影响本次查询。 |
 | [src/platform/tianditu/classification-memory.test.ts](../src/platform/tianditu/classification-memory.test.ts) | 测试（对应模块边界） | 验证只存真实答案、重启后仍在、7 天过期、超 50 页淘汰最旧、文件损坏当空缓存、统计顺序。 |
 | [scripts/cache-stats.ts](../scripts/cache-stats.ts) | 开发验证工具 | 打印分类缓存的每个键、条数、缓存时间和剩余天数；`--clear` 清空。不需要 key。 |
-| [src/platform/tianditu/tianditu-location-provider.ts](../src/platform/tianditu/tianditu-location-provider.ts) | 基础设施端口/适配器 | 天地图地点核验：普通搜索 30 条（`show: "2"`）、市/区县结果用逆地理编码补上级（省级不调，且拿不到 addressComponent 算故障）、天地图类别码映射景点 / 其他、直辖市补市级；以景区后缀结尾的名字也算景点；整个景区排前并去掉借名的店；页首没有整个景区时用页面前两个区县做分类搜索（`风景名胜` 命中就不查 `山`），分类页走缓存；返回前 5 条，坐标 CGCS2000。没有热度信号：Wikidata 那一步 2026-10-23 移除（大陆服务器连不上），同名的外地景点可能排在前面。 |
-| [src/platform/tianditu/tianditu-location-provider.test.ts](../src/platform/tianditu/tianditu-location-provider.test.ts) | 测试（对应模块边界） | 验证类别映射、POI / 行政区规范化、一次搜索只发一个请求、市/省答案的逆地理编码取舍、逆地理编码失败算故障、整个景区排前、无数据 / 拒绝 / 空查询、key 只发给天地图。 |
+| [src/platform/tianditu/tianditu-location-provider.ts](../src/platform/tianditu/tianditu-location-provider.ts) | 基础设施端口/适配器 | 天地图地点核验：普通搜索 30 条（`show: "2"`）、市/区县结果用逆地理编码补上级（省级不调，且拿不到 addressComponent 算故障）、天地图类别码映射景点 / 其他、直辖市补市级；以景区后缀结尾的名字也算景点；整个景区排前并去掉借名的店；页首没有整个景区时用页面前两个区县做分类搜索——**一次请求取 `风景名胜` 和 `山` 两类**（响应按分类名分组，单类别时是顶层 `pois`，两种形状都解析），已缓存的类别不再请求；**分类页被拒绝时整次核验返回 failure**，绝不退回去用全国页的同名外地地点当成功结果；返回前 5 条，坐标 CGCS2000。没有热度信号：Wikidata 那一步 2026-10-23 移除（大陆服务器连不上），同名的外地景点可能排在前面。 |
+| [src/platform/tianditu/tianditu-location-provider.test.ts](../src/platform/tianditu/tianditu-location-provider.test.ts) | 测试（对应模块边界） | 验证类别映射、POI / 行政区规范化、一次搜索只发一个请求、市/省答案的逆地理编码取舍、逆地理编码失败算故障、整个景区排前、两类合成一次请求且按分组解析、缓存命中不再请求、分类被拒绝算失败、无数据 / 拒绝 / 空查询、key 只发给天地图。 |
 | [src/platform/tianditu/tianditu-input-tips-provider.ts](../src/platform/tianditu/tianditu-input-tips-provider.ts) | 基础设施端口/适配器 | 天地图建议词搜索（queryType 4）做输入提示：gbCode 去掉 156 变成六位 adcode，行政区文字放 region，坐标 CGCS2000。 |
 | [src/platform/tianditu/tianditu-input-tips-provider.test.ts](../src/platform/tianditu/tianditu-input-tips-provider.test.ts) | 测试（对应模块边界） | 验证建议规范化、空结果、超时、拒绝与畸形响应。 |
 | [src/platform/map-providers.ts](../src/platform/map-providers.ts) | 基础设施装配 | 按 `MAP_PROVIDER`（默认 amap，可选 tianditu，其他值报配置错误）创建整套地点核验、输入提示和照片提供方；天地图档的照片是 NoPlacePhotoProvider（返回 null）；各 route 和页面都从这里取。 |

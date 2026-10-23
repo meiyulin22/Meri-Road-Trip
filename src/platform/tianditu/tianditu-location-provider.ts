@@ -2,7 +2,7 @@ import type { LocationCandidate, LocationKind } from "@/domain/location/location
 import { isFacilityName } from "@/domain/location/place-name";
 import type { LocationProvider, LocationSearchResult } from "@/platform/location-provider/location-provider";
 
-import { createTiandituClient, type TiandituAnswer, type TiandituClient } from "./tianditu-fetch";
+import { createTiandituClient, type TiandituAnswer, type TiandituClient, type TiandituFailure } from "./tianditu-fetch";
 import { sharedClassificationMemory, type ClassificationMemory } from "./classification-memory";
 
 /** As many as the Amap adapter hands to Meri's rules, so both are judged on the same page. */
@@ -214,10 +214,15 @@ function namedFirst(words: string, places: readonly LocationCandidate[]): Locati
 }
 
 function failure(answer: Extract<TiandituAnswer, { ok: false }>): LocationSearchResult {
-  if (answer.reason === "missing_configuration") return { status: "failure", reason: "missing_configuration" };
-  if (answer.reason === "http_error") return { status: "failure", reason: "http_error" };
-  if (answer.reason === "malformed_response") return { status: "failure", reason: "api_or_response_error" };
-  return { status: "failure", reason: "network_or_response_error" };
+  return { status: "failure", reason: reasonOf(answer.reason) };
+}
+
+/** The fetch layer's reasons, narrowed to the words a search result may carry. */
+function reasonOf(reason: TiandituFailure): "missing_configuration" | "http_error" | "api_or_response_error" | "network_or_response_error" {
+  if (reason === "missing_configuration") return "missing_configuration";
+  if (reason === "http_error") return "http_error";
+  if (reason === "malformed_response") return "api_or_response_error";
+  return "network_or_response_error";
 }
 
 function withoutRepeats(candidates: readonly LocationCandidate[]): LocationCandidate[] {
@@ -275,13 +280,20 @@ export class TiandituLocationProvider implements LocationProvider {
     // saved, 苍山's page leads with the 广西 village, which is not the answer the user wants
     // and is exactly what the trip's own area can correct.
     const answered = provinceAnswer || (isWholePlace(words, found[0]) && insideAnyArea(found[0], areas));
-    const clean = answered ? [] : await this.inAreas(areaNamesOf(found, areas), words);
+    const clean = answered
+      ? { places: [] as LocationCandidate[], failure: null }
+      : await this.inAreas(areaNamesOf(found, areas), words);
+    // A refused clean list is not "no such place here": falling through to the national page
+    // would answer with a same-named place somewhere else, as a success.
+    if (clean.places.length === 0 && clean.failure !== null) {
+      return { status: "failure", reason: reasonOf(clean.failure) };
+    }
     // Once the trip's own area answered, the country's same-named places are noise: Meri's
     // rules would put an exactly-named 广西 village ahead of 点苍山 and ask the user to choose
     // between them. An area with nothing to say still falls back to the national page.
-    const tripAnswered = areas.length > 0 && clean.length > 0;
-    const ordered = tripAnswered ? [...clean]
-      : area !== null ? [...direct, ...clean] : [...clean, ...direct];
+    const tripAnswered = areas.length > 0 && clean.places.length > 0;
+    const ordered = tripAnswered ? [...clean.places]
+      : area !== null ? [...direct, ...clean.places] : [...clean.places, ...direct];
     return { status: "success", candidates: withoutRepeats(ordered).slice(0, resultLimit) };
   }
 
@@ -292,36 +304,78 @@ export class TiandituLocationProvider implements LocationProvider {
    * 93 rows, first is 九寨沟风景名胜区. 山 covers what a scenic-area list leaves out —
    * 大理市 山 212 rows holds 点苍山.
    *
-   * Each page is cached (see `ClassificationMemory`), and 山 is only asked for when the
-   * 风景名胜 page had nothing that names the user's words — 黄山 matches on page one, while
-   * 苍山 does not match at all and still needs the 山 page.
+   * Each page is cached (see `ClassificationMemory`) under "area|category", so a category
+   * already known is reused. A missing category is fetched together with the other one in a
+   * single request whose answer is grouped by category — measured 2026-10-23: `dataTypes
+   * 风景名胜,山` answers `{"风景名胜": {pois: [...300]}, "山": {pois: [...300]}}`, one call for
+   * both, well inside the provider's row limit.
+   *
+   * A refused page is a failure, never an empty list: swallowing it left the national page's
+   * candidates (广西's 苍山) to be returned as success — the wrong answer this whole path exists
+   * to prevent.
    */
-  private async inAreas(names: readonly string[], words: string): Promise<LocationCandidate[]> {
+  private async inAreas(names: readonly string[], words: string): Promise<
+    { readonly places: LocationCandidate[]; readonly failure: TiandituFailure | null }
+  > {
     const found: LocationCandidate[] = [];
+    let failure: TiandituFailure | null = null;
     for (const area of names) {
-      for (const dataType of sightDataTypes) {
-        const places = await this.classificationPage(area, dataType);
-        found.push(...places);
-        if (namedFirst(words, places).length > 0) break;
+      const pages = await this.classificationPages(area);
+      if (!pages.ok) {
+        failure ??= pages.reason;
+        continue;
       }
+      for (const places of pages.pages.values()) found.push(...places);
     }
-    return namedFirst(words, found);
+    return { places: namedFirst(words, found), failure };
   }
 
-  /** One cached classification page; only a real page is remembered. */
-  private async classificationPage(area: string, dataType: string): Promise<readonly LocationCandidate[]> {
-    const remembered = this.memory.get(area, dataType);
-    if (remembered !== null) return remembered;
+  /** Both sight categories for one area, from the cache where known, in one request otherwise. */
+  private async classificationPages(area: string): Promise<
+    | { readonly ok: true; readonly pages: ReadonlyMap<string, readonly LocationCandidate[]> }
+    | { readonly ok: false; readonly reason: TiandituFailure }
+  > {
+    const pages = new Map<string, readonly LocationCandidate[]>();
+    const missing: string[] = [];
+    for (const dataType of sightDataTypes) {
+      const remembered = this.memory.get(area, dataType);
+      if (remembered === null) missing.push(dataType);
+      else pages.set(dataType, remembered);
+    }
+    if (missing.length === 0) return { ok: true, pages };
+
     const answer = await this.client.get("/v2/search", {
       type: "query",
-      postStr: JSON.stringify({ queryType: "13", specify: area, dataTypes: dataType, start: "0", count: "300", mapBound: chinaBound, show: "2" }),
+      postStr: JSON.stringify({ queryType: "13", specify: area, dataTypes: missing.join(","),
+        start: "0", count: "300", mapBound: chinaBound, show: "2" }),
     });
-    // A refusal or an empty answer is not remembered: it would freeze a miss for a week.
-    if (!answer.ok || !Array.isArray(answer.body.pois)) return [];
-    const places = answer.body.pois.map(candidateFromPoi)
+    if (!answer.ok) return { ok: false, reason: answer.reason };
+    for (const [dataType, places] of this.pagesOf(answer.body, missing)) {
+      pages.set(dataType, places);
+      // Only a real page is remembered; a refusal or an empty answer would freeze a miss.
+      if (places.length > 0) this.memory.set(area, dataType, places);
+    }
+    return { ok: true, pages };
+  }
+
+  /**
+   * The category pages in an answer. More than one requested category is answered as an object
+   * keyed by category name; a single category is answered as a flat `pois` array.
+   */
+  private pagesOf(body: Record<string, unknown>, requested: readonly string[]): Map<string, LocationCandidate[]> {
+    const pages = new Map<string, LocationCandidate[]>();
+    const toPlaces = (pois: unknown[]): LocationCandidate[] => pois.map(candidateFromPoi)
       .filter((place): place is LocationCandidate => place !== null);
-    if (places.length > 0) this.memory.set(area, dataType, places);
-    return places;
+    const grouped = requested.filter((dataType) => isRecord(body[dataType]));
+    if (grouped.length > 0) {
+      for (const dataType of grouped) {
+        const page = body[dataType] as Record<string, unknown>;
+        pages.set(dataType, Array.isArray(page.pois) ? toPlaces(page.pois) : []);
+      }
+      return pages;
+    }
+    if (Array.isArray(body.pois)) pages.set(requested[0], toPlaces(body.pois));
+    return pages;
   }
 
   /** Tianditu's own answer: an administrative area, a page of POIs, or (for statistics) nothing. */
