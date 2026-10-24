@@ -14,6 +14,10 @@
  *     城市景色模式（只用 Pixabay）：只给列出的城市找"能代表这座城市"的照片（天际线、街道、
  *     普通建筑都行，不必是名胜），搜城市中文名和英文名，每城最多 4 张候选。
  *
+ *   npx tsx scripts/build-city-catalog.ts review north
+ *     不联网，按已下载的候选重新生成 review.html（Wikidata 和 Pixabay 的候选都在内）。图片直接嵌在
+ *     页面里，单独打开这个文件也看得到。
+ *
  *   npx tsx scripts/build-city-catalog.ts apply jiangzhehu picks.json
  *     picks.json 是人工看图后挑好的：{ "南通市": { "id": 4251603, "caption": "狼山", "slug": "langshan",
  *     "note": "狼山塔倒影" }, ... }。caption 是照片里实际拍到的地方（tags 只写城市时就写城市），
@@ -218,7 +222,7 @@ async function fetchBatch(batch: CatalogBatch, views: ReadonlySet<string> | null
     console.log(`${city.name}: ${candidates.length} 张候选（${asked.join("；")}）`);
   }
 
-  await writeFile(join(reviewRoot, batch.id, views ? "review-views.html" : "review.html"), reviewPage(batch, results));
+  await writeFile(join(reviewRoot, batch.id, views ? "review-views.html" : "review.html"), await reviewPage(batch, results));
   const covered = results.filter((item) => item.candidates.length > 0).length;
   console.log(`\n${covered}/${results.length} 个城市有候选。Pixabay 请求：搜索 ${searches} 次，下载 ${downloads} 次。`);
   console.log(`审核页：${join(reviewRoot, batch.id, views ? "review-views.html" : "review.html")}`);
@@ -228,15 +232,30 @@ function escapeHtml(text: string): string {
   return text.replace(/[&<>"]/gu, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "\"": "&quot;" })[char] ?? char);
 }
 
-function reviewPage(batch: CatalogBatch, results: readonly CityCandidates[]): string {
+/**
+ * The review page carries every image inside it (data: URLs, ~50 KB each): a viewer that
+ * opens the file on its own — the desktop app's file pane — does not load files next to it,
+ * so relative links showed empty frames (2026-10-24).
+ */
+async function reviewPage(batch: CatalogBatch, results: readonly CityCandidates[]): Promise<string> {
+  const images = new Map<string, string>();
+  for (const { city, candidates } of results) {
+    for (const item of candidates) {
+      const body = await readFile(join(reviewRoot, batch.id, city.name, item.file));
+      const type = item.file.endsWith(".png") ? "image/png" : item.file.endsWith(".webp") ? "image/webp" : "image/jpeg";
+      images.set(`${city.name}/${item.file}`, `data:${type};base64,${body.toString("base64")}`);
+    }
+  }
+  // A candidate already in the catalog is marked with its entry, so a batch applied earlier can be checked.
+  const chosen = new Map(Object.entries(await readCatalog()).map(([name, entry]) => [entry.pageUrl, name]));
   const rows = results.map(({ city, candidates, searches }) => `
 <section>
   <h2>${escapeHtml(city.name)} <small>${escapeHtml(city.province)}</small></h2>
   <p class="meta">${escapeHtml(searches.join("；"))}</p>
   <div class="row">${candidates.length === 0 ? "<p class=\"none\">没有合格候选</p>" : candidates.map((item) => `
     <figure>
-      <img src="${encodeURIComponent(city.name)}/${item.file}" alt="">
-      <figcaption><b>${item.id}</b> ${escapeHtml(item.shows)}${item.kind === "city" ? "（城市图）" : ""}${item.source === "wikimedia" ? ` · Wikimedia ${escapeHtml(item.license ?? "")}` : ""}<br>
+      <img src="${images.get(`${city.name}/${item.file}`) ?? ""}" alt="">
+      <figcaption>${chosen.has(item.pageUrl) ? `<span class="chosen">✓ 已选：${escapeHtml(chosen.get(item.pageUrl) ?? "")}</span><br>` : ""}<b>${item.id}</b> ${escapeHtml(item.shows)}${item.kind === "city" ? "（城市图）" : ""}${item.source === "wikimedia" ? ` · Wikimedia ${escapeHtml(item.license ?? "")}` : ""}<br>
         ${escapeHtml(item.artist)} · ${item.width}×${item.height} · ${Math.round(item.bytes / 1024)} KB<br>
         <a href="${escapeHtml(item.pageUrl)}">${item.source === "wikimedia" ? "Commons" : "Pixabay"} 原图页</a><br><span class="tags">${escapeHtml(item.tags)}</span></figcaption>
     </figure>`).join("")}</div>
@@ -246,7 +265,7 @@ function reviewPage(batch: CatalogBatch, results: readonly CityCandidates[]): st
 <style>body{font:14px/1.5 system-ui,sans-serif;margin:16px;background:#fafaf7;color:#222}section{margin:0 0 28px}
 h2{font-size:18px;margin:0 0 4px}small{color:#777;font-weight:normal}.meta{color:#777;margin:0 0 8px}.row{display:flex;gap:12px;flex-wrap:wrap}
 figure{margin:0;width:320px}img{width:320px;aspect-ratio:4/3;object-fit:cover;border-radius:6px;display:block}
-figcaption{font-size:12px;margin-top:4px}.tags{color:#888}.none{color:#b44}</style></head><body>
+figcaption{font-size:12px;margin-top:4px}.tags{color:#888}.none{color:#b44}.chosen{color:#2d7a46;font-weight:bold}</style></head><body>
 <h1>图集候选：${escapeHtml(batch.id)}</h1>${rows}</body></html>\n`;
 }
 
@@ -414,15 +433,39 @@ async function fetchWikimedia(batch: CatalogBatch, cities: readonly CatalogCity[
   return results;
 }
 
+/** Rebuilds a batch's review page from the candidates already downloaded; no network. */
+async function rebuildReview(batch: CatalogBatch): Promise<void> {
+  const results: CityCandidates[] = [];
+  for (const city of batch.cities) {
+    const candidates: Candidate[] = [];
+    const searches: string[] = [];
+    for (const list of ["candidates-wikimedia.json", "candidates.json"]) {
+      try {
+        const saved = JSON.parse(await readFile(join(reviewRoot, batch.id, city.name, list), "utf8")) as
+          { candidates: Candidate[]; searches?: string[] };
+        candidates.push(...saved.candidates);
+        searches.push(...(saved.searches ?? []));
+      } catch {
+        // A city may have only one of the two lists, or none.
+      }
+    }
+    if (candidates.length > 0 || searches.length > 0) results.push({ city, candidates, searches });
+  }
+  const page = join(reviewRoot, batch.id, "review.html");
+  await writeFile(page, await reviewPage(batch, results));
+  console.log(`审核页：${page}（${results.length} 个城市）`);
+}
+
 async function main(): Promise<void> {
   const [mode, batchId, third, fourth] = process.argv.slice(2);
   if (mode === "fetch" && batchId && third === "--views" && fourth) {
     return fetchBatch(batchOf(batchId), new Set(fourth.split(/[,，]/u).map((name) => name.trim()).filter(Boolean)));
   }
   if (mode === "fetch" && batchId && !third) return fetchBatch(batchOf(batchId));
+  if (mode === "review" && batchId) return rebuildReview(batchOf(batchId));
   const picksPath = third;
   if (mode === "apply" && batchId && picksPath) return applyPicks(batchOf(batchId), picksPath);
-  console.error("用法：fetch <批次> | apply <批次> <picks.json>");
+  console.error("用法：fetch <批次> [--views 城市,…] | review <批次> | apply <批次> <picks.json>");
   process.exitCode = 1;
 }
 

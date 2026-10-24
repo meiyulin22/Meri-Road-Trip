@@ -580,6 +580,8 @@ add/set 使用 Promise.all 查询表达。解析层保留不同 provider ID，�
 
 到 1.0635 为止，图集为 152 个地级行政区和 4 个直辖市配了代表图，约占全国 337 个的 46%。
 
+**审核页能单独打开（1.0636）：**审核页原来用相对路径引用旁边的图片（城市名还经过百分号编码），在桌面应用的文件面板里单独打开时图片全是空框。现在图片以 data URL 直接嵌在页面里（一批 6–8 MB），已经写进图集的候选标"✓ 已选：条目名"；`npx tsx scripts/build-city-catalog.ts review <批次>` 不联网，按已下载的候选重建审核页。
+
 **关键词实测（2026-10-24）：**只为上述三个目标做了 12 次搜索，每次 `image_type=photo`、`orientation=horizontal`、`safesearch=true`、`per_page=15`、`min_width=640`、`order=popular`，语言按下表设置。完整响应缓存 24 小时，只有筛出的少量候选下载后看图；没有请求天地图。`total` 是搜索服务报告的匹配量，不是正确景点照片数量。
 
 | q | lang | total／本次取回 | 观察 |
