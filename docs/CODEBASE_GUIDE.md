@@ -324,7 +324,7 @@ LLM 解释自然语言并提出受限 JSON；应用校验、决定是否执行�
 | 文件地址 | 层/类别 | 做什么 |
 | --- | --- | --- |
 | [src/domain/location/destination-recommendations.test.ts](../src/domain/location/destination-recommendations.test.ts) | 测试（对应模块边界） | 验证省份拼写、顺序、同名变体去重及最多 12 个地点等结构边界。 |
-| [src/domain/location/destination-recommendations.ts](../src/domain/location/destination-recommendations.ts) | 领域层 | Zod 推荐省份/城市/理由校验，检查中国省级范围、控制总量并规范化去重；配图地标的英文名 `landmarkEn` 不合法时只丢该字段。 |
+| [src/domain/location/destination-recommendations.ts](../src/domain/location/destination-recommendations.ts) | 领域层 | Zod 推荐省份/城市/理由校验，检查中国省级范围、控制总量并规范化去重；配图地标的英文名 `landmarkEn`、其他叫法和备选地标不合法时只丢该字段。 |
 | [src/domain/location/china-destination-scope.ts](../src/domain/location/china-destination-scope.ts) | 领域层 | 中国目的地省级行政区完整名/简称名单，共用范围校验；不替代城市/景点的提供方身份核验。 |
 | [src/domain/location/destination-resolution-policy.test.ts](../src/domain/location/destination-resolution-policy.test.ts) | 测试（对应模块边界） | 验证行政/景区后缀、自身市/州前缀、景点旁同名区县让位（行政名之间不让）、兜底前缀匹配（至少 3 字、只在无更严格匹配时）、最后兜底景点（排除设施与景点子项、最多 3 个）、同名歧义、省范围、重复身份及不合理/无效坐标候选。 |
 | [src/domain/location/destination-resolution-policy.ts](../src/domain/location/destination-resolution-policy.ts) | 领域层 | 合理名称匹配和候选解析纯规则：原话/后缀/自身市区县前缀匹配，同市景点旁的同名区县让位，兜底匹配带其他前缀的名称，最后兜底提供名称含原话的景点（最多 3 个，排除景点的一部分）；返回 resolved/ambiguous/area/unresolved，保留不同 POI 身份。 |
@@ -332,7 +332,7 @@ LLM 解释自然语言并提出受限 JSON；应用校验、决定是否执行�
 | [src/domain/location/location.ts](../src/domain/location/location.ts) | 领域层 | 规范化 LocationCandidate，包含提供方身份、行政归属、地址和坐标（带坐标系 GCJ-02 或 CGCS2000，不互转），以及可选的 kind（是否景点）。 |
 | [src/domain/location/place-name.ts](../src/domain/location/place-name.ts) | 领域层 | `isFacilityName(name)`：名字以 大门/北门/入口/出口/游客中心/停车场/观景台/索道/售票处/验票点… 结尾的是设施，不是地点本身。天地图把它们和景区本体归在同一个类别（180400），只能看名字分辨。 |
 | [src/domain/location/place-name.test.ts](../src/domain/location/place-name.test.ts) | 测试（对应模块边界） | 验证设施后缀被识别，以及 天安门 / 观复博物馆 / 玉龙雪山国家级风景名胜区 这类名字不被误判。 |
-| [src/domain/location/place-image.ts](../src/domain/location/place-image.ts) | 领域层 | 地点照片类型（https 链接、本地图集 `/photos/` 或运行时照片 `/media/place-photos/pixabay-<ID>.<ext>` + 说明文字 + 可选署名 credit）与读取校验，不合法时视为没有照片。 |
+| [src/domain/location/place-image.ts](../src/domain/location/place-image.ts) | 领域层 | 地点照片类型（https 链接、本地图集 `/photos/` 或运行时照片 `/media/place-photos/pixabay-<ID>.<ext>` + 说明文字 + 可选署名 credit）与读取校验，不合法时视为没有照片；照片规则版本 `placePhotoRulesVersion`（存成没图的推荐卡按新版本重查一次）。 |
 | [src/domain/locale/locale.ts](../src/domain/locale/locale.ts) | 领域层 | 支持的语言 zh/en、合法性判断及 `<html lang>` 取值。 |
 | [src/domain/location/recommendation-identity.test.ts](../src/domain/location/recommendation-identity.test.ts) | 测试（对应模块边界） | 验证等价名称归一化，保留不同山峰/路线/相似地名的独立性。 |
 | [src/domain/location/recommendation-identity.ts](../src/domain/location/recommendation-identity.ts) | 领域层 | 推荐名和地区名标准化，处理空白、全角及受支持后缀，不做地点网络核验。 |
@@ -341,7 +341,7 @@ LLM 解释自然语言并提出受限 JSON；应用校验、决定是否执行�
 | [src/domain/trip-message/destination-choice-identity.ts](../src/domain/trip-message/destination-choice-identity.ts) | 领域层 | 构造省/市/spot 偏好 ID，把重复 POI 展示合并，同时保留历史提交原 ID。 |
 | [src/domain/trip-message/destination-choice-message.test.ts](../src/domain/trip-message/destination-choice-message.test.ts) | 测试（对应模块边界） | 验证 city/spot/replace 基底的新卡持久化，以及旧候选读取与非法新卡拒绝。 |
 | [src/domain/trip-message/trip-message.test.ts](../src/domain/trip-message/trip-message.test.ts) | 测试（对应模块边界） | 验证消息角色/正文/时间、presentation 形状和历史推荐兼容。 |
-| [src/domain/trip-message/trip-message.ts](../src/domain/trip-message/trip-message.ts) | 领域层 | 用户/助手消息与四类受限 presentation（含推荐 pending 标记及 RecommendationScope，卡片可带照片；推荐卡带地标、照片分未查/有图/null 三态）校验，最多 12 个 choices，历史格式保留读取。 |
+| [src/domain/trip-message/trip-message.ts](../src/domain/trip-message/trip-message.ts) | 领域层 | 用户/助手消息与四类受限 presentation（含推荐 pending 标记及 RecommendationScope，卡片可带照片；推荐卡带地标、地标的英文名、其他叫法、备选地标和照片规则版本，照片分未查/有图/null 三态，null 且规则版本旧的带地标卡算待查）校验，最多 12 个 choices，历史格式保留读取。 |
 | [src/domain/trip-state/destination-areas-v2.test.ts](../src/domain/trip-state/destination-areas-v2.test.ts) | 测试（对应模块边界） | 验证同市多个 spots、删除市级联但保留省、单删 spot 及新版层级约束。 |
 | [src/domain/trip-state/destination-areas.test.ts](../src/domain/trip-state/destination-areas.test.ts) | 测试（对应模块边界） | 验证省市/spot 文案、保留空省、多项添加/删除和派生展示规则。 |
 | [src/domain/trip-state/destination-areas.ts](../src/domain/trip-state/destination-areas.ts) | 领域层 | 省市/spot 类型和纯函数：格式化（直辖市的景点紧跟市名：北京市（故宫））、标题（超过两省缩写为“…等N省”）、计数、包含、去重添加、新增部分（destinationAdditions）、级联删除、唯一匹配及结构读取。 |
@@ -449,15 +449,15 @@ LLM 解释自然语言并提出受限 JSON；应用校验、决定是否执行�
 | --- | --- | --- |
 | [src/capabilities/recommendation/destination-recommendation-context.ts](../src/capabilities/recommendation/destination-recommendation-context.ts) | 应用层/用例装配 | 从当前状态、推荐范围（within/elsewhere）和最多 10 条/6000 字符历史构造聊天触发（conversation）的推荐 context，带首页选择的语言（推荐固定句用它）。 |
 | [src/capabilities/recommendation/destination-recommendation-generator.test.ts](../src/capabilities/recommendation/destination-recommendation-generator.test.ts) | 测试（对应模块边界） | 验证聊天触发的上下文、真实历史/展示卡、JSON/schema 校验、理由按首页语言（名称保持中文）及推荐生成错误。 |
-| [src/capabilities/recommendation/destination-recommendation-generator.ts](../src/capabilities/recommendation/destination-recommendation-generator.ts) | 应用层/用例装配 | 推荐模型 JSON Schema、AI SDK 调用及领域校验，输出省/市/理由/配图地标及其英文名（Pixabay 搜图用），非法结果抛专用错误。 |
+| [src/capabilities/recommendation/destination-recommendation-generator.ts](../src/capabilities/recommendation/destination-recommendation-generator.ts) | 应用层/用例装配 | 推荐模型 JSON Schema、AI SDK 调用及领域校验，输出省/市/理由/配图地标及其英文名、其他叫法和 1–2 个备选地标（都只用于配图），非法结果抛专用错误。 |
 | [src/capabilities/recommendation/destination-recommendation-model-client.test.ts](../src/capabilities/recommendation/destination-recommendation-model-client.test.ts) | 测试（对应模块边界） | 验证显式按钮调用不伪造 user 消息，AI SDK 只发一次模型请求。 |
 | [src/capabilities/recommendation/destination-recommendations-route.test.ts](../src/capabilities/recommendation/destination-recommendations-route.test.ts) | 测试（对应模块边界） | 验证推荐卡片接口：派生 ID、重复请求不重跑、对话或目的地变化后 409、错误请求与工作流失败不写入。 |
 | [src/capabilities/recommendation/destination-recommendation-photos-route.test.ts](../src/capabilities/recommendation/destination-recommendation-photos-route.test.ts) | 测试（对应模块边界） | 验证照片流逐行返回并写回、无待查卡时空响应、保存失败仍发完、浏览器离开仍保存、owner/非推荐卡/坏 body 被拒，以及远程查不了的卡不推行、保存时仍为未查。 |
 | [src/capabilities/recommendation/destination-recommendation-use-case.test.ts](../src/capabilities/recommendation/destination-recommendation-use-case.test.ts) | 测试（对应模块边界） | 验证推荐范围判断（within/elsewhere/拒绝）、pending 请求还原、状态变化后不出卡及工作流失败传递。 |
 | [src/capabilities/recommendation/destination-recommendation-use-case.ts](../src/capabilities/recommendation/destination-recommendation-use-case.ts) | 应用层/用例装配 | 按写入后状态判断推荐范围；从保存的对话还原 pending 请求；状态仍允许时运行工作流。 |
 | [src/capabilities/recommendation/destination-recommendation-workflow.test.ts](../src/capabilities/recommendation/destination-recommendation-workflow.test.ts) | 测试（对应模块边界） | 验证省份/顺序保留、搜索失败降级、已定省过滤、空结果固定正文及卡片带地标不带照片。 |
-| [src/capabilities/recommendation/recommendation-photos.ts](../src/capabilities/recommendation/recommendation-photos.ts) | 应用层/用例装配 | 为未查过照片的推荐卡按地标并行查图，先查本地（图集、已下载），没有且卡片带 `landmarkEn` 时再查远程（Pixabay，一批共用一份额度）；到一张报一张，远程查不了的卡不回答、留待下次；同批照片先到先得不重复，返回补好的 presentation。 |
-| [src/capabilities/recommendation/recommendation-photos.test.ts](../src/capabilities/recommendation/recommendation-photos.test.ts) | 测试（对应模块边界） | 验证按地标查图与逐张回报、已有答案或无省的卡不再查、同一照片不出现在两张卡上，本地命中不查远程、没有英文名不查远程、远程查不了的卡保持未查。 |
+| [src/capabilities/recommendation/recommendation-photos.ts](../src/capabilities/recommendation/recommendation-photos.ts) | 应用层/用例装配 | 为未查过照片（或按旧规则存成没图）的推荐卡并行查图：先查本地（地标、市的代表图或同市已下载照片、备选地标），再查远程（Pixabay，卡片自己的地标和第一个备选地标，一批共用一份额度）；到一张报一张，远程查不了的卡不回答、留待下次；回答时记规则版本 `photoRules`；同批照片先到先得不重复，返回补好的 presentation。 |
+| [src/capabilities/recommendation/recommendation-photos.test.ts](../src/capabilities/recommendation/recommendation-photos.test.ts) | 测试（对应模块边界） | 验证按地标查图与逐张回报、已有答案或无省的卡不再查、同一照片不出现在两张卡上，本地命中不查远程、没有英文名也按中文地标查、远程查不了的卡保持未查、主地标没图时试第一个备选地标、本地已有的备选地标不触发搜索。 |
 | [src/capabilities/recommendation/destination-recommendation-workflow.ts](../src/capabilities/recommendation/destination-recommendation-workflow.ts) | 应用层/用例装配 | Discovery Search→模型生成→省份过滤（within 限已定省，elsewhere 排除已保存省）→卡项 ID（带配图用的地标，不查照片）的确定性流程；搜索故障降级，无排序/访问检查。 |
 | [src/capabilities/recommendation/prompts/destination-recommendation-prompt.ts](../src/capabilities/recommendation/prompts/destination-recommendation-prompt.ts) | 应用层/用例装配 | 受限省市推荐 prompt，含聊天触发说明、真实上下文和未核验搜索启发；理由用首页语言写，省/市/地标名保持中文。 |
 
@@ -502,21 +502,22 @@ LLM 解释自然语言并提出受限 JSON；应用校验、决定是否执行�
 | [src/platform/place-photos/amap-place-photo-provider.ts](../src/platform/place-photos/amap-place-photo-provider.ts) | 基础设施/适配器 | 高德 v5 搜索取照片：经共用节流器请求、http 升级 https、主机白名单、只缓存真实答案的进程内 7 天缓存（PlacePhotoMemory）、失败返回 null 并记 infocode。 |
 | [src/platform/place-photos/amap-place-photo-provider.test.ts](../src/platform/place-photos/amap-place-photo-provider.test.ts) | 测试（对应模块边界） | 验证查询参数、https 升级、主机过滤、各种失败，以及只缓存真实答案、过期重查。 |
 | [src/platform/place-photos/photo-catalog.ts](../src/platform/place-photos/photo-catalog.ts) | 基础设施/索引 | 本地图集校验和匹配：明确地区与完整名称／显式别名同时命中；保留括号地区，不猜子串或后缀；`scenicFor` 单独登记行政区代表图且必须属于允许地区；未命中、配置不合法或歧义返回 null；返回同域路径、真实主题和作者署名。 |
-| [src/platform/place-photos/catalog-photo-provider.ts](../src/platform/place-photos/catalog-photo-provider.ts) | 基础设施/适配器 | 天地图模式的照片适配器：读取并缓存本地索引，未命中时再读运行时已下载的照片（MediaPhotoStore，按地区 + 地标）；保留查询类型和地区；不请求外部 API；文件缺失或损坏按空目录处理。服务端渲染、封面、地点候选卡和已选地点照片都用它。 |
+| [src/platform/place-photos/catalog-photo-provider.ts](../src/platform/place-photos/catalog-photo-provider.ts) | 基础设施/适配器 | 天地图模式的照片适配器：读取并缓存本地索引，未命中时再读运行时已下载的照片（MediaPhotoStore：景点按地区 + 地标，市按同市已下载照片）；保留查询类型和地区；不请求外部 API；文件缺失或损坏按空目录处理。服务端渲染、封面、地点候选卡和已选地点照片都用它。 |
 | [src/platform/place-photos/image-file.ts](../src/platform/place-photos/image-file.ts) | 基础设施/工具 | 从文件字节读出真实格式（JPEG／PNG／WebP）和宽高，不信 Content-Type；不合法返回 null。 |
 | [src/platform/place-photos/image-file.test.ts](../src/platform/place-photos/image-file.test.ts) | 测试（对应模块边界） | 验证三种格式的尺寸读取，HTML、空文件、截断文件头和零宽度被拒。 |
-| [src/platform/place-photos/photo-regions.ts](../src/platform/place-photos/photo-regions.ts) | 基础设施/数据 | 全部省级行政区和常见地级市的英文写法（含知名县名、景点名），以及常被混淆的国外地名；只用于从 tags 排除地点不符的照片。 |
-| [src/platform/place-photos/pixabay-photo-match.ts](../src/platform/place-photos/pixabay-photo-match.ts) | 基础设施/规则 | 判断一条 Pixabay 结果能否当某地标的照片：英文名有区分度的词都要出现（泛词不算），提到别的省/市或国外地点即拒绝，必须表明在中国，原图至少 960 宽且横构图；排序和两种查询词。 |
-| [src/platform/place-photos/pixabay-photo-match.test.ts](../src/platform/place-photos/pixabay-photo-match.test.ts) | 测试（对应模块边界） | 验证泛词不算身份、原图页地址算上传者的词、跨省/跨市/国外拒绝、两市之间的峡谷、全泛词名称、迈泰奥拉误选（真实案例）、尺寸、排序和查询词。 |
-| [src/platform/place-photos/pixabay-client.ts](../src/platform/place-photos/pixabay-client.ts) | 基础设施/适配器 | Pixabay 搜索与下载：一次一个请求、排队上限、超时；区分被拒（400/401/403）、限流（429）和临时失败；单条坏结果只丢那一条；只从 Pixabay 主机 https 下载、最多两次同主机跳转、按实际字节截断；密钥只出现在请求里。 |
-| [src/platform/place-photos/pixabay-client.test.ts](../src/platform/place-photos/pixabay-client.test.ts) | 测试（对应模块边界） | 验证密钥不外泄、只留用到的字段、三类失败、主机与跳转限制、字节上限、非图片、坏结果只丢一条和排队上限。 |
-| [src/platform/place-photos/pixabay-photo-finder.ts](../src/platform/place-photos/pixabay-photo-finder.ts) | 基础设施/用例 | 推荐卡的远程补图：先读已下载，再按查询词搜索（24 小时磁盘缓存，空结果也缓存）、按规则选候选、下载检查、发布；found／none／unavailable 三种结果；同一地标共用一次操作；每批搜索/下载/时间额度，每个地标最多下载 2 个；限流和被拒时整批停止并暂停进程；临时失败 10 分钟内不重查。 |
-| [src/platform/place-photos/pixabay-photo-finder.test.ts](../src/platform/place-photos/pixabay-photo-finder.test.ts) | 测试（对应模块边界） | 验证找到后重启 0 请求、并发共用一次、none 和空结果当天不重查、网络或下载失败不算 none 且暂停后再试、限流停整批、每批搜索上限、每个地标最多下载 2 个。 |
-| [src/platform/place-photos/media-photo-store.ts](../src/platform/place-photos/media-photo-store.ts) | 基础设施/存储 | 运行时照片的磁盘存储（`MERI_MEDIA_DIR/place-photos/`）：图片、来源记录（最后写，代表发布完成）、地标查找结果、"没有合适的图"和搜索缓存；先写临时名再改名；容量上限（默认 500 MB）满了不收新图、不删旧图；生产环境未配置时为 null。 |
-| [src/platform/place-photos/media-photo-store.test.ts](../src/platform/place-photos/media-photo-store.test.ts) | 测试（对应模块边界） | 验证新实例（如重启后）读回照片和查找结果、没有来源记录的文件不提供、只认 Meri 的文件名、容量上限、搜索缓存 24 小时含空结果、生产环境必须配置目录。 |
+| [src/platform/place-photos/photo-regions.ts](../src/platform/place-photos/photo-regions.ts) | 基础设施/数据 | 全部省级行政区和常见地级市的英文写法（含知名县名、景点名），常被混淆的国外地名（中英文），以及地区中文简称（大理白族自治州 → 大理）；用于从 tags 排除地点不符的照片和给搜索加地区。 |
+| [src/platform/place-photos/pixabay-photo-match.ts](../src/platform/place-photos/pixabay-photo-match.ts) | 基础设施/规则 | 判断一条 Pixabay 结果能否当某地标的照片：地标任何一个名字对上即可（英文名有区分度的词都要出现、单复数视为同一个词；中文名整个出现在中文 tags 里），中英文 tags 提到别的省/市或国外地点即拒绝，必须表明在中国，原图至少 960 宽且横构图；按原因统计被拒条数；每个地标最多 3 个查询（英文、中文 `lang=zh`、别名或加地区）。 |
+| [src/platform/place-photos/pixabay-photo-match.test.ts](../src/platform/place-photos/pixabay-photo-match.test.ts) | 测试（对应模块边界） | 验证泛词不算身份、原图页地址算上传者的词、跨省/跨市/国外拒绝、两市之间的峡谷、全泛词名称、迈泰奥拉误选（真实案例）、尺寸、排序和查询词，宽窄巷子中文 tags（真实案例 2680194）、别名与单复数、中文 tags 的地区冲突和"中国"、被拒原因计数、地区中文简称。 |
+| [src/platform/place-photos/pixabay-client.ts](../src/platform/place-photos/pixabay-client.ts) | 基础设施/适配器 | Pixabay 搜索与下载：一次一个请求、排队上限、任意 60 秒不超过 80 次（下载也算）并遵守 `X-RateLimit-Remaining`、超时；区分被拒（400/401/403）、限流（429 或自己的上限）和临时失败；单条坏结果只丢那一条；只从 Pixabay 主机 https 下载、最多两次同主机跳转、按实际字节截断；密钥只出现在请求里。 |
+| [src/platform/place-photos/pixabay-client.test.ts](../src/platform/place-photos/pixabay-client.test.ts) | 测试（对应模块边界） | 验证密钥不外泄、只留用到的字段、三类失败、主机与跳转限制、字节上限、非图片、坏结果只丢一条、排队上限、每分钟上限和 Pixabay 剩余次数。 |
+| [src/platform/place-photos/pixabay-photo-finder.ts](../src/platform/place-photos/pixabay-photo-finder.ts) | 基础设施/用例 | 推荐卡的远程补图：先读已下载，再按查询词（含 `lang`，每次 50 条）搜索（24 小时磁盘缓存，空结果也缓存）、按规则选候选、下载检查、发布；found／none／unavailable 三种结果；"没有合适的图"按规则版本记 24 小时并写未配图记录；同一地标共用一次操作；每批 20 次搜索 / 10 次下载 / 45 秒，每个地标最多下载 2 个；限流和被拒时整批停止并暂停进程；临时失败 10 分钟内不重查；日志记查询词、条数和被拒原因。 |
+| [src/platform/place-photos/pixabay-photo-finder.test.ts](../src/platform/place-photos/pixabay-photo-finder.test.ts) | 测试（对应模块边界） | 验证找到后重启 0 请求、并发共用一次、none 和空结果当天不重查、网络或下载失败不算 none 且暂停后再试、限流停整批、每批搜索上限、每个地标最多下载 2 个、未配图记录的内容。 |
+| [src/platform/place-photos/media-photo-store.ts](../src/platform/place-photos/media-photo-store.ts) | 基础设施/存储 | 运行时照片的磁盘存储（`MERI_MEDIA_DIR/place-photos/`）：图片、来源记录（最后写，代表发布完成）、地标查找结果、按市的照片索引、"没有合适的图"（带规则版本）、未配图记录和搜索缓存（定期清理过期）；先写临时名再改名；容量上限（默认 500 MB）满了不收新图、不删旧图；生产环境未配置时为 null。 |
+| [src/platform/place-photos/media-photo-store.test.ts](../src/platform/place-photos/media-photo-store.test.ts) | 测试（对应模块边界） | 验证新实例（如重启后）读回照片和查找结果、没有来源记录的文件不提供、只认 Meri 的文件名、容量上限、搜索缓存 24 小时含空结果和过期清理、生产环境必须配置目录、"没有合适的图"按规则版本、按市索引、未配图记录排序，以及共用照片提供方先图集后已下载且不连网络。 |
 | [src/platform/place-photos/media-photo-route.test.ts](../src/platform/place-photos/media-photo-route.test.ts) | 测试（对应模块边界） | 验证运行中新发布的照片立即可访问、响应头、路径穿越和记录文件 404、没有存储时 404。 |
 | [src/platform/place-photos/pixabay-test-fixtures.ts](../src/platform/place-photos/pixabay-test-fixtures.ts) | 测试辅助 | 只给测试用：假 JPEG、Pixabay 结果、按脚本回答并计数的 fetch；不连网络。 |
 | [src/platform/place-photos/photo-catalog.test.ts](../src/platform/place-photos/photo-catalog.test.ts) | 测试（对应模块边界） | 验证地区错配、无地区拒绝、明确别名、括号信息、歧义及不合法配置、实际文件及哈希不重复、景区完整名称和跨地区景点；错误旧图不再提供，替代图用新 URL；香格里拉使用松赞林寺代表图而非同义名；离线查询不调用 fetch。 |
+| [scripts/photo-misses.ts](../scripts/photo-misses.ts) | 维护工具 | 读 `MERI_MEDIA_DIR`（未设时 `.cache/media`）的未配图记录，按次数列出景点、搜索词、返回条数和被拒原因，用来挑选值得人工补进图集的景点；只读本地，不请求 Pixabay、不改文件。 |
 | [scripts/fetch-place-photos.ts](../scripts/fetch-place-photos.ts) | 开发验证工具 | 青海湖／天山天池／松赞林寺固定审核后的 Pixabay ID，其余用关键词与 tags 筛候选；成功响应缓存 24 小时（不含密钥的参数哈希），HTTP 失败立即停止并脱敏输出；按实际 JPEG／PNG／WebP 格式、带图片 ID 的文件名下载。新图或更换来源清空地区，核对后才启用；同源刷新保留配置。支持指定地名和 --refresh。 |
 | [public/photos/](../public/photos) | 静态资源 | 预下载照片与带来源、明确地区、别名、行政区代表图配置的 photos.json；由本站提供文件。运行时从 Pixabay 下载的照片不写进这里（生产模式启动后 public 不再变化），而是在 `MERI_MEDIA_DIR`。不代表全国覆盖或逐张审核完成。青海湖和天山天池已更换来源；香格里拉市使用独立景点松赞林寺代表图。 |
 | [public/photos/qinghai-lake-2631421.jpg](../public/photos/qinghai-lake-2631421.jpg) | 静态资源 | 本轮查看来源与画面后选用的青海湖畔油菜花照片，Pixabay 2631421，作者 Ponyo-；替代旧茶卡盐湖错图。 |

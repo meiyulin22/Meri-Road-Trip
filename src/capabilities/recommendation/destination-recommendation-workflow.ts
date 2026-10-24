@@ -53,6 +53,8 @@ export async function runDestinationRecommendationWorkflow(
     id: dependencies.generateId(), name: place.name, province: group.province, reason: place.reason,
     ...(place.landmark ? { landmark: place.landmark } : {}),
     ...(place.landmark && place.landmarkEn ? { landmarkEn: place.landmarkEn } : {}),
+    ...(place.landmark && place.landmarkAliases?.length ? { landmarkAliases: place.landmarkAliases } : {}),
+    ...(place.backupLandmarks?.length ? { backupLandmarks: place.backupLandmarks } : {}),
   })));
 
   logger.info({ event: "recommendation.workflow.completed", requestId,

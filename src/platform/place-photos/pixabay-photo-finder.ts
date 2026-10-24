@@ -1,10 +1,17 @@
-import type { PlaceImage } from "@/domain/location/place-image";
+import { placePhotoRulesVersion, type PlaceImage } from "@/domain/location/place-image";
 import { logEvents, logger } from "@/platform/observability/logger";
 
 import { readImageFacts } from "./image-file";
 import { mediaPhotoUrlPrefix, type MediaPhotoStore, type StoredPhotoRecord } from "./media-photo-store";
 import type { PixabayClient, PixabayFailure } from "./pixabay-client";
-import { rankHits, searchVariants, type PixabayHit, type RemotePhotoSubject } from "./pixabay-photo-match";
+import {
+  assessHits,
+  searchVariants,
+  type PixabayHit,
+  type RejectionReason,
+  type RemotePhotoSubject,
+  type SearchVariant,
+} from "./pixabay-photo-match";
 
 export type { RemotePhotoSubject } from "./pixabay-photo-match";
 
@@ -42,8 +49,13 @@ export interface PixabayPhotoFinderOptions {
   readonly now?: () => number;
 }
 
-const batchSearches = 8;
-const batchDownloads = 4;
+/**
+ * One set of cards (up to 12) costs at most 20 searches and 10 downloads: 30 requests,
+ * well inside Pixabay's 100 a minute, and the client's own limiter (80 a minute) holds
+ * the line when several sets run at once. A card past the budget is asked again later.
+ */
+const batchSearches = 20;
+const batchDownloads = 10;
 const batchDurationMs = 45_000;
 /** Downloads one landmark may spend across all its searches, so one card cannot use up a set's budget. */
 const downloadsPerLookup = 2;
@@ -78,7 +90,7 @@ export class PixabayPhotoFinder implements RemotePhotoFinder {
     const key = { region: subject.region, landmark: subject.landmark };
     const stored = await this.options.store.readLookup(key);
     if (stored) return { status: "found", image: stored };
-    if (await this.options.store.recentlyNone(key, this.now())) return { status: "none" };
+    if (await this.options.store.recentlyNone(key, this.now(), placePhotoRulesVersion)) return { status: "none" };
     const text = `${subject.region}|${subject.landmark}`;
     const running = this.inFlight.get(text);
     if (running) return running;
@@ -89,9 +101,6 @@ export class PixabayPhotoFinder implements RemotePhotoFinder {
         if (this.retryAt.size > 1000) this.retryAt.clear();
         this.retryAt.set(text, this.now() + retryAfterMs);
       }
-      logger.info({ event: result.status === "unavailable" ? logEvents.placePhotoRemoteUnavailable : logEvents.placePhotoRemoteCompleted,
-        region: subject.region, landmark: subject.landmark, status: result.status,
-        ...(result.status === "unavailable" ? { reason: result.reason } : {}) }, "Remote place photo lookup finished");
       return result;
     }).finally(() => this.inFlight.delete(text));
     this.inFlight.set(text, lookup);
@@ -99,19 +108,44 @@ export class PixabayPhotoFinder implements RemotePhotoFinder {
   }
 
   private async lookUp(subject: RemotePhotoSubject, batch: RemoteBatch): Promise<RemotePhotoResult> {
+    const searches: { q: string; lang: string; hits: number; cached: boolean }[] = [];
+    const rejected: Partial<Record<RejectionReason, number>> = {};
+    let rejectedFiles = 0;
+    const result = await this.searchAndAdopt(subject, batch, searches, rejected, () => { rejectedFiles += 1; });
+    const summary = { region: subject.region, landmark: subject.landmark, searches, rejected, rejectedFiles };
+    logger.info({ event: result.status === "unavailable" ? logEvents.placePhotoRemoteUnavailable : logEvents.placePhotoRemoteCompleted,
+      ...summary, status: result.status, ...(result.status === "unavailable" ? { reason: result.reason } : {}),
+      ...(result.status === "found" ? { url: result.image.url } : {}) }, "Remote place photo lookup finished");
+    if (result.status === "none") {
+      // Every answer it rests on is cached for the day, so asking again today under the same rules would decide the same.
+      await this.options.store.writeNone(subject, this.now(), placePhotoRulesVersion).catch(() => undefined);
+      await this.options.store.recordMiss({ province: subject.province, ...summary }, this.now()).catch(() => undefined);
+    }
+    return result;
+  }
+
+  private async searchAndAdopt(subject: RemotePhotoSubject, batch: RemoteBatch,
+    searches: { q: string; lang: string; hits: number; cached: boolean }[],
+    rejected: Partial<Record<RejectionReason, number>>, onRejectedFile: () => void): Promise<RemotePhotoResult> {
     let unavailable: string | null = null;
     let downloads = 0;
     const tried = new Set<number>();
     for (const query of searchVariants(subject)) {
       const searched = await this.search(query, batch);
       if ("unavailable" in searched) return { status: "unavailable", reason: searched.unavailable };
-      for (const { hit, matched } of rankHits(searched.hits, subject)) {
+      searches.push({ q: query.q, lang: query.lang, hits: searched.hits.length, cached: searched.cached });
+      const assessment = assessHits(searched.hits, subject);
+      for (const [reason, count] of Object.entries(assessment.rejected) as [RejectionReason, number][]) {
+        rejected[reason] = (rejected[reason] ?? 0) + count;
+      }
+      for (const { hit, matched } of assessment.accepted) {
         if (tried.has(hit.id)) continue;
         if (downloads >= downloadsPerLookup) break;
         tried.add(hit.id);
         downloads += 1;
-        const outcome = await this.adopt(hit, matched, query, subject, batch);
+        const outcome = await this.adopt(hit, matched, `${query.q} [${query.lang}]`, subject, batch);
         if (outcome.status === "found") return outcome;
+        if (outcome.status === "none") onRejectedFile();
         if (outcome.status === "unavailable") {
           unavailable = outcome.reason;
           if (batch.stopped || outcome.reason === "storage_full" || outcome.reason === "batch_budget") return outcome;
@@ -120,10 +154,7 @@ export class PixabayPhotoFinder implements RemotePhotoFinder {
       // A candidate that failed to download is a reason to try later, not to search wider.
       if (unavailable || downloads >= downloadsPerLookup) break;
     }
-    if (unavailable) return { status: "unavailable", reason: unavailable };
-    // Every answer it rests on is cached for the day, so asking again today would decide the same.
-    await this.options.store.writeNone(subject, this.now()).catch(() => undefined);
-    return { status: "none" };
+    return unavailable ? { status: "unavailable", reason: unavailable } : { status: "none" };
   }
 
   private stop(batch: RemoteBatch, failure: PixabayFailure): void {
@@ -132,11 +163,13 @@ export class PixabayPhotoFinder implements RemotePhotoFinder {
     this.pausedUntil = Math.max(this.pausedUntil, this.now() + pause);
   }
 
-  private async search(query: string, batch: RemoteBatch): Promise<{ hits: readonly PixabayHit[] } | { unavailable: string }> {
-    const parameters = new URLSearchParams({ q: query, image_type: "photo", orientation: "horizontal",
-      safesearch: "true", per_page: "20" }).toString();
+  private async search(query: SearchVariant, batch: RemoteBatch):
+    Promise<{ hits: readonly PixabayHit[]; cached: boolean } | { unavailable: string }> {
+    // Fifty a page: one request sees more candidates for the same quota.
+    const parameters = new URLSearchParams({ q: query.q, lang: query.lang, image_type: "photo",
+      orientation: "horizontal", safesearch: "true", per_page: "50" }).toString();
     const cached = await this.options.store.readSearch(parameters, this.now());
-    if (cached) return { hits: cached };
+    if (cached) return { hits: cached, cached: true };
     if (batch.stopped) return { unavailable: batch.stopped };
     if (this.now() < this.pausedUntil) return { unavailable: "paused" };
     if (batch.searchesLeft <= 0 || this.now() >= batch.deadline) return { unavailable: "batch_budget" };
@@ -148,7 +181,7 @@ export class PixabayPhotoFinder implements RemotePhotoFinder {
     }
     // Empty answers are cached too: asking again within the day would spend quota on the same nothing.
     await this.options.store.writeSearch(parameters, outcome.hits, this.now());
-    return { hits: outcome.hits };
+    return { hits: outcome.hits, cached: false };
   }
 
   private async adopt(hit: PixabayHit, matched: readonly string[], query: string, subject: RemotePhotoSubject,

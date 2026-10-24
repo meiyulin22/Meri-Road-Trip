@@ -50,7 +50,8 @@ test("each card's photo is streamed as one line, then the answers are saved into
   assert.deepEqual(received.find((line) => (line as { id: string }).id === "lj"), { id: "lj", image: yulong });
   assert.deepEqual(received.find((line) => (line as { id: string }).id === "dq"), { id: "dq", image: null });
   assert.deepEqual(saved, [{ ...cardsPresentation, destinations: [
-    { ...cardsPresentation.destinations[0], image: yulong }, { ...cardsPresentation.destinations[1], image: null }] }]);
+    { ...cardsPresentation.destinations[0], image: yulong, photoRules: 2 },
+    { ...cardsPresentation.destinations[1], image: null, photoRules: 2 }] }]);
 });
 
 test("cards that all have their answer get an empty stream and nothing is saved", async () => {

@@ -1,6 +1,10 @@
 import { isCoordinateSystem, type LocationCandidate } from "@/domain/location/location";
-import { landmarkEnglishPattern } from "@/domain/location/destination-recommendations";
-import { parsePlaceImage, type PlaceImage } from "@/domain/location/place-image";
+import {
+  landmarkEnglishPattern,
+  maxBackupLandmarks,
+  maxLandmarkAliases,
+} from "@/domain/location/destination-recommendations";
+import { parsePlaceImage, placePhotoRulesVersion, type PlaceImage } from "@/domain/location/place-image";
 
 export const tripMessageRoles = ["user", "assistant"] as const;
 
@@ -53,6 +57,12 @@ export interface DestinationRecommendation {
   readonly landmark?: string;
   /** The landmark's English name, which the photo search uses; absent on older cards. */
   readonly landmarkEn?: string;
+  /** Other names of the same landmark, English or Chinese, that the photo search may try. */
+  readonly landmarkAliases?: readonly string[];
+  /** Other well-photographed sights in the same place, shown under their own name when the landmark has no photo. */
+  readonly backupLandmarks?: readonly { readonly name: string; readonly en: string }[];
+  /** The placePhotoRulesVersion an answered photo was decided under; absent means 1. */
+  readonly photoRules?: number;
   readonly image?: PlaceImage | null;
 }
 
@@ -64,14 +74,17 @@ export interface DestinationRecommendationPresentation {
 }
 
 /**
- * The cards whose photo no one has looked up yet. A card without a province is a
- * record from before provinces were stored; it has nowhere to look inside.
+ * The cards whose photo no one has looked up yet — and, once, a card with a landmark
+ * that was saved as having no photo under older photo rules, so better rules reach it
+ * without a lookup on every load. A card without a province is a record from before
+ * provinces were stored; it has nowhere to look inside.
  */
 export function recommendationsAwaitingPhoto(
   presentation: DestinationRecommendationPresentation,
 ): readonly (DestinationRecommendation & { readonly province: string })[] {
   return presentation.destinations.filter((item): item is DestinationRecommendation & { readonly province: string } =>
-    item.image === undefined && item.province !== null);
+    item.province !== null && (item.image === undefined ||
+      (item.image === null && item.landmark !== undefined && (item.photoRules ?? 1) < placePhotoRulesVersion)));
 }
 
 /**
@@ -175,13 +188,22 @@ function validatePresentation(value: unknown, role: TripMessageRole): TripMessag
       throw new InvalidTripMessageError("TripMessage.presentation is invalid.");
     }
     const destinations = value.destinations.map((item: unknown) => {
-      if (!isRecord(item) || !hasKnownKeys(item, ["id", "name"], ["province", "region", "reason", "landmark", "landmarkEn", "imageUrl", "image"]) ||
+      if (!isRecord(item) || !hasKnownKeys(item, ["id", "name"], ["province", "region", "reason", "landmark", "landmarkEn", "landmarkAliases", "backupLandmarks", "photoRules", "imageUrl", "image"]) ||
         !isPresentText(item.id) || !isPresentText(item.name) ||
         !(item.province === undefined || item.province === null || isPresentText(item.province)) ||
         !(item.region === undefined || item.region === null || isPresentText(item.region)) ||
         !(item.reason === undefined || isPresentText(item.reason)) ||
         !(item.landmark === undefined || (isPresentText(item.landmark) && item.landmark.length <= 30)) ||
-        !(item.landmarkEn === undefined || (typeof item.landmarkEn === "string" && landmarkEnglishPattern.test(item.landmarkEn)))) {
+        !(item.landmarkEn === undefined || (typeof item.landmarkEn === "string" && landmarkEnglishPattern.test(item.landmarkEn))) ||
+        !(item.landmarkAliases === undefined || (Array.isArray(item.landmarkAliases) &&
+          item.landmarkAliases.length <= maxLandmarkAliases &&
+          item.landmarkAliases.every((alias) => isPresentText(alias) && alias.length <= 40))) ||
+        !(item.backupLandmarks === undefined || (Array.isArray(item.backupLandmarks) &&
+          item.backupLandmarks.length <= maxBackupLandmarks &&
+          item.backupLandmarks.every((backup) => isRecord(backup) && hasKnownKeys(backup, ["name", "en"], []) &&
+            isPresentText(backup.name) && backup.name.length <= 30 &&
+            typeof backup.en === "string" && landmarkEnglishPattern.test(backup.en)))) ||
+        !(item.photoRules === undefined || (Number.isSafeInteger(item.photoRules) && (item.photoRules as number) >= 1))) {
         throw new InvalidTripMessageError("TripMessage.presentation destination is invalid.");
       }
       // A stored image that no longer validates counts as no photo rather than losing
@@ -192,6 +214,10 @@ function validatePresentation(value: unknown, role: TripMessageRole): TripMessag
         ...(item.reason === undefined ? {} : { reason: item.reason as string }),
         ...(item.landmark === undefined ? {} : { landmark: item.landmark as string }),
         ...(item.landmarkEn === undefined ? {} : { landmarkEn: item.landmarkEn as string }),
+        ...(item.landmarkAliases === undefined ? {} : { landmarkAliases: item.landmarkAliases as string[] }),
+        ...(item.backupLandmarks === undefined ? {} : {
+          backupLandmarks: (item.backupLandmarks as { name: string; en: string }[]).map(({ name, en }) => ({ name, en })) }),
+        ...(item.photoRules === undefined ? {} : { photoRules: item.photoRules as number }),
         ...(image === undefined ? {} : { image }) };
     });
     if (new Set(destinations.map((item) => item.id)).size !== destinations.length) {

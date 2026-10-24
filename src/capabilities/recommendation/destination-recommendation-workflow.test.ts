@@ -112,13 +112,15 @@ test("nothing found outside the saved provinces is said as such", async () => {
 
 test("cards keep their landmark for the photo and arrive without one", async () => {
   const { deps } = dependencies({ generated: [{ province: "云南省", places: [
-    { name: "丽江市", reason: "雪山古城", landmark: "玉龙雪山", landmarkEn: "Jade Dragon Snow Mountain" },
-    { name: "迪庆藏族自治州", reason: "高原草甸", landmarkEn: "Pudacuo" },
+    { name: "丽江市", reason: "雪山古城", landmark: "玉龙雪山", landmarkEn: "Jade Dragon Snow Mountain",
+      landmarkAliases: ["Yulong Snow Mountain"], backupLandmarks: [{ name: "丽江古城", en: "Lijiang Old Town" }] },
+    { name: "迪庆藏族自治州", reason: "高原草甸", landmarkEn: "Pudacuo", landmarkAliases: ["Potatso"] },
   ] }] });
   const result = await runDestinationRecommendationWorkflow(context, "request-8", deps);
   // An English name without the landmark it names would search for nothing the card shows.
   assert.deepEqual(result.presentation?.destinations, [
-    { id: "id-1", name: "丽江市", province: "云南省", reason: "雪山古城", landmark: "玉龙雪山", landmarkEn: "Jade Dragon Snow Mountain" },
+    { id: "id-1", name: "丽江市", province: "云南省", reason: "雪山古城", landmark: "玉龙雪山", landmarkEn: "Jade Dragon Snow Mountain",
+      landmarkAliases: ["Yulong Snow Mountain"], backupLandmarks: [{ name: "丽江古城", en: "Lijiang Old Town" }] },
     { id: "id-2", name: "迪庆藏族自治州", province: "云南省", reason: "高原草甸" },
   ]);
 });

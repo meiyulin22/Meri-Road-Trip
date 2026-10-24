@@ -34,11 +34,18 @@ function load(): PhotoCatalog {
 export class CatalogPhotoProvider implements PlacePhotoProvider {
   constructor(private readonly downloaded: MediaPhotoStore | null = null) {}
 
+  /**
+   * The catalog always wins. Then, for a named sight, the photo downloaded for that sight
+   * in that region; for a 市 with no representative in the catalog, a photo downloaded
+   * for any sight in it, captioned with the sight it really shows.
+   */
   async findPhoto(query: PlacePhotoQuery): Promise<PlaceImage | null> {
     const bundled = photoFromCatalog(load(), query);
-    if (bundled || query.kind !== "named" || !query.region || !this.downloaded) return bundled;
+    if (bundled || !query.region || !this.downloaded) return bundled;
     try {
-      return await this.downloaded.readLookup({ region: query.region, landmark: query.keywords });
+      return query.kind === "named"
+        ? await this.downloaded.readLookup({ region: query.region, landmark: query.keywords })
+        : await this.downloaded.readAnyForRegion(query.region);
     } catch {
       return null;
     }

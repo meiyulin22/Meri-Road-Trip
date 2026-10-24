@@ -18,7 +18,7 @@ Meri plans trips to destinations in China, for travellers from any country. Reco
 
 ${scopeInstruction(context)}
 
-${reasonInstruction(context)} Do not treat assistant suggestions as confirmed user preferences, and do not invent preferences the user has not expressed. Do not assert access, legality, safety, opening status, weather, route status, prices, or availability: none of that is verified here. Each landmark is the one well-known scenic spot inside that place that best shows it, by its common name, preferably the one the reason speaks of, and landmarkEn is that same landmark's usual English name; both only pick the card's photo. Do not generate IDs, coordinates, image URLs, or a reply. No tools or research are available beyond what is given below.
+${reasonInstruction(context)} Do not treat assistant suggestions as confirmed user preferences, and do not invent preferences the user has not expressed. Do not assert access, legality, safety, opening status, weather, route status, prices, or availability: none of that is verified here. Each landmark is the one well-known scenic spot inside that place that best shows it and is most often photographed, by its common name, preferably the one the reason speaks of — a famous view, not an institute, office or museum collection. landmarkEn is that same landmark's usual English name, landmarkAliases are other names of that same landmark (a pinyin spelling, another English name, a shorter Chinese name), and backupLandmarks are one or two other often-photographed spots in the same place; all of them only pick the card's photo. Do not generate IDs, coordinates, image URLs, or a reply. No tools or research are available beyond what is given below.
 
 ${shownCardsGuidance}
 
@@ -34,7 +34,7 @@ ${JSON.stringify(context.tripState)}${discovery}`;
  */
 function reasonInstruction(context: DestinationRecommendationContext): string {
   const length = context.locale === "zh" ? "at most 30 characters" : "at most 15 words";
-  return `Each reason says in one short ${promptLanguageName(context.locale)} sentence, ${length}, why that place may fit what the user has told us. Write every reason in ${promptLanguageName(context.locale)}, even when the conversation is in another language. Province, place and landmark names stay in Chinese, as the examples show; only landmarkEn is English.`;
+  return `Each reason says in one short ${promptLanguageName(context.locale)} sentence, ${length}, why that place may fit what the user has told us. Write every reason in ${promptLanguageName(context.locale)}, even when the conversation is in another language. Province, place and landmark names stay in Chinese, as the examples show; only landmarkEn, the English landmark aliases and each backup landmark's en are English.`;
 }
 
 /**

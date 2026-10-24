@@ -1,7 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { judgeHit, rankHits, searchVariants, type RemotePhotoSubject } from "./pixabay-photo-match";
+import { assessHits, judgeHit, rankHits, searchVariants, type RemotePhotoSubject } from "./pixabay-photo-match";
+import { regionShortName } from "./photo-regions";
 import { hit } from "./pixabay-test-fixtures";
 
 const yulong: RemotePhotoSubject = { province: "云南省", region: "丽江市", landmark: "玉龙雪山", english: "Jade Dragon Snow Mountain" };
@@ -53,9 +54,16 @@ test("hits that also name the region come first, then Pixabay's own order", () =
   assert.deepEqual(ranked.map((item) => item.hit.id), [22, 20]);
 });
 
-test("the search asks for the English name, then once more with the region", () => {
-  assert.deepEqual(searchVariants(yulong), ["Jade Dragon Snow Mountain", "Jade Dragon Snow Mountain lijiang"]);
-  assert.deepEqual(searchVariants({ ...cangshan, english: "Cangshan Dali" }), ["Cangshan Dali"]);
+test("the search asks in English, then in Chinese, then by another name or with the region — three at most", () => {
+  assert.deepEqual(searchVariants(yulong), [{ q: "Jade Dragon Snow Mountain", lang: "en" }, { q: "玉龙雪山", lang: "zh" },
+    { q: "Jade Dragon Snow Mountain lijiang", lang: "en" }]);
+  assert.deepEqual(searchVariants({ ...cangshan, english: "Cangshan Dali" }), [{ q: "Cangshan Dali", lang: "en" }, { q: "苍山", lang: "zh" }]);
+  const alleys: RemotePhotoSubject = { province: "四川省", region: "成都市", landmark: "宽窄巷子", english: "Wide and Narrow Alleys",
+    aliases: ["Kuanzhai Alley", "宽窄巷"] };
+  assert.deepEqual(searchVariants(alleys), [{ q: "Wide and Narrow Alleys", lang: "en" }, { q: "宽窄巷子", lang: "zh" },
+    { q: "Kuanzhai Alley", lang: "en" }]);
+  // An older card has only its Chinese landmark.
+  assert.deepEqual(searchVariants({ province: "云南省", region: "怒江傈僳族自治州", landmark: "丙中洛" }), [{ q: "丙中洛", lang: "zh" }]);
 });
 
 test("a hit that never says it is in China is not a photo of a Chinese landmark", () => {
@@ -67,4 +75,50 @@ test("a hit that never says it is in China is not a photo of a Chinese landmark"
   assert.deepEqual(judgeHit(hit(1, "stone, rocks, landscape"), stoneForest), { accepted: false, reason: "not_in_china" });
   assert.equal(judgeHit(hit(694640, "china, kunming, stone forest, stones"), stoneForest).accepted, true);
   assert.equal(judgeHit(hit(2, "stone forest, china, rocks"), stoneForest).accepted, true);
+});
+
+test("a Chinese name is found in Chinese tags, even split over two of them", () => {
+  const alleys: RemotePhotoSubject = { province: "四川省", region: "成都市", landmark: "宽窄巷子", english: "Wide and Narrow Alleys" };
+  // Pixabay 2680194 as lang=zh returns it, and as lang=en (a machine translation that names neither).
+  const chinese = hit(2680194, "成都, 宽窄, 巷子, 明信片, 成都", { pageURL: "https://pixabay.com/photos/chengdu-width-alley-postcard-2680194/" });
+  const english = hit(2680194, "chengdu, width, alley, postcard, chengdu", { pageURL: chinese.pageURL });
+  assert.deepEqual(judgeHit(chinese, alleys), { accepted: true, matched: ["宽窄巷子"], regional: true });
+  assert.deepEqual(judgeHit(english, alleys), { accepted: false, reason: "no_identity" });
+});
+
+test("any of the landmark's names identifies it, plurals folded", () => {
+  const alleys: RemotePhotoSubject = { province: "四川省", region: "成都市", landmark: "宽窄巷子", english: "Wide and Narrow Alleys",
+    aliases: ["Kuanzhai Alley"] };
+  assert.equal(judgeHit(hit(1, "kuanzhai alleys, chengdu, china"), alleys).accepted, true);
+  // Through an alias the region must be named too: Kimi offered 热带植物园 for 西双版纳's botanical garden.
+  assert.deepEqual(judgeHit(hit(4, "kuanzhai alley, china"), alleys), { accepted: false, reason: "no_identity" });
+  const garden: RemotePhotoSubject = { province: "云南省", region: "西双版纳傣族自治州", landmark: "中科院西双版纳热带植物园",
+    english: "Xishuangbanna Tropical Botanical Garden", aliases: ["热带植物园"] };
+  assert.deepEqual(judgeHit(hit(5, "热带植物园, 中国, 棕榈"), garden), { accepted: false, reason: "no_identity" });
+  assert.equal(judgeHit(hit(6, "热带植物园, 西双版纳, 棕榈"), garden).accepted, true);
+  assert.equal(judgeHit(hit(2, "wide and narrow alley, chengdu"), alleys).accepted, true);
+  assert.deepEqual(judgeHit(hit(3, "alley, street, chengdu"), alleys), { accepted: false, reason: "no_identity" });
+});
+
+test("Chinese tags count against a hit too: another region, a foreign place, and 中国 as the only China evidence", () => {
+  const erhai: RemotePhotoSubject = { province: "云南省", region: "大理白族自治州", landmark: "洱海", english: "Erhai Lake" };
+  assert.deepEqual(judgeHit(hit(1, "洱海, 丽江, 湖"), erhai), { accepted: false, reason: "other_region" });
+  assert.deepEqual(judgeHit(hit(2, "洱海, 日本, 湖"), erhai), { accepted: false, reason: "foreign" });
+  assert.deepEqual(judgeHit(hit(3, "洱海, 四川"), erhai), { accepted: false, reason: "other_province" });
+  assert.equal(judgeHit(hit(4, "洱海, 湖, 中国"), erhai).accepted, true);
+  assert.equal(judgeHit(hit(5, "洱海, 大理, 苍山"), erhai).accepted, true);
+  assert.deepEqual(judgeHit(hit(6, "洱海, 湖"), erhai), { accepted: false, reason: "not_in_china" });
+});
+
+test("rejections are counted by reason for the log and the misses list", () => {
+  const assessment = assessHits([hit(1, "mountain"), hit(2, "jade dragon, japan"), hit(3, "jade dragon, lijiang"),
+    hit(4, "jade dragon, china", { imageWidth: 500 })], yulong);
+  assert.deepEqual(assessment.accepted.map((item) => item.hit.id), [3]);
+  assert.deepEqual(assessment.rejected, { no_identity: 1, foreign: 1, too_small: 1 });
+});
+
+test("a region's short Chinese name drops its level and the peoples in its name", () => {
+  assert.deepEqual(["大理白族自治州", "红河哈尼族彝族自治州", "海西蒙古族藏族自治州", "新疆维吾尔自治区", "广西壮族自治区",
+    "内蒙古自治区", "丽江市", "香港特别行政区", "阿里地区", "西双版纳傣族自治州"].map(regionShortName),
+  ["大理", "红河", "海西", "新疆", "广西", "内蒙古", "丽江", "香港", "阿里", "西双版纳"]);
 });

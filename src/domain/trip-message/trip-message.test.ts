@@ -170,3 +170,30 @@ test("a saved location candidate keeps whether it is a sight, and older ones wit
   assert.deepEqual(read({ kind: "sight" }), { type: "location_candidates", candidates: [{ ...candidate, kind: "sight" }] });
   assert.deepEqual(read({}), { type: "location_candidates", candidates: [candidate] });
 });
+
+test("a card saved with no photo is looked up once more only when it has a landmark and older photo rules", () => {
+  const presentation: DestinationRecommendationPresentation = { type: "destination_recommendations", destinations: [
+    { id: "old", name: "成都市", province: "四川省", landmark: "宽窄巷子", image: null },
+    { id: "same", name: "成都市", province: "四川省", landmark: "宽窄巷子", image: null, photoRules: 2 },
+    { id: "bare", name: "成都市", province: "四川省", image: null },
+    { id: "new", name: "成都市", province: "四川省", landmark: "宽窄巷子" },
+  ] };
+  assert.deepEqual(recommendationsAwaitingPhoto(presentation).map((item) => item.id), ["old", "new"]);
+});
+
+test("a card keeps its landmark's other names, its stand-in landmarks and its photo rules", () => {
+  const message = validateTripMessage({ id: "cards", tripId: "trip", role: "assistant", content: "看看这些地方",
+    createdAt: "2026-10-04T00:00:00.000Z", presentation: { type: "destination_recommendations", destinations: [
+      { id: "a", name: "成都市", province: "四川省", landmark: "宽窄巷子", landmarkEn: "Wide and Narrow Alleys",
+        landmarkAliases: ["Kuanzhai Alley", "宽窄巷"], photoRules: 2, image: null,
+        backupLandmarks: [{ name: "大熊猫繁育研究基地", en: "Chengdu Research Base of Giant Panda Breeding" }] },
+    ] } });
+  const [card] = (message.presentation as DestinationRecommendationPresentation).destinations;
+  assert.deepEqual(card.landmarkAliases, ["Kuanzhai Alley", "宽窄巷"]);
+  assert.deepEqual(card.backupLandmarks, [{ name: "大熊猫繁育研究基地", en: "Chengdu Research Base of Giant Panda Breeding" }]);
+  assert.equal(card.photoRules, 2);
+  for (const bad of [{ landmarkAliases: ["a", "b", "c", "d"] }, { backupLandmarks: [{ name: "x", en: "大熊猫" }] }, { photoRules: 0 }]) {
+    assert.throws(() => validateTripMessage({ ...message, presentation: { type: "destination_recommendations",
+      destinations: [{ id: "a", name: "成都市", province: "四川省", landmark: "宽窄巷子", ...bad }] } }));
+  }
+});

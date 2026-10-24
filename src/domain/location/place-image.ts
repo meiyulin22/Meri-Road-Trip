@@ -22,6 +22,15 @@ export interface PlaceImage {
   readonly credit?: string;
 }
 
+/**
+ * The version of the rules that decide a recommendation card has no photo. A card saved
+ * with no photo under older rules is looked up once more under these (and then carries
+ * this number), and a remote "nothing suitable" decided under older rules no longer
+ * counts. 1: 1.0624, English name only. 2: 1.0625, aliases, Chinese search, stand-in
+ * landmarks.
+ */
+export const placePhotoRulesVersion = 2;
+
 /** The only names the runtime photo route serves (media-photo-store.ts). */
 const runtimePhotoUrl = /^\/media\/place-photos\/pixabay-[1-9]\d{0,11}\.(?:jpg|png|webp)$/u;
 

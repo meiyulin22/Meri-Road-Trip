@@ -78,3 +78,27 @@ test("a malformed hit is dropped on its own instead of failing the whole answer"
   const outcome = await client.search(query);
   assert.deepEqual(outcome.ok && outcome.hits.map((item) => item.id), [1]);
 });
+
+test("past the per-minute cap a request is not sent and counts as a rate limit, downloads included", async () => {
+  const clock = { now: 0 };
+  const scripted = scriptedFetch({ search: () => searchAnswer([]) });
+  const client = new PixabayClient({ key: "k", fetcher: scripted.fetcher, perMinute: 2, now: () => clock.now });
+  assert.equal((await client.search(query)).ok, true);
+  assert.equal((await client.download("https://cdn.pixabay.com/a.jpg")).ok, true);
+  assert.deepEqual(await client.search(query), { ok: false, failure: "rate_limited" });
+  assert.equal(scripted.asked.length, 2);
+  clock.now += 60_000;
+  assert.equal((await client.search(query)).ok, true);
+});
+
+test("when Pixabay says its own count is nearly spent, nothing more is sent until it resets", async () => {
+  const clock = { now: 0 };
+  const scripted = scriptedFetch({ search: () => new Response(JSON.stringify({ hits: [] }),
+    { headers: { "content-type": "application/json", "x-ratelimit-remaining": "3", "x-ratelimit-reset": "20" } }) });
+  const client = new PixabayClient({ key: "k", fetcher: scripted.fetcher, now: () => clock.now });
+  assert.equal((await client.search(query)).ok, true);
+  assert.deepEqual(await client.search(query), { ok: false, failure: "rate_limited" });
+  clock.now += 21_000;
+  assert.equal((await client.search(query)).ok, true);
+  assert.equal(scripted.asked.length, 2);
+});

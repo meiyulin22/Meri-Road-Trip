@@ -1,5 +1,12 @@
 import { normalizePlaceName } from "./photo-catalog";
-import { foreignWords, prefectureWords, provinceWords, type RegionWords } from "./photo-regions";
+import {
+  foreignWords,
+  foreignWordsZh,
+  prefectureWords,
+  provinceWords,
+  regionShortName,
+  type RegionWords,
+} from "./photo-regions";
 
 /** The landmark a recommendation card wants a photo of, and where it is. */
 export interface RemotePhotoSubject {
@@ -7,10 +14,12 @@ export interface RemotePhotoSubject {
   readonly province: string;
   /** The card's 市 or 州: 丽江市. */
   readonly region: string;
-  /** The landmark in Chinese, which becomes the caption: 玉龙雪山. */
+  /** The landmark in Chinese, which becomes the caption and is searched with lang=zh: 玉龙雪山. */
   readonly landmark: string;
-  /** Its English name, the only words Pixabay searches by: Jade Dragon Snow Mountain. */
-  readonly english: string;
+  /** Its usual English name, searched with lang=en: Jade Dragon Snow Mountain. Absent on older cards. */
+  readonly english?: string;
+  /** Other names of the same landmark, English or Chinese: Kuanzhai Alley, 宽窄巷. */
+  readonly aliases?: readonly string[];
 }
 
 /** The fields of one Pixabay search hit that Meri reads. */
@@ -24,41 +33,65 @@ export interface PixabayHit {
   readonly user: string;
 }
 
+export type RejectionReason = "too_small" | "no_identity" | "not_in_china" | "foreign" | "other_province" | "other_region";
+
 export type MatchVerdict =
   | { readonly accepted: true; readonly matched: readonly string[]; readonly regional: boolean }
-  | { readonly accepted: false; readonly reason: "too_small" | "no_identity" | "not_in_china" | "foreign" | "other_province" | "other_region" };
+  | { readonly accepted: false; readonly reason: RejectionReason };
+
+/** One Pixabay search: Pixabay translates `q` and returns tags in `lang`. */
+export interface SearchVariant {
+  readonly q: string;
+  readonly lang: "en" | "zh";
+}
 
 /**
  * Words that describe a kind of place rather than one place. A photo tagged "mountain"
  * is not evidence of being 玉龙雪山: "Mount Emei" once matched Mount Fuji through
  * "mount" alone. Province and prefecture names are left out of identity too — "Dali"
- * says where, not which landmark.
+ * says where, not which landmark. Plurals are folded first, so "alleys" is "alley".
  */
 const genericWords = new Set([
-  "mount", "mountain", "mountains", "mt", "snow", "snowy", "peak", "peaks", "hill", "hills", "range", "glacier",
-  "lake", "lakes", "river", "sea", "bay", "beach", "island", "islands", "waterfall", "falls", "spring", "springs",
-  "valley", "gorge", "canyon", "cave", "caves", "forest", "grassland", "grasslands", "prairie", "desert", "wetland",
+  "mount", "mountain", "mt", "snow", "snowy", "peak", "hill", "range", "glacier",
+  "lake", "river", "sea", "bay", "beach", "island", "waterfall", "fall", "spring",
+  "valley", "gorge", "canyon", "cave", "forest", "grassland", "prairie", "desert", "wetland",
   "park", "national", "scenic", "area", "spot", "reserve", "nature", "geopark", "geological", "world", "heritage",
-  "old", "ancient", "town", "city", "village", "street", "bridge", "tower", "garden", "gardens", "museum",
+  "old", "ancient", "town", "city", "village", "street", "alley", "lane", "bridge", "tower", "garden", "museum",
   "temple", "monastery", "pagoda", "palace", "great", "wall", "west", "east", "north", "south", "the", "and", "of",
-  "china", "chinese", "view", "landscape", "travel", "tourism",
+  "china", "chinese", "view", "landscape", "travel", "tourism", "tropical", "botanical", "research", "base",
 ]);
 
-const regionWordSet = new Set([...provinceWords, ...prefectureWords].flatMap((region) =>
-  region.words.flatMap((phrase) => phrase.split(" "))));
+const cjk = /[\u3400-\u9fff]/u;
+
+/** "alleys" → "alley", "falls" → "fall"; "pass" and short words stay as they are. */
+function singular(word: string): string {
+  if (word.length <= 3 || word.endsWith("ss")) return word;
+  if (word.endsWith("ies")) return `${word.slice(0, -3)}y`;
+  return word.endsWith("s") ? word.slice(0, -1) : word;
+}
+
+const allRegions = [...provinceWords, ...prefectureWords];
+const regionWordSet = new Set(allRegions.flatMap((region) => region.words.flatMap((phrase) => phrase.split(" ").map(singular))));
 
 /** A region's own first name (dali, lijiang, yunnan), as opposed to a county or sight inside it (pingyao). */
-const primaryRegionWords = new Set([...provinceWords, ...prefectureWords].flatMap((region) =>
-  region.words[0].split(" ")));
+const primaryRegionWords = new Set(allRegions.map((region) => singular(region.words[0].split(" ")[0])));
 
 export function wordsOf(text: string): string[] {
-  return text.toLowerCase().normalize("NFKD").replace(/[̀-ͯ]/gu, "").split(/[^a-z0-9]+/u).filter(Boolean);
+  return text.toLowerCase().normalize("NFKD").replace(/[̀-ͯ]/gu, "").split(/[^a-z0-9]+/u)
+    .filter(Boolean).map(singular);
 }
 
 /** Whether `phrase` (one word, or several with single spaces) appears in `words` in order. */
 function hasPhrase(words: readonly string[], phrase: string): boolean {
-  const parts = phrase.split(" ");
+  const parts = phrase.split(" ").map(singular);
   return words.some((_, start) => parts.every((part, offset) => words[start + offset] === part));
+}
+
+interface HitText {
+  /** English words of the tags and the page slug. */
+  readonly words: readonly string[];
+  /** The Chinese of the tags run together, so a name split over two tags (宽窄, 巷子) still reads 宽窄巷子. */
+  readonly chinese: string;
 }
 
 /** The words of a hit: its tags, and the slug of its page (/photos/dali-cangshan-erhai-lake-1804795/). */
@@ -72,94 +105,164 @@ export function hitWords(hit: Pick<PixabayHit, "tags" | "pageURL">): string[] {
   return [...wordsOf(hit.tags), ...wordsOf(slug)];
 }
 
-function stem(name: string): string {
-  return normalizePlaceName(name).replace(/(?:市|州|地区|盟|林区|省|自治区)$/u, "");
+function textOf(hit: PixabayHit): HitText {
+  return { words: hitWords(hit), chinese: (hit.tags.normalize("NFKC").match(/[\u3400-\u9fff]+/gu) ?? []).join("") };
 }
 
 /** The stored name, or the short one a model or a user writes: 大理州 is 大理白族自治州. */
 function sameRegion(full: string, given: string): boolean {
   const name = normalizePlaceName(given);
   if (normalizePlaceName(full) === name) return true;
-  const short = stem(given);
-  return short.length >= 2 && normalizePlaceName(full).startsWith(short);
+  const short = regionShortName(given);
+  return short.length >= 2 && regionShortName(full) === short;
 }
 
-function mentioned(words: readonly string[], regions: readonly RegionWords[], ignore: ReadonlySet<string>): RegionWords[] {
-  return regions.filter((region) => region.words.some((phrase) =>
-    !phrase.split(" ").every((part) => ignore.has(part)) && hasPhrase(words, phrase)));
+function names(region: RegionWords): { readonly english: readonly string[]; readonly chinese: string } {
+  return { english: region.words, chinese: regionShortName(region.name) };
+}
+
+function mentions(text: HitText, region: RegionWords, ignoreWords: ReadonlySet<string>, ignoreChinese: readonly string[]): boolean {
+  const { english, chinese } = names(region);
+  if (english.some((phrase) => !phrase.split(" ").every((part) => ignoreWords.has(singular(part))) && hasPhrase(text.words, phrase))) {
+    return true;
+  }
+  return chinese.length >= 2 && !ignoreChinese.some((name) => name.includes(chinese)) && text.chinese.includes(chinese);
+}
+
+/** What one English name needs from a hit, or null when it says nothing about which landmark. */
+function englishRequirement(name: string): { words: readonly string[]; needsRegion: boolean } | null {
+  const all = wordsOf(name);
+  const named = all.filter((word) => word.length >= 3 && !genericWords.has(word));
+  const distinctive = named.filter((word) => !regionWordSet.has(word));
+  if (distinctive.length > 0) return { words: distinctive, needsRegion: false };
+  // "Pingyao Ancient City" is named after a county, which mostly means the sight; "Dali
+  // Ancient City" is named after the whole prefecture, whose photos are as often 洱海.
+  if (named.some((word) => !primaryRegionWords.has(word))) return { words: named, needsRegion: false };
+  const words = all.filter((word) => !["the", "and", "of"].includes(word));
+  return words.length > 0 ? { words, needsRegion: true } : null;
 }
 
 /**
- * Whether a hit may be shown as a photo of the subject. Identity first: every
- * distinctive word of the English name must be in the hit's tags or page slug, so
- * "Tiger Leaping Gorge" needs both "tiger" and "leaping". A name made only of kinds and
- * of a region's own name ("West Lake", "Dali Ancient City") needs every word and the
- * region named too. Then any regional word
- * that points elsewhere rules the hit out — a tag naming another province, another
- * prefecture (unless the subject's own prefecture is named too, as a gorge between two
- * is), or a country a lookalike is from — and a hit that does not say it is in China at
- * all (its own province or prefecture, or China itself) is ruled out too. Tags are the uploader's words: this keeps
- * obvious mismatches out, it does not prove where a photo was taken.
+ * Whether a hit may be shown as a photo of the subject. Identity first: one of the
+ * landmark's names must be in the hit — every distinctive word of an English name
+ * ("Tiger Leaping Gorge" needs "tiger" and "leaping"; a name made only of kinds and a
+ * region's own name, like "West Lake", needs every word and the region too), or a
+ * Chinese name in the Chinese tags. Then anything pointing elsewhere rules it out —
+ * another province, another prefecture (unless the subject's own is named too, as a
+ * gorge between two is), or a country a lookalike is from — and a hit that never says
+ * it is in China (its own province or prefecture, China or 中国) is ruled out too.
+ * Tags are the uploader's words: this keeps obvious mismatches out, it does not prove
+ * where a photo was taken.
  */
 export function judgeHit(hit: PixabayHit, subject: RemotePhotoSubject): MatchVerdict {
   if (hit.imageWidth < 960 || hit.imageHeight < 480 || hit.imageWidth < hit.imageHeight) {
     return { accepted: false, reason: "too_small" };
   }
-  const words = hitWords(hit);
-  const nameWords = wordsOf(subject.english);
-  const named = nameWords.filter((word) => word.length >= 3 && !genericWords.has(word));
-  const distinctive = named.filter((word) => !regionWordSet.has(word));
+  const text = textOf(hit);
   const ownProvince = provinceWords.find((region) => sameRegion(region.name, subject.province)) ?? null;
   const ownPrefecture = prefectureWords.find((region) => sameRegion(region.name, subject.region)) ??
     // A 直辖市's card names the city itself as its region.
     provinceWords.find((region) => sameRegion(region.name, subject.region)) ?? null;
-  const own = [ownProvince, ownPrefecture].filter((region): region is RegionWords => region !== null);
-  const regional = own.some((region) => region.words.some((phrase) => hasPhrase(words, phrase)));
+  const ownChinese = [regionShortName(subject.province), regionShortName(subject.region)].filter((name) => name.length >= 2);
+  const regional = [ownProvince, ownPrefecture].some((region) => region !== null &&
+    region.words.some((phrase) => hasPhrase(text.words, phrase))) || ownChinese.some((name) => text.chinese.includes(name));
 
-  // "Pingyao Ancient City" is named after a county, which mostly means the sight; "Dali
-  // Ancient City" is named after the whole prefecture, whose photos are as often 洱海.
-  const required = distinctive.length > 0 ? distinctive
-    : named.some((word) => !primaryRegionWords.has(word)) ? named : null;
-  const identified = required !== null
-    ? required.every((word) => words.includes(word))
-    : nameWords.length > 0 && nameWords.filter((word) => !["the", "and", "of"].includes(word))
-      .every((word) => words.includes(word)) && regional;
-  if (!identified) return { accepted: false, reason: "no_identity" };
+  const mainNames = [subject.english, subject.landmark].filter((name): name is string => typeof name === "string" && name.trim() !== "");
+  const aliases = (subject.aliases ?? []).filter((name) => name.trim() !== "");
+  const allNames = [...mainNames, ...aliases];
+  let matched: readonly string[] | null = null;
+  for (const name of allNames) {
+    // An alias the model offered may be a generic phrase (热带植物园, 茶马古道) that another
+    // place shares, so identity through an alias also needs the photo to name the region.
+    const viaAlias = !mainNames.includes(name);
+    if (cjk.test(name)) {
+      const chinese = name.normalize("NFKC").replace(/[^\u3400-\u9fff]/gu, "");
+      if (chinese.length >= 2 && text.chinese.includes(chinese) && (!viaAlias || regional)) { matched = [chinese]; break; }
+      continue;
+    }
+    const requirement = englishRequirement(name);
+    if (requirement && requirement.words.every((word) => text.words.includes(word)) &&
+      (!(requirement.needsRegion || viaAlias) || regional)) {
+      matched = requirement.words;
+      break;
+    }
+  }
+  if (!matched) return { accepted: false, reason: "no_identity" };
 
-  if (foreignWords.some((phrase) => hasPhrase(words, phrase))) return { accepted: false, reason: "foreign" };
-  // The landmark's own name never counts against it: Jiuzhaigou is both a county and the valley.
-  const ignore = new Set(nameWords);
-  if (mentioned(words, provinceWords, ignore).some((region) => region.name !== ownProvince?.name)) {
+  if (foreignWords.some((phrase) => hasPhrase(text.words, phrase)) || foreignWordsZh.some((word) => text.chinese.includes(word))) {
+    return { accepted: false, reason: "foreign" };
+  }
+  // The landmark's own names never count against it: Jiuzhaigou is both a county and the valley.
+  const ignoreWords = new Set(allNames.filter((name) => !cjk.test(name)).flatMap(wordsOf));
+  const ignoreChinese = allNames.filter((name) => cjk.test(name));
+  if (provinceWords.some((region) => region.name !== ownProvince?.name && mentions(text, region, ignoreWords, ignoreChinese))) {
     return { accepted: false, reason: "other_province" };
   }
-  const prefectures = mentioned(words, prefectureWords, ignore);
+  const prefectures = prefectureWords.filter((region) => mentions(text, region, ignoreWords, ignoreChinese));
   const ownNamed = ownPrefecture !== null && prefectures.some((region) => region.name === ownPrefecture.name);
   if (prefectures.some((region) => region.name !== ownPrefecture?.name) && !ownNamed) {
     return { accepted: false, reason: "other_region" };
   }
   // One English word is weak identity on its own: "Stone Forest" matched Meteora in Greece
   // through "stone" (2026-10-24). A hit must also say it is in China — its own region, or China.
-  if (!regional && !words.includes("china") && !words.includes("chinese")) return { accepted: false, reason: "not_in_china" };
-  return { accepted: true, matched: required ?? nameWords, regional };
+  if (!regional && !text.words.includes("china") && !text.words.includes("chinese") && !text.chinese.includes("中国")) {
+    return { accepted: false, reason: "not_in_china" };
+  }
+  return { accepted: true, matched, regional };
 }
 
-/** The hits that may be shown, best first: those that also name the region, then Pixabay's own order. */
-export function rankHits(hits: readonly PixabayHit[], subject: RemotePhotoSubject): { hit: PixabayHit; matched: readonly string[] }[] {
+export interface HitAssessment {
+  /** The hits that may be shown, best first: those that also name the region, then Pixabay's own order. */
+  readonly accepted: readonly { readonly hit: PixabayHit; readonly matched: readonly string[] }[];
+  /** Why the others were not, counted, for the log and the misses list. */
+  readonly rejected: Readonly<Partial<Record<RejectionReason, number>>>;
+}
+
+export function assessHits(hits: readonly PixabayHit[], subject: RemotePhotoSubject): HitAssessment {
+  const rejected: Partial<Record<RejectionReason, number>> = {};
   const accepted = hits.flatMap((hit, index) => {
     const verdict = judgeHit(hit, subject);
-    return verdict.accepted ? [{ hit, matched: verdict.matched, regional: verdict.regional, index }] : [];
+    if (verdict.accepted) return [{ hit, matched: verdict.matched, regional: verdict.regional, index }];
+    rejected[verdict.reason] = (rejected[verdict.reason] ?? 0) + 1;
+    return [];
   });
   accepted.sort((left, right) => Number(right.regional) - Number(left.regional) || left.index - right.index);
-  return accepted.map(({ hit, matched }) => ({ hit, matched }));
+  return { accepted: accepted.map(({ hit, matched }) => ({ hit, matched })), rejected };
 }
 
-/** The words Pixabay is asked for: the English name, then once more with the region to narrow it. */
-export function searchVariants(subject: RemotePhotoSubject): readonly string[] {
-  const english = subject.english.trim().replace(/\s+/gu, " ");
-  const region = prefectureWords.find((item) => sameRegion(item.name, subject.region)) ??
-    provinceWords.find((item) => sameRegion(item.name, subject.province));
-  const hint = region?.words[0];
-  const variants = [english];
-  if (hint && !wordsOf(english).includes(hint.split(" ")[0])) variants.push(`${english} ${hint}`);
-  return variants.map((value) => value.slice(0, 100));
+/** The hits that may be shown, best first. */
+export function rankHits(hits: readonly PixabayHit[], subject: RemotePhotoSubject): HitAssessment["accepted"] {
+  return assessHits(hits, subject).accepted;
+}
+
+/** Most searches one landmark may cost. */
+export const maxSearchesPerLandmark = 3;
+
+/**
+ * What Pixabay is asked, in order, at most three: the English name, the Chinese name
+ * (Pixabay searches Chinese too, and answers with Chinese tags — the one real 宽窄巷子
+ * photo is tagged 宽窄, 巷子 in Chinese but "width, alley" in English), then another
+ * name of the landmark, or else the English name with the region to narrow it.
+ */
+export function searchVariants(subject: RemotePhotoSubject): readonly SearchVariant[] {
+  const variants: SearchVariant[] = [];
+  const add = (q: string | undefined) => {
+    const query = q?.trim().replace(/\s+/gu, " ").slice(0, 100);
+    if (!query) return;
+    const lang = cjk.test(query) ? "zh" : "en";
+    if (!variants.some((variant) => variant.q.toLowerCase() === query.toLowerCase() && variant.lang === lang)) {
+      variants.push({ q: query, lang });
+    }
+  };
+  add(subject.english);
+  add(subject.landmark);
+  const alias = subject.aliases?.find((name) => !variants.some((variant) => variant.q.toLowerCase() === name.trim().toLowerCase()));
+  if (alias) add(alias);
+  else if (subject.english) {
+    const region = prefectureWords.find((item) => sameRegion(item.name, subject.region)) ??
+      provinceWords.find((item) => sameRegion(item.name, subject.province));
+    const hint = region?.words[0];
+    if (hint && !wordsOf(subject.english).includes(singular(hint.split(" ")[0]))) add(`${subject.english} ${hint}`);
+  }
+  return variants.slice(0, maxSearchesPerLandmark);
 }

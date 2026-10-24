@@ -186,3 +186,23 @@ export const foreignWords: readonly string[] = [
   "greece", "greek", "meteora", "spain", "portugal", "croatia", "slovenia", "mexico", "brazil", "argentina", "chile",
   "australia", "georgia", "armenia", "iran", "jordan", "egypt", "morocco", "uzbekistan", "tajikistan",
 ];
+
+/** The same lookalike places in Chinese, for tags Pixabay returns when asked with lang=zh. */
+export const foreignWordsZh: readonly string[] = [
+  "日本", "富士", "京都", "东京", "韩国", "首尔", "尼泊尔", "加德满都", "印度", "不丹", "巴基斯坦", "越南", "泰国", "曼谷",
+  "老挝", "缅甸", "柬埔寨", "东南亚", "瑞士", "阿尔卑斯", "意大利", "法国", "挪威", "冰岛", "加拿大", "美国", "秘鲁",
+  "新西兰", "奥地利", "苏格兰", "德国", "英国", "俄罗斯", "土耳其", "印尼", "巴厘", "菲律宾", "马来西亚", "新加坡",
+  "希腊", "西班牙", "葡萄牙", "墨西哥", "巴西", "澳大利亚", "埃及", "摩洛哥",
+];
+
+const ethnicGroups = /(?:白|藏|羌|傣|哈尼|彝|傈僳|景颇|壮|苗|侗|土家|朝鲜|蒙古|哈萨克|回|布依|黎|柯尔克孜|纳西|瑶|畲|满|土|撒拉)族/gu;
+
+/**
+ * The short Chinese name a region goes by in tags and speech: 大理白族自治州 → 大理,
+ * 红河哈尼族彝族自治州 → 红河, 新疆维吾尔自治区 → 新疆, 丽江市 → 丽江.
+ */
+export function regionShortName(name: string): string {
+  return name.normalize("NFKC").trim()
+    .replace(ethnicGroups, "")
+    .replace(/(?:维吾尔)?(?:自治州|自治区|自治县|特别行政区|地区|林区|盟|省|市|州|县|区)$/u, "");
+}

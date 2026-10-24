@@ -78,16 +78,18 @@ test("a card the local photos have is never searched for remotely", async () => 
   assert.deepEqual(asked, []);
 });
 
-test("a local miss with an English name is searched remotely; one without it is not", async () => {
+test("a local miss is searched remotely by its landmark, with its English name when the card has one", async () => {
   const asked: RemotePhotoSubject[] = [];
   const erhai: PlaceImage = { url: "/media/place-photos/pixabay-9.jpg", caption: "洱海", credit: "Photo: a / Pixabay" };
   const reported: RecommendationPhoto[] = [];
   const result = await findRecommendationPhotos(remoteCards, photos(() => null), (photo) => reported.push(photo),
     remote((subject) => subject.landmark === "洱海" ? { status: "found", image: erhai } : { status: "none" }, asked));
-  assert.deepEqual(asked.map((subject) => subject.english).sort(), ["Erhai Lake", "Jade Dragon Snow Mountain"]);
+  assert.deepEqual(asked.map((subject) => subject.landmark).sort(), ["丙中洛", "洱海", "玉龙雪山"]);
   assert.deepEqual(asked.find((subject) => subject.landmark === "洱海"),
-    { province: "云南省", region: "大理白族自治州", landmark: "洱海", english: "Erhai Lake" });
+    { province: "云南省", region: "大理白族自治州", landmark: "洱海", english: "Erhai Lake", aliases: undefined });
+  assert.equal(asked.find((subject) => subject.landmark === "丙中洛")?.english, undefined);
   assert.deepEqual(result.destinations.map((item) => item.image), [null, erhai, null]);
+  assert.deepEqual(result.destinations.map((item) => item.photoRules), [2, 2, 2]);
   assert.equal(reported.length, 3);
 });
 
@@ -96,9 +98,34 @@ test("a remote lookup that could not run leaves its card unanswered, not saved a
   const deferred: DeferredRecommendationPhoto[] = [];
   const result = await findRecommendationPhotos(remoteCards, photos(() => null), (photo) => reported.push(photo),
     remote(() => ({ status: "unavailable", reason: "transient" })), (item) => deferred.push(item));
-  assert.deepEqual(reported, [{ id: "old", image: null }]);
-  assert.deepEqual(deferred.map((item) => item.id).sort(), ["dl", "lj"]);
+  assert.deepEqual(reported, []);
+  assert.deepEqual(deferred.map((item) => item.id).sort(), ["dl", "lj", "old"]);
   assert.equal("image" in result.destinations[0], false);
-  assert.equal("image" in result.destinations[1], false);
-  assert.equal(result.destinations[2].image, null);
+  assert.equal("photoRules" in result.destinations[0], false);
+  assert.equal("image" in result.destinations[2], false);
+});
+
+test("when a city card's own landmark has no photo, its first stand-in is tried, under its own name", async () => {
+  const asked: RemotePhotoSubject[] = [];
+  const panda: PlaceImage = { url: "/media/place-photos/pixabay-3.jpg", caption: "大熊猫繁育研究基地", credit: "Photo: a / Pixabay" };
+  const result = await findRecommendationPhotos({ type: "destination_recommendations", destinations: [
+    { id: "cd", name: "成都市", province: "四川省", landmark: "宽窄巷子", landmarkEn: "Wide and Narrow Alleys",
+      landmarkAliases: ["Kuanzhai Alley"], backupLandmarks: [
+        { name: "大熊猫繁育研究基地", en: "Chengdu Research Base of Giant Panda Breeding" }, { name: "武侯祠", en: "Wuhou Shrine" }] },
+  ] }, photos(() => null), () => undefined,
+  remote((subject) => subject.landmark === "大熊猫繁育研究基地" ? { status: "found", image: panda } : { status: "none" }, asked));
+  assert.deepEqual(asked.map((subject) => subject.landmark), ["宽窄巷子", "大熊猫繁育研究基地"]);
+  assert.deepEqual(asked[0].aliases, ["Kuanzhai Alley"]);
+  assert.equal(result.destinations[0].image, panda);
+});
+
+test("a stand-in already in the local photos is used before anything is searched", async () => {
+  const asked: RemotePhotoSubject[] = [];
+  const shrine = picture("武侯祠");
+  const result = await findRecommendationPhotos({ type: "destination_recommendations", destinations: [
+    { id: "cd", name: "成都市", province: "四川省", landmark: "宽窄巷子", backupLandmarks: [{ name: "武侯祠", en: "Wuhou Shrine" }] },
+  ] }, photos((query) => query.kind === "named" && query.keywords === "武侯祠" ? shrine : null), () => undefined,
+  remote(() => ({ status: "none" }), asked));
+  assert.deepEqual(asked, []);
+  assert.equal(result.destinations[0].image, shrine);
 });

@@ -87,3 +87,16 @@ test("a landmark's English name is kept when it is plain Latin text, and dropped
   ] }] });
   assert.deepEqual(group.places.map((item) => item.landmarkEn), ["Jade Dragon Snow Mountain", undefined, undefined]);
 });
+
+test("a landmark's other names and stand-ins are kept when well formed, and dropped — not fatal — when not", () => {
+  const [group] = validateDestinationRecommendations({ provinces: [{ province: "四川省", places: [
+    { ...place("成都市"), landmark: "宽窄巷子", landmarkAliases: ["Kuanzhai Alley", "宽窄巷"],
+      backupLandmarks: [{ name: "武侯祠", en: "Wuhou Shrine" }] },
+    { ...place("乐山市"), landmark: "乐山大佛", landmarkAliases: ["a", "b", "c", "d"],
+      backupLandmarks: [{ name: "峨眉山", en: "峨眉山" }] },
+  ] }] });
+  assert.deepEqual(group.places.map((item) => [item.landmarkAliases, item.backupLandmarks]), [
+    [["Kuanzhai Alley", "宽窄巷"], [{ name: "武侯祠", en: "Wuhou Shrine" }]],
+    [undefined, undefined],
+  ]);
+});

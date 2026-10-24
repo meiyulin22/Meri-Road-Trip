@@ -6,7 +6,8 @@ import type { PixabayHit } from "./pixabay-photo-match";
  * (not cached, not final), and the API key never leaves this file: errors carry a
  * status, never a URL.
  *
- * Terms (2026-10-23): 100 requests per 60 seconds; search answers must be cached for
+ * Terms (2026-10-23): 100 requests per 60 seconds — Meri keeps itself to 80, and to
+ * Pixabay's own X-RateLimit-Remaining; search answers must be cached for
  * 24 hours; images may not be hotlinked permanently — `webformatURL` expires after 24
  * hours — so a photo Meri shows is downloaded and served from Meri's own storage.
  * Pixabay is reached through the server's own network; in development behind a proxy,
@@ -31,6 +32,9 @@ export type DownloadOutcome =
 export interface PixabayClientOptions {
   readonly key: string;
   readonly fetcher?: typeof fetch;
+  /** Requests (searches and downloads alike) allowed in any 60 seconds; Pixabay's own cap is 100. */
+  readonly perMinute?: number;
+  readonly now?: () => number;
   readonly maxQueue?: number;
   readonly searchTimeoutMs?: number;
   readonly downloadTimeoutMs?: number;
@@ -75,6 +79,12 @@ export class PixabayClient {
   private readonly maxDownloadBytes: number;
   private running = false;
   private readonly waiting: (() => void)[] = [];
+  private readonly perMinute: number;
+  private readonly now: () => number;
+  /** When each request of the last minute started. */
+  private readonly started: number[] = [];
+  /** Pixabay said its own count is nearly spent: nothing more until then. */
+  private blockedUntil = 0;
 
   constructor(private readonly options: PixabayClientOptions) {
     this.fetcher = options.fetcher ?? fetch;
@@ -82,6 +92,30 @@ export class PixabayClient {
     this.searchTimeoutMs = options.searchTimeoutMs ?? 8_000;
     this.downloadTimeoutMs = options.downloadTimeoutMs ?? 15_000;
     this.maxDownloadBytes = options.maxDownloadBytes ?? 4 * 1024 * 1024;
+    this.perMinute = options.perMinute ?? 80;
+    this.now = options.now ?? Date.now;
+  }
+
+  /**
+   * Takes one of the minute's requests, or refuses: past 80 in 60 seconds, or once
+   * Pixabay's X-RateLimit-Remaining nearly runs out, the request is not made and counts
+   * as a rate limit — the caller stops its set of cards instead of queueing for a minute.
+   * Downloads are counted too, so the cap holds however Pixabay counts them.
+   */
+  private admit(): boolean {
+    const now = this.now();
+    while (this.started.length > 0 && now - this.started[0] >= 60_000) this.started.shift();
+    if (now < this.blockedUntil || this.started.length >= this.perMinute) return false;
+    this.started.push(now);
+    return true;
+  }
+
+  private heed(response: Response): void {
+    const remaining = Number(response.headers.get("x-ratelimit-remaining"));
+    const reset = Number(response.headers.get("x-ratelimit-reset"));
+    if (response.headers.has("x-ratelimit-remaining") && Number.isFinite(remaining) && remaining <= 5) {
+      this.blockedUntil = this.now() + (Number.isFinite(reset) && reset > 0 ? Math.min(reset, 60) : 60) * 1000;
+    }
   }
 
   /** `parameters` is the search without the key; the key is added here and nowhere else. */
@@ -90,12 +124,14 @@ export class PixabayClient {
     url.search = parameters.toString();
     url.searchParams.set("key", this.options.key);
     return this.inTurn(async (): Promise<SearchOutcome> => {
+      if (!this.admit()) return { ok: false, failure: "rate_limited" };
       let response: Response;
       try {
         response = await this.fetcher(url, { signal: AbortSignal.timeout(this.searchTimeoutMs), redirect: "error" });
       } catch {
         return { ok: false, failure: "transient" };
       }
+      this.heed(response);
       if (response.status === 429) return { ok: false, failure: "rate_limited" };
       // Pixabay answers a missing or invalid key with 400; the search itself is always well-formed.
       if ([400, 401, 403].includes(response.status)) return { ok: false, failure: "refused" };
@@ -120,6 +156,7 @@ export class PixabayClient {
       let url = allowedDownload(address);
       const signal = AbortSignal.timeout(this.downloadTimeoutMs);
       for (let hop = 0; url && hop <= maxRedirects; hop += 1) {
+        if (!this.admit()) return { ok: false, failure: "rate_limited" };
         let response: Response;
         try {
           response = await this.fetcher(url, { signal, redirect: "manual" });

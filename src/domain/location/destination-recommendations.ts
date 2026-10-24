@@ -7,6 +7,19 @@ import { normalizeRecommendationName, normalizeRecommendationRegion } from "./re
 export const landmarkEnglishPattern = /^[A-Za-z0-9][A-Za-z0-9 '’.-]{0,59}$/u;
 const landmarkEnglishSchema = z.string().trim().regex(landmarkEnglishPattern);
 
+/** Most names a card keeps for its landmark beside the main two, and most stand-in landmarks. */
+export const maxLandmarkAliases = 3;
+export const maxBackupLandmarks = 2;
+
+/** Another name of the same landmark, English or Chinese: Kuanzhai Alley, 宽窄巷. */
+const landmarkAliasSchema = z.string().trim().min(1).max(40);
+
+/** Another well-photographed sight in the same place, for when the first has no photo. */
+const backupLandmarkSchema = z.strictObject({
+  name: z.string().trim().min(1).max(30),
+  en: landmarkEnglishSchema,
+});
+
 /**
  * A recommended place is one a plan can actually be built for: a 市 or a 州 is the
  * finest level offered, and which 景点 inside it are worth the drive is Generate
@@ -23,6 +36,9 @@ const recommendedPlaceSchema = z.strictObject({
    * is dropped rather than failing the round: it decides a photo, not a recommendation.
    */
   landmarkEn: landmarkEnglishSchema.optional().catch(undefined),
+  /** Same rule: these only widen the photo search, so a bad list is dropped, not fatal. */
+  landmarkAliases: z.array(landmarkAliasSchema).max(maxLandmarkAliases).optional().catch(undefined),
+  backupLandmarks: z.array(backupLandmarkSchema).max(maxBackupLandmarks).optional().catch(undefined),
 });
 
 /**

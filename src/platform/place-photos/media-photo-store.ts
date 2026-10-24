@@ -17,7 +17,9 @@ import type { PixabayHit } from "./pixabay-photo-match";
  *   <MERI_MEDIA_DIR>/place-photos/files/pixabay-<id>.<ext>   the image
  *   <MERI_MEDIA_DIR>/place-photos/files/pixabay-<id>.json    its source and checks; written last, so it marks a complete file
  *   <MERI_MEDIA_DIR>/place-photos/lookups/<hash>.json        which photo a region + landmark settled on
- *   <MERI_MEDIA_DIR>/place-photos/lookups/<hash>.none.json   that it found none, kept as long as the searches behind it
+ *   <MERI_MEDIA_DIR>/place-photos/lookups/<hash>.none.json   that it found none under rules version N, kept as long as the searches behind it
+ *   <MERI_MEDIA_DIR>/place-photos/regions/<hash>.json        the photos published for one 市, for a city card whose own landmark has none
+ *   <MERI_MEDIA_DIR>/place-photos/misses/<hash>.json         a landmark that found nothing: how often, what was asked, why hits were refused
  *   <MERI_MEDIA_DIR>/place-photos/searches/<hash>.json       a Pixabay search answer, kept 24 hours as Pixabay requires
  *
  * Every write goes to a temporary name first and is renamed into place, so a crash
@@ -59,6 +61,20 @@ export interface StoredPhotoRecord {
   /** Chosen by code from the uploader's tags; no person has looked at it. */
   readonly reviewed: false;
   readonly fetchedAt: string;
+}
+
+/** What scripts/photo-misses.ts lists: a landmark that keeps finding no photo, and why. */
+export interface PhotoMiss {
+  readonly province: string;
+  readonly region: string;
+  readonly landmark: string;
+  readonly searches: readonly { readonly q: string; readonly lang: string; readonly hits: number; readonly cached: boolean }[];
+  readonly rejected: Readonly<Record<string, number>>;
+  /** Candidates that passed the tags but whose file was refused (wrong format, too small, gone). */
+  readonly rejectedFiles: number;
+  readonly count: number;
+  readonly firstAt: string;
+  readonly lastAt: string;
 }
 
 interface StoredLookup {
@@ -124,14 +140,20 @@ export class MediaPhotoStore {
   private readonly searches: string;
   private readonly found = new Map<string, PlaceImage>();
   private usedBytes: number | null = null;
+  private searchWrites = 0;
   /** Publishing is one at a time, so the size check and the write cannot interleave. */
   private publishing: Promise<unknown> = Promise.resolve();
+
+  private readonly regions: string;
+  private readonly misses: string;
 
   constructor(directory: string, private readonly maxBytes: number = defaultMediaMaxBytes) {
     const root = join(directory, "place-photos");
     this.files = join(root, "files");
     this.lookups = join(root, "lookups");
     this.searches = join(root, "searches");
+    this.regions = join(root, "regions");
+    this.misses = join(root, "misses");
   }
 
   /** The photo a lookup settled on earlier, or null; a lookup whose file is gone counts as none. */
@@ -155,20 +177,76 @@ export class MediaPhotoStore {
     await mkdir(this.lookups, { recursive: true });
     await writeAtomically(join(this.lookups, `${hashOf(lookupKeyText(key))}.json`), JSON.stringify(record));
     this.found.set(lookupKeyText(key), image);
+    await this.addToRegion(key, record);
   }
 
-  /** Whether this lookup was decided as having no suitable photo within the last 24 hours. */
-  async recentlyNone(key: PhotoLookupKey, now: number): Promise<boolean> {
+  /**
+   * A photo published for some landmark in this 市, for a card about the 市 itself whose
+   * own landmark has none; its caption stays the landmark it really shows. Earliest first.
+   */
+  async readAnyForRegion(region: string): Promise<PlaceImage | null> {
+    const stored = await readJson(join(this.regions, `${hashOf(normalizePlaceName(region))}.json`));
+    if (!isRecord(stored) || !Array.isArray(stored.photos)) return null;
+    for (const photo of stored.photos) {
+      if (!isRecord(photo) || typeof photo.file !== "string" || !mediaPhotoFilePattern.test(photo.file) ||
+        typeof photo.caption !== "string" || typeof photo.credit !== "string" || !(await this.isPublished(photo.file))) continue;
+      return { url: `${mediaPhotoUrlPrefix}${photo.file}`, caption: photo.caption, credit: photo.credit };
+    }
+    return null;
+  }
+
+  private async addToRegion(key: PhotoLookupKey, record: StoredLookup): Promise<void> {
+    const file = join(this.regions, `${hashOf(normalizePlaceName(key.region))}.json`);
+    const stored = await readJson(file);
+    const photos = isRecord(stored) && Array.isArray(stored.photos) ? stored.photos.filter(isRecord) : [];
+    if (photos.some((photo) => photo.file === record.file) || photos.length >= 20) return;
+    await mkdir(this.regions, { recursive: true });
+    await writeAtomically(file, JSON.stringify({ region: key.region,
+      photos: [...photos, { file: record.file, caption: record.caption, credit: record.credit }] }));
+  }
+
+  /** Counts a landmark that found no photo, keeping the latest searches and refusal reasons. */
+  async recordMiss(miss: Omit<PhotoMiss, "count" | "firstAt" | "lastAt">, now: number): Promise<void> {
+    const file = join(this.misses, `${hashOf(lookupKeyText(miss))}.json`);
+    const stored = await readJson(file);
+    const at = new Date(now).toISOString();
+    const previous = isRecord(stored) && typeof stored.count === "number" && typeof stored.firstAt === "string"
+      ? { count: stored.count, firstAt: stored.firstAt } : { count: 0, firstAt: at };
+    await mkdir(this.misses, { recursive: true });
+    await writeAtomically(file, JSON.stringify({ ...miss, count: previous.count + 1, firstAt: previous.firstAt, lastAt: at }, null, 1));
+  }
+
+  async listMisses(): Promise<readonly PhotoMiss[]> {
+    let names: string[] = [];
+    try {
+      names = (await readdir(this.misses)).filter((name) => name.endsWith(".json"));
+    } catch {
+      return [];
+    }
+    const misses: PhotoMiss[] = [];
+    for (const name of names) {
+      const stored = await readJson(join(this.misses, name));
+      if (isRecord(stored) && typeof stored.landmark === "string" && typeof stored.region === "string" &&
+        typeof stored.count === "number") misses.push(stored as unknown as PhotoMiss);
+    }
+    return misses.sort((left, right) => right.count - left.count || right.lastAt.localeCompare(left.lastAt));
+  }
+
+  /**
+   * Whether this lookup was decided as having no suitable photo within the last 24 hours,
+   * under these same rules: better rules may find what older ones refused.
+   */
+  async recentlyNone(key: PhotoLookupKey, now: number, rules: number): Promise<boolean> {
     const text = lookupKeyText(key);
     const stored = await readJson(join(this.lookups, `${hashOf(text)}.none.json`));
-    return isRecord(stored) && stored.key === text && typeof stored.decidedAt === "number" &&
+    return isRecord(stored) && stored.key === text && stored.rules === rules && typeof stored.decidedAt === "number" &&
       stored.decidedAt <= now && now - stored.decidedAt < searchCacheTtlMs;
   }
 
-  async writeNone(key: PhotoLookupKey, now: number): Promise<void> {
+  async writeNone(key: PhotoLookupKey, now: number, rules: number): Promise<void> {
     const text = lookupKeyText(key);
     await mkdir(this.lookups, { recursive: true });
-    await writeAtomically(join(this.lookups, `${hashOf(text)}.none.json`), JSON.stringify({ key: text, decidedAt: now }));
+    await writeAtomically(join(this.lookups, `${hashOf(text)}.none.json`), JSON.stringify({ key: text, decidedAt: now, rules }));
   }
 
   /** A search answered within the last 24 hours, empty answers included; null means ask again. */
@@ -185,6 +263,28 @@ export class MediaPhotoStore {
     await mkdir(this.searches, { recursive: true });
     await writeAtomically(join(this.searches, `${hashOf(parameters)}.json`),
       JSON.stringify({ parameters, fetchedAt: now, hits }));
+    // Answers older than a day are never read again; every fiftieth write clears them out.
+    this.searchWrites += 1;
+    if (this.searchWrites % 50 === 1) await this.pruneSearches(now);
+  }
+
+  /** Deletes search answers past their 24 hours. */
+  async pruneSearches(now: number): Promise<number> {
+    let removed = 0;
+    let names: string[] = [];
+    try {
+      names = await readdir(this.searches);
+    } catch {
+      return 0;
+    }
+    for (const name of names) {
+      const stored = await readJson(join(this.searches, name));
+      if (!isRecord(stored) || typeof stored.fetchedAt !== "number" || now - stored.fetchedAt >= searchCacheTtlMs) {
+        await rm(join(this.searches, name), { force: true });
+        removed += 1;
+      }
+    }
+    return removed;
   }
 
   /**

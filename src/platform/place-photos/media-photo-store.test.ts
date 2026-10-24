@@ -4,6 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
 
+import { CatalogPhotoProvider } from "./catalog-photo-provider";
 import { MediaPhotoStore, mediaPhotoStoreFromEnvironment, searchCacheTtlMs, type StoredPhotoRecord } from "./media-photo-store";
 import { fakeJpeg, hit } from "./pixabay-test-fixtures";
 
@@ -90,4 +91,69 @@ test("a production server needs MERI_MEDIA_DIR; development falls back to .cache
   assert.equal(mediaPhotoStoreFromEnvironment({ NODE_ENV: "production" }), null);
   assert.ok(mediaPhotoStoreFromEnvironment({ NODE_ENV: "production", MERI_MEDIA_DIR: "/var/lib/meri/media" }));
   assert.ok(mediaPhotoStoreFromEnvironment({ NODE_ENV: "development" }));
+});
+
+test("a 'none' counts only under the rules it was decided by", async () => {
+  await withDirectory(async (directory) => {
+    const store = new MediaPhotoStore(directory);
+    const now = Date.parse("2026-10-24T00:00:00Z");
+    await store.writeNone(key, now, 1);
+    assert.equal(await store.recentlyNone(key, now + 1000, 1), true);
+    assert.equal(await store.recentlyNone(key, now + 1000, 2), false);
+  });
+});
+
+test("a 市 with no catalog photo can show a photo downloaded for any sight in it, under that sight's name", async () => {
+  await withDirectory(async (directory) => {
+    const store = new MediaPhotoStore(directory);
+    assert.equal(await store.readAnyForRegion("丽江市"), null);
+    const body = fakeJpeg(960, 640);
+    await store.publish(record(7, body.byteLength), body);
+    await store.writeLookup(key, "pixabay-7.jpg", image);
+    assert.deepEqual(await new MediaPhotoStore(directory).readAnyForRegion("丽江市"), image);
+    assert.equal(await store.readAnyForRegion("大理白族自治州"), null);
+  });
+});
+
+test("misses are counted per landmark and listed most frequent first", async () => {
+  await withDirectory(async (directory) => {
+    const store = new MediaPhotoStore(directory);
+    const now = Date.parse("2026-10-24T00:00:00Z");
+    const miss = (landmark: string) => ({ province: "四川省", region: "成都市", landmark,
+      searches: [{ q: landmark, lang: "zh", hits: 50, cached: false }], rejected: { no_identity: 50 }, rejectedFiles: 0 });
+    await store.recordMiss(miss("宽窄巷子"), now);
+    await store.recordMiss(miss("宽窄巷子"), now + 1000);
+    await store.recordMiss(miss("武侯祠"), now);
+    const listed = await new MediaPhotoStore(directory).listMisses();
+    assert.deepEqual(listed.map((item) => [item.landmark, item.count]), [["宽窄巷子", 2], ["武侯祠", 1]]);
+    assert.equal(listed[0].firstAt, "2026-10-24T00:00:00.000Z");
+    assert.equal(listed[0].lastAt, "2026-10-24T00:00:01.000Z");
+  });
+});
+
+test("search answers past their day are cleared out", async () => {
+  await withDirectory(async (directory) => {
+    const store = new MediaPhotoStore(directory);
+    const now = Date.parse("2026-10-24T00:00:00Z");
+    await store.writeSearch("q=old", [], now - searchCacheTtlMs - 1);
+    await store.writeSearch("q=new", [], now);
+    assert.equal(await store.pruneSearches(now), 1);
+    assert.deepEqual(await store.readSearch("q=new", now), []);
+  });
+});
+
+test("the shared provider answers from the catalog first, then from what was downloaded, without the network", async () => {
+  await withDirectory(async (directory) => {
+    const store = new MediaPhotoStore(directory);
+    const body = fakeJpeg(960, 640);
+    await store.publish(record(7, body.byteLength), body);
+    await store.writeLookup(key, "pixabay-7.jpg", image);
+    const provider = new CatalogPhotoProvider(store);
+    // 玉龙雪山 in 丽江市 is in the bundled catalog, so the catalog's photo wins over the download.
+    assert.match((await provider.findPhoto({ kind: "named", keywords: "玉龙雪山", region: "丽江市" }))?.url ?? "", /^\/photos\//u);
+    assert.deepEqual(await provider.findPhoto({ kind: "scenic", region: "丽江市" }) !== null, true);
+    assert.deepEqual(await provider.findPhoto({ kind: "scenic", region: "成都市" }), null);
+    await store.writeLookup({ region: "成都市", landmark: "宽窄巷子" }, "pixabay-7.jpg", { ...image, caption: "宽窄巷子" });
+    assert.equal((await provider.findPhoto({ kind: "scenic", region: "成都市" }))?.caption, "宽窄巷子");
+  });
 });

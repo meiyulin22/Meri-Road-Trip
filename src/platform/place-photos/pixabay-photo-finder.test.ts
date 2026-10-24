@@ -60,11 +60,12 @@ test("nothing suitable is a final 'none', and the empty answer is not asked for 
     const scripted = scriptedFetch({ search: () => searchAnswer([hit(1, "mountain, snow, yunnan"), hit(2, "jade dragon, japan")]) });
     const first = finder(directory, scripted);
     assert.deepEqual(await first.find(yulong, first.startBatch()), { status: "none" });
-    assert.equal(scripted.searches(), 2);
+    // English, Chinese, then English with the region.
+    assert.equal(scripted.searches(), 3);
     assert.equal(scripted.downloads(), 0);
     const restarted = finder(directory, scripted);
     assert.deepEqual(await restarted.find(yulong, restarted.startBatch()), { status: "none" });
-    assert.equal(scripted.searches(), 2);
+    assert.equal(scripted.searches(), 3);
   });
 });
 
@@ -114,9 +115,9 @@ test("one set of cards cannot spend more than its search budget", async () => {
     const scripted = scriptedFetch({ search: () => searchAnswer([]) });
     const bounded = finder(directory, scripted);
     const batch = bounded.startBatch();
-    const results = await Promise.all(Array.from({ length: 6 }, (_, index) =>
+    const results = await Promise.all(Array.from({ length: 8 }, (_, index) =>
       bounded.find({ province: "云南省", region: "丽江市", landmark: `景点${index}`, english: `Sight Number${index}` }, batch)));
-    assert.equal(scripted.searches(), 8);
+    assert.equal(scripted.searches(), 20);
     assert.ok(results.some((result) => result.status === "unavailable" && result.reason === "batch_budget"));
   });
 });
@@ -137,5 +138,19 @@ test("one landmark downloads at most two candidates, and a 'none' it reached is 
     clock.now += 25 * 60 * 60 * 1000;
     await restarted.find(yulong, restarted.startBatch());
     assert.equal(scripted.downloads(), 4);
+  });
+});
+
+test("a landmark that found nothing is recorded with what was asked and why the hits were refused", async () => {
+  await withDirectory(async (directory) => {
+    const scripted = scriptedFetch({ search: () => searchAnswer([hit(1, "alley, japan"), hit(2, "street, osaka")]) });
+    const missing = finder(directory, scripted);
+    const alleys: RemotePhotoSubject = { province: "四川省", region: "成都市", landmark: "宽窄巷子", english: "Wide and Narrow Alleys" };
+    assert.deepEqual(await missing.find(alleys, missing.startBatch()), { status: "none" });
+    const [miss] = await new MediaPhotoStore(directory).listMisses();
+    assert.equal(miss.landmark, "宽窄巷子");
+    assert.deepEqual(miss.searches.map((item) => `${item.q} [${item.lang}] ${item.hits}`),
+      ["Wide and Narrow Alleys [en] 2", "宽窄巷子 [zh] 2", "Wide and Narrow Alleys chengdu [en] 2"]);
+    assert.deepEqual(miss.rejected, { no_identity: 6 });
   });
 });
