@@ -10,6 +10,8 @@ import type { DestinationEdit } from "@/domain/trip-state/destination-edit";
 import { destinationPreferenceId } from "@/domain/trip-message/destination-choice-identity";
 import { maxDestinationChoices, type DestinationChoice, type DestinationChoicesPresentation } from "@/domain/trip-message/trip-message";
 import type { DestinationField } from "@/domain/trip-state/trip-state";
+import { isChinaProvince } from "@/domain/location/china-destination-scope";
+import { provincesOfRegionNickname } from "@/domain/location/china-region-nicknames";
 
 import type { IdentifiedPick, PlaceResolution } from "./resolve-destination-place";
 
@@ -37,6 +39,14 @@ export interface DestinationEditResult {
 export type ResolvePlace = (expression: string) => Promise<PlaceResolution>;
 
 /**
+ * The provinces a name like 江浙沪 stands for, or null. Routes pass the model's reading
+ * (provincesOfPlace); without one, only the table of undisputed nicknames answers.
+ */
+export type ProvincesOf = (expression: string) => Promise<readonly string[] | null>;
+
+const nicknameTableOnly: ProvincesOf = async (expression) => provincesOfRegionNickname(expression);
+
+/**
  * `userWords` is what the user actually typed. The model writes the names it hands
  * over, and it has rewritten a typo into a different real place (大莲 → 大理), which
  * then matched exactly; a name the user never wrote is the model's guess, so it is
@@ -47,6 +57,7 @@ export async function applyDestinationEdit(
   edit: DestinationEdit,
   resolvePlace: ResolvePlace,
   userWords: string,
+  provincesOf: ProvincesOf = nicknameTableOnly,
 ): Promise<DestinationEditResult> {
   const unchanged: DestinationEditResult = {
     destination: current, changed: false, added: [], choices: null, unresolved: [], lookupFailed: [], notInDestination: [],
@@ -60,8 +71,23 @@ export async function applyDestinationEdit(
       return removePlaces(current, currentAreas, edit.places);
   }
 
-  const resolutions = await Promise.all(edit.places.map(async (expression) =>
-    ({ expression, resolution: await resolvePlace(expression) })));
+  // A broad region that is a group of whole provinces (江浙沪) is those provinces, not the
+  // cities in them. The conversation model decides first: when it already listed only
+  // provinces under the region, those are used as they are. Otherwise the region is read
+  // again (the model's reading, or the nickname table when the model cannot answer).
+  const modelProvinces = edit.broadRegion !== null && edit.places.length >= 2 && edit.places.every(isChinaProvince)
+    ? edit.places : null;
+  const regionProvinces = edit.broadRegion === null ? null : modelProvinces ?? await provincesOf(edit.broadRegion);
+  const broadRegion = regionProvinces === null ? edit.broadRegion : null;
+  const groups = new Map<string, readonly string[]>(regionProvinces === null || edit.broadRegion === null
+    ? [] : [[edit.broadRegion, regionProvinces]]);
+  const expressions = groups.size > 0 ? [...groups.keys()] : edit.places;
+  const resolutions = (await Promise.all(expressions.map(async (expression) => {
+    // 江浙沪 is never looked up: the map answered it with a record of that name in 石家庄.
+    const provinces = groups.get(expression) ?? (broadRegion === null ? await provincesOf(expression) : null);
+    if (provinces !== null) return provinces.map((province) => ({ expression, resolution: provinceResolution(province) }));
+    return [{ expression, resolution: await resolvePlace(expression) }];
+  }))).flat();
   const failures = {
     unresolved: resolutions.filter((item) => item.resolution.status === "unresolved").map((item) => item.expression),
     lookupFailed: resolutions.filter((item) => item.resolution.status === "provider_error").map((item) => item.expression),
@@ -71,10 +97,10 @@ export async function applyDestinationEdit(
   const mode = "add";
 
   // A broad region is answered with the 市 it covers, for the user to pick from.
-  if (edit.broadRegion !== null) {
+  if (broadRegion !== null) {
     const offered = resolutions.flatMap(({ resolution }) => resolution.status === "resolved" ? [resolution.pick]
       : resolution.status === "ambiguous" ? resolution.options : []);
-    return { ...unchanged, ...failures, choices: choicesFrom(offered, mode, edit.broadRegion, current) };
+    return { ...unchanged, ...failures, choices: choicesFrom(offered, mode, broadRegion, current) };
   }
 
   // A name the user typed that the provider matched exactly is their own choice,
@@ -101,8 +127,13 @@ export async function applyDestinationEdit(
     destination,
     changed: added.length > 0,
     added: added.map(({ province, place, spot }) => ({ province, place, spot })),
-    choices: choicesFrom(offered, mode, uncertain.map((item) => item.expression).join("、"), destination),
+    choices: choicesFrom(offered, mode, [...new Set(uncertain.map((item) => item.expression))].join("、"), destination),
   };
+}
+
+/** A province a nickname stands for is the province itself, exactly as 「云南」 is 云南省. */
+function provinceResolution(province: string): PlaceResolution {
+  return { status: "resolved", pick: { id: `province:${province}`, province, place: null, spot: null }, exact: true };
 }
 
 function compact(value: string): string {

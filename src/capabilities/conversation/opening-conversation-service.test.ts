@@ -11,7 +11,9 @@ import {
   isPendingOpeningConversation,
   OpeningConversationNotEligibleError,
   OpeningConversationService,
+  type OpeningReply,
 } from "./opening-conversation-service";
+import { pendingRecommendationRequest } from "@/capabilities/recommendation/destination-recommendation-use-case";
 
 const tripId = "3d17d2c7-fd9b-4748-b751-3a76a9a920be";
 const ownerGuestId = "25ba5b26-8db0-4fe3-bfcc-b684dd7889cc";
@@ -33,7 +35,8 @@ const user: TripMessage = {
 };
 const input = { tripId, ownerGuestId, requestId: "request-1", referenceDate: "2026-09-25", timezone: "Asia/Shanghai", locale: "zh" as const };
 
-function fixture(initial: TripMessage[] = [user]) {
+function fixture(initial: TripMessage[] = [user], openingState: TripState = state,
+  opening: OpeningReply = { reply: "滑雪旅行听起来很棒！十月的安排可以慢慢细化。你更想去哪个地区？", presentationIntent: "none" }) {
   const messages = [...initial];
   let generations = 0;
   let insertError: Error | null = null;
@@ -41,15 +44,15 @@ function fixture(initial: TripMessage[] = [user]) {
   const service = new OpeningConversationService({
     async loadTripState(_tripId, owner) {
       if (owner !== ownerGuestId) throw new TripNotFoundError(tripId);
-      return state;
+      return openingState;
     },
     async listMessages() { return [...messages]; },
     async generateReply(request) {
       generations += 1;
       assert.equal(request.message, user.content);
-      assert.strictEqual(request.tripState, state);
+      assert.strictEqual(request.tripState, openingState);
       if (aiError) throw aiError;
-      return "滑雪旅行听起来很棒！十月的安排可以慢慢细化。你更想去哪个地区？";
+      return opening;
     },
     async persistAssistant(request) {
       if (insertError) throw insertError;
@@ -58,6 +61,7 @@ function fixture(initial: TripMessage[] = [user]) {
       if (winner) return winner;
       const assistant: TripMessage = {
         id, tripId, role: "assistant", content: request.content,
+        ...(request.presentation ? { presentation: request.presentation } : {}),
         createdAt: "2026-09-25T01:00:01.000Z",
       };
       messages.push(assistant);
@@ -164,4 +168,31 @@ test("zero messages, unrelated conversations, and wrong owner are ineligible", a
   await assert.rejects(fixture([]).service.initialize(input), OpeningConversationNotEligibleError);
   await assert.rejects(fixture([user, { ...user, id: "00000000-0000-4000-8000-000000000002", role: "assistant" }]).service.initialize(input), OpeningConversationNotEligibleError);
   await assert.rejects(fixture().service.initialize({ ...input, ownerGuestId: "other-owner" }), TripNotFoundError);
+});
+
+const jiangzhehuState: TripState = { ...state,
+  destination: { state: "known", source: "user", areas: [
+    { province: "江苏省", places: [] }, { province: "浙江省", places: [] }, { province: "上海市", places: [] }] } };
+const asksForCards: OpeningReply = {
+  reply: "好的，从大连出发去江浙沪玩7天！你更倾向高铁还是飞机？", presentationIntent: "destination_recommendations" };
+
+test("a first message asking for suggestions opens with the pending marker, so the cards follow", async () => {
+  const setup = fixture([user], jiangzhehuState, asksForCards);
+  const assistant = await setup.service.initialize(input);
+  assert.deepEqual(assistant.presentation, { type: "destination_recommendations_pending", scope: "within" });
+  // The cards are this turn's question, so the model's question about transport is left out.
+  assert.equal(assistant.content, "好的，从大连出发去江浙沪玩7天！");
+  const request = pendingRecommendationRequest(setup.messages, assistant.id);
+  assert.equal(request.status === "found" && request.userText, user.content);
+});
+
+test("an opening asking for cards when 「去哪」 is already settled stays a plain reply", async () => {
+  const settled: TripState = { ...state, destination: { state: "known", source: "user",
+    areas: [{ province: "云南省", places: [{ name: "丽江市", spots: [] }] }] } };
+  for (const openingState of [settled, state]) {
+    const setup = fixture([user], openingState, asksForCards);
+    const assistant = await setup.service.initialize(input);
+    assert.equal(assistant.presentation, undefined);
+    assert.equal(assistant.content, asksForCards.reply);
+  }
 });

@@ -1,6 +1,9 @@
 import type { Locale } from "@/domain/locale/locale";
-import type { TripMessage } from "@/domain/trip-message/trip-message";
-import type { TripState } from "@/domain/trip-state/trip-state";
+import type { TripMessage, TripMessagePresentation } from "@/domain/trip-message/trip-message";
+import { isDestinationOpenToRecommendations, type TripState } from "@/domain/trip-state/trip-state";
+import type { PresentationIntent } from "@/domain/trip-state/workspace-conversation";
+import { meriReplies } from "./meri-replies";
+import { recommendationLeadIn } from "./turn-reply";
 import { openingAssistantMessageId } from "./opening-assistant-id";
 import { destinationMissingGuidanceMessageId } from "./destination-missing-guidance";
 
@@ -34,13 +37,20 @@ type OpeningConversationDependencies = {
     readonly referenceDate: string;
     readonly timezone: string;
     readonly locale: Locale;
-  }) => Promise<string>;
+  }) => Promise<OpeningReply>;
   readonly persistAssistant: (input: {
     readonly tripId: string;
     readonly ownerGuestId: string;
     readonly content: string;
+    readonly presentation?: TripMessagePresentation;
   }) => Promise<TripMessage>;
 };
+
+/** The model's opening reply, and whether the first message asked for recommendation cards. */
+export interface OpeningReply {
+  readonly reply: string;
+  readonly presentationIntent: PresentationIntent;
+}
 
 export class OpeningConversationService {
   constructor(private readonly dependencies: OpeningConversationDependencies) {}
@@ -64,7 +74,7 @@ export class OpeningConversationService {
       throw new OpeningConversationNotEligibleError();
     }
 
-    const reply = await this.dependencies.generateReply({
+    const opening = await this.dependencies.generateReply({
       message: messages[0].content,
       tripState,
       requestId: input.requestId,
@@ -82,10 +92,15 @@ export class OpeningConversationService {
       throw new OpeningConversationNotEligibleError();
     }
 
+    // The same pending marker a Workspace turn uses: the browser asks for the cards next,
+    // and they answer the first message, which is the user message right before this one.
+    const recommends = opening.presentationIntent !== "none" &&
+      isDestinationOpenToRecommendations(tripState.destination, "within");
     return this.dependencies.persistAssistant({
       tripId: input.tripId,
       ownerGuestId: input.ownerGuestId,
-      content: reply,
+      content: recommends ? recommendationLeadIn(opening.reply, meriReplies[input.locale]) : opening.reply,
+      ...(recommends ? { presentation: { type: "destination_recommendations_pending" as const, scope: "within" as const } } : {}),
     });
   }
 }

@@ -17,9 +17,23 @@ export class LocationService {
   constructor(
     private readonly provider: LocationProvider,
     private readonly areas: readonly string[] = [],
+    /**
+     * The name a model says the map files this place under (苍山 → 点苍山), asked only after
+     * the user's own words found nothing. The answer it finds is looked up under that name,
+     * so it is never the user's exact words and the user still confirms it on a card.
+     */
+    private readonly officialNameOf: (query: string) => Promise<string | null> = async () => null,
   ) {}
 
   async resolveExpression(query: string): Promise<LocationResolveResult> {
+    const resolution = await this.resolveWords(query);
+    if (resolution.status !== "unresolved") return resolution;
+    const official = (await this.officialNameOf(query))?.normalize("NFKC").trim() ?? "";
+    if (official === "" || official === query.normalize("NFKC").trim() || official.length > 30) return resolution;
+    return this.resolveWords(official);
+  }
+
+  private async resolveWords(query: string): Promise<LocationResolveResult> {
     if (query.trim() === "") {
       return { status: "not_ready", reason: "destination_missing" };
     }

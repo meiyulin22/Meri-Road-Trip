@@ -1,11 +1,25 @@
+import { isChinaProvince } from "@/domain/location/china-destination-scope";
+import { provincesOfRegionNickname } from "@/domain/location/china-region-nicknames";
 import { createAiSdkKimiClientFromEnvironment } from "@/platform/llm/ai-sdk-kimi-client";
 import type { StructuredOutputModelClient } from "@/platform/llm/kimi-client";
 import { logger } from "@/platform/observability/logger";
 
-/** Where a name the trip has not placed yet is usually found. */
+/**
+ * What kind of words these are, as a traveller means them: 江浙沪 is a group of provinces,
+ * 云南 one province, 丽江 a city, 苍山 a sight. Only a model knows this before any search —
+ * to a map, 江浙沪 is a string, and the first page held a shop of that name in 石家庄.
+ */
+export type PlaceKind = "province_group" | "province" | "city" | "sight" | "unknown";
+
+/** How the model reads a name the trip has not placed yet, and where it usually is. */
 export interface RegionHint {
+  readonly kind: PlaceKind;
+  /** For a province or a group of provinces: their full names (江苏省、浙江省、上海市). */
+  readonly provinces: readonly string[];
   readonly province: string | null;
   readonly prefecture: string | null;
+  /** The name a national map files it under, when that differs from the words (苍山 → 点苍山). */
+  readonly officialName: string | null;
 }
 
 export interface RegionHintClient {
@@ -16,8 +30,14 @@ export interface RegionHintClient {
 const jsonSchema: Record<string, unknown> = {
   type: "object",
   additionalProperties: false,
-  required: ["province", "prefecture"],
+  required: ["kind", "provinces", "province", "prefecture", "officialName"],
   properties: {
+    kind: { type: "string", enum: ["province_group", "province", "city", "sight", "unknown"],
+      description: "province_group: an everyday name for several whole provinces (江浙沪、京津冀、川渝、东三省、两广). province: one province. city: a prefecture-level or county-level city. sight: a scenic spot, mountain, lake, old town or other place to visit. unknown: not a place, or you do not know it." },
+    provinces: { type: "array", items: { type: "string" }, maxItems: 6,
+      description: "For province_group or province: the full province-level names it means (江苏省、浙江省、上海市). Empty otherwise." },
+    officialName: { type: ["string", "null"],
+      description: "For a sight or city whose official or map name differs from the words given (苍山 → 点苍山): that name. Null when the words already are its name or you are unsure." },
     province: { type: ["string", "null"],
       description: "Full province-level name, e.g. 云南省、四川省、北京市, or null when unsure." },
     prefecture: { type: ["string", "null"],
@@ -25,9 +45,12 @@ const jsonSchema: Record<string, unknown> = {
   },
 };
 
-const systemPrompt = `You name where a Chinese place is.
-The user gives one place name. Answer with the province-level region and the prefecture-level city that place is usually in — the famous one when the name is shared, because a traveller naming it means the one worth visiting. 苍山 is 云南省 / 大理白族自治州. 稻城亚丁 is 四川省 / 甘孜藏族自治州.
-Answer only for places inside China. When you do not know the place, or it is not a place at all, answer null for both. Never guess a prefecture you are unsure of: a wrong region sends the search to the wrong county.
+const systemPrompt = `You read a Chinese place name the way a traveller means it.
+The user gives the words for one place. Say what kind of place they name, and where it is.
+- An everyday name for several whole provinces is a province_group, with those provinces in full: 江浙沪 is 江苏省、浙江省、上海市; 京津冀 is 北京市、天津市、河北省; 川渝 is 四川省、重庆市; 东三省 is 辽宁省、吉林省、黑龙江省. A name that is not whole provinces (潮汕、川西、苏南) is not a province_group.
+- For a city or sight, give the province-level region and the prefecture-level city it is usually in — the famous one when the name is shared, because a traveller naming it means the one worth visiting. 苍山 is a sight in 云南省 / 大理白族自治州, officially 点苍山. 稻城亚丁 is a sight in 四川省 / 甘孜藏族自治州.
+- A shop, restaurant or company that happens to carry the name does not count: read the words as the place a traveller means.
+Answer only for places inside China. When you do not know the place, or it is not a place at all, answer kind unknown and null for the rest. Never guess a prefecture you are unsure of: a wrong region sends the search to the wrong county.
 Answer with the JSON object alone — no explanation, no alternatives, no notes.`;
 
 /** A name that already carries its administrative level needs no hint. */
@@ -86,9 +109,15 @@ export function createRegionHintClient(
         if (response.content === null || response.content.trim() === "") return null;
         const body: unknown = JSON.parse(response.content);
         if (!isRecord(body)) return null;
-        const hint: RegionHint = { province: optionalText(body.province), prefecture: optionalText(body.prefecture) };
+        const kinds: readonly PlaceKind[] = ["province_group", "province", "city", "sight", "unknown"];
+        const kind = kinds.find((item) => item === body.kind) ?? "unknown";
+        // The model's provinces are kept only when they are real ones: the code checks, the model decides.
+        const provinces = Array.isArray(body.provinces)
+          ? [...new Set(body.provinces.flatMap((name) => typeof name === "string" && isChinaProvince(name.trim()) ? [name.trim()] : []))] : [];
+        const hint: RegionHint = { kind, provinces, province: optionalText(body.province), prefecture: optionalText(body.prefecture),
+          officialName: optionalText(body.officialName) };
         // Only a real answer is remembered; a blank one would freeze a miss for a week.
-        if (hint.province === null && hint.prefecture === null) return null;
+        if (hint.kind === "unknown" && hint.province === null && hint.prefecture === null) return null;
         cache.set(place, { hint, expiresAt: Date.now() + cacheTtlMs });
         return hint;
       } catch (error) {
@@ -115,13 +144,43 @@ export async function hintedAreas(
   client: RegionHintClient = createRegionHintClient(),
   timeoutMs: number = hintTimeoutMs,
 ): Promise<readonly string[]> {
-  const name = place.normalize("NFKC").trim();
-  if (!/^[\p{Script=Han}]{2,12}$/u.test(name) || administrativeExpression.test(name) ||
-    provinceNames.has(name)) return [];
-  const hint = await withTimeout(client.hint(name), timeoutMs);
-  if (hint === null) return [];
+  const hint = await readPlace(place, client, timeoutMs);
+  if (hint === null || hint.kind === "province_group") return [];
   // The prefecture narrows a search far better than its province, so it goes first.
   return [hint.prefecture, hint.province].filter((area): area is string => area !== null);
+}
+
+/**
+ * The model's reading of a place name, or null when there is nothing to ask (a name that
+ * already carries its level, a bare province) or the model did not answer in time. Every
+ * caller shares the one cached answer per name, so asking twice costs one call.
+ */
+export async function readPlace(
+  place: string,
+  client: RegionHintClient = createRegionHintClient(),
+  timeoutMs: number = hintTimeoutMs,
+): Promise<RegionHint | null> {
+  const name = place.normalize("NFKC").trim();
+  if (!/^[\p{Script=Han}]{2,12}$/u.test(name) || administrativeExpression.test(name) ||
+    provinceNames.has(name)) return null;
+  return withTimeout(client.hint(name), timeoutMs);
+}
+
+/**
+ * The provinces a name such as 江浙沪 stands for, or null when it names something else.
+ * The model decides; the small table of undisputed nicknames answers only when the model
+ * could not (no key, a timeout, an unreadable reply), so a slow model never sends 江浙沪 to
+ * the map. When the model did answer, its reading stands, even against the table.
+ */
+export async function provincesOfPlace(
+  place: string,
+  client: RegionHintClient = createRegionHintClient(),
+  timeoutMs: number = hintTimeoutMs,
+): Promise<readonly string[] | null> {
+  const fallback = provincesOfRegionNickname(place);
+  const hint = await readPlace(place, client, timeoutMs);
+  if (hint === null) return fallback;
+  return hint.kind === "province_group" && hint.provinces.length >= 2 ? hint.provinces : null;
 }
 
 /** One measured answer took eleven seconds; four is already more than a message should wait. */

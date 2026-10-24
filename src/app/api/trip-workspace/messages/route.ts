@@ -32,7 +32,7 @@ import { journeyService } from "@/capabilities/journey/journey-service-instance"
 import { readGuestId } from "@/platform/identity/guest-identity";
 import { LocationService } from "@/capabilities/destination/location-service";
 import { savedAreaNames, savedCityNames } from "@/capabilities/destination/saved-area-names";
-import { hintedAreas } from "@/capabilities/destination/region-hint";
+import { hintedAreas, provincesOfPlace, readPlace } from "@/capabilities/destination/region-hint";
 import { applyDestinationEdit } from "@/capabilities/destination/apply-destination-edit";
 import { resolveDestinationPlace } from "@/capabilities/destination/resolve-destination-place";
 import { withChoiceImages } from "@/capabilities/destination/place-images";
@@ -181,13 +181,16 @@ export async function POST(request: Request) {
     const resolve = async (query: string) => {
       const areas = savedCityNames(persistedTripState).length > 0
         ? savedAreas : [...await hintedAreas(query), ...savedAreas];
-      return new LocationService(createLocationProvider(), areas).resolveExpression(query);
+      return new LocationService(createLocationProvider(), areas,
+        async (words) => (await readPlace(words))?.officialName ?? null).resolveExpression(query);
     };
     const destinationResult = await applyDestinationEdit(
       persistedTripState.destination,
       interpretation.destinationEdit,
       (expression) => resolveDestinationPlace(expression, resolve),
       body.message,
+      // A group of provinces (江浙沪) is read by the model, never searched on the map.
+      (expression) => provincesOfPlace(expression),
     );
     if (destinationResult.changed) {
       persistedTripState = await journeyService.updateTripState(tripId, ownerGuestId,

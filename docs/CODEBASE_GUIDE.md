@@ -214,7 +214,7 @@ LLM 解释自然语言并提出受限 JSON；应用校验、决定是否执行�
 | [src/app/api/trips/[id]/destination-recommendation-photos/route.ts](../src/app/api/trips/%5Bid%5D/destination-recommendation-photos/route.ts) | HTTP 接口层 | POST 推荐卡照片：只接受 `{messageId}`，owner 检查，为该推荐卡消息里还没查过照片的卡逐张查图（本地没有时经 createRemotePhotoFinder 查 Pixabay），每查到一张以 NDJSON 推一行，全部查完写回消息再结束；Pixabay 这次查不了的卡不推、保存时仍为未查，并记 `recommendation.photos.deferred`；浏览器离开也查完并保存；非推荐卡 404。 |
 | [src/app/media/place-photos/[file]/route.ts](../src/app/media/place-photos/%5Bfile%5D/route.ts) | HTTP 接口层 | GET 运行时下载的照片：只接受 `pixabay-<数字>.<jpg|png|webp>` 且来源记录已写完的文件，从 `MERI_MEDIA_DIR` 读出，带 Content-Type、nosniff 和一年 immutable 缓存；其他一律 404。生产模式下新下载的文件不重启即可访问。 |
 | [src/app/api/trips/[id]/destination-photos/route.ts](../src/app/api/trips/%5Bid%5D/destination-photos/route.ts) | HTTP 接口层 | GET 已选地点照片：owner 检查，按当前目的地和对话里卡片展示过的照片返回每个地点一张，private/no-store，不写入任何数据。 |
-| [src/app/api/trips/[id]/destinations/route.ts](../src/app/api/trips/%5Bid%5D/destinations/route.ts) | HTTP 接口层 | GET 手动搜索、POST 按 query/id 或建议完整名称/地区重查并添加、DELETE 完整元组/旧记录；归属检查、唯一目标核验及目的地并发控制。 |
+| [src/app/api/trips/[id]/destinations/route.ts](../src/app/api/trips/%5Bid%5D/destinations/route.ts) | HTTP 接口层 | GET 手动搜索、POST 按 query/id 或建议完整名称/地区重查并添加、DELETE 完整元组/旧记录；搜索词是几个整省的合称（江浙沪）时由模型的地点解读（兜底表）直接给出这几个省，不查地图，POST 用同一份结果核对；归属检查、唯一目标核验及目的地并发控制。 |
 | [src/app/api/trips/[id]/planning-readiness/route.ts](../src/app/api/trips/%5Bid%5D/planning-readiness/route.ts) | HTTP 接口层 | GET 读取新鲜 TripState，返回 missing/unverified/selected 准备度；不生成计划。 |
 | [src/app/api/trips/[id]/route.ts](../src/app/api/trips/%5Bid%5D/route.ts) | HTTP 接口层 | DELETE /api/trips/[id] 只删除当前访客拥有的 Trip，数据库级联清理状态和消息。 |
 | [src/app/api/trips/[id]/state/route.ts](../src/app/api/trips/%5Bid%5D/state/route.ts) | HTTP 接口层 | GET 状态/PATCH 领域校验后的 patch；调用 JourneyService，不自行做高德核验，冲突错误当前未单独映射 409。 |
@@ -326,8 +326,10 @@ LLM 解释自然语言并提出受限 JSON；应用校验、决定是否执行�
 | [src/domain/location/destination-recommendations.test.ts](../src/domain/location/destination-recommendations.test.ts) | 测试（对应模块边界） | 验证省份拼写、顺序、同名变体去重及最多 12 个地点等结构边界。 |
 | [src/domain/location/destination-recommendations.ts](../src/domain/location/destination-recommendations.ts) | 领域层 | Zod 推荐省份/城市/理由校验，检查中国省级范围、控制总量并规范化去重；配图地标的英文名 `landmarkEn`、其他叫法和备选地标不合法时只丢该字段。 |
 | [src/domain/location/china-destination-scope.ts](../src/domain/location/china-destination-scope.ts) | 领域层 | 中国目的地省级行政区完整名/简称名单，共用范围校验；不替代城市/景点的提供方身份核验。 |
-| [src/domain/location/destination-resolution-policy.test.ts](../src/domain/location/destination-resolution-policy.test.ts) | 测试（对应模块边界） | 验证行政/景区后缀、自身市/州前缀、景点旁同名区县让位（行政名之间不让）、兜底前缀匹配（至少 3 字、只在无更严格匹配时）、最后兜底景点（排除设施与景点子项、最多 3 个）、同名歧义、省范围、重复身份及不合理/无效坐标候选。 |
-| [src/domain/location/destination-resolution-policy.ts](../src/domain/location/destination-resolution-policy.ts) | 领域层 | 合理名称匹配和候选解析纯规则：原话/后缀/自身市区县前缀匹配，同市景点旁的同名区县让位，兜底匹配带其他前缀的名称，最后兜底提供名称含原话的景点（最多 3 个，排除景点的一部分）；返回 resolved/ambiguous/area/unresolved，保留不同 POI 身份。 |
+| [src/domain/location/china-region-nicknames.test.ts](../src/domain/location/china-region-nicknames.test.ts) | 测试（对应模块边界） | 验证 江浙沪/京津冀/川渝/云贵川/东三省/两广/港澳 等展开为对应省份，「一带」「地区」和空格不影响结果，普通地名、单个省、有争议的范围（长三角、东北）和对象键名不算昵称，所有展开省份都在服务范围内。 |
+| [src/domain/location/china-region-nicknames.ts](../src/domain/location/china-region-nicknames.ts) | 领域层 | 跨省昵称兜底表（江浙沪 → 江苏省、浙江省、上海市 等），只收各方没有争议的说法；只在模型答不上来时用，模型给了答案时以模型为准。 |
+| [src/domain/location/destination-resolution-policy.test.ts](../src/domain/location/destination-resolution-policy.test.ts) | 测试（对应模块边界） | 验证行政/景区后缀、自身市/州前缀、景点旁同名区县让位（行政名之间不让）、兜底前缀匹配（至少 3 字、只在无更严格匹配时）、最后兜底景点（排除设施与景点子项、最多 3 个）、同名歧义、省范围、重复身份及不合理/无效坐标候选；以及同名店铺（类别"其他"、无地点后缀、非行政区）不再按名称匹配，行政区、带后缀名称、景点和无类别候选不受影响。 |
+| [src/domain/location/destination-resolution-policy.ts](../src/domain/location/destination-resolution-policy.ts) | 领域层 | 合理名称匹配和候选解析纯规则：提供方标为"其他"、名字不是行政区本身又没有地点后缀的候选（同名店铺）不参与匹配；原话/后缀/自身市区县前缀匹配，同市景点旁的同名区县让位，兜底匹配带其他前缀的名称，最后兜底提供名称含原话的景点（最多 3 个，排除景点的一部分）；返回 resolved/ambiguous/area/unresolved，保留不同 POI 身份。 |
 | [src/domain/location/location-suggestion.ts](../src/domain/location/location-suggestion.ts) | 领域层 | 输入建议 LocationSuggestion 类型，包含可能缺失的身份/坐标，与最终目的地确认分开；地图提供方名单（amap、tianditu）和各自的坐标系；本文件不执行校验。 |
 | [src/domain/location/location.ts](../src/domain/location/location.ts) | 领域层 | 规范化 LocationCandidate，包含提供方身份、行政归属、地址和坐标（带坐标系 GCJ-02 或 CGCS2000，不互转），以及可选的 kind（是否景点）。 |
 | [src/domain/location/place-name.ts](../src/domain/location/place-name.ts) | 领域层 | `isFacilityName(name)`：名字以 大门/北门/入口/出口/游客中心/停车场/观景台/索道/售票处/验票点… 结尾的是设施，不是地点本身。天地图把它们和景区本体归在同一个类别（180400），只能看名字分辨。 |
@@ -395,12 +397,12 @@ LLM 解释自然语言并提出受限 JSON；应用校验、决定是否执行�
 | [src/capabilities/conversation/opening-assistant-id.test.ts](../src/capabilities/conversation/opening-assistant-id.test.ts) | 测试（对应模块边界） | 验证开场 UUID 稳定、合法及按 Trip 区分。 |
 | [src/capabilities/conversation/opening-assistant-id.ts](../src/capabilities/conversation/opening-assistant-id.ts) | 应用层/用例装配 | 根据 Trip ID 派生稳定的开场助手 UUID。 |
 | [src/capabilities/conversation/opening-conversation-service-instance.ts](../src/capabilities/conversation/opening-conversation-service-instance.ts) | 应用层/用例装配 | 将 JourneyService、解释器和消息服务装配为生产开场服务。 |
-| [src/capabilities/conversation/opening-conversation-service.test.ts](../src/capabilities/conversation/opening-conversation-service.test.ts) | 测试（对应模块边界） | 验证正常开场、重复 POST 复用、重开不再调用模型及不合资格拒绝。 |
-| [src/capabilities/conversation/opening-conversation-service.ts](../src/capabilities/conversation/opening-conversation-service.ts) | 应用层/用例装配 | 开场资格判断，生成/复用固定 ID 的助手开场，防止重试重复调用或写入。 |
+| [src/capabilities/conversation/opening-conversation-service.test.ts](../src/capabilities/conversation/opening-conversation-service.test.ts) | 测试（对应模块边界） | 验证正常开场、重复 POST 复用、重开不再调用模型及不合资格拒绝；首句要推荐且「去哪」未定时开场带 pending 标记（去掉问句），已定城市或旧文本目的地时不带。 |
+| [src/capabilities/conversation/opening-conversation-service.ts](../src/capabilities/conversation/opening-conversation-service.ts) | 应用层/用例装配 | 开场资格判断，生成/复用固定 ID 的助手开场，防止重试重复调用或写入；模型要推荐且目的地仍开放时给开场挂 `destination_recommendations_pending`，卡片走与聊天相同的推荐通道。 |
 | [src/capabilities/conversation/prompts/workspace-conversation-prompt.test.ts](../src/capabilities/conversation/prompts/workspace-conversation-prompt.test.ts) | 测试（对应模块边界） | 验证模型提案、提供方核验、用户确认分离、不虚构计划能力，范围规则不变成固定话术，以及两种模式都写入回复语言规则。 |
 | [src/capabilities/conversation/prompts/workspace-conversation-prompt.ts](../src/capabilities/conversation/prompts/workspace-conversation-prompt.ts) | 应用层/用例装配 | 聊天系统 prompt：用户决定、地点提案、推荐/规划边界、中国目的地范围（仅遇境外地点时说明）、回复语言和 opening 规则。 |
 | [src/capabilities/conversation/prompts/reply-language-guidance.ts](../src/capabilities/conversation/prompts/reply-language-guidance.ts) | 应用层/用例装配 | 提示词里的语言名和回复语言规则：按用户这条消息的语言回复，分不清时用首页选择的语言（由模型判断），旅程名用首页语言；只管文字，不管 destinationEdit 地名怎么写。 |
-| [src/capabilities/conversation/prompts/workspace-conversation-locale-rules.ts](../src/capabilities/conversation/prompts/workspace-conversation-locale-rules.ts) | 应用层/用例装配 | 聊天 prompt 里按语言分写的部分：地点修改规则与示例、推荐意图示例、天气反例；中文为调好的原文，英文用英文示例并要求把英文/拼音地名换成中文名交给高德。 |
+| [src/capabilities/conversation/prompts/workspace-conversation-locale-rules.ts](../src/capabilities/conversation/prompts/workspace-conversation-locale-rules.ts) | 应用层/用例装配 | 聊天 prompt 里按语言分写的部分：地点修改规则与示例、推荐意图示例、首句（opening）的推荐意图规则（含首句模糊、尚无目的地时也出少量卡）、天气反例；中文为调好的原文，英文用英文示例并要求把英文/拼音地名换成中文名交给高德。 |
 | [src/capabilities/conversation/prompts/chinese-prompts-lock.test.ts](../src/capabilities/conversation/prompts/chinese-prompts-lock.test.ts) | 测试（对应模块边界） | 把中文界面的聊天/开场/草稿 prompt 与两份 JSON schema 和快照逐字比较；有意修改时用 UPDATE_PROMPT_SNAPSHOT=1 重写快照并重跑 harness 中文用例。比较前把快照的 CRLF 归一成 LF，所以 Windows 上 `core.autocrlf` 的检出方式不会让测试失败。 |
 | [src/capabilities/conversation/prompts/chinese-prompts.snapshot.txt](../src/capabilities/conversation/prompts/chinese-prompts.snapshot.txt) | 测试数据 | 上面锁定测试的快照：1.0034 调好的中文 prompt 和 schema 原文。 |
 | [src/capabilities/conversation/trip-message-service-instance.ts](../src/capabilities/conversation/trip-message-service-instance.ts) | 应用层/用例装配 | 装配 Postgres message repository 和 TripRepository 为生产消息服务。 |
@@ -411,7 +413,7 @@ LLM 解释自然语言并提出受限 JSON；应用校验、决定是否执行�
 | [src/capabilities/conversation/meri-replies.ts](../src/capabilities/conversation/meri-replies.ts) | 应用层/用例装配 | Meri 在代码里写的句子的中英两份（已加入/候选/没找到/搜索提示/准备度/选卡确认/推荐固定句），以及两种语言的句子连接、列表分隔和引号；按首页选择的语言取用，不判断用户输入的语言。 |
 | [src/capabilities/conversation/workspace-conversation-context.test.ts](../src/capabilities/conversation/workspace-conversation-context.test.ts) | 测试（对应模块边界） | 验证空历史、城市/spot 待选卡上下文、助手合并和历史预算。 |
 | [src/capabilities/conversation/workspace-conversation-context.ts](../src/capabilities/conversation/workspace-conversation-context.ts) | 应用层/用例装配 | 选最近 5 轮/6000 字符真实历史，合并连续助手消息，保留选卡确认上下文。 |
-| [src/capabilities/conversation/workspace-conversation-interpreter.test.ts](../src/capabilities/conversation/workspace-conversation-interpreter.test.ts) | 测试（对应模块边界） | 验证修改提案、当前状态/历史输入、非法 JSON/输出及 opening 限制。 |
+| [src/capabilities/conversation/workspace-conversation-interpreter.test.ts](../src/capabilities/conversation/workspace-conversation-interpreter.test.ts) | 测试（对应模块边界） | 验证修改提案、当前状态/历史输入、非法 JSON/输出及 opening 限制（不能改状态，可以要推荐卡）。 |
 | [src/capabilities/conversation/workspace-conversation-interpreter.ts](../src/capabilities/conversation/workspace-conversation-interpreter.ts) | 应用层/用例装配 | Workspace/opening 的结构化调用与四项 JSON Schema，挽救模型输出并记录丢弃项，opening 禁止修改。 |
 | [src/capabilities/conversation/workspace-turn-branch.test.ts](../src/capabilities/conversation/workspace-turn-branch.test.ts) | 测试（对应模块边界） | 验证 helper 的候选/推荐/修改/普通对话分类，不证明当前入口调用该 helper。 |
 | [src/capabilities/conversation/workspace-turn-branch.ts](../src/capabilities/conversation/workspace-turn-branch.ts) | 应用层/用例装配 | 分支分类纯 helper；仍有测试，但实际 messages route 没调用它。 |
@@ -420,18 +422,18 @@ LLM 解释自然语言并提出受限 JSON；应用校验、决定是否执行�
 
 | 文件地址 | 层/类别 | 做什么 |
 | --- | --- | --- |
-| [src/capabilities/destination/apply-destination-edit.ts](../src/capabilities/destination/apply-destination-edit.ts) | 应用层/用例装配 | none/add/set/remove 执行：用户原话中被精确匹配的地点直接追加（added），其余准备待选卡；唯一删除；报告部分失败。 |
-| [src/capabilities/destination/destination-choice-flow.test.ts](../src/capabilities/destination/destination-choice-flow.test.ts) | 测试（对应模块边界） | 跨模块验证核验→候选→显式提交不提前写目的地，以及提交复核身份/spot 保留；自身城市前缀算精确并用原话作景点名，其他前缀出卡。 |
+| [src/capabilities/destination/apply-destination-edit.ts](../src/capabilities/destination/apply-destination-edit.ts) | 应用层/用例装配 | none/add/set/remove 执行：几个整省的合称（江浙沪）先展开为省份、不查地图——对话模型已列出省份时直接用，否则问注入的 `provincesOf`（路由传模型的地点解读，默认只用兜底表）；用户原话中被精确匹配的地点直接追加（added），其余准备待选卡；唯一删除；报告部分失败。 |
+| [src/capabilities/destination/destination-choice-flow.test.ts](../src/capabilities/destination/destination-choice-flow.test.ts) | 测试（对应模块边界） | 跨模块验证核验→候选→显式提交不提前写目的地，以及提交复核身份/spot 保留；自身城市前缀算精确并用原话作景点名，其他前缀出卡；江浙沪 复现（合成的 石家庄 同名记录）不再进入地图查询，原话里的昵称直接加省份、模型代说的出省份卡，broadRegion 形式同样展开；以及对话模型已列出省份时直接使用、模型的地点解读能判断表里没有的合称（巴蜀）且优先于兜底表。 |
 | [src/capabilities/destination/destination-recommendation-selection-route.test.ts](../src/capabilities/destination/destination-recommendation-selection-route.test.ts) | 测试（对应模块边界） | 验证只有保存的 offer 可提交、owner/ID 校验、提供方失败及选择接口状态边界。 |
 | [src/capabilities/destination/destination-selection-reply.test.ts](../src/capabilities/destination/destination-selection-reply.test.ts) | 测试（对应模块边界） | 验证确认包含城市/spot、已知/近似字段不重复追问，只有省也可规划、旧文本需重新确认。 |
 | [src/capabilities/destination/destination-selection-reply.ts](../src/capabilities/destination/destination-selection-reply.ts) | 应用层/用例装配 | 从保存前后的 TripState 构造只说新增地点的确认，首次可规划时附准备度和补充信息邀请，固定正文无 LLM 调用，措辞按首页选择的语言（meri-replies）。 |
 | [src/capabilities/destination/destination-selection-v2.test.ts](../src/capabilities/destination/destination-selection-v2.test.ts) | 测试（对应模块边界） | 验证多省追加、旧 replace 冲突、已确认/过期卡、安全重试及不恢复已删除目的地。 |
-| [src/capabilities/destination/location-service.test.ts](../src/capabilities/destination/location-service.test.ts) | 测试（对应模块边界） | 验证空表达不调用、原话查询、无结果和提供方异常归一化。 |
-| [src/capabilities/destination/location-service.ts](../src/capabilities/destination/location-service.ts) | 应用层/用例装配 | 调用 LocationProvider、规范化错误并执行名称解析；同名商业 POI 干扰时最多补查一次“原词＋市”，要求行政字段佐证；保留原始候选供手动选择。构造时可带 `areas`（旅程已存的省/市），原样传给提供方当搜索先验。 |
+| [src/capabilities/destination/location-service.test.ts](../src/capabilities/destination/location-service.test.ts) | 测试（对应模块边界） | 验证空表达不调用、原话查询、无结果和提供方异常归一化；以及原话没找到时才用模型的正式名称再查一次，用正式名称找到的结果不算原话。 |
+| [src/capabilities/destination/location-service.ts](../src/capabilities/destination/location-service.ts) | 应用层/用例装配 | 调用 LocationProvider、规范化错误并执行名称解析；同名商业 POI 干扰时最多补查一次“原词＋市”，要求行政字段佐证；保留原始候选供手动选择。构造时可带 `areas`（旅程已存的省/市），原样传给提供方当搜索先验；还可带 `officialNameOf`（模型给的地图正式名称，苍山 → 点苍山），只在原话没找到时用它再查一次，结果不算原话、照常出卡。 |
 | [src/capabilities/destination/saved-area-names.ts](../src/capabilities/destination/saved-area-names.ts) | 应用层/用例装配 | 从 TripState 取出省名 + 市名（不含 spot、去重），作为搜索先验；目的地缺失或只有旧文本时返回空。 |
 | [src/capabilities/destination/saved-area-names.test.ts](../src/capabilities/destination/saved-area-names.test.ts) | 测试（对应模块边界） | 验证空旅程返回空、只取省和市、spot 不参与、跨省去重。 |
-| [src/capabilities/destination/region-hint.ts](../src/capabilities/destination/region-hint.ts) | 应用层/用例装配 | 冷启动地区提示：旅程还没有任何目的地时，问一次模型“这个名字通常在哪个地级市”，返回 `[prefecture, province]` 当先验。4 秒上限（超时等于没有提示）、进程内缓存 7 天且只缓存真实答案、带行政后缀和省级简称不问。只是搜索中心，不是结论。 |
-| [src/capabilities/destination/region-hint.test.ts](../src/capabilities/destination/region-hint.test.ts) | 测试（对应模块边界） | 验证市在省前、行政名和省级简称不调用模型、未知/空答案/模型报错都返回空、真实答案只问一次、永不返回的模型被超时放弃。 |
+| [src/capabilities/destination/region-hint.ts](../src/capabilities/destination/region-hint.ts) | 应用层/用例装配 | 地点解读（`readPlace`）：问一次模型这几个字是什么（几个整省的合称 / 省 / 城市 / 景点 / 不知道）、在哪个省和地级市、地图上的正式名称；`hintedAreas` 由此给冷启动先验 `[prefecture, province]`，`provincesOfPlace` 由此判断合称（模型答不上来才用兜底表）。模型给的省份只保留真实省名。4 秒上限（超时等于没有答案）、进程内缓存 7 天且只缓存真实答案、带行政后缀和省级简称不问。只是判断和搜索中心，提供方仍要核验。 |
+| [src/capabilities/destination/region-hint.test.ts](../src/capabilities/destination/region-hint.test.ts) | 测试（对应模块边界） | 验证市在省前、行政名和省级简称不调用模型、未知/空答案/模型报错都返回空、真实答案只问一次、永不返回的模型被超时放弃，以及模型读出的整省组合（假省名被丢弃）、模型答案优先于兜底表、模型答不上来时兜底表仍挡住江浙沪、正式名称。 |
 | [src/capabilities/destination/place-images.ts](../src/capabilities/destination/place-images.ts) | 应用层/用例装配 | 照片查询顺序（景点/县级市境内→地标→市的国家级景点；省级景点只给只有省的目的地）、卡片配图、同一照片只出现一次、沿用卡片照片的已选地点照片，以及旅程封面（第一个有照片的地点，找到即停）。 |
 | [src/capabilities/destination/place-images.test.ts](../src/capabilities/destination/place-images.test.ts) | 测试（对应模块边界） | 验证查询顺序（市卡不退到省）、景区后缀仍按名称查询、逐个兜底、卡片配图、照片去重、沿用对话照片和封面找到即停。 |
 | [src/capabilities/destination/destination-photos-route.test.ts](../src/capabilities/destination/destination-photos-route.test.ts) | 测试（对应模块边界） | 验证照片接口按当前地点返回、不共享缓存、not-found 与其他失败区分。 |
@@ -448,7 +450,7 @@ LLM 解释自然语言并提出受限 JSON；应用校验、决定是否执行�
 | 文件地址 | 层/类别 | 做什么 |
 | --- | --- | --- |
 | [src/capabilities/recommendation/destination-recommendation-context.ts](../src/capabilities/recommendation/destination-recommendation-context.ts) | 应用层/用例装配 | 从当前状态、推荐范围（within/elsewhere）和最多 10 条/6000 字符历史构造聊天触发（conversation）的推荐 context，带首页选择的语言（推荐固定句用它）。 |
-| [src/capabilities/recommendation/destination-recommendation-generator.test.ts](../src/capabilities/recommendation/destination-recommendation-generator.test.ts) | 测试（对应模块边界） | 验证聊天触发的上下文、真实历史/展示卡、JSON/schema 校验、理由按首页语言（名称保持中文）及推荐生成错误。 |
+| [src/capabilities/recommendation/destination-recommendation-generator.test.ts](../src/capabilities/recommendation/destination-recommendation-generator.test.ts) | 测试（对应模块边界） | 验证聊天触发的上下文、真实历史/展示卡、JSON/schema 校验、理由按首页语言（名称保持中文）、未定目的地时模糊请求只要 3–4 个不同类型的地方（明确请求仍是完整一组）及推荐生成错误。 |
 | [src/capabilities/recommendation/destination-recommendation-generator.ts](../src/capabilities/recommendation/destination-recommendation-generator.ts) | 应用层/用例装配 | 推荐模型 JSON Schema、AI SDK 调用及领域校验，输出省/市/理由/配图地标及其英文名、其他叫法和 1–2 个备选地标（都只用于配图），非法结果抛专用错误。 |
 | [src/capabilities/recommendation/destination-recommendation-model-client.test.ts](../src/capabilities/recommendation/destination-recommendation-model-client.test.ts) | 测试（对应模块边界） | 验证显式按钮调用不伪造 user 消息，AI SDK 只发一次模型请求。 |
 | [src/capabilities/recommendation/destination-recommendations-route.test.ts](../src/capabilities/recommendation/destination-recommendations-route.test.ts) | 测试（对应模块边界） | 验证推荐卡片接口：派生 ID、重复请求不重跑、对话或目的地变化后 409、错误请求与工作流失败不写入。 |
@@ -459,7 +461,7 @@ LLM 解释自然语言并提出受限 JSON；应用校验、决定是否执行�
 | [src/capabilities/recommendation/recommendation-photos.ts](../src/capabilities/recommendation/recommendation-photos.ts) | 应用层/用例装配 | 为未查过照片（或按旧规则存成没图）的推荐卡并行查图：先查本地（地标、市的代表图或同市已下载照片、备选地标），再查远程（Pixabay，卡片自己的地标和第一个备选地标，一批共用一份额度）；到一张报一张，远程查不了的卡不回答、留待下次；回答时记规则版本 `photoRules`；同批照片先到先得不重复，返回补好的 presentation。 |
 | [src/capabilities/recommendation/recommendation-photos.test.ts](../src/capabilities/recommendation/recommendation-photos.test.ts) | 测试（对应模块边界） | 验证按地标查图与逐张回报、已有答案或无省的卡不再查、同一照片不出现在两张卡上，本地命中不查远程、没有英文名也按中文地标查、远程查不了的卡保持未查、主地标没图时试第一个备选地标、本地已有的备选地标不触发搜索。 |
 | [src/capabilities/recommendation/destination-recommendation-workflow.ts](../src/capabilities/recommendation/destination-recommendation-workflow.ts) | 应用层/用例装配 | Discovery Search→模型生成→省份过滤（within 限已定省，elsewhere 排除已保存省）→卡项 ID（带配图用的地标，不查照片）的确定性流程；搜索故障降级，无排序/访问检查。 |
-| [src/capabilities/recommendation/prompts/destination-recommendation-prompt.ts](../src/capabilities/recommendation/prompts/destination-recommendation-prompt.ts) | 应用层/用例装配 | 受限省市推荐 prompt，含聊天触发说明、真实上下文和未核验搜索启发；理由用首页语言写，省/市/地标名保持中文。 |
+| [src/capabilities/recommendation/prompts/destination-recommendation-prompt.ts](../src/capabilities/recommendation/prompts/destination-recommendation-prompt.ts) | 应用层/用例装配 | 受限省市推荐 prompt，含聊天触发说明、真实上下文和未核验搜索启发；理由用首页语言写，省/市/地标名保持中文；未定目的地且用户只说想出去玩时只给 3–4 个、各在不同省份的不同类型地方。 |
 
 ### 6.11a Agent（Mastra）
 

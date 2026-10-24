@@ -13,7 +13,7 @@ export const openingConversationService = new OpeningConversationService({
       ...input,
       mode: "opening",
     });
-    return interpretation.reply;
+    return { reply: interpretation.reply, presentationIntent: interpretation.presentationIntent };
   },
   persistAssistant: (input) => tripMessageService.persistOpeningAssistant(input),
 });

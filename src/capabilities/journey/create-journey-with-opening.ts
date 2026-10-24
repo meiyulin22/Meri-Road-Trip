@@ -1,7 +1,7 @@
 import { validateTripDraftDomain } from "@/domain/trip-draft/trip-draft";
 import type { TripMessagePresentation } from "@/domain/trip-message/trip-message";
 import type { LocationResolveResult } from "@/capabilities/destination/location-service";
-import { applyDestinationEdit } from "@/capabilities/destination/apply-destination-edit";
+import { applyDestinationEdit, type ProvincesOf } from "@/capabilities/destination/apply-destination-edit";
 import { resolveDestinationPlace } from "@/capabilities/destination/resolve-destination-place";
 import { destinationEditReply } from "@/capabilities/conversation/turn-reply";
 import { meriReplies } from "@/capabilities/conversation/meri-replies";
@@ -17,6 +17,8 @@ type CreateJourneyWithOpeningDependencies = {
     openingAssistant?: { readonly content: string; readonly presentation?: TripMessagePresentation },
     initialDestination?: DestinationField) => Promise<Journey>;
   readonly resolveDestination: (expression: string) => Promise<LocationResolveResult>;
+  /** The provinces a name like 江浙沪 stands for; absent, only the nickname table answers. */
+  readonly provincesOf?: ProvincesOf;
   readonly photos: PlacePhotoProvider;
   readonly initializeOpening: (input: {
     readonly tripId: string; readonly ownerGuestId: string; readonly requestId: string;
@@ -37,7 +39,8 @@ export async function createJourneyWithOpening(
   const draft = validateTripDraftDomain(input.draft);
   const result = input.initialUserMessage && draft.destinationEdit.operation !== "none"
     ? await applyDestinationEdit({ state: "missing" }, draft.destinationEdit,
-      (expression) => resolveDestinationPlace(expression, dependencies.resolveDestination), input.initialUserMessage)
+      (expression) => resolveDestinationPlace(expression, dependencies.resolveDestination), input.initialUserMessage,
+      dependencies.provincesOf)
     : null;
   // Only a turn that needs the user — a card, or a name that could not be placed —
   // opens with the application's own sentence. A destination that simply landed is

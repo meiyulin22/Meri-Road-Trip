@@ -147,8 +147,8 @@ export async function interpretWorkspaceConversation(
       logger.warn({ event: logEvents.workspaceConversationPartsDropped, requestId: input.requestId, dropped },
         "Unusable parts of the model answer were dropped");
     }
-    if (input.mode === "opening" &&
-      (proposesJourneyUpdate(interpretation) || interpretation.presentationIntent !== "none")) {
+    // An opening may ask for recommendation cards; it may never change the Journey.
+    if (input.mode === "opening" && proposesJourneyUpdate(interpretation)) {
       throw new InvalidWorkspaceConversationModelOutputError(
         "Opening response must not propose TripState changes.",
       );

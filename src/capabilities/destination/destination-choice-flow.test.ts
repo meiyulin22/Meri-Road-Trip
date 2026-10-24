@@ -184,3 +184,94 @@ test("a name the model wrote but the user never typed is offered, however exactl
   assert.deepEqual(result.added, []);
   assert.deepEqual(result.choices?.presentation.choices.map((choice) => choice.name), ["大理白族自治州"]);
 });
+
+/**
+ * A synthetic record, not a captured provider answer: the reported card showed 河北省 ·
+ * 石家庄市 · 江浙沪, and a record named 江浙沪 filed there is what produces it.
+ */
+const jiangzhehuInShijiazhuang = { providerId: "synthetic-commercial-poi", name: "江浙沪", province: "河北省",
+  city: "石家庄市", district: "长安区", region: "河北省 石家庄市 长安区", address: "synthetic",
+  longitude: 114.5, latitude: 38.04, coordinateSystem: "GCJ-02" as const, kind: "other" as const };
+const jiangzhehuMessage = "我想去江浙沪玩一玩 有推荐吗 玩7天 从大连出发";
+const resolveToShijiazhuang = (expression: string) => resolveDestinationPlace(expression,
+  async (query) => resolveDestinationCandidates(query, [jiangzhehuInShijiazhuang]));
+const jiangzhehuProvinces = [
+  { province: "江苏省", place: null, spot: null },
+  { province: "浙江省", place: null, spot: null },
+  { province: "上海市", place: null, spot: null },
+];
+
+test("a map record named 江浙沪 is a shop, which no longer matches by name, and the name never reaches the map", async () => {
+  // This is how the bug happened: by name alone the record was the place the user said.
+  // The policy now refuses a shop ("other", no place suffix, not a division) whatever its name.
+  const lookedUp = await resolveToShijiazhuang("江浙沪");
+  assert.equal(lookedUp.status, "unresolved");
+
+  const result = await applyDestinationEdit({ state: "missing" },
+    { operation: "set", places: ["江浙沪"], broadRegion: null },
+    async () => { throw new Error("a region nickname must not be looked up"); }, jiangzhehuMessage);
+  assert.deepEqual(result.added, jiangzhehuProvinces);
+  assert.equal(result.changed, true);
+  assert.equal(result.choices, null);
+  assert.deepEqual(result.destination.state === "known" && result.destination.areas.map((area) => area.province),
+    ["江苏省", "浙江省", "上海市"]);
+});
+
+test("江浙沪 the model brings up on a turn the user only said 「都可」 is offered as its provinces, never 石家庄", async () => {
+  const result = await applyDestinationEdit({ state: "missing" },
+    { operation: "add", places: ["江浙沪"], broadRegion: null }, resolveToShijiazhuang, "都可");
+  assert.equal(result.changed, false);
+  assert.equal(result.choices?.answering, "江浙沪");
+  assert.deepEqual(result.choices?.presentation.choices.map((choice) => [choice.id, choice.province, choice.city]),
+    [["province:江苏省", "江苏省", undefined], ["province:浙江省", "浙江省", undefined],
+      ["province:上海市", "上海市", undefined]]);
+});
+
+test("江浙沪 as the model's broad region replaces the cities it guessed with the provinces it means", async () => {
+  const looked: string[] = [];
+  const result = await applyDestinationEdit({ state: "missing" },
+    { operation: "set", places: ["苏州市", "杭州市", "石家庄市"], broadRegion: "江浙沪" },
+    async (expression) => { looked.push(expression); return resolveToShijiazhuang(expression); }, jiangzhehuMessage);
+  assert.deepEqual(looked, []);
+  assert.deepEqual(result.added, jiangzhehuProvinces);
+  assert.equal(result.choices, null);
+});
+
+test("a nickname beside an ordinary place expands while the other place is still looked up", async () => {
+  const looked: string[] = [];
+  const result = await applyDestinationEdit({ state: "missing" },
+    { operation: "set", places: ["川渝", "大理"], broadRegion: null },
+    async (expression) => {
+      looked.push(expression);
+      return { status: "resolved", pick: { id: "dali", province: "云南省", place: "大理白族自治州", spot: null }, exact: true };
+    }, "想去川渝和大理");
+  assert.deepEqual(looked, ["大理"]);
+  assert.deepEqual(result.added.map((pick) => pick.province), ["四川省", "重庆市", "云南省"]);
+});
+
+test("a nickname province picked from a card is saved without another lookup, 上海市 included", async () => {
+  assert.deepEqual(await verifyDestinationChoice({ id: "province:上海市", name: "上海市", province: "上海市" }, {
+    search: async () => { throw new Error("a province card needs no lookup"); },
+  }), { status: "verified", pick: { province: "上海市", place: null, spot: null } });
+});
+
+test("when the conversation model already lists whole provinces under a broad region, they are used as given", async () => {
+  const result = await applyDestinationEdit({ state: "missing" },
+    { operation: "set", places: ["江苏省", "浙江省", "上海市"], broadRegion: "江浙沪" },
+    async () => { throw new Error("provinces need no lookup"); }, jiangzhehuMessage,
+    async () => { throw new Error("the model already decided; nothing is read again"); });
+  assert.deepEqual(result.added, jiangzhehuProvinces);
+});
+
+test("the model's reading decides a group the nickname table does not know, and overrides the table", async () => {
+  const bashu = await applyDestinationEdit({ state: "missing" },
+    { operation: "set", places: ["巴蜀"], broadRegion: null },
+    async () => { throw new Error("a province group is not looked up"); }, "我想去巴蜀玩",
+    async (expression) => expression === "巴蜀" ? ["四川省", "重庆市"] : null);
+  assert.deepEqual(bashu.added.map((pick) => pick.province), ["四川省", "重庆市"]);
+  // The model read 江浙 as something else: its answer stands, and the name goes to the map.
+  const looked: string[] = [];
+  await applyDestinationEdit({ state: "missing" }, { operation: "set", places: ["江浙"], broadRegion: null },
+    async (expression) => { looked.push(expression); return { status: "unresolved" }; }, "我想去江浙", async () => null);
+  assert.deepEqual(looked, ["江浙"]);
+});

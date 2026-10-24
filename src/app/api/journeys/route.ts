@@ -15,7 +15,7 @@ import { createLocationProvider, createPlacePhotoProvider } from "@/platform/map
 import { createJourneyWithOpening } from "@/capabilities/journey/create-journey-with-opening";
 import { journeyService } from "@/capabilities/journey/journey-service-instance";
 import { LocationService } from "@/capabilities/destination/location-service";
-import { hintedAreas } from "@/capabilities/destination/region-hint";
+import { hintedAreas, provincesOfPlace, readPlace } from "@/capabilities/destination/region-hint";
 import { logger, logEvents } from "@/platform/observability/logger";
 import { serializeError } from "@/platform/observability/serialize-error";
 import { openingConversationService } from "@/capabilities/conversation/opening-conversation-service-instance";
@@ -70,7 +70,10 @@ export async function POST(request: Request) {
       // is placed by asking the model where it usually is — 苍山 said on the front page is the
       // mountain in 大理, not the 广西 village of the same name.
       resolveDestination: async (expression) => new LocationService(createLocationProvider(),
-        await hintedAreas(expression)).resolveExpression(expression),
+        await hintedAreas(expression), async (words) => (await readPlace(words))?.officialName ?? null)
+        .resolveExpression(expression),
+      // 江浙沪 is read by the model as the provinces it means before any map sees it.
+      provincesOf: (expression) => provincesOfPlace(expression),
       photos: createPlacePhotoProvider(),
       initializeOpening: (input) => openingConversationService.initialize(input),
     });

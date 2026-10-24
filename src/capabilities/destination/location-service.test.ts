@@ -81,3 +81,27 @@ for(const mode of ["failure","throw"] as const)test("provider "+mode+" becomes a
  const provider:LocationProvider={async searchByKeyword(){if(mode==="throw")throw new Error("secret-key");return {status:"failure",reason:"http_error"};}};
  assert.deepEqual(await new LocationService(provider).resolveExpression("西湖"),{status:"provider_error"});
 });
+
+test("after the user's words find nothing, the model's official name is searched once, and only then", async () => {
+  const peak = { ...city, providerId: "diancang", name: "点苍山", city: "大理白族自治州", district: "大理市",
+    region: "云南省 大理白族自治州 大理市", kind: "sight" as const };
+  const asked: string[] = [];
+  const named: string[] = [];
+  const provider: LocationProvider = { async searchByKeyword(query) {
+    asked.push(query);
+    return { status: "success", candidates: query === "点苍山" ? [peak] : [] };
+  } };
+  const service = new LocationService(provider, [], async (words) => { named.push(words); return "点苍山"; });
+  const result = await service.resolveExpression("苍山");
+  assert.equal(result.status === "resolved" && result.candidate.name, "点苍山");
+  assert.deepEqual(asked, ["苍山", "点苍山"]);
+  // Found under another name, it is not the user's own words, so it is offered on a card.
+  const pick = await resolveDestinationPlace("苍山", (query) => service.resolveExpression(query));
+  assert.equal(pick.status === "resolved" && pick.exact, false);
+
+  named.length = 0;
+  const found = new LocationService({ async searchByKeyword() { return { status: "success", candidates: [peak] }; } },
+    [], async (words) => { named.push(words); return "别的名字"; });
+  await found.resolveExpression("点苍山");
+  assert.deepEqual(named, []);
+});

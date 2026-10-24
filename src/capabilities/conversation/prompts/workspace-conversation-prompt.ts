@@ -5,7 +5,7 @@ import { approximateWordingNote, certaintyStateGuidance, tripStateFieldGuidance 
 import { shownCardsGuidance } from "@/capabilities/conversation/conversation-history-content";
 import { replyLanguageGuidance } from "@/capabilities/conversation/prompts/reply-language-guidance";
 import {
-  destinationRules, recommendationRules, weatherCounterExample,
+  destinationRules, openingRecommendationRules, recommendationRules, weatherCounterExample,
 } from "@/capabilities/conversation/prompts/workspace-conversation-locale-rules";
 
 export interface WorkspaceConversationPromptContext {
@@ -34,7 +34,9 @@ export function buildWorkspaceConversationSystemPrompt({
     return `You are Meri, replying to the first message of a new Journey. ${context}
 ${chinaScopeGuidance}
 ${language}
-Return JSON matching the supplied schema with presentationIntent "none", changes [], destinationEdit {"operation":"none","places":[],"broadRegion":null}, and a concise natural reply. The first message has already been interpreted and any place in TripState is already saved. Ask at most one question, the single most useful one; never several at once. Do not claim unverified destination facts, and never say whether the Journey is ready to generate.`;
+Return JSON matching the supplied schema with changes [], destinationEdit {"operation":"none","places":[],"broadRegion":null}, and a concise natural reply. The first message has already been interpreted and any place in TripState is already saved.
+${openingRecommendationRules[locale]}
+Ask at most one question, the single most useful one; never several at once. Do not claim unverified destination facts, and never say whether the Journey is ready to generate.`;
   }
   return `You are Meri, interpreting one new message in a Journey Workspace. Return only JSON matching the supplied schema, including a natural concise reply.
 ${context}

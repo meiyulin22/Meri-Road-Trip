@@ -104,6 +104,21 @@ test("a settled province is named in the prompt so the list stays inside it", as
     destination: { state: "known" as const, source: "user", areas: [{ province: "海南省", places: [] }] } }), "request-1", client);
   assert.match(requests[0].systemPrompt, /already settled as 海南省/u);
   assert.doesNotMatch(requests[0].systemPrompt, /No destination is settled yet/u);
+  assert.doesNotMatch(requests[0].systemPrompt, /only 3 or 4 places/u);
+});
+
+test("with nothing settled, a vague wish to travel asks for a few contrasting places, an explicit request for the full set", async () => {
+  const requests: StructuredOutputModelRequest[] = [];
+  const client: StructuredOutputModelClient = {
+    async generateStructuredOutput(request) {
+      requests.push(request);
+      return { content: JSON.stringify(valid), model: "test", finishReason: "stop" };
+    },
+  };
+  await generateDestinationRecommendations(context(), "request-1", client);
+  assert.match(requests[0].systemPrompt, /give only 3 or 4 places, each in a different province/u);
+  assert.match(requests[0].systemPrompt, /想出去玩/u);
+  assert.match(requests[0].systemPrompt, /An explicit request such as 推荐一下, or any stated preference, gets the full set/u);
 });
 
 test("card reasons are written in the language chosen on the landing page, names stay Chinese", async () => {

@@ -19,6 +19,7 @@ export const destinationRules: Record<Locale, string> = {
 - Only operation "remove" may delete explicitly named existing destinations. "set" and "add" always preserve all saved destinations. Do not infer any deletion from a newly named place, even "改去青岛" without an explicit statement of which saved places to remove. If a message combines removal and addition, clarify which action to perform first rather than silently dropping destinations or claiming both happened.
 - "我想去梅里雪山" when no destination exists: operation "set", places ["梅里雪山"], broadRegion null.
 - "我还想去潮汕": operation "add", broadRegion "潮汕", places naming the real cities in that region, such as 潮州市、汕头市、揭阳市. The application verifies each city and offers them as choices for the user to pick.
+- "我想去江浙沪": the words name several whole provinces, so broadRegion "江浙沪" and places the provinces themselves in full: 江苏省、浙江省、上海市 — never cities guessed inside them. The same for 京津冀、川渝、东三省、两广 and any other everyday name for whole provinces.
 - "不去云南了": operation "remove", places ["云南"]. Remove only the matching saved province and its children; keep every other province.
 - "不去潮州了": operation "remove", places ["潮州"]. Only a unique match in the saved destination may be removed.
 - If the user only describes preferences or asks a question: operation "none", places [], broadRegion null.
@@ -31,6 +32,7 @@ export const destinationRules: Record<Locale, string> = {
 - The map provider knows places only by their Chinese names. For each place the user names in English or pinyin, put its standard Chinese name in places: Lijiang → 丽江, Jade Dragon Snow Mountain → 玉龙雪山, Hong Kong → 香港. Translate the name only; never swap it for a different or nearby place. A misspelled name (Lijang) becomes the place it plainly means; if you cannot tell which Chinese place is meant, put the user's words unchanged. A place the user wrote in Chinese characters stays exactly as typed, typos included (大莲 stays 大莲, not 大连 or 大理). The user confirms every translated name on a card before it is saved.
 - "I want to go to Meili Snow Mountain" when no destination exists: operation "set", places ["梅里雪山"], broadRegion null.
 - "I'd also like to see Chaoshan": operation "add", broadRegion "Chaoshan", places naming the real cities in that region in Chinese, such as 潮州市、汕头市、揭阳市. The application verifies each city and offers them as choices for the user to pick.
+- "I want to go to Jiangsu, Zhejiang and Shanghai" or "the Jiang-Zhe-Hu area": broadRegion holds the user's words and places the provinces themselves in Chinese: 江苏省、浙江省、上海市 — never cities guessed inside them.
 - "I don't want to go to Yunnan anymore": operation "remove", places ["云南"], the Chinese name as it is saved. Remove only the matching saved province and its children; keep every other province.
 - "Skip Chaozhou": operation "remove", places ["潮州"]. Only a unique match in the saved destination may be removed.
 - If the user only describes preferences or asks a question: operation "none", places [], broadRegion null.
@@ -55,4 +57,15 @@ export const recommendationRules: Record<Locale, string> = {
 export const weatherCounterExample: Record<Locale, string> = {
   zh: "「平均气温约22-28℃」",
   en: "\"average temperatures are about 22–28°C\"",
+};
+
+/**
+ * The first message of a Journey made on the home page is answered in opening mode, which
+ * may change nothing. Asking for suggestions there (「我想去江浙沪 有推荐吗」) used to get a
+ * question about transport instead of cards, so opening mode may ask for cards too; the
+ * application still checks that 「去哪」 is open before any are made.
+ */
+export const openingRecommendationRules: Record<Locale, string> = {
+  zh: `presentationIntent is "destination_recommendations" when this first message explicitly asks for suggestions (有推荐吗、推荐一下、有什么好地方、你推荐吧) or describes the kind of place wanted (雪山、海边、安静、美食、徒步), and TripState has no city chosen yet. An explicit request is enough on its own, however much else is still unknown. Use it too when the message only says they want to travel and is vague about where — no place, no kind of place, no request (想出去玩、下个月有空想出去走走) — and TripState has no destination at all: a few contrasting cards give them something to react to. The cards then arrive in a separate message after your reply, so your reply only acknowledges what the user asked for and says you will suggest a few places: name no place, list nothing, promise no number, and ask no question. Otherwise presentationIntent is "none".`,
+  en: `presentationIntent is "destination_recommendations" when this first message explicitly asks for suggestions ("any recommendations?", "recommend somewhere", "you pick") or describes the kind of place wanted (snowy mountains, the sea, somewhere quiet, food, hiking), and TripState has no city chosen yet. An explicit request is enough on its own, however much else is still unknown. Use it too when the message only says they want to travel and is vague about where — no place, no kind of place, no request ("I'd like to get away somewhere", "I'm free next month") — and TripState has no destination at all: a few contrasting cards give them something to react to. The cards then arrive in a separate message after your reply, so your reply only acknowledges what the user asked for and says you will suggest a few places: name no place, list nothing, promise no number, and ask no question. Otherwise presentationIntent is "none".`,
 };

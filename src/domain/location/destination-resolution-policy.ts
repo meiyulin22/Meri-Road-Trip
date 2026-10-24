@@ -94,8 +94,22 @@ export function namesWithoutOwnPlace(
   return [...new Set(variants)];
 }
 
+/**
+ * Whether a candidate can be somewhere a traveller goes: a sight, an administrative
+ * division (its name is its own 市, 区 or province), anything whose name says it is a
+ * place (丽江市, 黄山风景区), or a candidate the provider did not classify. A shop,
+ * restaurant or company the provider files as "other" is none of these: in 石家庄 one is
+ * called 江浙沪, and it must not become the trip because its name equals the user's words.
+ */
+function couldBeADestination(candidate: LocationCandidate): boolean {
+  if (candidate.kind !== "other") return true;
+  const name = normalize(candidate.name);
+  if ([candidate.province, candidate.city, candidate.district].some((part) => part !== null && normalize(part) === name)) return true;
+  return [...administrativeSuffixes, ...provinceSuffixes, ...geographicFeatureSuffixes].some((suffix) => name.endsWith(suffix));
+}
+
 function isReasonableMatch(expression: string, candidate: LocationCandidate): boolean {
-  if (!isUsableCandidate(candidate)) return false;
+  if (!isUsableCandidate(candidate) || !couldBeADestination(candidate)) return false;
   const name = normalize(candidate.name);
   // 西湖 is filed as 杭州西湖风景名胜区: the city in front is only where it is.
   if (namesWithoutOwnPlace(name, candidate).some((variant) => isExpressionWithSuffix(expression, variant))) return true;

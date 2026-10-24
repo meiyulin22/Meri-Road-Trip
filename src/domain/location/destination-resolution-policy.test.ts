@@ -201,3 +201,19 @@ test("a ticket office or a viewing platform inside the place is never offered as
   assert.deepEqual(resolveDestinationCandidates("稻城亚丁风景区仁村观景台", facilities),
     { status: "resolved", candidate: facilities[0] });
 });
+
+test("a shop that carries the user's words is not the place, while divisions, named places and sights still are", () => {
+  // The 石家庄 record called 江浙沪: filed as "other", no place suffix, not a division.
+  const shop: LocationCandidate = { ...candidate("江浙沪", "shop", "河北省 石家庄市 长安区"), province: "河北省",
+    city: "石家庄市", district: "长安区", kind: "other" };
+  assert.deepEqual(resolveDestinationCandidates("江浙沪", [shop]), { status: "unresolved" });
+  // A division is "other" too, and still resolves by its own name.
+  const division: LocationCandidate = { ...candidate("丽江市", "area:530700", "云南省 丽江市"), province: "云南省",
+    city: "丽江市", kind: "other" };
+  assert.equal(resolveDestinationCandidates("丽江", [division]).status, "resolved");
+  // A name that says it is a place, a sight, and an unclassified candidate are unchanged.
+  const park: LocationCandidate = { ...candidate("西湖风景名胜区", "park"), kind: "other" };
+  assert.equal(resolveDestinationCandidates("西湖", [park]).status, "resolved");
+  assert.equal(resolveDestinationCandidates("洱海", [{ ...candidate("洱海", "lake"), kind: "sight" }]).status, "resolved");
+  assert.equal(resolveDestinationCandidates("洱海", [candidate("洱海", "lake")]).status, "resolved");
+});

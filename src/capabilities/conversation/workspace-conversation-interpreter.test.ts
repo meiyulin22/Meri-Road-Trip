@@ -163,18 +163,20 @@ test("opening mode rejects model-proposed TripState changes", async () => {
   );
 });
 
-test("opening mode rejects destination recommendation presentation intent", async () => {
-  await assert.rejects(
-    interpretWorkspaceConversation(
-      { ...input, mode: "opening" },
-      createClient({
-        content: JSON.stringify({ destinationEdit: { operation: "none" }, presentationIntent: "destination_recommendations",
-          changes: [], reply: "看看三个方向。" }),
-        model: "kimi-k2.6", finishReason: "stop",
-      }),
-    ),
-    InvalidWorkspaceConversationModelOutputError,
+test("opening mode may ask for recommendation cards, because a first message can ask for them", async () => {
+  let capturedRequest: Parameters<StructuredOutputModelClient["generateStructuredOutput"]>[0] | undefined;
+  const opening = await interpretWorkspaceConversation(
+    { ...input, mode: "opening", message: "我想去江浙沪玩一玩 有推荐吗 玩7天 从大连出发" },
+    createClient({
+      content: JSON.stringify({ destinationEdit: { operation: "none" }, presentationIntent: "destination_recommendations",
+        changes: [], reply: "好的，我挑几个地方给你看看。" }),
+      model: "kimi-k2.6", finishReason: "stop",
+    }, (request) => { capturedRequest = request; }),
   );
+  assert.equal(opening.presentationIntent, "destination_recommendations");
+  assert.match(capturedRequest?.systemPrompt ?? "", /有推荐吗/);
+  // A vague first message gets a few cards too, instead of only a question.
+  assert.match(capturedRequest?.systemPrompt ?? "", /想出去玩/);
 });
 
 test("one unusable part of the answer is dropped and the rest of the turn goes ahead", async () => {

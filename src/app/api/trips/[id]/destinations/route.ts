@@ -8,6 +8,7 @@ import { journeyService } from "@/capabilities/journey/journey-service-instance"
 import { LocationService } from "@/capabilities/destination/location-service";
 import { savedAreaNames } from "@/capabilities/destination/saved-area-names";
 import { picksFromSearch } from "@/capabilities/destination/resolve-destination-place";
+import { provincesOfPlace } from "@/capabilities/destination/region-hint";
 import { destinationSelectionSchema, pickFromSuggestion, withoutAreaNamesakes } from "@/capabilities/destination/search-picks";
 import { TripStateConflictError } from "@/capabilities/journey/journey-errors";
 import { TripNotFoundError } from "@/domain/trip/trip-errors";
@@ -49,14 +50,31 @@ function accessFailure(access: { readonly error: "not_found" | "unavailable" }):
     : Response.json({ error: "Journey unavailable. Please retry." }, { status: 503 });
 }
 
+/**
+ * The places a search box query offers. A group of provinces (江浙沪) is read by the model —
+ * or, when it cannot answer, the nickname table — and offered as those provinces without
+ * any map search: the map once answered 江浙沪 with a shop of that name in 石家庄.
+ */
+async function picksFor(query: string, tripState: Awaited<ReturnType<typeof journeyService.loadJourney>>["tripState"]):
+  Promise<{ readonly picks: ReturnType<typeof picksFromSearch>; readonly candidates: Parameters<typeof pickFromSuggestion>[0] } | null> {
+  const provinces = await provincesOfPlace(query);
+  if (provinces !== null) {
+    return { candidates: [], picks: provinces.map((province) => ({ id: `province:${province}`, province, place: null, spot: null,
+      label: province })) };
+  }
+  const result = await serviceFor(tripState).search(query);
+  if (result.status !== "success") return null;
+  return { candidates: result.candidates, picks: picksFromSearch(withoutAreaNamesakes(result.candidates, query)) };
+}
+
 export async function GET(request: Request, context: Context): Promise<Response> {
   const access = await ownerAndTrip(context);
   if ("error" in access) return accessFailure(access);
   const query = new URL(request.url).searchParams.get("q")?.trim() ?? "";
   if (query.length < 2 || query.length > 80) return Response.json({ error: "Invalid query." }, { status: 400 });
-  const result = await serviceFor(access.trip.journey.tripState).search(query);
-  if (result.status !== "success") return Response.json({ error: "Search unavailable." }, { status: 503 });
-  const choices = picksFromSearch(withoutAreaNamesakes(result.candidates, query)).slice(0, 12).map((pick) => ({
+  const found = await picksFor(query, access.trip.journey.tripState);
+  if (found === null) return Response.json({ error: "Search unavailable." }, { status: 503 });
+  const choices = found.picks.slice(0, 12).map((pick) => ({
     id: pick.id, name: pick.spot ?? pick.place ?? pick.province, province: pick.province,
     city: pick.place, spot: pick.spot, detail: pick.detail ?? null,
   }));
@@ -73,12 +91,12 @@ async function addDestination(request: Request, context: Context): Promise<Respo
     return Response.json({ error: "Invalid choice." }, { status: 400 });
   }
   const selection = parsed.data;
-  const result = await serviceFor(access.trip.journey.tripState).search(selection.query);
-  if (result.status !== "success") return Response.json({ error: "Search unavailable." }, { status: 503 });
-  // The same filter as the search: an id the list never showed cannot be added through it.
+  const found = await picksFor(selection.query, access.trip.journey.tripState);
+  if (found === null) return Response.json({ error: "Search unavailable." }, { status: 503 });
+  // The same list as the search: an id the list never showed cannot be added through it.
   const verified = "id" in selection
-    ? picksFromSearch(withoutAreaNamesakes(result.candidates, selection.query)).find((pick) => pick.id === selection.id)
-    : pickFromSuggestion(result.candidates, selection.query, selection.region);
+    ? found.picks.find((pick) => pick.id === selection.id)
+    : pickFromSuggestion(found.candidates, selection.query, selection.region);
   if (!verified) return Response.json({ error: "Choice expired. Search again." }, { status: 409 });
   const pick: DestinationPick = { province: verified.province, place: verified.place, spot: verified.spot };
   const current = (await journeyService.loadJourney(access.trip.id, access.trip.owner)).tripState;

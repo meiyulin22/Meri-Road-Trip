@@ -38,6 +38,13 @@ function reasonInstruction(context: DestinationRecommendationContext): string {
 }
 
 /**
+ * A first message such as 「想出去玩」 says nothing about where, and a full grid of twelve
+ * guesses buries the user. A handful of different kinds of trip is something to react to;
+ * anyone who asks outright, or says what they like, still gets the full set.
+ */
+const vagueRequestInstruction = "But when the user has said nothing about where or what kind of place they want and has not asked for suggestions — only that they want to travel (想出去玩、下个月有空) — give only 3 or 4 places, each in a different province and each a clearly different kind of trip (mountains, the sea, an old town, a big city), so a few cards show the range. An explicit request such as 推荐一下, or any stated preference, gets the full set as above.";
+
+/**
  * A settled destination is the strongest preference the user has expressed, so the
  * list stays inside it: 「我想去海南，推荐一下」 asks which part of 海南, and answering
  * with 西藏 ignores the one thing they said.
@@ -50,7 +57,7 @@ function scopeInstruction(context: DestinationRecommendationContext): string {
     return `The user has already saved ${destinationProvinceText(areas)} and asked for somewhere else. Recommend places only in other provinces, never in those: choose 2 to 4 provinces that fit what the user said, 2 to 3 places in each, at most 12 places in total. What is saved stays; these are additions to consider.`;
   }
   if (!areas?.length) {
-    return "No destination is settled yet, so choose 2 to 4 provinces that fit what the user said, 2 to 3 places in each, and at most 12 places in total. Offer enough to choose from: several places are picked at once, and a trip crossing two provinces is normal.";
+    return `No destination is settled yet, so choose 2 to 4 provinces that fit what the user said, 2 to 3 places in each, and at most 12 places in total. Offer enough to choose from: several places are picked at once, and a trip crossing two provinces is normal. ${vagueRequestInstruction}`;
   }
   return `The destination is already settled as ${destinationProvinceText(areas)}. Recommend places only inside those, cover every one of them, and give 3 to 6 places in each, at most 12 in total.`;
 }

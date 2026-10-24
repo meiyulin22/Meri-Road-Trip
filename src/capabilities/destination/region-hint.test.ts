@@ -3,7 +3,7 @@ import test from "node:test";
 
 import type { StructuredOutputModelClient } from "@/platform/llm/kimi-client";
 
-import { createRegionHintClient, hintedAreas, type RegionHintClient } from "./region-hint";
+import { createRegionHintClient, hintedAreas, provincesOfPlace, readPlace, type RegionHintClient } from "./region-hint";
 
 /** A model that answers with fixed JSON and counts how often it was asked. */
 function model(content: string | null, fail = false): StructuredOutputModelClient & { calls: string[] } {
@@ -57,4 +57,31 @@ test("a model that never answers is no hint at all", async () => {
   const started = Date.now();
   assert.deepEqual(await hintedAreas("苍山", slow, 20), []);
   assert.ok(Date.now() - started < 1_000);
+});
+
+test("the model reads a group of provinces, and only real province names are kept from its answer", async () => {
+  const client = createRegionHintClient(model(JSON.stringify({ kind: "province_group",
+    provinces: ["江苏省", "浙江省", "上海市", "江南省"], province: null, prefecture: null, officialName: null })));
+  assert.deepEqual(await provincesOfPlace("苏浙沪一带", client), ["江苏省", "浙江省", "上海市"]);
+  // A province group is no search centre.
+  assert.deepEqual(await hintedAreas("苏浙沪一带", client), []);
+});
+
+test("when the model answers, its reading stands even against the nickname table", async () => {
+  const client = createRegionHintClient(model(JSON.stringify({ kind: "sight", provinces: [], province: "浙江省",
+    prefecture: "杭州市", officialName: null })));
+  assert.equal(await provincesOfPlace("京津", client), null);
+});
+
+test("when the model cannot answer, the nickname table still keeps 江浙沪 off the map", async () => {
+  const broken = createRegionHintClient(model(null, true));
+  assert.deepEqual(await provincesOfPlace("江浙沪", broken), ["江苏省", "浙江省", "上海市"]);
+  const silent: RegionHintClient = { hint: () => new Promise(() => undefined) };
+  assert.deepEqual(await provincesOfPlace("川渝", silent, 20), ["四川省", "重庆市"]);
+});
+
+test("the reading carries the map's official name for a sight", async () => {
+  const client = createRegionHintClient(model(JSON.stringify({ kind: "sight", provinces: [], province: "云南省",
+    prefecture: "大理白族自治州", officialName: "点苍山" })));
+  assert.equal((await readPlace("苍山山脉", client))?.officialName, "点苍山");
 });

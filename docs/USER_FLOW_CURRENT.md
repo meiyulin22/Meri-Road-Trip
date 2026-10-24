@@ -12,7 +12,7 @@ flowchart TD
   D -->|有| E[高德核验：精确地点写入，其余准备候选]
   E -->|有候选或失败| G[创建 Journey、状态、原话、候选消息]
   E -->|全部精确写入| F
-  D -->|无| F[创建 Journey 后生成 opening 回复]
+  D -->|无| F[创建 Journey 后生成 opening 回复；首句要推荐时挂 pending]
   G --> W[Workspace /trips/id]
   F --> W
   A -->|最近旅程| W
@@ -100,7 +100,7 @@ flowchart TD
   I --> J{已有固定开场？}
   J -->|是| W[进入 Workspace]
   J -->|否| K[Kimi opening 模式]
-  K -->|成功| W
+  K -->|成功，要推荐时带 pending| W
   K -->|失败| R[Journey 保留，可重试回复或先进入]
 ```
 
@@ -122,6 +122,7 @@ flowchart TD
 - 有候选或找不到的表达时，保存应用模板开场（[destinationEditReply](../src/capabilities/conversation/turn-reply.ts)）和 presentation，告知点击添加后才会记入旅程。
 - 没结果或提供方失败时保存事实说明，不写无法验证的地点。
 - 没有上述固定开场时（包括地点已精确写入），创建后执行 opening 模式；opening 看到已保存的目的地，不宣称是否可以生成计划，最多问一个问题。
+- 首句明确要推荐（“有推荐吗”“推荐一下”）或描述想要的地方（雪山、安静）时，opening 可以给出推荐意图；目的地仍开放（missing 或只有没选城市的省）时，开场消息挂 `destination_recommendations_pending`，正文去掉问句，进入 Workspace 后卡片作为下一条消息出现（见 4.1）。首句很模糊、旅程还没有任何目的地时（“想出去玩”“下个月有空想出去走走”）也出卡，但只出 3–4 个各在不同省份、类型明显不同的地方（山、海、古城、大城市），给用户一个可以回应的起点；明确说“推荐一下”或说了偏好的仍是完整一组（最多 12 个）。数量由推荐生成的 prompt 约束，代码上限仍是 12，不做硬性截断。2026-10-24 实测（真实 Kimi）：“想出去玩”与“下个月有空，想出去走走”首句都给出推荐意图；生成时“想出去玩”得到 4 个地方/4 个省，“你推荐一下呗”得到 9 个。1.0628 之前 opening 一律拒绝推荐意图，首句写了“有推荐吗”也只会被追问交通、日期。
 - 没有 initialUserMessage 的接口调用返回 not_requested；首页正常路径提供原话。
 
 [initializeTripState](../src/domain/trip-state/trip-state.ts)建立初始状态，目的地初始 missing；精确匹配的地点由 [JourneyService.createJourney](../src/capabilities/journey/journey-service.ts) 的 initialDestination 参数写入初始状态。草稿中的普通字段可保留；其余目的地由后续用户选择提交产生。
@@ -130,11 +131,11 @@ flowchart TD
 
 [JourneyService.createJourney](../src/capabilities/journey/journey-service.ts)顺序保存 Trip、TripState、用户原话及可选固定助手消息。状态/消息保存失败时尝试删除 Trip；清理失败保留创建与清理的两份错误。这是补偿回滚，并非整个调用链的一笔数据库事务。
 
-[OpeningConversationService](../src/capabilities/conversation/opening-conversation-service.ts)调用 Kimi opening 模式：只允许 reply，拒绝 changes、目的地 edit 和推荐意图。因此开场不会再次修改已经创建的状态。
+[OpeningConversationService](../src/capabilities/conversation/opening-conversation-service.ts)调用 Kimi opening 模式：只允许 reply 和推荐意图，拒绝 changes 和目的地 edit。因此开场不会再次修改已经创建的状态；推荐意图只决定开场是否挂 pending 标记，由应用按已保存的目的地检查资格。
 
 模型开场失败后 Journey 仍存在。首页进入 opening_failed，提供“重试 Meri 回复”和“先进入旅程”。重试调用 [conversation/initialize](../src/app/api/trips/[id]/conversation/initialize/route.ts)，服务检查现有消息及开场资格，使用确定的助手消息身份减少重复写入；不会重新创建 Journey。
 
-**回复来源：**普通开场是 Kimi；地点候选/失败开场是应用模板。无保存消息时 [ConversationPanel](../src/components/trip-workspace/conversation-panel.tsx)还可能显示本地占位，它不代表数据库已有助手消息。
+**回复来源：**普通开场是 Kimi（推荐开场去掉问句，后接卡片）；地点候选/失败开场是应用模板。无保存消息时 [ConversationPanel](../src/components/trip-workspace/conversation-panel.tsx)还可能显示本地占位，它不代表数据库已有助手消息。
 
 ## 3. Workspace 聊天：每条输入如何分流
 
@@ -197,6 +198,7 @@ flowchart TD
 - set 用于首次提及地点，和 add 一样只生成追加卡；已有目的地时也不能清空旧项。只有用户明确表示不去某个已保存地点，才用 remove 删除对应省/市/spot。
 - remove 是删除当前保存目标。
 - broadRegion 表示潮汕等宽泛区域，places 为模型提出的具体表达，仍需高德验证，且总是出卡。
+- 几个整省的合称（江浙沪、京津冀、川渝、巴蜀、东三省、两广 等）不交给地图提供方，展开为它代表的省份（江浙沪 → 江苏省、浙江省、上海市），broadRegion 形式下模型猜的城市被丢弃。**谁来判断（1.0630 起，模型优先）：**① 对话模型按提示词把合称放进 broadRegion、把省份全称放进 places，应用只核对这些是真实的省；② 否则由地点解读（[region-hint](../src/capabilities/destination/region-hint.ts) 的 `readPlace`，和冷启动地区提示是同一次模型调用、同一份缓存）判断这几个字是不是"几个整省"；③ 模型答不上来（没有 key、超时、回复读不了）时，才用 [china-region-nicknames](../src/domain/location/china-region-nicknames.ts) 里那张只收无争议说法的小表兜底。模型给了答案时以模型为准，即使和表不同。实测（2026-10-24，真实 Kimi）：江浙沪、巴蜀（表里没有）读成整省组合；珠三角 读成只有广东一个省，不算组合，照常查询。
 - places 应保留用户原话，包括错别字（大莲仍是大莲）。模型改写过的名称即使精确匹配也只出卡：应用检查表达是否出现在用户原话里，因为模型曾把“大莲”改写成“大理”并直接写入。
 
 [Workspace prompt](../src/capabilities/conversation/prompts/workspace-conversation-prompt.ts)要求区分明确修改与提问、保留用户决定及具体景点表达、缺目的地时推荐或追问。不允许编造未研究的实时事实或直接写行程。其余规则：
@@ -225,6 +227,12 @@ flowchart TD
 
 至少 3 个字，是因为两个字的名字会被太多别的名字包含（西湖 是 瘦西湖 的结尾）。兜底只在没有更严格的匹配时才用，所以今天能匹配的地点结果不变。2026-10-04 用 45 个常见景点在真实高德上对比改动前后：9 个变化都是上述预期（西湖、松赞林寺、稻城亚丁、九寨沟、泰山、峨眉山、武夷山 变好；黄山 卡片少了 黄山区；张家界 多一条同为 张家界市 的记录，来自高德返回结果的波动，卡片上合并显示）。1.0031 加了最后兜底：故宫、兵马俑、洪崖洞、长城、东方明珠 从「没找到」变成出卡；其余 45 个地点结果不变。售票处、停车场、公交站、酒店、餐厅按高德的类别排除，不用关键词表（高德类别由 [AmapLocationProvider](../src/platform/location-provider/amap-location-provider.ts) 归一成地点的 `kind: sight | other`，取不到时不算景点）。「潮汕」曾因 潮汕站南广场（城市广场）被当成景点，所以城市广场不算景点。
 
+**跨省昵称为什么不查地图（1.0628 发现，1.0630 修）：**用户说“我想去江浙沪玩一玩 有推荐吗”，后来回答“都可”时，模型把“江浙沪”作为地点交了出来；地图提供方返回一条名叫 江浙沪、位于 河北省 石家庄市 的记录，名称与原话完全相同，按上表第一条规则被当成这个地点，出了“石家庄市 · 江浙沪”的卡，用户点了之后写入旅程。名称规则本身没有错（原话与名称相同），错在一个代表几个省的说法被当成了一个点。所以合称在任何查询之前展开，由 [applyDestinationEdit](../src/capabilities/destination/apply-destination-edit.ts) 当作“用户说了这几个省”处理（判断顺序见上：对话模型、地点解读、兜底小表）；当时真实的天地图返回没有留下日志，测试用的是合成的同名记录。
+
+另外加了一条与具体说法无关的通用规则（[destination-resolution-policy](../src/domain/location/destination-resolution-policy.ts) 的 `couldBeADestination`）：提供方标为"其他"（不是景点）、名字又不是行政区自己的名字、也没有 市/区/县/省/景区/风景名胜区 等地点后缀的候选，**不能因为名字和用户原话相同就当成这个地点**。石家庄那家叫 江浙沪 的店就属于这种；换成别的说法、别的同名店铺，也一样挡住。没有类别的候选、景点、行政区、带地点后缀的名字不受影响。
+
+**模型给地图写搜索词（1.0630）：**地点解读还会给出地图上的正式名称（`officialName`，苍山 → 点苍山）。用户原话在地图上什么都没找到时，[LocationService](../src/capabilities/destination/location-service.ts) 用这个名称**再查一次**，只查一次、只在没找到之后。用正式名称找到的结果不是用户原话，所以按原规则一律出卡让用户确认，不会直接写入。
+
 **出卡和没找到时都提示可以自己搜：**出卡时回复末尾加「都不是的话，可以在「目的地」的「添加」里自己搜索。」；没找到时加「也可以在「目的地」的「添加」里自己搜索。」（[turn-reply.ts](../src/capabilities/conversation/turn-reply.ts)）。右侧的目的地搜索本来就有，不需要新入口。
 
 **行政地名补查：**[LocationService.resolveExpression](../src/capabilities/destination/location-service.ts)先按原词查询。如果返回了 POI，但没有合理匹配，且原词为 2–12 个汉字、不以省/市/区/县/州/镇/乡/村结尾，最多再查询一次“原词＋市”。补查只接受名称精确匹配且 city 或 district 同名的行政地点；酒店、道路等不能替代城市。空结果、已有明确/歧义结果不补查，提供方失败仍报查询故障。例如“香格里拉”的酒店结果可通过“香格里拉市”补查恢复；仍需中国范围检查和显式确认。县级市在当前结构中归到所属地级市/自治州，偏好名称保留提供方行政全名，确认时用全名重新查询，避免再次落到同名酒店。
@@ -241,6 +249,7 @@ flowchart TD
 | add/set + resolved 精确且是用户原话 | 直接写入（已存在则不变） | “已加入…”，首次可规划时附一次准备度句子，再接模型 reply |
 | add/set + resolved 不精确或模型改写 | 不变 | 待选卡（如错别字被提供方纠正） |
 | add/set + area | 精确时直接写入为只有省的目的地；否则不变 | 精确：“已加入云南省”，可直接规划；否则省级候选卡 |
+| add/set + 跨省昵称（江浙沪） | 昵称在用户原话里：直接写入这几个只有省的目的地（上海市也是只有省、没有市）；否则不变 | 原话：“已加入江苏省、浙江省、上海市”，仍可在省内推荐；模型代说（如用户只回了“都可”）：省级候选卡。从不查地图，因此不会落到同名店铺所在的 石家庄 |
 | add/set + ambiguous 落在同一偏好 | 同 resolved | 三个梅里雪山记录同属迪庆/梅里雪山，按一个地点判断精确 |
 | add/set + ambiguous 跨省市 | 不变 | 按省/市/景点偏好归并；不同省市分别供选择 |
 | add/set + unresolved | 不因该表达改变 | 暂未找到可靠地点 |
@@ -283,6 +292,8 @@ add/set 使用 Promise.all 查询表达。解析层保留不同 provider ID，�
 | 缺目的地：“你推荐一下呗” | none + 推荐信号；明确要求即可 | 同上，不先追问日期 |
 | 缺目的地：“想出去玩” | none，无推荐信号 | Kimi 追问，无状态变化 |
 | “我想去云南” | add/set，查询省级 area，精确 | 直接写入云南省（全省），首次可规划 |
+| 首句：“想出去玩”（没有任何目的地） | 草稿 none；opening 给推荐意图 | 开场后出 3–4 张不同类型、不同省份的卡 |
+| 首句：“我想去江浙沪玩一玩 有推荐吗 玩7天 从大连出发” | 草稿 set 江浙沪（或 broadRegion 江浙沪）；opening 给推荐意图 | 直接写入江苏省、浙江省、上海市，出发地大连、7天；开场后卡片限这三个省市内 |
 | “云南，想爬山” | set 云南 + 推荐信号 | 同一轮写入云南省，再挂 pending，卡片限云南省内 |
 | “我还想去大莲”（错字） | add，places 保留“大莲” | 不直接写入；提供方给出的地点作为卡片供确认，或说明没找到 |
 | 已有城市：“推荐下别的省份” | none + destination_recommendations_elsewhere | 卡片只来自尚未保存的省份，已保存的全部保留 |
@@ -309,7 +320,9 @@ add/set 使用 Promise.all 查询表达。解析层保留不同 provider ID，�
 - 已定城市时的普通偏好（“想找个人少的地方”）仍是 none，不提供替代地点；legacyText 不作为已验证省范围。
 - 本轮地点 edit 出了卡或有找不到的表达时不推荐。模型要推荐但被拒绝时记录 `recommendation.intent.declined`。
 
-**没有推荐按钮：**推荐只从聊天触发。缺目的地时，聊天下方的 Generate plan 不可用，悬停或聚焦时提示用户：在对话里说出想去的地方、对 Meri 说“帮我推荐几个地方”，或点击提示里的链接打开右侧目的地搜索（见 5.4）。旧版“帮我推荐 / 我自己选”引导消息及其 API 已删除；旧旅程历史里保存的那条引导消息仍按普通助手消息显示，不再带按钮，[其稳定 ID](../src/capabilities/conversation/destination-missing-guidance.ts) 只用于开场判断时跳过它。
+**首句触发：**Home 新建 Journey 时，opening 模式也可以给出 `destination_recommendations`（见 2.2）；[OpeningConversationService](../src/capabilities/conversation/opening-conversation-service.ts) 只在目的地仍开放时给开场挂 `{type:"destination_recommendations_pending", scope:"within"}`（首句模糊时推荐生成只给 3–4 个地方，见 2.2），后面与聊天推荐完全相同：pending 之前那条用户消息就是首句。有地点候选/失败的固定开场不调用 opening 模型，因此也不推荐，与聊天“本轮出了卡不推荐”一致。
+
+**没有推荐按钮：**推荐只从对话（首句或聊天）触发。缺目的地时，聊天下方的 Generate plan 不可用，悬停或聚焦时提示用户：在对话里说出想去的地方、对 Meri 说“帮我推荐几个地方”，或点击提示里的链接打开右侧目的地搜索（见 5.4）。旧版“帮我推荐 / 我自己选”引导消息及其 API 已删除；旧旅程历史里保存的那条引导消息仍按普通助手消息显示，不再带按钮，[其稳定 ID](../src/capabilities/conversation/destination-missing-guidance.ts) 只用于开场判断时跳过它。
 
 **先回复，后出卡：**推荐需要一次 Bocha 搜索和第二次 Kimi 调用。为了不让用户等待两次模型调用才看到任何字，聊天请求只保存模型的简短引导，并在助手消息上挂 `{type:"destination_recommendations_pending", scope}`。[ConversationPanel](../src/components/trip-workspace/conversation-panel.tsx)发现最后一条消息是 pending 时显示“正在挑选推荐的地方…”、小熊进入思考状态、输入框暂停，并调用 `POST /api/trips/[id]/destination-recommendations`（body 只有 `{messageId}`）。重新打开 Journey 时如果最后一条仍是 pending，会自动再请求一次。
 
@@ -660,7 +673,7 @@ add/set 使用 Promise.all 查询表达。解析层保留不同 provider ID，�
 1. 天地图普通搜索取 30 条（带省市区和类别；名字以 景区 / 风景名胜区 / 国家公园 / 古城 等结尾的也算景点，因为天地图把 黄山风景区 归为"区县级地名"）；用户说的是行政区（云南、丽江）时天地图直接返回行政区，市和区县再用逆地理编码补上一级，省级结果用自己的名字、不调逆地理编码。逆地理编码拿不到 addressComponent 时算故障，不当成"这个地方没有省"。
 2. **先验（2026-10-23 加）**：搜之前先决定"去哪个行政区里找"，优先级是
    - **旅程已存的地方**（[savedAreaNames](../src/capabilities/destination/saved-area-names.ts)）：省名 + 市名，`LocationService` 构造时传入，`searchByKeyword(query, areas)` 往下传；
-   - 旅程还没存任何目的地时，**问一次模型**"这个名字通常在哪个地级市"（[region-hint](../src/capabilities/destination/region-hint.ts)：4 秒上限，进程内缓存 7 天、只缓存真实答案，省级简称和带行政后缀的名字不问）；
+   - 旅程还没存任何目的地时，**问一次模型**"这个名字通常在哪个地级市"（[region-hint](../src/capabilities/destination/region-hint.ts)：4 秒上限，进程内缓存 7 天、只缓存真实答案，省级简称和带行政后缀的名字不问）。1.0630 起这次调用还回答"这几个字是什么"（几个整省的合称 / 省 / 城市 / 景点 / 不知道）和地图上的正式名称，同一次调用、同一份缓存，见 5.2 前面的"几个整省的合称"和"模型给地图写搜索词"；
    - 都没有就用全国搜索页自己的行政区。
 
    先验只是搜索中心，不是结论：提供方仍要核验，用户仍要点确认。有先验且在先验里找到了"整个景区"级别的结果时，**只用那些结果**——否则 Meri 的判定规则会把名字完全相同的广西村子排在点苍山前面，让用户在两个里挑。
@@ -716,6 +729,7 @@ add/set 使用 Promise.all 查询表达。解析层保留不同 provider ID，�
 | 场景 | 正文来源 | 卡片/状态来源 |
 | --- | --- | --- |
 | Home 普通开场 | Kimi opening reply | 初始 TripState |
+| Home 首句要推荐 | Kimi opening reply（recommendationLeadIn 去掉问句）＋ pending 标记 | 无卡；进入 Workspace 后客户端请求卡片 |
 | Home 地点候选/失败 | destinationEditReply 固定模板 | 高德及 applyDestinationEdit |
 | Home 地点精确写入 | Kimi opening reply | 初始 TripState 已含该地点 |
 | 普通提问、闲聊、普通字段修改 | Kimi reply | 校验后的普通 patch |
