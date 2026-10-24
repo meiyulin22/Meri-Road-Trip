@@ -1,6 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
+import { placePhotoRulesVersion } from "@/domain/location/place-image";
+
 import {
   InvalidTripMessageError,
   recommendationsAwaitingPhoto,
@@ -174,7 +176,7 @@ test("a saved location candidate keeps whether it is a sight, and older ones wit
 test("a card saved with no photo is looked up once more only when it has a landmark and older photo rules", () => {
   const presentation: DestinationRecommendationPresentation = { type: "destination_recommendations", destinations: [
     { id: "old", name: "成都市", province: "四川省", landmark: "宽窄巷子", image: null },
-    { id: "same", name: "成都市", province: "四川省", landmark: "宽窄巷子", image: null, photoRules: 2 },
+    { id: "same", name: "成都市", province: "四川省", landmark: "宽窄巷子", image: null, photoRules: placePhotoRulesVersion },
     { id: "bare", name: "成都市", province: "四川省", image: null },
     { id: "new", name: "成都市", province: "四川省", landmark: "宽窄巷子" },
   ] };

@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import type { PlaceImage } from "@/domain/location/place-image";
+import { placePhotoRulesVersion, type PlaceImage } from "@/domain/location/place-image";
 import type { DestinationRecommendationPresentation } from "@/domain/trip-message/trip-message";
 import type { RemotePhotoFinder, RemotePhotoResult, RemotePhotoSubject } from "@/platform/place-photos/pixabay-photo-finder";
 import type { PlacePhotoProvider, PlacePhotoQuery } from "@/platform/place-photos/place-photo-provider";
@@ -89,7 +89,7 @@ test("a local miss is searched remotely by its landmark, with its English name w
     { province: "云南省", region: "大理白族自治州", landmark: "洱海", english: "Erhai Lake", aliases: undefined });
   assert.equal(asked.find((subject) => subject.landmark === "丙中洛")?.english, undefined);
   assert.deepEqual(result.destinations.map((item) => item.image), [null, erhai, null]);
-  assert.deepEqual(result.destinations.map((item) => item.photoRules), [2, 2, 2]);
+  assert.deepEqual(result.destinations.map((item) => item.photoRules), [placePhotoRulesVersion, placePhotoRulesVersion, placePhotoRulesVersion]);
   assert.equal(reported.length, 3);
 });
 

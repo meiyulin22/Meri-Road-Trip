@@ -122,3 +122,26 @@ test("a region's short Chinese name drops its level and the peoples in its name"
     "内蒙古自治区", "丽江市", "香港特别行政区", "阿里地区", "西双版纳傣族自治州"].map(regionShortName),
   ["大理", "红河", "海西", "新疆", "广西", "内蒙古", "丽江", "香港", "阿里", "西双版纳"]);
 });
+
+test("regions are read tag by tag: 玄武湖, 南京 does not name 湖南", () => {
+  // Codex's synthetic case from the 1.0625 acceptance run.
+  const xuanwu: RemotePhotoSubject = { province: "江苏省", region: "南京市", landmark: "玄武湖", english: "Xuanwu Lake" };
+  assert.deepEqual(judgeHit(hit(1, "玄武湖, 南京, 湖"), xuanwu), { accepted: true, matched: ["玄武湖"], regional: true });
+  assert.deepEqual(judgeHit(hit(2, "玄武湖, 湖南"), xuanwu), { accepted: false, reason: "other_province" });
+  // The landmark's own name may still run across tags.
+  assert.equal(judgeHit(hit(3, "玄武, 湖, 南京"), xuanwu).accepted, true);
+});
+
+test("an alias that only names a region does not identify the landmark", () => {
+  // Codex's synthetic case: an alias "四川" let 四川, 中国, 火锅 pass.
+  const leshan: RemotePhotoSubject = { province: "四川省", region: "乐山市", landmark: "乐山大佛", english: "Leshan Giant Buddha",
+    aliases: ["四川", "乐山", "Sichuan", "Leshan China", "大佛"] };
+  assert.deepEqual(judgeHit(hit(1, "四川, 中国, 火锅"), leshan), { accepted: false, reason: "no_identity" });
+  assert.deepEqual(judgeHit(hit(2, "sichuan, china, hotpot"), leshan), { accepted: false, reason: "no_identity" });
+  assert.deepEqual(judgeHit(hit(3, "leshan, china, river"), leshan), { accepted: false, reason: "no_identity" });
+  // A real alias still works, with the region named.
+  assert.equal(judgeHit(hit(4, "大佛, 乐山, 中国"), leshan).accepted, true);
+  // The landmark's own name may be a region's: 黄山 is the city and the mountain.
+  const huangshan: RemotePhotoSubject = { province: "安徽省", region: "黄山市", landmark: "黄山", english: "Huangshan" };
+  assert.equal(judgeHit(hit(5, "黄山, 安徽, 云海"), huangshan).accepted, true);
+});

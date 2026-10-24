@@ -27,9 +27,10 @@ export interface PlaceImage {
  * with no photo under older rules is looked up once more under these (and then carries
  * this number), and a remote "nothing suitable" decided under older rules no longer
  * counts. 1: 1.0624, English name only. 2: 1.0625, aliases, Chinese search, stand-in
- * landmarks.
+ * landmarks. 3: 1.0627, Chinese regions read tag by tag (玄武湖, 南京 is not 湖南), and
+ * aliases that only name a region no longer identify a landmark.
  */
-export const placePhotoRulesVersion = 2;
+export const placePhotoRulesVersion = 3;
 
 /** The only names the runtime photo route serves (media-photo-store.ts). */
 const runtimePhotoUrl = /^\/media\/place-photos\/pixabay-[1-9]\d{0,11}\.(?:jpg|png|webp)$/u;
