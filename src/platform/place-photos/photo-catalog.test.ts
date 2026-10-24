@@ -175,7 +175,8 @@ test("administrative places use explicit representatives and never another city 
   const image = await findPlaceImage({ province: "四川省", place: "甘孜藏族自治州", spot: "稻城县" }, provider);
   assert.equal(image?.url, "/photos/daocheng.jpg");
   assert.equal(image?.caption, "稻城");
-  assert.equal(await findPlaceImage({ province: "广西壮族自治区", place: "柳州市", spot: null }, provider), null);
+  // A 市 the catalog never covers (柳州 itself has a photo since 1.0634): 桂林's must not stand in.
+  assert.equal(await findPlaceImage({ province: "广西壮族自治区", place: "测试用不存在市", spot: null }, provider), null);
   const fallback = await findPlaceImage({ province: "云南省", place: "丽江市", spot: "未收录的景点" }, provider);
   assert.equal(fallback?.caption, "丽江古城");
 });

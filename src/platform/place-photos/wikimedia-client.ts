@@ -50,6 +50,10 @@ export type FileOutcome =
   | { readonly ok: true; readonly file: CommonsFile | null }
   | { readonly ok: false; readonly failure: WikimediaFailure };
 
+export type FilesOutcome =
+  | { readonly ok: true; readonly files: ReadonlyMap<string, CommonsFile> }
+  | { readonly ok: false; readonly failure: WikimediaFailure };
+
 export type WikimediaDownloadOutcome =
   | { readonly ok: true; readonly body: Uint8Array; readonly contentType: string }
   /** "unsuitable": this file will never do — wrong host, not an image, too large, gone. */
@@ -109,10 +113,7 @@ function metaValue(meta: Record<string, unknown>, name: string): unknown {
   return isRecord(field) ? field.value : undefined;
 }
 
-function fileOf(body: unknown): CommonsFile | null | "unreadable" {
-  const pages = isRecord(body) && isRecord(body.query) ? body.query.pages : undefined;
-  if (!Array.isArray(pages)) return "unreadable";
-  const page = pages[0];
+function fileOfPage(page: unknown): CommonsFile | null {
   if (!isRecord(page) || typeof page.pageid !== "number" || typeof page.title !== "string") return null;
   const info = Array.isArray(page.imageinfo) ? page.imageinfo[0] : undefined;
   if (!isRecord(info) || typeof info.thumburl !== "string" || typeof info.descriptionurl !== "string" ||
@@ -132,6 +133,29 @@ function fileOf(body: unknown): CommonsFile | null | "unreadable" {
     licenseUrl: typeof licenseUrl === "string" ? licenseUrl.trim().replace(/^http:\/\//u, "https://") : "",
     nonFree: String(metaValue(meta, "NonFree") ?? "").toLowerCase() === "true",
   };
+}
+
+/**
+ * The files of one answer by the name they were asked under. Commons answers with its own
+ * spelling of each title ("_" read as a space, the first letter capitalised) and says
+ * which asked title became which, so each file is filed back under the caller's name.
+ */
+function filesOf(body: unknown, asked: readonly string[]): Map<string, CommonsFile> | "unreadable" {
+  const query = isRecord(body) && isRecord(body.query) ? body.query : undefined;
+  if (!query || !Array.isArray(query.pages)) return "unreadable";
+  const renamed = new Map<string, string>();
+  for (const item of Array.isArray(query.normalized) ? query.normalized : []) {
+    if (isRecord(item) && typeof item.from === "string" && typeof item.to === "string") renamed.set(item.to, item.from);
+  }
+  const askedTitles = new Set(asked.map((name) => `File:${name}`));
+  const files = new Map<string, CommonsFile>();
+  for (const page of query.pages) {
+    const file = fileOfPage(page);
+    if (!file) continue;
+    const title = renamed.get(file.title) ?? file.title;
+    if (askedTitles.has(title)) files.set(title.slice("File:".length), file);
+  }
+  return files;
 }
 
 function allowedDownload(url: string): URL | null {
@@ -226,15 +250,23 @@ export class WikimediaClient {
 
   /** Author, licence and a `commonsThumbWidth` rendition of one Commons file; null when there is no such file. */
   async file(name: string): Promise<FileOutcome> {
+    const answer = await this.files([name]);
+    return answer.ok ? { ok: true, file: answer.files.get(name) ?? null } : answer;
+  }
+
+  /** The same for up to 50 files in one request (Commons' limit); a name with no file is left out. */
+  async files(names: readonly string[]): Promise<FilesOutcome> {
+    if (names.length === 0 || names.length > 50) throw new Error(`Commons takes 1 to 50 files a request, not ${names.length}`);
     const url = new URL(commonsApiUrl);
     url.search = new URLSearchParams({ action: "query", format: "json", formatversion: "2", prop: "imageinfo",
       iiprop: "extmetadata|size|url|mime", iiurlwidth: String(commonsThumbWidth),
-      iiextmetadatafilter: "Artist|LicenseShortName|LicenseUrl|NonFree", titles: `File:${name}` }).toString();
-    return this.inTurn(async (): Promise<FileOutcome> => {
+      iiextmetadatafilter: "Artist|LicenseShortName|LicenseUrl|NonFree",
+      titles: names.map((name) => `File:${name}`).join("|") }).toString();
+    return this.inTurn(async (): Promise<FilesOutcome> => {
       const answer = await this.json(url);
       if (!answer.ok) return answer;
-      const file = fileOf(answer.body);
-      return file === "unreadable" ? { ok: false, failure: "transient" } : { ok: true, file };
+      const files = filesOf(answer.body, names);
+      return files === "unreadable" ? { ok: false, failure: "transient" } : { ok: true, files };
     }, { ok: false, failure: "transient" });
   }
 

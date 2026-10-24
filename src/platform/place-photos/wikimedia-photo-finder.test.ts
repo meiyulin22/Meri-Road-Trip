@@ -178,8 +178,8 @@ test("the query pins the landmark to its 市 and the 市 to its province, and no
   const query = landmarkQuery({ ...yulong, aliases: ["玉龙\"} . ?x ?y ?z {\"", "Yulong"] }) ?? "";
   assert.match(query, /"玉龙雪山"@zh/u);
   assert.match(query, /"Jade Dragon Snow Mountain"@en/u);
-  assert.match(query, /"丽江市"@zh "丽江市"@zh-hans "丽江"@zh/u);
-  assert.match(query, /\?province rdfs:label "云南省"@zh/u);
+  assert.match(query, /"丽江市"@zh "丽江市"@zh-hans "丽江市"@zh-cn "丽江"@zh/u);
+  assert.match(query, /VALUES \?provinceName \{ "云南省"@zh "云南省"@zh-hans "云南省"@zh-cn \}/u);
   assert.match(query, /\?item wdt:P131\+ \?region/u);
   assert.match(query, /"玉龙\\"\} \. \?x \?y \?z \{\\""@zh/u);
   const chongqing = landmarkQuery({ province: "重庆市", region: "重庆市", landmark: "洪崖洞" }) ?? "";

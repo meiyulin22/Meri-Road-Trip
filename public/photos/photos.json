@@ -1447,5 +1447,827 @@
   "source": "wikimedia",
   "license": "CC BY 3.0",
   "licenseUrl": "https://creativecommons.org/licenses/by/3.0"
+ },
+ "金山寺": {
+  "file": "jinshan-temple-18727886.jpg",
+  "artist": "China's Zhenjiang government",
+  "pageUrl": "https://commons.wikimedia.org/wiki/File:Zhenjiang_Jinshan.jpg",
+  "fetchedAt": "2026-10-24",
+  "aliases": [],
+  "regions": [
+   "镇江市",
+   "镇江"
+  ],
+  "scenicFor": [
+   "镇江市",
+   "镇江"
+  ],
+  "source": "wikimedia",
+  "license": "Public domain",
+  "licenseUrl": "https://commons.wikimedia.org/wiki/File:Zhenjiang_Jinshan.jpg"
+ },
+ "广州塔": {
+  "file": "canton-tower-122654159.jpg",
+  "artist": "Tim Wu",
+  "pageUrl": "https://commons.wikimedia.org/wiki/File:Canton_Tower_20220626_(cropped).jpg",
+  "fetchedAt": "2026-10-24",
+  "aliases": [],
+  "regions": [
+   "广州市",
+   "广州"
+  ],
+  "scenicFor": [
+   "广州市",
+   "广州"
+  ],
+  "source": "wikimedia",
+  "license": "CC BY-SA 4.0",
+  "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0"
+ },
+ "大梅沙": {
+  "file": "dameisha-43659998.jpg",
+  "artist": "Gigel.atat",
+  "pageUrl": "https://commons.wikimedia.org/wiki/File:Dameisha_viewed_from_the_sea_300meters_high.jpg",
+  "fetchedAt": "2026-10-24",
+  "aliases": [],
+  "regions": [
+   "深圳市",
+   "深圳"
+  ],
+  "scenicFor": [
+   "深圳市",
+   "深圳"
+  ],
+  "source": "wikimedia",
+  "license": "CC BY-SA 4.0",
+  "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0"
+ },
+ "珠海": {
+  "file": "zhuhai-34126856.jpg",
+  "artist": "Wing1990hk",
+  "pageUrl": "https://commons.wikimedia.org/wiki/File:Zhuhai_Overview_201306.jpg",
+  "fetchedAt": "2026-10-24",
+  "aliases": [],
+  "regions": [
+   "珠海市",
+   "珠海"
+  ],
+  "scenicFor": [
+   "珠海市",
+   "珠海"
+  ],
+  "source": "wikimedia",
+  "license": "CC BY 3.0",
+  "licenseUrl": "https://creativecommons.org/licenses/by/3.0"
+ },
+ "南澳岛": {
+  "file": "nanao-island-176435797.jpg",
+  "artist": "Guwiqiie",
+  "pageUrl": "https://commons.wikimedia.org/wiki/File:%E5%8D%97%E6%BE%B3%E5%B2%9B%E5%85%A8%E6%99%AF%E7%85%A7.jpg",
+  "fetchedAt": "2026-10-24",
+  "aliases": [],
+  "regions": [
+   "汕头市",
+   "汕头"
+  ],
+  "scenicFor": [
+   "汕头市",
+   "汕头"
+  ],
+  "source": "wikimedia",
+  "license": "CC BY-SA 4.0",
+  "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0"
+ },
+ "佛山祖庙": {
+  "file": "foshan-ancestral-temple-25833904.jpg",
+  "artist": "Zhangzhugang",
+  "pageUrl": "https://commons.wikimedia.org/wiki/File:Foshan_Zu_Miao_2012.11.20_15-41-28.jpg",
+  "fetchedAt": "2026-10-24",
+  "aliases": [],
+  "regions": [
+   "佛山市",
+   "佛山"
+  ],
+  "scenicFor": [
+   "佛山市",
+   "佛山"
+  ],
+  "source": "wikimedia",
+  "license": "CC BY-SA 3.0",
+  "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0"
+ },
+ "丹霞山": {
+  "file": "danxia-mountain-83696696.jpg",
+  "artist": "Mx. Granger",
+  "pageUrl": "https://commons.wikimedia.org/wiki/File:%E9%94%A6%E7%9F%B3%E5%B2%A9%E5%AF%BA_3.jpg",
+  "fetchedAt": "2026-10-24",
+  "aliases": [],
+  "regions": [
+   "韶关市",
+   "韶关"
+  ],
+  "scenicFor": [
+   "韶关市",
+   "韶关"
+  ],
+  "source": "wikimedia",
+  "license": "CC0",
+  "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/deed.en"
+ },
+ "湛江": {
+  "file": "zhanjiang-76176907.jpg",
+  "artist": "User:Vmenkov",
+  "pageUrl": "https://commons.wikimedia.org/wiki/File:Zhanjiang_-_Renmin_Dadao_-_P1580452.JPG",
+  "fetchedAt": "2026-10-24",
+  "aliases": [],
+  "regions": [
+   "湛江市",
+   "湛江"
+  ],
+  "scenicFor": [
+   "湛江市",
+   "湛江"
+  ],
+  "source": "wikimedia",
+  "license": "CC BY-SA 3.0",
+  "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0"
+ },
+ "七星岩": {
+  "file": "seven-star-crags-30186476.jpg",
+  "artist": "Zhangzhugang",
+  "pageUrl": "https://commons.wikimedia.org/wiki/File:Zhaoqing_Qixing_Yan_2013.10.13_11-56-53.jpg",
+  "fetchedAt": "2026-10-24",
+  "aliases": [],
+  "regions": [
+   "肇庆市",
+   "肇庆"
+  ],
+  "scenicFor": [
+   "肇庆市",
+   "肇庆"
+  ],
+  "source": "wikimedia",
+  "license": "CC BY-SA 3.0",
+  "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0"
+ },
+ "开平碉楼": {
+  "file": "kaiping-diaolou-134167804.jpg",
+  "artist": "Stefan Fussan",
+  "pageUrl": "https://commons.wikimedia.org/wiki/File:Zili_Village_Yunhuan_Lou_0005.jpg",
+  "fetchedAt": "2026-10-24",
+  "aliases": [],
+  "regions": [
+   "江门市",
+   "江门"
+  ],
+  "scenicFor": [
+   "江门市",
+   "江门"
+  ],
+  "source": "wikimedia",
+  "license": "CC BY-SA 3.0",
+  "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0"
+ },
+ "茂名": {
+  "file": "maoming-183018823.jpg",
+  "artist": "ByH1995",
+  "pageUrl": "https://commons.wikimedia.org/wiki/File:W_Dongzhen.jpg",
+  "fetchedAt": "2026-10-24",
+  "aliases": [],
+  "regions": [
+   "茂名市",
+   "茂名"
+  ],
+  "scenicFor": [
+   "茂名市",
+   "茂名"
+  ],
+  "source": "wikimedia",
+  "license": "CC BY-SA 4.0",
+  "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0"
+ },
+ "罗浮山": {
+  "file": "luofu-mountain-11220653.jpg",
+  "artist": "圍棋一級",
+  "pageUrl": "https://commons.wikimedia.org/wiki/File:Luo_Fu_Shan.JPG",
+  "fetchedAt": "2026-10-24",
+  "aliases": [],
+  "regions": [
+   "惠州市",
+   "惠州"
+  ],
+  "scenicFor": [
+   "惠州市",
+   "惠州"
+  ],
+  "source": "wikimedia",
+  "license": "CC BY-SA 3.0",
+  "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0"
+ },
+ "梅州": {
+  "file": "meizhou-710693.jpg",
+  "artist": "Anthony Hartman from Meizhou, China",
+  "pageUrl": "https://commons.wikimedia.org/wiki/File:Meizhou_New_Century_Square.jpg",
+  "fetchedAt": "2026-10-24",
+  "aliases": [],
+  "regions": [
+   "梅州市",
+   "梅州"
+  ],
+  "scenicFor": [
+   "梅州市",
+   "梅州"
+  ],
+  "source": "wikimedia",
+  "license": "CC BY 2.0",
+  "licenseUrl": "https://creativecommons.org/licenses/by/2.0"
+ },
+ "红海湾": {
+  "file": "honghai-bay-2716538.jpg",
+  "artist": "espnfans",
+  "pageUrl": "https://pixabay.com/photos/red-bay-2716538/",
+  "fetchedAt": "2026-10-24",
+  "aliases": [],
+  "regions": [
+   "汕尾市",
+   "汕尾"
+  ],
+  "scenicFor": [
+   "汕尾市",
+   "汕尾"
+  ]
+ },
+ "万绿湖": {
+  "file": "wanlu-lake-10422619.jpg",
+  "artist": "Boris1601050607",
+  "pageUrl": "https://commons.wikimedia.org/wiki/File:The_Wanlv_Lake_at_noon.jpg",
+  "fetchedAt": "2026-10-24",
+  "aliases": [],
+  "regions": [
+   "河源市",
+   "河源"
+  ],
+  "scenicFor": [
+   "河源市",
+   "河源"
+  ],
+  "source": "wikimedia",
+  "license": "CC BY-SA 3.0",
+  "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0"
+ },
+ "阳江": {
+  "file": "yangjiang-122258810.jpg",
+  "artist": "中少",
+  "pageUrl": "https://commons.wikimedia.org/wiki/File:Guangdong_Province_Yangjiang_Municipality_Jiangcheng_District_Hailing_Island_20220808-02.jpg",
+  "fetchedAt": "2026-10-24",
+  "aliases": [],
+  "regions": [
+   "阳江市",
+   "阳江"
+  ],
+  "scenicFor": [
+   "阳江市",
+   "阳江"
+  ],
+  "source": "wikimedia",
+  "license": "CC BY-SA 4.0",
+  "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0"
+ },
+ "欧家梯田": {
+  "file": "oujia-terraces-2370384.jpg",
+  "artist": "saly_hua",
+  "pageUrl": "https://pixabay.com/zh/photos/european-home-terraces-qingyuan-2370384/",
+  "fetchedAt": "2026-10-24",
+  "aliases": [],
+  "regions": [
+   "清远市",
+   "清远"
+  ],
+  "scenicFor": [
+   "清远市",
+   "清远"
+  ]
+ },
+ "孙中山故居": {
+  "file": "sun-yat-sen-residence-4319537.jpg",
+  "artist": "Cmlau",
+  "pageUrl": "https://commons.wikimedia.org/wiki/File:Former_residence_sunyatsen.JPG",
+  "fetchedAt": "2026-10-24",
+  "aliases": [],
+  "regions": [
+   "中山市",
+   "中山"
+  ],
+  "scenicFor": [
+   "中山市",
+   "中山"
+  ],
+  "source": "wikimedia",
+  "license": "Public domain",
+  "licenseUrl": "https://commons.wikimedia.org/wiki/File:Former_residence_sunyatsen.JPG"
+ },
+ "广济桥": {
+  "file": "guangji-bridge-8861222.jpg",
+  "artist": "小杰杰",
+  "pageUrl": "https://commons.wikimedia.org/wiki/File:Guangji_Bridge.JPG",
+  "fetchedAt": "2026-10-24",
+  "aliases": [],
+  "regions": [
+   "潮州市",
+   "潮州"
+  ],
+  "scenicFor": [
+   "潮州市",
+   "潮州"
+  ],
+  "source": "wikimedia",
+  "license": "CC BY 3.0",
+  "licenseUrl": "https://creativecommons.org/licenses/by/3.0"
+ },
+ "揭阳学宫": {
+  "file": "jieyang-confucian-temple-30185608.jpg",
+  "artist": "Zhangzhugang",
+  "pageUrl": "https://commons.wikimedia.org/wiki/File:Jieyang_Xuegong_2013.10.27_15-12-27.jpg",
+  "fetchedAt": "2026-10-24",
+  "aliases": [],
+  "regions": [
+   "揭阳市",
+   "揭阳"
+  ],
+  "scenicFor": [
+   "揭阳市",
+   "揭阳"
+  ],
+  "source": "wikimedia",
+  "license": "CC BY-SA 3.0",
+  "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0"
+ },
+ "云浮": {
+  "file": "yunfu-197570797.jpg",
+  "artist": "RxtL3i",
+  "pageUrl": "https://commons.wikimedia.org/wiki/File:Luoding-Wenta.jpg",
+  "fetchedAt": "2026-10-24",
+  "aliases": [],
+  "regions": [
+   "云浮市",
+   "云浮"
+  ],
+  "scenicFor": [
+   "云浮市",
+   "云浮"
+  ],
+  "source": "wikimedia",
+  "license": "CC BY-SA 4.0",
+  "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0"
+ },
+ "南宁": {
+  "file": "nanning-126714507.jpg",
+  "artist": "EditQ",
+  "pageUrl": "https://commons.wikimedia.org/wiki/File:Nanning_Seen_from_Longxiang_Tower.jpg",
+  "fetchedAt": "2026-10-24",
+  "aliases": [],
+  "regions": [
+   "南宁市",
+   "南宁"
+  ],
+  "scenicFor": [
+   "南宁市",
+   "南宁"
+  ],
+  "source": "wikimedia",
+  "license": "CC BY-SA 4.0",
+  "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0"
+ },
+ "柳州": {
+  "file": "liuzhou-126259982.jpg",
+  "artist": "EditQ",
+  "pageUrl": "https://commons.wikimedia.org/wiki/File:Liuzhou_City_seen_from_Ma%27an_Mountain.jpg",
+  "fetchedAt": "2026-10-24",
+  "aliases": [],
+  "regions": [
+   "柳州市",
+   "柳州"
+  ],
+  "scenicFor": [
+   "柳州市",
+   "柳州"
+  ],
+  "source": "wikimedia",
+  "license": "CC BY-SA 4.0",
+  "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0"
+ },
+ "梧州": {
+  "file": "wuzhou-82998863.jpg",
+  "artist": "STW932",
+  "pageUrl": "https://commons.wikimedia.org/wiki/File:Wuzhou_Riverfront_(2).jpg",
+  "fetchedAt": "2026-10-24",
+  "aliases": [],
+  "regions": [
+   "梧州市",
+   "梧州"
+  ],
+  "scenicFor": [
+   "梧州市",
+   "梧州"
+  ],
+  "source": "wikimedia",
+  "license": "CC BY-SA 4.0",
+  "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0"
+ },
+ "北海银滩": {
+  "file": "beihai-silver-beach-54179631.jpg",
+  "artist": "史氏",
+  "pageUrl": "https://commons.wikimedia.org/wiki/File:%E5%8C%97%E6%B5%B7%E9%93%B6%E6%BB%A9%E8%83%9C%E6%99%AF_-_panoramio.jpg",
+  "fetchedAt": "2026-10-24",
+  "aliases": [],
+  "regions": [
+   "北海市",
+   "北海"
+  ],
+  "scenicFor": [
+   "北海市",
+   "北海"
+  ],
+  "source": "wikimedia",
+  "license": "CC BY 3.0",
+  "licenseUrl": "https://creativecommons.org/licenses/by/3.0"
+ },
+ "防城港": {
+  "file": "fangchenggang-56898450.jpg",
+  "artist": "锟哥",
+  "pageUrl": "https://commons.wikimedia.org/wiki/File:%E4%BA%B2%E6%B0%B4%E6%B9%BE%E5%B0%8F%E5%8C%BA%E7%9C%8B%E9%98%B2%E5%9F%8E%E5%8C%BA_-_panoramio_(5).jpg",
+  "fetchedAt": "2026-10-24",
+  "aliases": [],
+  "regions": [
+   "防城港市",
+   "防城港"
+  ],
+  "scenicFor": [
+   "防城港市",
+   "防城港"
+  ],
+  "source": "wikimedia",
+  "license": "CC BY 3.0",
+  "licenseUrl": "https://creativecommons.org/licenses/by/3.0"
+ },
+ "钦州": {
+  "file": "qinzhou-18696215.jpg",
+  "artist": "Charny",
+  "pageUrl": "https://commons.wikimedia.org/wiki/File:Qinzhou.jpg",
+  "fetchedAt": "2026-10-24",
+  "aliases": [],
+  "regions": [
+   "钦州市",
+   "钦州"
+  ],
+  "scenicFor": [
+   "钦州市",
+   "钦州"
+  ],
+  "source": "wikimedia",
+  "license": "CC BY-SA 3.0",
+  "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0"
+ },
+ "贵港": {
+  "file": "guigang-83058553.jpg",
+  "artist": "STW932",
+  "pageUrl": "https://commons.wikimedia.org/wiki/File:Guiping_city_skyline_2019_(9).jpg",
+  "fetchedAt": "2026-10-24",
+  "aliases": [],
+  "regions": [
+   "贵港市",
+   "贵港"
+  ],
+  "scenicFor": [
+   "贵港市",
+   "贵港"
+  ],
+  "source": "wikimedia",
+  "license": "CC BY-SA 4.0",
+  "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0"
+ },
+ "真武阁": {
+  "file": "zhenwu-pavilion-65732407.jpg",
+  "artist": "汀海岸上",
+  "pageUrl": "https://commons.wikimedia.org/wiki/File:%E5%AE%B9%E5%8E%BF%E7%9C%9F%E6%AD%A6%E9%98%81.jpg",
+  "fetchedAt": "2026-10-24",
+  "aliases": [],
+  "regions": [
+   "玉林市",
+   "玉林"
+  ],
+  "scenicFor": [
+   "玉林市",
+   "玉林"
+  ],
+  "source": "wikimedia",
+  "license": "CC BY-SA 4.0",
+  "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0"
+ },
+ "百色": {
+  "file": "baise-25788913.jpg",
+  "artist": "PanShiBo",
+  "pageUrl": "https://commons.wikimedia.org/wiki/File:%E7%99%BE%E8%89%B2%E5%B8%82%E5%8F%B3%E6%B1%9F%E5%8D%80%E4%B8%AD%E5%B1%B1%E6%A9%8B_2013.jpg",
+  "fetchedAt": "2026-10-24",
+  "aliases": [],
+  "regions": [
+   "百色市",
+   "百色"
+  ],
+  "scenicFor": [
+   "百色市",
+   "百色"
+  ],
+  "source": "wikimedia",
+  "license": "CC BY-SA 3.0",
+  "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0"
+ },
+ "贺州": {
+  "file": "hezhou-26366691.jpg",
+  "artist": "义伍村",
+  "pageUrl": "https://commons.wikimedia.org/wiki/File:%E8%B4%BA%E5%B7%9E%E5%B8%82%E4%B8%80%E8%A7%92.JPG",
+  "fetchedAt": "2026-10-24",
+  "aliases": [],
+  "regions": [
+   "贺州市",
+   "贺州"
+  ],
+  "scenicFor": [
+   "贺州市",
+   "贺州"
+  ],
+  "source": "wikimedia",
+  "license": "CC BY-SA 3.0",
+  "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0"
+ },
+ "河池": {
+  "file": "hechi-135955875.jpg",
+  "artist": "Alexceltare2",
+  "pageUrl": "https://commons.wikimedia.org/wiki/File:Hechi_from_QianAn_Hotel.jpg",
+  "fetchedAt": "2026-10-24",
+  "aliases": [],
+  "regions": [
+   "河池市",
+   "河池"
+  ],
+  "scenicFor": [
+   "河池市",
+   "河池"
+  ],
+  "source": "wikimedia",
+  "license": "CC BY-SA 4.0",
+  "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0"
+ },
+ "来宾": {
+  "file": "laibin-53038139.jpg",
+  "artist": "jiang-wen-jie",
+  "pageUrl": "https://commons.wikimedia.org/wiki/File:%E7%99%BB%E9%AB%98%E8%BF%9C%E6%9C%9B_-_panoramio_-_jiang-wen-jie.jpg",
+  "fetchedAt": "2026-10-24",
+  "aliases": [],
+  "regions": [
+   "来宾市",
+   "来宾"
+  ],
+  "scenicFor": [
+   "来宾市",
+   "来宾"
+  ],
+  "source": "wikimedia",
+  "license": "CC BY-SA 3.0",
+  "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0"
+ },
+ "崇左": {
+  "file": "chongzuo-22076214.jpg",
+  "artist": "Kedibeder",
+  "pageUrl": "https://commons.wikimedia.org/wiki/File:Office_building_of_the_Chongzuo_government.jpg",
+  "fetchedAt": "2026-10-24",
+  "aliases": [],
+  "regions": [
+   "崇左市",
+   "崇左"
+  ],
+  "scenicFor": [
+   "崇左市",
+   "崇左"
+  ],
+  "source": "wikimedia",
+  "license": "CC BY-SA 3.0",
+  "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0"
+ },
+ "海口": {
+  "file": "haikou-7762409.jpg",
+  "artist": "Anna Frodesiak",
+  "pageUrl": "https://commons.wikimedia.org/wiki/File:Haikou_skyline_6_-_2009_09_07.jpg",
+  "fetchedAt": "2026-10-24",
+  "aliases": [],
+  "regions": [
+   "海口市",
+   "海口"
+  ],
+  "scenicFor": [
+   "海口市",
+   "海口"
+  ],
+  "source": "wikimedia",
+  "license": "Public domain",
+  "licenseUrl": "https://commons.wikimedia.org/wiki/File:Haikou_skyline_6_-_2009_09_07.jpg"
+ },
+ "天涯海角": {
+  "file": "tianya-haijiao-129996803.jpg",
+  "artist": "N509FZ",
+  "pageUrl": "https://commons.wikimedia.org/wiki/File:Beach_of_Tianya-Haijiao_near_Tianya_Rock_(20230325134441).jpg",
+  "fetchedAt": "2026-10-24",
+  "aliases": [],
+  "regions": [
+   "三亚市",
+   "三亚"
+  ],
+  "scenicFor": [
+   "三亚市",
+   "三亚"
+  ],
+  "source": "wikimedia",
+  "license": "CC BY-SA 4.0",
+  "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0"
+ },
+ "东坡书院": {
+  "file": "dongpo-academy-130062502.jpg",
+  "artist": "N509FZ",
+  "pageUrl": "https://commons.wikimedia.org/wiki/File:Entrance_of_Dongpo_Academy,_Danzhou_(20230327163531).jpg",
+  "fetchedAt": "2026-10-24",
+  "aliases": [],
+  "regions": [
+   "儋州市",
+   "儋州"
+  ],
+  "scenicFor": [
+   "儋州市",
+   "儋州"
+  ],
+  "source": "wikimedia",
+  "license": "CC BY-SA 4.0",
+  "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0"
+ },
+ "福州": {
+  "file": "fuzhou-59090614.jpg",
+  "artist": "Listwiseafford",
+  "pageUrl": "https://commons.wikimedia.org/wiki/File:Fuzhou_Taixi_CBD.jpg",
+  "fetchedAt": "2026-10-24",
+  "aliases": [],
+  "regions": [
+   "福州市",
+   "福州"
+  ],
+  "scenicFor": [
+   "福州市",
+   "福州"
+  ],
+  "source": "wikimedia",
+  "license": "CC BY-SA 4.0",
+  "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0"
+ },
+ "鼓浪屿": {
+  "file": "gulangyu-56019189.jpg",
+  "artist": "gdczjkk",
+  "pageUrl": "https://commons.wikimedia.org/wiki/File:%E9%BC%93%E6%B5%AA%E5%B1%BF_-_panoramio.jpg",
+  "fetchedAt": "2026-10-24",
+  "aliases": [],
+  "regions": [
+   "厦门市",
+   "厦门"
+  ],
+  "scenicFor": [
+   "厦门市",
+   "厦门"
+  ],
+  "source": "wikimedia",
+  "license": "CC BY 3.0",
+  "licenseUrl": "https://creativecommons.org/licenses/by/3.0"
+ },
+ "湄洲岛": {
+  "file": "meizhou-island-55105072.jpg",
+  "artist": "江上清风1961",
+  "pageUrl": "https://commons.wikimedia.org/wiki/File:%E6%B9%84%E6%B4%B2%E5%B2%9B%E7%A5%9E%E7%9F%B3%E5%9B%AD%E9%A3%8E%E5%85%89_-_panoramio_(2).jpg",
+  "fetchedAt": "2026-10-24",
+  "aliases": [],
+  "regions": [
+   "莆田市",
+   "莆田"
+  ],
+  "scenicFor": [
+   "莆田市",
+   "莆田"
+  ],
+  "source": "wikimedia",
+  "license": "CC BY 3.0",
+  "licenseUrl": "https://creativecommons.org/licenses/by/3.0"
+ },
+ "三明": {
+  "file": "sanming-171155306.jpg",
+  "artist": "Randall Ferry",
+  "pageUrl": "https://commons.wikimedia.org/wiki/File:Sanming_City_View_2025-07-19.jpg",
+  "fetchedAt": "2026-10-24",
+  "aliases": [],
+  "regions": [
+   "三明市",
+   "三明"
+  ],
+  "scenicFor": [
+   "三明市",
+   "三明"
+  ],
+  "source": "wikimedia",
+  "license": "CC BY-SA 4.0",
+  "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0"
+ },
+ "清源山": {
+  "file": "qingyuan-mountain-4129186.jpg",
+  "artist": "Thanato",
+  "pageUrl": "https://commons.wikimedia.org/wiki/File:Laozi_002.jpg",
+  "fetchedAt": "2026-10-24",
+  "aliases": [],
+  "regions": [
+   "泉州市",
+   "泉州"
+  ],
+  "scenicFor": [
+   "泉州市",
+   "泉州"
+  ],
+  "source": "wikimedia",
+  "license": "CC BY-SA 3.0",
+  "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0"
+ },
+ "漳州": {
+  "file": "zhangzhou-128434217.jpg",
+  "artist": "Windmemories",
+  "pageUrl": "https://commons.wikimedia.org/wiki/File:20230203_Dongshan_Harbour_01.jpg",
+  "fetchedAt": "2026-10-24",
+  "aliases": [],
+  "regions": [
+   "漳州市",
+   "漳州"
+  ],
+  "scenicFor": [
+   "漳州市",
+   "漳州"
+  ],
+  "source": "wikimedia",
+  "license": "CC BY-SA 4.0",
+  "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0"
+ },
+ "南平": {
+  "file": "nanping-134362560.jpg",
+  "artist": "赤阪風川",
+  "pageUrl": "https://commons.wikimedia.org/wiki/File:202101_Buildings_in_Shunchang_Chengguan.jpg",
+  "fetchedAt": "2026-10-24",
+  "aliases": [],
+  "regions": [
+   "南平市",
+   "南平"
+  ],
+  "scenicFor": [
+   "南平市",
+   "南平"
+  ],
+  "source": "wikimedia",
+  "license": "CC BY-SA 4.0",
+  "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0"
+ },
+ "冠豸山": {
+  "file": "guanzhai-mountain-52959294.jpg",
+  "artist": "rheins",
+  "pageUrl": "https://commons.wikimedia.org/wiki/File:%E7%81%B5%E8%8A%9D%E5%B3%B0%E9%A1%B6%E7%9C%8B%E9%95%BF%E5%AF%BF%E4%BA%AD_-_View_of_Longevity_Pavilion_from_the_Glossy_Ganoderma_Peak_-_2010.07_-_panoramio.jpg",
+  "fetchedAt": "2026-10-24",
+  "aliases": [],
+  "regions": [
+   "龙岩市",
+   "龙岩"
+  ],
+  "scenicFor": [
+   "龙岩市",
+   "龙岩"
+  ],
+  "source": "wikimedia",
+  "license": "CC BY 3.0",
+  "licenseUrl": "https://creativecommons.org/licenses/by/3.0"
+ },
+ "太姥山": {
+  "file": "taimu-mountain-137683317.jpg",
+  "artist": "颐园居",
+  "pageUrl": "https://commons.wikimedia.org/wiki/File:Cliff_inscription_of_Mount_Taimu_20230827.jpg",
+  "fetchedAt": "2026-10-24",
+  "aliases": [],
+  "regions": [
+   "宁德市",
+   "宁德"
+  ],
+  "scenicFor": [
+   "宁德市",
+   "宁德"
+  ],
+  "source": "wikimedia",
+  "license": "CC BY-SA 4.0",
+  "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0"
  }
 }

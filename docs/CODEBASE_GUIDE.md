@@ -160,7 +160,7 @@ LLM 解释自然语言并提出受限 JSON；应用校验、决定是否执行�
 
 下表按目录分类，每个路径都有独立一行。测试不是运行时业务层；同目录测试主要验证对应层的规则或适配边界，多数使用 mock/内存替身，不据此宣称真实提供方已验证。
 
-本次索引按路径去重共 375 个文件，其中 94 个测试文件。
+本次索引按路径去重共 376 个文件，其中 95 个测试文件。
 
 ### 6.1 根目录配置与入口
 
@@ -514,6 +514,7 @@ LLM 解释自然语言并提出受限 JSON；应用校验、决定是否执行�
 | [src/platform/place-photos/capped-body.ts](../src/platform/place-photos/capped-body.ts) | 基础设施/工具 | 按实际收到的字节读下载内容、超过上限就中断；Pixabay 和 Wikimedia 客户端共用。 |
 | [src/platform/place-photos/wikimedia-client.ts](../src/platform/place-photos/wikimedia-client.ts) | 基础设施/适配器 | Wikidata SPARQL、Commons imageinfo 和 Commons 图片下载：不需要 key，每个请求带 Meri 的 User-Agent；最多同时 2 个、任意 60 秒不超过 40 次、遵守 429 的 Retry-After、超时；区分被拒（403）、限流和临时失败（含连不上）；把 Commons 的作者、许可证、许可证链接、非自由标记转成纯文字；只从 `thumb.wikimedia.org`、`upload.wikimedia.org` https 下载，最多两次同主机跳转、按实际字节截断。 |
 | [src/platform/place-photos/wikimedia-photo-finder.ts](../src/platform/place-photos/wikimedia-photo-finder.ts) | 基础设施/用例 | 推荐卡远程补图的第一个源：先读已下载，再查名字是地标、沿 P131 位于卡片所在市（市又属于卡片的省）且有 P18 的 Wikidata 条目，按名称排序取图，读 Commons 许可证（只收 CC BY、CC BY-SA、CC0、公有领域，横构图），下载 500px 副本检查后发布，记录作者、许可证、条目；每批 12 次查询 / 8 次 Commons / 8 次下载 / 25 秒；"维基没有"按规则版本记 24 小时；任何失败停整批并暂停进程（连不上 10 分钟）；同一地标共用一次操作。 |
+| [src/platform/place-photos/wikimedia-client.test.ts](../src/platform/place-photos/wikimedia-client.test.ts) | 测试（对应模块边界） | 验证一次查多个 Commons 文件时按请求时的文件名对回（Commons 会改写大小写和下划线）、没有的文件不返回、作者转纯文字、许可证链接改 https、带 User-Agent、超过 50 个报错。 |
 | [src/platform/place-photos/wikimedia-photo-finder.test.ts](../src/platform/place-photos/wikimedia-photo-finder.test.ts) | 测试（对应模块边界） | 验证找到后带许可证保存、署名、重启 0 请求，没有条目算 none 并缓存一天，连不上不缓存且暂停进程，许可证不合格换下一张，限流停整批，每批查询上限，只从维基图片主机下载，查询把地标限定在市和省内且名字无法跳出字符串，条目排序，以及许可证、作者、构图、格式的拒绝规则。 |
 | [src/platform/place-photos/pixabay-client.ts](../src/platform/place-photos/pixabay-client.ts) | 基础设施/适配器 | Pixabay 搜索与下载：一次一个请求、排队上限、任意 60 秒不超过 80 次（下载也算）并遵守 `X-RateLimit-Remaining`、超时；区分被拒（400/401/403）、限流（429 或自己的上限）和临时失败；单条坏结果只丢那一条；只从 Pixabay 主机 https 下载、最多两次同主机跳转、按实际字节截断；密钥只出现在请求里。 |
 | [src/platform/place-photos/pixabay-client.test.ts](../src/platform/place-photos/pixabay-client.test.ts) | 测试（对应模块边界） | 验证密钥不外泄、只留用到的字段、三类失败、主机与跳转限制、字节上限、非图片、坏结果只丢一条、排队上限、每分钟上限和 Pixabay 剩余次数。 |
@@ -526,11 +527,11 @@ LLM 解释自然语言并提出受限 JSON；应用校验、决定是否执行�
 | [src/platform/place-photos/photo-catalog.test.ts](../src/platform/place-photos/photo-catalog.test.ts) | 测试（对应模块边界） | 验证地区错配、无地区拒绝、明确别名、括号信息、歧义及不合法配置、实际文件及哈希不重复、景区完整名称和跨地区景点；错误旧图不再提供，替代图用新 URL；香格里拉使用松赞林寺代表图而非同义名；离线查询不调用 fetch。 |
 | [src/app/photo-credits/page.tsx](../src/app/photo-credits/page.tsx) | 页面 | 照片署名页：列出图集每张照片的说明、作者、来源（Pixabay / Wikimedia Commons）与原图页链接、许可证与许可证链接、"已缩小尺寸"，每行以文件名为锚点；底部"规划时临时找到的照片"逐张列出运行时从 Wikimedia Commons 找到的照片（读媒体目录里的来源记录，同样的署名项），并说明 Pixabay 运行时照片。卡片署名链到这里。中英文文字在 `messages.ts` 的 `photoCredits`。 |
 | [src/app/photo-credits/photo-credits.module.css](../src/app/photo-credits/photo-credits.module.css) | 样式 | 署名页样式：浅色/深色、手机宽度单列、被锚点定位的一行加描边。 |
-| [scripts/catalog-cities.ts](../scripts/catalog-cities.ts) | 维护数据 | 图集要覆盖的城市，按批次登记：省、全称、简称、英文名（同音城市带省份）、1–2 个最常被拍的景点（中英文名）。第一批江浙沪 25 城（杭州已有代表图），第二批云南、四川、重庆、西藏 34 城（已有代表图的不列）。 |
-| [scripts/build-city-catalog.ts](../scripts/build-city-catalog.ts) | 维护工具 | 按城市补图集代表图：`fetch` 用运行时同一套规则在 Pixabay 找每城最多 3 张候选（`--views` 城市景色模式只搜城市名，每城最多 4 张），下载到 `.cache/catalog-review/` 并生成审核页（不碰 public/photos）；`--wikimedia` 第二图源模式从 Wikidata 取城市代表图（P18，按全称或简称加所属省份匹配），从 Commons 取作者、许可证和 500px 副本；`apply` 按人工挑好的 picks.json（图片 ID、照片说明、文件名）复制进 public/photos 并登记 regions / scenicFor，Commons 照片另记 source / license / licenseUrl。走产品的 PixabayClient（每分钟不超过 80 次，满了等一分钟），搜索缓存 24 小时，不输出密钥。 |
+| [scripts/catalog-cities.ts](../scripts/catalog-cities.ts) | 维护数据 | 图集要覆盖的城市，按批次登记：省、全称、简称、英文名（同音城市带省份）、1–2 个最常被拍的景点（中英文名）。第一批江浙沪 25 城（杭州已有代表图），第二批云南、四川、重庆、西藏 34 城（已有代表图的不列），第三批 `south` 广东 21、广西 14、海南 4、福建 9 城（1.0634）。 |
+| [scripts/build-city-catalog.ts](../scripts/build-city-catalog.ts) | 维护工具 | 按城市补图集代表图：`fetch` 先问 Wikidata（1.0634 起；每城 1 次查询，名字是城市或它的景点、按 P131 落在这座城市里、城市又属于它的省的条目的 P18，中文名同时按 zh / zh-hans / zh-cn 查），用 `WikimediaClient` 每 50 个文件 1 次读 Commons 作者和许可证（只收 CC BY / CC BY-SA / CC0 / 公有领域，竖图留下但标出），下载 500px 副本，每城最多 4 张；Wikidata 没有候选的城市才用运行时同一套规则在 Pixabay 找最多 3 张（`--views` 城市景色模式只用 Pixabay、只搜城市名，每城最多 4 张）；都下载到 `.cache/catalog-review/` 并生成审核页（不碰 public/photos）；`apply` 按人工挑好的 picks.json（图片 ID、照片说明、文件名）复制进 public/photos 并登记 regions / scenicFor，Commons 照片另记 source / license / licenseUrl。走产品的 WikimediaClient（每分钟不超过 40 次）和 PixabayClient（每分钟不超过 80 次），满了等一分钟，Pixabay 搜索缓存 24 小时，不输出密钥。 |
 | [scripts/photo-misses.ts](../scripts/photo-misses.ts) | 维护工具 | 读 `MERI_MEDIA_DIR`（未设时 `.cache/media`）的未配图记录，按次数列出景点、搜索词、返回条数和被拒原因，用来挑选值得人工补进图集的景点；只读本地，不请求 Pixabay、不改文件。 |
 | [scripts/fetch-place-photos.ts](../scripts/fetch-place-photos.ts) | 开发验证工具 | 青海湖／天山天池／松赞林寺固定审核后的 Pixabay ID，其余用关键词与 tags 筛候选；成功响应缓存 24 小时（不含密钥的参数哈希），HTTP 失败立即停止并脱敏输出；按实际 JPEG／PNG／WebP 格式、带图片 ID 的文件名下载。新图或更换来源清空地区，核对后才启用；同源刷新保留配置。支持指定地名和 --refresh。 |
-| [public/photos/](../public/photos) | 静态资源 | 预下载照片与带来源、明确地区、别名、行政区代表图配置的 photos.json；由本站提供文件。1.0628 起按城市分批补代表图（第一批江浙沪 18 张，第二批云南、四川、重庆、西藏 13 张；1.0632 用 Wikimedia Commons 补了 Pixabay 没有的 20 个城市，共 84 条，Commons 照片带知识共享许可，署名见 /photo-credits）。运行时从 Pixabay 下载的照片不写进这里（生产模式启动后 public 不再变化），而是在 `MERI_MEDIA_DIR`。不代表全国覆盖或逐张审核完成。青海湖和天山天池已更换来源；香格里拉市使用独立景点松赞林寺代表图。 |
+| [public/photos/](../public/photos) | 静态资源 | 预下载照片与带来源、明确地区、别名、行政区代表图配置的 photos.json；由本站提供文件。1.0628 起按城市分批补代表图（第一批江浙沪 18 张，第二批云南、四川、重庆、西藏 13 张；1.0632 用 Wikimedia Commons 补了 Pixabay 没有的 20 个城市，共 84 条；1.0634 补镇江和第三批华南 45 城，共 130 条，Commons 照片带知识共享许可，署名见 /photo-credits）。运行时从 Pixabay 下载的照片不写进这里（生产模式启动后 public 不再变化），而是在 `MERI_MEDIA_DIR`。不代表全国覆盖或逐张审核完成。青海湖和天山天池已更换来源；香格里拉市使用独立景点松赞林寺代表图。 |
 | [public/photos/qinghai-lake-2631421.jpg](../public/photos/qinghai-lake-2631421.jpg) | 静态资源 | 本轮查看来源与画面后选用的青海湖畔油菜花照片，Pixabay 2631421，作者 Ponyo-；替代旧茶卡盐湖错图。 |
 | [public/photos/tianchi-xinjiang-2077003.jpg](../public/photos/tianchi-xinjiang-2077003.jpg) | 静态资源 | 本轮查看来源与画面后选用的新疆天山天池照片，Pixabay 2077003，作者 ccp877；与长白山天池使用不同照片。 |
 | [public/photos/songzanlin-4424995.jpg](../public/photos/songzanlin-4424995.jpg) | 静态资源 | 松赞林寺照片，Pixabay 4424995，作者 samyo；作为香格里拉市／迪庆州明确登记的代表图，旧香格里拉丽江雪山文件已撤下。 |

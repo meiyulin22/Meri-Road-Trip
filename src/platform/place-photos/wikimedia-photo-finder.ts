@@ -57,7 +57,7 @@ const openLicence = /^(?:CC0(?: 1\.0)?|Public domain)$/iu;
 const photoMimes = new Set(["image/jpeg", "image/png", "image/webp", "image/tiff"]);
 
 /** A model-written name inside a SPARQL string literal: no quote, backslash or line break can end it. */
-function literal(text: string): string {
+export function literal(text: string): string {
   return `"${text.replace(/[\\"]/gu, "\\$&").replace(/[\r\n\t]/gu, " ")}"`;
 }
 
@@ -79,12 +79,11 @@ function namesOf(subject: RemotePhotoSubject): { chinese: string[]; latin: strin
 export function landmarkQuery(subject: RemotePhotoSubject): string | null {
   const { chinese, latin } = namesOf(subject);
   if (chinese.length === 0 && latin.length === 0) return null;
-  const names = [...chinese.flatMap((name) => ["zh", "zh-hans", "zh-cn"].map((tag) => `${literal(name)}@${tag}`)),
-    ...latin.map((name) => `${literal(name)}@en`)].join(" ");
-  const regions = [...new Set([subject.region, regionShortName(subject.region)])].filter(Boolean)
-    .flatMap((name) => ["zh", "zh-hans"].map((tag) => `${literal(name)}@${tag}`)).join(" ");
+  const names = [chineseLiterals(chinese), ...latin.map((name) => `${literal(name)}@en`)].filter(Boolean).join(" ");
+  const regions = chineseLiterals([subject.region, regionShortName(subject.region)]);
   const municipality = regionShortName(subject.region) === regionShortName(subject.province);
-  const province = municipality ? "" : `?region wdt:P131 ?province. ?province rdfs:label ${literal(subject.province)}@zh.`;
+  const province = municipality ? ""
+    : `?region wdt:P131 ?province. VALUES ?provinceName { ${chineseLiterals([subject.province])} } ?province rdfs:label ?provinceName.`;
   return `SELECT DISTINCT ?item ?image ?name ?rank WHERE {
   VALUES ?name { ${names} }
   { ?item rdfs:label ?name. BIND(1 AS ?rank) } UNION { ?item skos:altLabel ?name. BIND(2 AS ?rank) }
@@ -94,6 +93,16 @@ export function landmarkQuery(subject: RemotePhotoSubject): string | null {
   ${province}
   ?item wdt:P131+ ?region.
 } LIMIT 40`;
+}
+
+/**
+ * Chinese names in each tag Wikidata files Chinese labels under. Many items carry their
+ * label only as zh-hans or zh-cn, not plain zh: 镇江市 (Q57958) does, which is why the
+ * 1.0632 catalog query, asking for @zh alone, never found it.
+ */
+export function chineseLiterals(names: readonly string[]): string {
+  return [...new Set(names.map((name) => name.normalize("NFKC").trim()).filter(Boolean))]
+    .flatMap((name) => ["zh", "zh-hans", "zh-cn"].map((tag) => `${literal(name)}@${tag}`)).join(" ");
 }
 
 export interface LandmarkImage {
@@ -122,16 +131,23 @@ export function rankedImages(rows: readonly SparqlRow[], subject: RemotePhotoSub
     .map(({ item, file, matched }) => ({ item, file, matched }));
 }
 
-/** Why a Commons file is passed over, or null when its licence, author and shape will do. */
-export function refusalOf(file: CommonsFile): string | null {
+/**
+ * Why Meri may not use a Commons file at all — its licence, author or kind — or null. The
+ * catalog script applies only this: a person reviewing the photo judges its shape.
+ */
+export function usageRefusalOf(file: CommonsFile): string | null {
   if (file.nonFree || !freeLicence.test(file.license)) return "licence";
   if (!openLicence.test(file.license) && !file.artist) return "no_author";
   if (!openLicence.test(file.license) && !file.licenseUrl.startsWith("https://creativecommons.org/")) return "licence_link";
   if (!photoMimes.has(file.mime)) return "not_a_photo";
-  // Cards are landscape, like Pixabay's horizontal filter.
-  if (file.width <= file.height || file.width < 800) return "shape";
   if (!file.pageUrl.startsWith("https://commons.wikimedia.org/wiki/File:")) return "page";
   return null;
+}
+
+/** Why a Commons file is passed over for a card no one reviews, or null when its licence, author and shape will do. */
+export function refusalOf(file: CommonsFile): string | null {
+  // Cards are landscape, like Pixabay's horizontal filter.
+  return usageRefusalOf(file) ?? (file.width <= file.height || file.width < 800 ? "shape" : null);
 }
 
 /**
