@@ -1,0 +1,73 @@
+{
+  "demoOnly": true,
+  "description": "仅供动效预览。事件、阶段和时间是演示格式，不是 Mastra 或 Meri 后端协议。每个场景重播时先清空本地状态。",
+  "stages": [
+    { "id": "prepare", "label": "整理旅程" },
+    { "id": "research", "label": "调研地点与路程" },
+    { "id": "arrange", "label": "安排每日行程" },
+    { "id": "finalize", "label": "校验并保存" }
+  ],
+  "scenarios": [
+    {
+      "id": "success-with-parallel-tasks",
+      "label": "正常完成，包含并行任务",
+      "frames": [
+        { "atMs": 0, "type": "stage", "id": "prepare", "status": "running", "detail": "正在整理这次旅程" },
+        { "atMs": 900, "type": "stage", "id": "prepare", "status": "success", "detail": "旅程信息已整理" },
+        { "atMs": 1100, "type": "stage", "id": "research", "status": "running", "detail": "开始研究地点与路程" },
+        { "atMs": 1300, "type": "task", "stageId": "research", "id": "places", "status": "running", "detail": "核实景点位置" },
+        { "atMs": 1300, "type": "task", "stageId": "research", "id": "routes", "status": "running", "detail": "查询景点之间的路程" },
+        { "atMs": 2500, "type": "task", "stageId": "research", "id": "places", "status": "success", "detail": "景点位置已核实" },
+        { "atMs": 3800, "type": "task", "stageId": "research", "id": "routes", "status": "success", "detail": "路程资料已查到" },
+        { "atMs": 3900, "type": "stage", "id": "research", "status": "success", "detail": "本阶段研究已完成" },
+        { "atMs": 4300, "type": "stage", "id": "arrange", "status": "running", "detail": "正在安排第一天" },
+        { "atMs": 5900, "type": "stage", "id": "arrange", "status": "success", "detail": "第一天已排好" },
+        { "atMs": 6200, "type": "stage", "id": "finalize", "status": "running", "detail": "正在校验并保存" },
+        { "atMs": 7500, "type": "stage", "id": "finalize", "status": "success", "detail": "校验及保存已完成" },
+        { "atMs": 7600, "type": "run", "status": "ready", "detail": "可以展开示例计划" }
+      ]
+    },
+    {
+      "id": "retry-then-fail",
+      "label": "保留已完成进度，重试后仍失败",
+      "frames": [
+        { "atMs": 0, "type": "stage", "id": "prepare", "status": "running", "detail": "正在整理这次旅程" },
+        { "atMs": 800, "type": "stage", "id": "prepare", "status": "success", "detail": "旅程信息已整理" },
+        { "atMs": 1100, "type": "stage", "id": "research", "status": "running", "detail": "开始研究路程" },
+        { "atMs": 1300, "type": "task", "stageId": "research", "id": "routes", "status": "running", "detail": "正在查询路程" },
+        { "atMs": 2900, "type": "task", "stageId": "research", "id": "routes", "status": "retrying", "detail": "查询失败，正在重试" },
+        { "atMs": 4700, "type": "task", "stageId": "research", "id": "routes", "status": "failed", "detail": "暂时查不到路程" },
+        { "atMs": 4800, "type": "stage", "id": "research", "status": "failed", "detail": "这个阶段需要稍后重试" },
+        { "atMs": 4900, "type": "run", "status": "failed", "detail": "保留已完成的整理阶段，不展开计划" }
+      ]
+    },
+    {
+      "id": "waiting-then-ready-with-unknowns",
+      "label": "等待确认后继续，结果含未知项",
+      "frames": [
+        { "atMs": 0, "type": "stage", "id": "prepare", "status": "running", "detail": "正在整理这次旅程" },
+        { "atMs": 800, "type": "stage", "id": "prepare", "status": "success", "detail": "旅程信息已整理" },
+        { "atMs": 1100, "type": "stage", "id": "research", "status": "running", "detail": "正在研究景点" },
+        { "atMs": 2200, "type": "stage", "id": "research", "status": "waiting", "detail": "需要你确认一个地点", "pausePlayback": true },
+        { "atMs": 2300, "type": "stage", "id": "research", "status": "running", "detail": "已确认，继续研究" },
+        { "atMs": 3600, "type": "task", "stageId": "research", "id": "opening-hours", "status": "unavailable", "detail": "开放时间暂时无法核实，结果中保留未知提示" },
+        { "atMs": 3900, "type": "stage", "id": "research", "status": "completed_with_unknowns", "detail": "研究结束，仍有一项未知" },
+        { "atMs": 4200, "type": "stage", "id": "arrange", "status": "running", "detail": "根据已有信息安排示例行程" },
+        { "atMs": 5600, "type": "stage", "id": "arrange", "status": "success", "detail": "示例行程已排好" },
+        { "atMs": 5900, "type": "stage", "id": "finalize", "status": "running", "detail": "正在校验并保存，保留未知项" },
+        { "atMs": 7100, "type": "stage", "id": "finalize", "status": "success", "detail": "结果已保存" },
+        { "atMs": 7200, "type": "run", "status": "ready", "detail": "展开计划，并保留开放时间未知提示" }
+      ]
+    }
+  ],
+  "planPreview": {
+    "demoOnly": true,
+    "title": "丽江 · 第一天示例",
+    "stops": ["玉龙雪山", "蓝月谷", "丽江古城"],
+    "description": "只用于展示生成场景如何过渡为每日行程，不代表实际可行性或已核实结果。",
+    "unknownsByScenario": {
+      "success-with-parallel-tasks": [],
+      "waiting-then-ready-with-unknowns": ["开放时间暂时无法核实"]
+    }
+  }
+}

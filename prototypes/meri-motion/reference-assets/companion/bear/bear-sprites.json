@@ -1,0 +1,102 @@
+{
+  "frameWidth": 74,
+  "frameHeight": 76,
+  "animations": {
+    "idle": {
+      "row": 0,
+      "frames": 6,
+      "durationsMs": [
+        350,
+        350,
+        350,
+        350,
+        350,
+        160
+      ]
+    },
+    "sit_down": {
+      "row": 1,
+      "frames": 3,
+      "durationsMs": [
+        110,
+        110,
+        110
+      ]
+    },
+    "read": {
+      "row": 2,
+      "frames": 6,
+      "durationsMs": [
+        500,
+        300,
+        500,
+        450,
+        140,
+        500
+      ]
+    },
+    "map_down": {
+      "row": 3,
+      "frames": 3,
+      "durationsMs": [
+        120,
+        120,
+        200
+      ]
+    },
+    "eat": {
+      "row": 4,
+      "frames": 7,
+      "durationsMs": [
+        180,
+        180,
+        220,
+        260,
+        220,
+        260,
+        200
+      ]
+    },
+    "map_up": {
+      "row": 5,
+      "frames": 3,
+      "durationsMs": [
+        200,
+        120,
+        120
+      ]
+    },
+    "stand_up": {
+      "row": 6,
+      "frames": 3,
+      "durationsMs": [
+        110,
+        110,
+        110
+      ]
+    },
+    "cheer": {
+      "row": 7,
+      "frames": 7,
+      "durationsMs": [
+        90,
+        90,
+        120,
+        90,
+        120,
+        120,
+        200
+      ]
+    },
+    "worried": {
+      "row": 8,
+      "frames": 4,
+      "durationsMs": [
+        90,
+        90,
+        90,
+        400
+      ]
+    }
+  }
+}
