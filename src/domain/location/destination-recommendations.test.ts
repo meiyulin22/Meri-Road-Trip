@@ -78,3 +78,12 @@ test("output that is not a grouped list of places is refused", () => {
     assert.throws(() => validateDestinationRecommendations(invalid), Error, JSON.stringify(invalid));
   }
 });
+
+test("a landmark's English name is kept when it is plain Latin text, and dropped — not fatal — when it is not", () => {
+  const [group] = validateDestinationRecommendations({ provinces: [{ province: "云南省", places: [
+    { ...place("丽江市"), landmark: "玉龙雪山", landmarkEn: " Jade Dragon Snow Mountain " },
+    { ...place("大理白族自治州"), landmark: "洱海", landmarkEn: "洱海 Erhai" },
+    { ...place("迪庆藏族自治州"), landmark: "普达措", landmarkEn: "x".repeat(61) },
+  ] }] });
+  assert.deepEqual(group.places.map((item) => item.landmarkEn), ["Jade Dragon Snow Mountain", undefined, undefined]);
+});

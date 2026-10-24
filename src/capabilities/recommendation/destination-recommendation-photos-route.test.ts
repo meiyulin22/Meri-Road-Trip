@@ -89,3 +89,16 @@ test("someone else's Journey, a message without cards and a malformed body are r
   assert.equal((await handleRecommendationPhotosPost(tripId, owner, { messageId: "cards-1", extra: true }, "r5", deps)).status, 400);
   assert.equal((await handleRecommendationPhotosPost(tripId, owner, [], "r5", deps)).status, 400);
 });
+
+test("a card whose remote lookup could not run gets no line, and is saved still waiting for its photo", async () => {
+  const waiting: TripMessage = { ...cards, presentation: { ...cardsPresentation, destinations: [
+    { id: "dl", name: "大理白族自治州", province: "云南省", landmark: "洱海", landmarkEn: "Erhai Lake" },
+  ] } };
+  const { saved, deps } = dependencies([waiting], { photos: { async findPhoto() { return null; } } });
+  const response = await handleRecommendationPhotosPost(tripId, owner, { messageId: "cards-1" }, "r6", { ...deps,
+    remotePhotos: { startBatch: () => ({ searchesLeft: 1, downloadsLeft: 1, deadline: Number.MAX_SAFE_INTEGER, stopped: null }),
+      async find() { return { status: "unavailable", reason: "rate_limited" }; } } });
+  assert.deepEqual(await lines(response), []);
+  assert.equal(saved.length, 1);
+  assert.equal("image" in saved[0].destinations[0], false);
+});

@@ -3,9 +3,10 @@ import test from "node:test";
 
 import type { PlaceImage } from "@/domain/location/place-image";
 import type { DestinationRecommendationPresentation } from "@/domain/trip-message/trip-message";
+import type { RemotePhotoFinder, RemotePhotoResult, RemotePhotoSubject } from "@/platform/place-photos/pixabay-photo-finder";
 import type { PlacePhotoProvider, PlacePhotoQuery } from "@/platform/place-photos/place-photo-provider";
 
-import { findRecommendationPhotos, type RecommendationPhoto } from "./recommendation-photos";
+import { findRecommendationPhotos, type DeferredRecommendationPhoto, type RecommendationPhoto } from "./recommendation-photos";
 
 const picture = (caption: string): PlaceImage => ({ url: `https://store.is.autonavi.com/showpic/${encodeURIComponent(caption)}`, caption });
 
@@ -54,4 +55,50 @@ test("a photo already shown in the set is not shown again under another card", a
   const result = await findRecommendationPhotos(presentation, photos(() => shared), (photo) => reported.push(photo));
   assert.deepEqual(reported, [{ id: "cz", image: null }]);
   assert.equal(result.destinations[1].image, null);
+});
+
+function remote(answer: (subject: RemotePhotoSubject) => RemotePhotoResult, asked: RemotePhotoSubject[] = []): RemotePhotoFinder {
+  return {
+    startBatch: () => ({ searchesLeft: 8, downloadsLeft: 4, deadline: Number.MAX_SAFE_INTEGER, stopped: null }),
+    async find(subject) { asked.push(subject); return answer(subject); },
+  };
+}
+
+const remoteCards: DestinationRecommendationPresentation = { type: "destination_recommendations", destinations: [
+  { id: "lj", name: "丽江市", province: "云南省", landmark: "玉龙雪山", landmarkEn: "Jade Dragon Snow Mountain" },
+  { id: "dl", name: "大理白族自治州", province: "云南省", landmark: "洱海", landmarkEn: "Erhai Lake" },
+  { id: "old", name: "怒江傈僳族自治州", province: "云南省", landmark: "丙中洛" },
+] };
+
+test("a card the local photos have is never searched for remotely", async () => {
+  const asked: RemotePhotoSubject[] = [];
+  const local = picture("玉龙雪山");
+  await findRecommendationPhotos({ ...remoteCards, destinations: [remoteCards.destinations[0]] },
+    photos(() => local), () => undefined, remote(() => ({ status: "none" }), asked));
+  assert.deepEqual(asked, []);
+});
+
+test("a local miss with an English name is searched remotely; one without it is not", async () => {
+  const asked: RemotePhotoSubject[] = [];
+  const erhai: PlaceImage = { url: "/media/place-photos/pixabay-9.jpg", caption: "洱海", credit: "Photo: a / Pixabay" };
+  const reported: RecommendationPhoto[] = [];
+  const result = await findRecommendationPhotos(remoteCards, photos(() => null), (photo) => reported.push(photo),
+    remote((subject) => subject.landmark === "洱海" ? { status: "found", image: erhai } : { status: "none" }, asked));
+  assert.deepEqual(asked.map((subject) => subject.english).sort(), ["Erhai Lake", "Jade Dragon Snow Mountain"]);
+  assert.deepEqual(asked.find((subject) => subject.landmark === "洱海"),
+    { province: "云南省", region: "大理白族自治州", landmark: "洱海", english: "Erhai Lake" });
+  assert.deepEqual(result.destinations.map((item) => item.image), [null, erhai, null]);
+  assert.equal(reported.length, 3);
+});
+
+test("a remote lookup that could not run leaves its card unanswered, not saved as having no photo", async () => {
+  const reported: RecommendationPhoto[] = [];
+  const deferred: DeferredRecommendationPhoto[] = [];
+  const result = await findRecommendationPhotos(remoteCards, photos(() => null), (photo) => reported.push(photo),
+    remote(() => ({ status: "unavailable", reason: "transient" })), (item) => deferred.push(item));
+  assert.deepEqual(reported, [{ id: "old", image: null }]);
+  assert.deepEqual(deferred.map((item) => item.id).sort(), ["dl", "lj"]);
+  assert.equal("image" in result.destinations[0], false);
+  assert.equal("image" in result.destinations[1], false);
+  assert.equal(result.destinations[2].image, null);
 });

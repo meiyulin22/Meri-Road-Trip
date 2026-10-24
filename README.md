@@ -55,7 +55,11 @@ The remaining variables in `.env.example` override defaults:
 default) or `tianditu`. Tianditu mode needs `TIANDITU_API_KEY` instead of
 `AMAP_API_KEY`. Tianditu has no popularity signal — it ranks same-named places by text,
 so 苍山 may lead with the village in 广西 rather than the mountain in 大理 — and it has
-no photo source yet, so its cards and covers show no photos. A Wikidata lookup with
+no photo API. Its cards and covers use the reviewed catalog in `public/photos`, and
+recommendation cards the catalog misses may be filled from Pixabay at run time when
+`PIXABAY_API_KEY` is set; those downloads are kept in `MERI_MEDIA_DIR` (required in
+production, outside the release directory and kept across deploys; development falls
+back to `.cache/media`), capped by `MERI_MEDIA_MAX_BYTES` (default 500 MB). A Wikidata lookup with
 Wikimedia Commons photos stood in for both until 2026-10-23, when it was removed: a
 server in mainland China cannot reach either, so it only ever worked on a developer's
 proxied machine.

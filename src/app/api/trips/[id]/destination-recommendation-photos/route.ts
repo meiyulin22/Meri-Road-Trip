@@ -11,13 +11,19 @@ import { TripNotFoundError } from "@/domain/trip/trip-errors";
 import { readGuestId } from "@/platform/identity/guest-identity";
 import { logEvents, logger } from "@/platform/observability/logger";
 import { serializeError } from "@/platform/observability/serialize-error";
-import { createPlacePhotoProvider } from "@/platform/map-providers";
+import { createPlacePhotoProvider, createRemotePhotoFinder } from "@/platform/map-providers";
+import type { RemotePhotoFinder } from "@/platform/place-photos/pixabay-photo-finder";
 import type { PlacePhotoProvider } from "@/platform/place-photos/place-photo-provider";
-import { findRecommendationPhotos } from "@/capabilities/recommendation/recommendation-photos";
+import {
+  findRecommendationPhotos,
+  type DeferredRecommendationPhoto,
+} from "@/capabilities/recommendation/recommendation-photos";
 
 type Dependencies = {
   readonly listMessages: (tripId: string, ownerGuestId: string) => Promise<readonly TripMessage[]>;
   readonly photos: PlacePhotoProvider;
+  /** Pixabay, for cards the local photos miss; absent or null keeps the lookup local. */
+  readonly remotePhotos?: RemotePhotoFinder | null;
   readonly savePhotos: (input: {
     tripId: string; ownerGuestId: string; messageId: string; presentation: DestinationRecommendationPresentation;
   }) => Promise<void>;
@@ -37,7 +43,9 @@ const streamHeaders = {
  * Photos for recommendation cards that are already on screen. Each card's answer is
  * streamed as one line the moment it is known — `{"id":…,"image":{url,caption}|null}` —
  * and the end of the stream means every card has its answer. They are then saved into
- * the card message, so a reload shows them without asking again.
+ * the card message, so a reload shows them without asking again. A card whose remote
+ * lookup could not run gets no line: the browser leaves it without a photo for now, and
+ * the saved message keeps it unlooked-up so a later visit asks again.
  *
  * The lookups run to the end even if the browser goes away, so the photos are still
  * saved; a failed save only costs a second lookup the next time the cards are shown.
@@ -88,7 +96,14 @@ export async function handleRecommendationPhotosPost(
       };
       void (async () => {
         try {
-          const found = await findRecommendationPhotos(presentation, dependencies.photos, send);
+          const deferred: DeferredRecommendationPhoto[] = [];
+          const found = await findRecommendationPhotos(presentation, dependencies.photos, send,
+            dependencies.remotePhotos ?? null, (item) => deferred.push(item));
+          if (deferred.length > 0) {
+            logger.warn({ event: logEvents.recommendationPhotosDeferred, requestId, tripId, messageId,
+              count: deferred.length, reasons: [...new Set(deferred.map((item) => item.reason))] },
+            "Some recommendation photos could not be looked up and will be asked for again later");
+          }
           await dependencies.savePhotos({ tripId, ownerGuestId, messageId, presentation: found });
         } catch (error) {
           logger.error({ event: logEvents.recommendationPhotosFailed, requestId, tripId, messageId,
@@ -114,6 +129,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   return handleRecommendationPhotosPost(id, readGuestId(await cookies()), body, randomUUID(), {
     listMessages: (tripId, owner) => tripMessageService.listMessages(tripId, owner),
     photos: createPlacePhotoProvider(),
+    remotePhotos: createRemotePhotoFinder(),
     savePhotos: (input) => tripMessageService.saveRecommendationPhotos(input),
   });
 }

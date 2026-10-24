@@ -52,6 +52,7 @@ export async function runDestinationRecommendationWorkflow(
   const destinations = groups.flatMap((group) => group.places.map((place) => ({
     id: dependencies.generateId(), name: place.name, province: group.province, reason: place.reason,
     ...(place.landmark ? { landmark: place.landmark } : {}),
+    ...(place.landmark && place.landmarkEn ? { landmarkEn: place.landmarkEn } : {}),
   })));
 
   logger.info({ event: "recommendation.workflow.completed", requestId,

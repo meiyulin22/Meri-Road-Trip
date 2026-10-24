@@ -1,4 +1,5 @@
 import { isCoordinateSystem, type LocationCandidate } from "@/domain/location/location";
+import { landmarkEnglishPattern } from "@/domain/location/destination-recommendations";
 import { parsePlaceImage, type PlaceImage } from "@/domain/location/place-image";
 
 export const tripMessageRoles = ["user", "assistant"] as const;
@@ -50,6 +51,8 @@ export interface DestinationRecommendation {
   readonly province: string | null;
   readonly reason?: string;
   readonly landmark?: string;
+  /** The landmark's English name, which the photo search uses; absent on older cards. */
+  readonly landmarkEn?: string;
   readonly image?: PlaceImage | null;
 }
 
@@ -172,12 +175,13 @@ function validatePresentation(value: unknown, role: TripMessageRole): TripMessag
       throw new InvalidTripMessageError("TripMessage.presentation is invalid.");
     }
     const destinations = value.destinations.map((item: unknown) => {
-      if (!isRecord(item) || !hasKnownKeys(item, ["id", "name"], ["province", "region", "reason", "landmark", "imageUrl", "image"]) ||
+      if (!isRecord(item) || !hasKnownKeys(item, ["id", "name"], ["province", "region", "reason", "landmark", "landmarkEn", "imageUrl", "image"]) ||
         !isPresentText(item.id) || !isPresentText(item.name) ||
         !(item.province === undefined || item.province === null || isPresentText(item.province)) ||
         !(item.region === undefined || item.region === null || isPresentText(item.region)) ||
         !(item.reason === undefined || isPresentText(item.reason)) ||
-        !(item.landmark === undefined || (isPresentText(item.landmark) && item.landmark.length <= 30))) {
+        !(item.landmark === undefined || (isPresentText(item.landmark) && item.landmark.length <= 30)) ||
+        !(item.landmarkEn === undefined || (typeof item.landmarkEn === "string" && landmarkEnglishPattern.test(item.landmarkEn)))) {
         throw new InvalidTripMessageError("TripMessage.presentation destination is invalid.");
       }
       // A stored image that no longer validates counts as no photo rather than losing
@@ -187,6 +191,7 @@ function validatePresentation(value: unknown, role: TripMessageRole): TripMessag
         province: (item.province ?? item.region ?? null) as string | null,
         ...(item.reason === undefined ? {} : { reason: item.reason as string }),
         ...(item.landmark === undefined ? {} : { landmark: item.landmark as string }),
+        ...(item.landmarkEn === undefined ? {} : { landmarkEn: item.landmarkEn as string }),
         ...(image === undefined ? {} : { image }) };
     });
     if (new Set(destinations.map((item) => item.id)).size !== destinations.length) {

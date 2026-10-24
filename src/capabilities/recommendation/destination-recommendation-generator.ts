@@ -34,7 +34,7 @@ export const destinationRecommendationJsonSchema: Record<string, unknown> = {
             items: {
               type: "object",
               additionalProperties: false,
-              required: ["name", "reason", "landmark"],
+              required: ["name", "reason", "landmark", "landmarkEn"],
               properties: {
                 name: {
                   type: "string", minLength: 1, maxLength: 30,
@@ -47,6 +47,10 @@ export const destinationRecommendationJsonSchema: Record<string, unknown> = {
                 landmark: {
                   type: "string", minLength: 1, maxLength: 30,
                   description: "The one well-known scenic spot inside this place that best shows it, by its common name (玉龙雪山 for 丽江市, 洱海 for 大理白族自治州). Used only to find a photo.",
+                },
+                landmarkEn: {
+                  type: "string", minLength: 1, maxLength: 60,
+                  description: "That same landmark's usual English name, as travellers and photo sites write it (Jade Dragon Snow Mountain, Erhai Lake). Latin letters only. Used only to search for its photo.",
                 },
               },
             },

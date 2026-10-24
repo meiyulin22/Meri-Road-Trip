@@ -1,4 +1,6 @@
 import assert from "node:assert/strict";
+import { readdirSync, readFileSync } from "node:fs";
+import { join, relative } from "node:path";
 import test from "node:test";
 
 import { AmapPlacePhotoProvider } from "@/platform/place-photos/amap-place-photo-provider";
@@ -24,4 +26,36 @@ test("Tianditu mode reads photos from the local catalog; Amap mode still has Ama
     if (original === undefined) delete process.env.MAP_PROVIDER;
     else process.env.MAP_PROVIDER = original;
   }
+});
+
+test("in Tianditu mode, the photos every page, cover and chat reply use never reach the network", async () => {
+  const original = { provider: process.env.MAP_PROVIDER, fetch: globalThis.fetch };
+  let fetched = 0;
+  try {
+    process.env.MAP_PROVIDER = "tianditu";
+    globalThis.fetch = (async () => { fetched += 1; throw new Error("no network here"); }) as typeof fetch;
+    const photos = createPlacePhotoProvider();
+    assert.equal(await photos.findPhoto({ kind: "named", keywords: "一个图集里没有的景点", region: "丽江市" }), null);
+    assert.equal(await photos.findPhoto({ kind: "scenic", region: "怒江傈僳族自治州" }), null);
+    assert.equal(fetched, 0);
+  } finally {
+    globalThis.fetch = original.fetch;
+    if (original.provider === undefined) delete process.env.MAP_PROVIDER;
+    else process.env.MAP_PROVIDER = original.provider;
+  }
+});
+
+test("only the recommendation-photo route may search Pixabay", () => {
+  const root = join(process.cwd(), "src");
+  const callers: string[] = [];
+  const visit = (directory: string) => {
+    for (const entry of readdirSync(directory, { withFileTypes: true })) {
+      const path = join(directory, entry.name);
+      if (entry.isDirectory()) visit(path);
+      else if (/\.tsx?$/u.test(entry.name) && !/\.test\.tsx?$/u.test(entry.name) &&
+        readFileSync(path, "utf8").includes("createRemotePhotoFinder(")) callers.push(relative(root, path));
+    }
+  };
+  visit(root);
+  assert.deepEqual(callers.sort(), ["app/api/trips/[id]/destination-recommendation-photos/route.ts", "platform/map-providers.ts"]);
 });

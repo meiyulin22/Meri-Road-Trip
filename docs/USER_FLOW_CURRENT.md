@@ -332,7 +332,7 @@ add/set 使用 Promise.all 查询表达。解析层保留不同 provider ID，�
 2. [Discovery Search](../src/platform/search/discovery-search.ts)：Bocha 取最多 8 条启发信息，失败退化为空搜索上下文。
 3. [推荐生成器](../src/capabilities/recommendation/destination-recommendation-generator.ts)：Kimi 输出省、市/州和理由。
 4. [领域校验](../src/domain/location/destination-recommendations.ts)：形状校验、去重、最多 12 个地点。
-5. 生成器每个地点还给出一个代表地标（`landmark`，如丽江市→玉龙雪山），只用来配图，不当作计划或已核验事实。工作流**不再查图**：地标随卡片存进消息，卡片先到，照片随后由浏览器单独请求（见 5.6）。
+5. 生成器每个地点还给出一个代表地标（`landmark`，如丽江市→玉龙雪山）和它的英文名（`landmarkEn`，Jade Dragon Snow Mountain），只用来配图，不当作计划或已核验事实。英文名只用于天地图模式下的 Pixabay 搜图，不合法时只丢掉这个字段。工作流**不再查图**：地标随卡片存进消息，卡片先到，照片随后由浏览器单独请求（见 5.6）。
 6. [workflow](../src/capabilities/recommendation/destination-recommendation-workflow.ts)：within 用 withinSettledProvinces 按规范化省名限制已定省，并采用用户保存的省名拼写；elsewhere 用 outsideSavedProvinces 丢弃所有已保存省份，即使模型换了写法。给卡项赋 ID。
 7. 卡片作为 pending 之后的下一条助手消息保存 destination_recommendations presentation（每张卡带 landmark、还没有 image），正文是工作流的固定句子，UI 适配为统一多选卡。卡项仍是建议，提交时才高德复核。地点名称只出现在这条卡片消息里，因此不会再出现正文列举的地点和卡片不一致。
 
@@ -525,7 +525,7 @@ add/set 使用 Promise.all 查询表达。解析层保留不同 provider ID，�
 
 **来源：**[AmapPlacePhotoProvider](../src/platform/place-photos/amap-place-photo-provider.ts)调用高德 v5 地点搜索并加 `show_fields=photos`。高德返回的图片地址多为 http，页面是 https 会被浏览器拦截；同一主机支持 https（2026-10-03 实测），所以直接把协议换成 https，不做代理。只接受 [placePhotoHosts](../src/platform/place-photos/place-photo-provider.ts) 列出的两个主机（`store.is.autonavi.com`、`aos-comment.amap.com`），[next.config.ts](../next.config.ts) 也只允许 next/image 从这两个主机取图。图片最宽约 500px，部分来自用户评论。
 
-**天地图模式的来源：本地图集。**天地图本身没有照片 API；[CatalogPhotoProvider](../src/platform/place-photos/catalog-photo-provider.ts) 从 [photos.json](../public/photos/photos.json) 读取索引，文件随应用部署在 `public/photos/`。`named` 查询必须同时匹配目录中明确登记的地区和完整地点名称或显式别名；不做子串扩展，也不删除括号里的地区信息。缺少地区、地区不在名单内或存在多个匹配时返回 null。`scenic` 只取该行政区在 `scenicFor` 中显式指定的代表图，不把行政地名当作景点同义名，不从同省其他市借图。运行时不请求 Pixabay、天地图或其他图片 API；浏览器仍下载本站图片。
+**天地图模式的来源：本地图集。**天地图本身没有照片 API；[CatalogPhotoProvider](../src/platform/place-photos/catalog-photo-provider.ts) 从 [photos.json](../public/photos/photos.json) 读取索引，文件随应用部署在 `public/photos/`。`named` 查询必须同时匹配目录中明确登记的地区和完整地点名称或显式别名；不做子串扩展，也不删除括号里的地区信息。缺少地区、地区不在名单内或存在多个匹配时返回 null。`scenic` 只取该行政区在 `scenicFor` 中显式指定的代表图，不把行政地名当作景点同义名，不从同省其他市借图。图集之后再查运行时已下载的照片（见下面"推荐卡的运行时补图"）。只有推荐卡的照片接口会在两者都没有时去请求 Pixabay；页面服务端渲染、旅程封面、聊天里的地点候选卡、已选地点照片都只读本地，不请求 Pixabay、天地图或其他图片 API；浏览器仍下载本站图片。
 
 每项的 `aliases` 是同一地点的明确别名，`regions` 是按名称查图允许的地区，`scenicFor` 是可使用此图的行政区代表图名单。三者均使用完整精确匹配，支持的地区简称也须显式登记；裸“城关区”“西湖区”等不证明所属城市。跨地区景点可以登记多个地区，如泸沽湖的丽江市／凉山州、纳木错的拉萨市／那曲市。索引读取时跳过结构或文件名不合法的记录，不影响其他图片。
 
@@ -562,6 +562,39 @@ add/set 使用 Promise.all 查询表达。解析层保留不同 provider ID，�
 
 人工脚本将合法的成功搜索响应缓存 24 小时，目录为 `.cache/pixabay-search/`，文件名按不含密钥的查询参数哈希生成；缓存时间或结构不合法时重新查询。搜索 HTTP 失败不缓存，并立即终止这一轮，不继续下一个景点；日志只输出脱敏消息，不输出请求 URL、密钥或堆栈。这是人工抓图工具的行为，不是应用运行时的图片请求。
 
+**推荐卡的运行时补图（Pixabay，1.0624）：**图集只有约 30 个景点，而推荐卡的地标是模型临时挑的、覆盖全国，大部分卡对不上。所以天地图模式下，推荐卡在本地（图集 → 已下载）都没有时，由 [PixabayPhotoFinder](../src/platform/place-photos/pixabay-photo-finder.ts) 当场去 Pixabay 找，找到就推给正在显示的那张卡，并随消息保存。条件是配置了 `PIXABAY_API_KEY` 和媒体目录（见下）；高德模式不走这条路，高德自己有照片。
+
+1. **搜什么：**Pixabay 实测只认英文关键词，所以推荐生成器在 `landmark` 之外多给一个 `landmarkEn`（同一个地标的常用英文名，如 玉龙雪山 → Jade Dragon Snow Mountain），在同一次模型输出里，不额外调用模型。英文名不合法（非拉丁字母、超过 60 字）只丢掉这个字段，不让整轮推荐失败；没有 `landmarkEn` 的卡（包括 1.0624 之前的卡）不去 Pixabay。查询词最多两个：英文名本身；第一次没有合格结果时，再加上地区英文名（Stone Forest → Stone Forest kunming）。只有景点名称的卡才远程查，只有地区、没有地标的不查——搜 "Lijiang" 得到的基本是随机图。
+2. **怎么判断是不是这个地方**（[pixabay-photo-match](../src/platform/place-photos/pixabay-photo-match.ts)）：Pixabay 没有拍摄坐标和行政区字段，能用的只有上传者写的 tags 和原图页地址里的词，这只能排除明显不对的图，不能证明拍摄地点。规则：
+   - 英文名里每个有区分度的词都要出现（Tiger Leaping Gorge 要 tiger 和 leaping）；mountain、lake、temple、snow、China、省名、地级市名这类泛词不算。名字全是泛词或地区名的（West Lake、Dali Ancient City）要求所有词都出现，并且出现本地区的名字；以县名命名的（Pingyao Ancient City）县名本身就算。
+   - tags 提到别的省、别的地级市（除非同时提到本地级市，例如虎跳峡同时写丽江和香格里拉）、或常被混淆的国外地点（日本、尼泊尔、瑞士、希腊……）→ 拒绝。地区英文名表在 [photo-regions](../src/platform/place-photos/photo-regions.ts)：全部省级行政区，加上常被拍的地级市及其知名县名、景点名；表里没有的地区只是无法发现冲突。
+   - tags 必须表明在中国：出现本省或本市的名字，或 china / chinese。实测 Stone Forest 第一次搜索的头几张是希腊迈泰奥拉、韩国瀑布、瑞士阿尔卑斯，旧规则只凭 stone 一个词就选中了迈泰奥拉；加上这条以后选中的是昆明石林。
+   - 原图宽至少 960、横构图；同样合格时，tags 里写了本地区的排前面，其余按 Pixabay 的热门顺序。
+   - 证据不够就不配图（null），宁可没图也不放错图。说明文字（caption）是卡片的中文地标名，署名为 `Photo: <作者> / Pixabay`。这些照片由代码按 tags 自动选出，**没有人工审核**：元数据里记 `reviewed: false`，卡片上的显示和图集照片相同。
+3. **下载和检查：**下载搜索结果里的 640px 链接（`webformatURL`，24 小时内有效，所以存文件不存链接；文档说可以把 `_640` 换成 `_960`，实测这类 `/get/` 链接换了返回 HTTP 400）。只从 `pixabay.com`、`cdn.pixabay.com` 下载，https，最多跟随 2 次仍在这两个主机内的跳转；Content-Type 必须是 JPEG/PNG/WebP；按实际收到的字节计数，超过 4 MB 就中断；再从文件头读出真实格式和宽高（[image-file](../src/platform/place-photos/image-file.ts)），格式和声明一致、至少 480×320、至少 10 KB 才发布。
+4. **限额：**所有 Pixabay 请求（搜索和下载）一次一个，排队最多 16 个，再多直接算"这次查不了"；搜索 8 秒超时，下载 15 秒。一批卡片（一次照片请求）最多 8 次搜索、4 次下载、45 秒；一个地标最多下载 2 个候选。同一地区同一地标同时被查时共用一次操作（例如两个标签页）。
+5. **缓存：**搜索响应在磁盘上缓存 24 小时（Pixabay 条款要求），**空结果也缓存**；判定"没有合适的图"的结论同样记 24 小时，期间不重复搜索或下载。网络错误、超时、5xx、响应格式不对**不缓存**，只在进程内记"10 分钟后再试"。返回里某一条结果格式不对只丢掉那一条（实测"元阳梯田"的结果里有一条 tags 长 511 字，曾让整次搜索被当成失败）。
+6. **被拒和限流：**HTTP 400/401/403（key 不对或被拒）和 429 会让这一批里剩下的卡都不再请求，并让整个进程暂停（429 暂停 1 分钟，被拒暂停 15 分钟）；不重试，不连发。日志只记 `place_photo.remote.completed` / `place_photo.remote.unavailable`（地区、地标、原因）和 `recommendation.photos.deferred`（这批有几张没查成、原因），不记 URL 和密钥。
+
+**运行时照片存在哪：**[MediaPhotoStore](../src/platform/place-photos/media-photo-store.ts) 把文件放在 `MERI_MEDIA_DIR/place-photos/` 下，不放 `public/`：生产模式的 Next 在启动时就确定了 `public/` 里有哪些文件，之后写进去的不会被访问到。
+
+| 路径 | 内容 |
+| --- | --- |
+| `files/pixabay-<ID>.<ext>` | 图片本身 |
+| `files/pixabay-<ID>.json` | 来源记录：Pixabay ID、作者、原图页、tags、用的查询词、命中的词、省/市/地标、宽高字节数、`reviewed: false`、时间。**最后写**，有它才算发布完成 |
+| `lookups/<hash>.json` | 某地区某地标最后用了哪张图；`<hash>.none.json` 是"没有合适的图"的 24 小时结论 |
+| `searches/<hash>.json` | Pixabay 搜索响应（只留 Meri 读的字段），24 小时；哈希和内容都不含密钥 |
+
+每个文件先写临时名再改名，崩溃时只会留下旧状态或新状态，不会留下半个文件；已经写完的文件重启后照样可用，没写完的那次查询下次再做。总容量上限 `MERI_MEDIA_MAX_BYTES`（默认 500 MB），到了上限**不再收新图**，已有的图不删（历史消息可能还在引用）；这时的卡算"这次查不了"。next/image 的优化缓存（`.next/cache/images`）是另一块磁盘，不算在这 500 MB 里，也没有上限。
+
+`MERI_MEDIA_DIR` 必须指向发布目录以外、跨部署保留的目录（例如 VPS 上的 `/var/lib/meri/media`，用 Docker 就挂一个持久卷），否则每次部署都会丢掉已下载的图，而历史消息里的链接会 404。开发环境不设时用项目里的 `.cache/media`（已被 .gitignore 忽略）；生产环境不设时**没有运行时补图**（也不会写进发布目录）。
+
+**怎么访问：**[`GET /media/place-photos/[file]`](../src/app/media/place-photos/[file]/route.ts) 从媒体目录读文件返回。只接受 `pixabay-<数字>.<jpg|png|webp>` 这种 Meri 自己起的名字，而且对应的来源记录要已经存在；其他名字、路径穿越、`.json` 一律 404。响应带正确的 Content-Type、`X-Content-Type-Options: nosniff` 和一年的 `immutable` 缓存（文件名含图片 ID，内容不会变）。卡片照片仍经 next/image，由 `/_next/image` 在服务器内部取这个地址。不需要 nginx 映射；以后想让 nginx 直接发文件，可以把 `/media/place-photos/` 映射到 `MERI_MEDIA_DIR/place-photos/files/`，但那样就跳过了"来源记录已写完"的检查。
+
+**已经是 null 的旧卡：**不改。1.0624 之前查过、没找到照片的推荐卡已经存成 null，按原来的规则不再查，也不会被批量重写。只有带 `landmarkEn` 的卡（1.0624 起新生成的推荐卡）会用到 Pixabay；旧的、还没查过照片的卡照常只查本地。想让某条旧消息重新配图，只能重新请求推荐。
+
+**实测（2026-10-24，本机经公司代理，真实 Pixabay）：**石林、黄果树瀑布、平遥古城、鼓浪屿、元阳梯田 5 个图集里没有的地标，最终都选到了正确地点的照片（人工看过图）。同一目录换一个新进程再查，5 个全部从磁盘回答，0 次请求。生产构建（`next build` + `next start`）下，运行中新放进目录的照片不重启即可直接访问，也能经 `/_next/image` 访问；路径穿越和 `.json` 返回 404。验证过程中顺带发现并修掉了三个问题：迈泰奥拉误选（加"必须表明在中国"）、`_960` 链接 400（改下 640）、一条超长 tags 让整次搜索失败（改为只丢那一条）。没有请求天地图。
+
 **查什么：**[photoQueriesFor](../src/capabilities/destination/place-images.ts)按从具体到宽泛的顺序尝试，第一张找到就停：
 
 1. 用户说过的景点（梅里雪山）→ 在所属市内按名称查；景点本身是县级市/县/区名（香格里拉市、大理市）→ 按该行政区查代表景点。以景区、风景名胜区、保护区、度假区结尾的名称仍按景点查，避免“黄山风景区”丢失名称和地区的关联；
@@ -573,17 +606,17 @@ add/set 使用 Promise.all 查询表达。解析层保留不同 provider ID，�
 
 **推荐卡：先出卡，照片随后流式补上。**以前推荐接口要等 12 张卡的照片都查完（约 4 秒）才返回卡片；现在：
 
-1. `POST /api/trips/[id]/destination-recommendations` 拿到模型结果就保存并返回卡片，每张卡带 `landmark`，`image` 未设置。
+1. `POST /api/trips/[id]/destination-recommendations` 拿到模型结果就保存并返回卡片，每张卡带 `landmark`（和 `landmarkEn`），`image` 未设置。
 2. 卡片一出现，[ConversationPanel](../src/components/trip-workspace/conversation-panel.tsx)对这条卡片消息调用 `POST /api/trips/[id]/destination-recommendation-photos`（[streamRecommendationPhotos](../src/components/trip-workspace/destination-recommendation-model.ts)）。还没有答案的卡显示骨架块。
-3. 服务器（[findRecommendationPhotos](../src/capabilities/recommendation/recommendation-photos.ts)）按当前照片提供方查询每张卡：高德请求由共用队列排开，本地图集只读取本地索引；**每查完一张就推一行 JSON**（`{"id":…,"image":{url,caption,credit?}|null}`，NDJSON），浏览器收到就把照片放到对应卡片上淡入。同一批里已经出现过的照片，后到的卡不再用（先到先得）。
+3. 服务器（[findRecommendationPhotos](../src/capabilities/recommendation/recommendation-photos.ts)）按当前照片提供方查询每张卡：高德请求由共用队列排开，本地图集只读取本地索引；天地图模式下本地没有、卡片又带英文地标名的，再去 Pixabay 查（见下面"推荐卡的运行时补图"）；**每查完一张就推一行 JSON**（`{"id":…,"image":{url,caption,credit?}|null}`，NDJSON），浏览器收到就把照片放到对应卡片上淡入。同一批里已经出现过的照片，后到的卡不再用（先到先得）。
 4. 全部查完后，把结果一次写回这条卡片消息的 presentation（[saveRecommendationPhotos](../src/capabilities/conversation/trip-message-service.ts)，只改 presentation），然后结束响应。刷新后直接读出，不再查询。
 
-卡片的 `image` 有三种状态：**未设置**＝还没人查过（显示骨架并会去查）；**照片**；**null**＝查过、没有可用照片（显示定位图标，不再查）。存储的 image 不合法时按 null 处理，不让整张卡失效，也不会每次加载都重查。一次只为一条卡片消息请求照片；打开旅程时，旧的、还没查过照片的推荐卡（包括 1.0025 之前的卡）也会这样补上照片。
+卡片的 `image` 有三种状态：**未设置**＝还没人查过（显示骨架并会去查）；**照片**；**null**＝查过、没有可用照片（显示定位图标，不再查）。Pixabay 这次查不了（网络、超时、限流、本批额度用完、存储满）的卡**不推任何一行**，保存时也保持**未设置**：浏览器这次显示定位图标，下次打开旅程再查；服务器对同一个地标 10 分钟内不重查，所以反复刷新不会反复请求 Pixabay。存储的 image 不合法时按 null 处理，不让整张卡失效，也不会每次加载都重查。一次只为一条卡片消息请求照片；打开旅程时，旧的、还没查过照片的推荐卡（包括 1.0025 之前的卡）也会这样补上照片。
 
 浏览器中途离开（刷新、关页）时，服务器照样查完并保存；保存失败只记 `recommendation.photos.failed`，下次打开再查一次。请求失败时卡片保持原样（定位图标），下次加载再试。高德被限流时整个队列暂停，表现为骨架多闪一会儿，不单独提示。
 
 **存在哪：**
-- 推荐卡：见上，`image: {url, caption, credit?}` 或 null 存进那条卡片消息的 presentation，只存链接、说明及可选署名，不存图片本身。本地图集的 URL 为 `/photos/...` 同域路径。
+- 推荐卡：见上，`image: {url, caption, credit?}` 或 null 存进那条卡片消息的 presentation，只存链接、说明及可选署名，不存图片本身。本地图集的 URL 为 `/photos/...` 同域路径；运行时下载的照片为 `/media/place-photos/pixabay-<图片ID>.<jpg|png|webp>`，图片文件在媒体目录里。
 - 地点候选卡（聊天里“潮汕”这类的待选卡，通常 1–3 张）仍在出卡时一并查好，没有 null 状态：没有 image 就显示定位图标。图片链接失效时卡片显示兜底样式。
 - 已选地点的照片不进 TripState：[selectedPlaceImages](../src/capabilities/destination/place-images.ts)按当前目的地现查，删掉地点照片也随之消失。某地点若在对话的卡片上展示过照片（[imagesShownInConversation](../src/capabilities/destination/place-images.ts)），沿用那张，保证从卡片选进来的丽江仍显示卡片上的玉龙雪山，而不是重新查到的玉水寨。
 - 页面服务端渲染时带上照片（最多等 1.5 秒，超时则不带，浏览器打开后再请求），刷新时不闪烁。目的地变化后，[TripWorkspace](../src/components/trip-workspace/trip-workspace.tsx)调用 `GET /api/trips/[id]/destination-photos` 重新取。
@@ -591,7 +624,7 @@ add/set 使用 Promise.all 查询表达。解析层保留不同 provider ID，�
 
 图集更新只影响新的照片查询，不重写历史消息的 presentation；已选地点仍可能优先复用历史卡片的 image。已撤文件的历史 URL 在没有已有缓存时会加载失败并走现有 UI 兜底，不会自动替换为另一张照片；已缓存图片可能继续显示至缓存失效。当前卡片仍为 4:3；无图或加载失败显示图钉，署名为不可点击文本。16:9、无图省略图片区和可点击来源页尚未实现。
 
-**本地图集缓存：**索引在进程内读取并复用，修改文件后需重启进程才能读取新版。查图不消耗外部图片 API 额度；本站图片下载和 next/image 优化仍有流量、CPU 与磁盘缓存开销。
+**本地图集缓存：**索引在进程内读取并复用，修改文件后需重启进程才能读取新版。查图不消耗外部图片 API 额度；本站图片下载和 next/image 优化仍有流量、CPU 与磁盘缓存开销。运行时下载的照片不写进这份索引，而是存在媒体目录里，每次查询从磁盘读，所以新下载的照片不需要重启就能被查到和访问。
 
 **高德查询缓存：**[PlacePhotoMemory](../src/platform/place-photos/amap-place-photo-provider.ts)在服务器进程内存里保存查询结果 7 天（最多 500 条），**只保存真实答案**（找到照片，或高德确认这里没有照片），被限流、超时、接口错误都不保存。不用 Next 的 `fetch` 缓存（`next.revalidate`），因为高德被限流时仍返回 HTTP 200，fetch 缓存会把“被限流”当成答案保存 7 天。长期运行的服务器（自托管 VPS）缓存持续有效；Vercel 这类短生命周期实例命中率低，代价只是多查一次，卡片照片本身已存在消息里。将来换成 Redis 等共享缓存时，替换的就是这一层，规则不变。地点搜索/核验不缓存。图片文件本身由 next/image 缓存（自托管在 `.next/cache/images`），浏览器另有图片缓存。查图失败记录 `place_photo.lookup.failed`（带高德 infocode），不影响聊天或保存。
 

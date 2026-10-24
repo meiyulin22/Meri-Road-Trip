@@ -147,6 +147,20 @@ test("a recommendation card keeps its landmark, and its photo is not looked up y
     destinations: [{ id: "a", name: "丽江市", province: "云南省", landmark: "x".repeat(31) }] } }));
 });
 
+test("a card keeps its landmark's English name and a photo Meri downloaded; a malformed one of either is refused", () => {
+  const downloaded = { url: "/media/place-photos/pixabay-1804795.jpg", caption: "洱海", credit: "Photo: pony96 / Pixabay" };
+  const message = validateTripMessage({ id: "cards", tripId: "trip", role: "assistant", content: "看看这些地方",
+    createdAt: "2026-10-04T00:00:00.000Z", presentation: { type: "destination_recommendations", destinations: [
+      { id: "a", name: "大理白族自治州", province: "云南省", landmark: "洱海", landmarkEn: "Erhai Lake", image: downloaded },
+      { id: "b", name: "丽江市", province: "云南省", image: { url: "/media/place-photos/../photos.json", caption: "x" } },
+    ] } });
+  const presentation = message.presentation as DestinationRecommendationPresentation;
+  assert.equal(presentation.destinations[0].landmarkEn, "Erhai Lake");
+  assert.deepEqual(presentation.destinations.map((item) => item.image), [downloaded, null]);
+  assert.throws(() => validateTripMessage({ ...message, presentation: { type: "destination_recommendations",
+    destinations: [{ id: "a", name: "丽江市", province: "云南省", landmark: "玉龙雪山", landmarkEn: "玉龙雪山" }] } }));
+});
+
 test("a saved location candidate keeps whether it is a sight, and older ones without it still read", () => {
   const candidate = { providerId: "palace", name: "故宫博物院", province: "北京市", city: "北京市", district: "东城区",
     region: "北京市 东城区", address: null, longitude: 116.397, latitude: 39.918, coordinateSystem: "GCJ-02" };

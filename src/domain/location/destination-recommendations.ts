@@ -3,6 +3,10 @@ import { isChinaProvince } from "./china-destination-scope";
 
 import { normalizeRecommendationName, normalizeRecommendationRegion } from "./recommendation-identity";
 
+/** Latin letters, digits, spaces and the joining marks an English place name uses. */
+export const landmarkEnglishPattern = /^[A-Za-z0-9][A-Za-z0-9 '’.-]{0,59}$/u;
+const landmarkEnglishSchema = z.string().trim().regex(landmarkEnglishPattern);
+
 /**
  * A recommended place is one a plan can actually be built for: a 市 or a 州 is the
  * finest level offered, and which 景点 inside it are worth the drive is Generate
@@ -14,6 +18,11 @@ const recommendedPlaceSchema = z.strictObject({
   reason: z.string().trim().min(1).max(120),
   /** Only chooses the card's photo; it is not a plan or a verified fact about the place. */
   landmark: z.string().trim().min(1).max(30).optional(),
+  /**
+   * The landmark's English name, the only words a photo library searches by. A bad one
+   * is dropped rather than failing the round: it decides a photo, not a recommendation.
+   */
+  landmarkEn: landmarkEnglishSchema.optional().catch(undefined),
 });
 
 /**

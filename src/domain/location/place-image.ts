@@ -2,13 +2,15 @@
  * A representative photo for a place, shown on cards and in the Journey column. It
  * decorates a place the user chose or was offered; it is never evidence of what the
  * place is like now, and a place without one is an ordinary case, not an error.
- * Only the link is stored — the image itself stays with the provider.
+ * Only the link is stored — the image itself stays with the provider, or in Meri's own
+ * media storage for a photo downloaded at run time.
  */
 export interface PlaceImage {
   /**
    * https only for an external host: the PWA is served over https, and an http image is
    * blocked as mixed content. A root-relative path (`/photos/potala-palace.jpg`) is also
-   * accepted: it is our own copy on our own origin, which is https wherever the page is.
+   * accepted: it is our own copy on our own origin, which is https wherever the page is,
+   * as is a photo Meri downloaded at run time (`/media/place-photos/pixabay-<id>.jpg`).
    */
   readonly url: string;
   /** What the photo shows, in the provider's words: 玉龙雪山国家级风景名胜区. */
@@ -20,6 +22,9 @@ export interface PlaceImage {
   readonly credit?: string;
 }
 
+/** The only names the runtime photo route serves (media-photo-store.ts). */
+const runtimePhotoUrl = /^\/media\/place-photos\/pixabay-[1-9]\d{0,11}\.(?:jpg|png|webp)$/u;
+
 export function parsePlaceImage(value: unknown): PlaceImage | null {
   if (typeof value !== "object" || value === null || Array.isArray(value)) return null;
   const { url, caption, credit } = value as Record<string, unknown>;
@@ -28,8 +33,9 @@ export function parsePlaceImage(value: unknown): PlaceImage | null {
     return null;
   }
   const validCredit = typeof credit === "string" && credit.trim() !== "" && credit.length <= 120 ? credit.trim() : null;
-  // Our own copy of a photo lives under /photos and is served from this origin.
-  if (url.startsWith("/photos/") && !url.includes("..")) {
+  // Our own copy of a photo lives under /photos (shipped with the app) or, when Meri
+  // downloaded it while running, under /media/place-photos — both on this origin.
+  if ((url.startsWith("/photos/") && !url.includes("..")) || runtimePhotoUrl.test(url)) {
     return { url, caption: caption.trim(), ...(validCredit ? { credit: validCredit } : {}) };
   }
   try {
