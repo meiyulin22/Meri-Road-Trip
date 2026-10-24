@@ -247,7 +247,7 @@ LLM 解释自然语言并提出受限 JSON；应用校验、决定是否执行�
 | [src/components/meri-shell/recent-journeys-model.ts](../src/components/meri-shell/recent-journeys-model.ts) | 表现层 | 纯前端规则：最近列表、可见数量、首尾循环的下一索引及点击导航边界。 |
 | [src/components/meri-shell/recent-journeys.module.css](../src/components/meri-shell/recent-journeys.module.css) | 表现层 | 最近旅程卡片、轮播箭头及操作样式；局部圆角与透明遮罩柔化两侧卡片及视口切口，中央卡片保持清晰。 |
 | [src/components/meri-shell/recent-journeys.tsx](../src/components/meri-shell/recent-journeys.tsx) | 表现层 | 最近旅程 React 组件，适配 Aceternity Carousel 的居中平移轨道、透视缩放及 Motion 悬停视差；支持循环切换、手势、键盘、导航和删除后的列表更新；有封面照片的卡在插画上叠放该照片。 |
-| [src/components/i18n/messages.ts](../src/components/i18n/messages.ts) | 表现层 | 界面文字中英字典（首页、最近旅程、旅程页面各区域、我的旅程列表），英文定结构、中文类型上必须对应，带参数的句子与日期格式为函数。 |
+| [src/components/i18n/messages.ts](../src/components/i18n/messages.ts) | 表现层 | 界面文字中英字典（首页、最近旅程、旅程页面各区域、我的旅程列表），英文定结构、中文类型上必须对应，带参数的句子与日期格式为函数；含照片署名页的 `photoCredits`。 |
 | [src/components/i18n/locale-context.tsx](../src/components/i18n/locale-context.tsx) | 表现层 | LocaleProvider 与 useLocale/useMessages；Provider 之外默认英文（仅测试中出现）。 |
 
 ### 6.5 Workspace 表现层
@@ -266,7 +266,7 @@ LLM 解释自然语言并提出受限 JSON；应用校验、决定是否执行�
 | [src/components/trip-workspace/conversation-reveal.test.ts](../src/components/trip-workspace/conversation-reveal.test.ts) | 测试（对应模块边界） | 验证只对已提交文本按字符步进显示，不越界或改写正文。 |
 | [src/components/trip-workspace/conversation-reveal.ts](../src/components/trip-workspace/conversation-reveal.ts) | 表现层 | 已提交助手正文的客户端可见字符数/显示节奏纯函数；不是服务端 token 流。 |
 | [src/components/trip-workspace/destination-choices-card.test.tsx](../src/components/trip-workspace/destination-choices-card.test.tsx) | 测试（对应模块边界） | 验证同市新 spot 可添加、replace 可选已有市、重复 POI 归并及历史/已确认卡禁用。 |
-| [src/components/trip-workspace/destination-choices-card.tsx](../src/components/trip-workspace/destination-choices-card.tsx) | 表现层 | 当前聊天多选卡：每省一行 Embla 横滑、照片在上的地点卡（查照片或下载中显示骨架块、照片淡入，失败或没有照片显示兜底），同偏好归并、统一提交，处理已在行程（勾选锁定）/只读/pending/失败状态，拖动不误勾选。 |
+| [src/components/trip-workspace/destination-choices-card.tsx](../src/components/trip-workspace/destination-choices-card.tsx) | 表现层 | 当前聊天多选卡：每省一行 Embla 横滑、照片在上的地点卡（查照片或下载中显示骨架块、照片淡入，失败或没有照片显示兜底），同偏好归并、统一提交，处理已在行程（勾选锁定）/只读/pending/失败状态，拖动不误勾选；署名文字是链接，打开 /photo-credits 里这张照片那一行（`creditsHref`，提供方自己的照片没有链接）。 |
 | [src/components/trip-workspace/destination-editor.tsx](../src/components/trip-workspace/destination-editor.tsx) | 表现层 | 右侧目的地行：“＋ 添加”展开搜索；每省一块，每个城市一行、其景点标签排在同一行右侧，均可删除，无城市的省显示“全省”；单字建议和完整搜索结果均可一键添加，建议按完整名称/地区提交核验；精确删除及旧记录清除，处理 busy 和错误。 |
 | [src/components/trip-workspace/destination-recommendation-model.test.ts](../src/components/trip-workspace/destination-recommendation-model.test.ts) | 测试（对应模块边界） | 验证推荐卡选择资格、省分组、统一提交请求及旧 Picker 渲染兼容。 |
 | [src/components/trip-workspace/destination-recommendation-model.ts](../src/components/trip-workspace/destination-recommendation-model.ts) | 表现层 | 提交推荐选卡、请求 pending 回复的推荐卡片、读取推荐卡照片的 NDJSON 流（跨块拼行、坏行跳过、坏照片当无图）、按省归组及选择资格等前端辅助规则。 |
@@ -503,8 +503,8 @@ LLM 解释自然语言并提出受限 JSON；应用校验、决定是否执行�
 | [src/platform/place-photos/place-photo-provider.ts](../src/platform/place-photos/place-photo-provider.ts) | 基础设施/端口 | 照片查询（按名称或按区域国家级景点）接口与允许的照片主机列表。 |
 | [src/platform/place-photos/amap-place-photo-provider.ts](../src/platform/place-photos/amap-place-photo-provider.ts) | 基础设施/适配器 | 高德 v5 搜索取照片：经共用节流器请求、http 升级 https、主机白名单、只缓存真实答案的进程内 7 天缓存（PlacePhotoMemory）、失败返回 null 并记 infocode。 |
 | [src/platform/place-photos/amap-place-photo-provider.test.ts](../src/platform/place-photos/amap-place-photo-provider.test.ts) | 测试（对应模块边界） | 验证查询参数、https 升级、主机过滤、各种失败，以及只缓存真实答案、过期重查。 |
-| [src/platform/place-photos/photo-catalog.ts](../src/platform/place-photos/photo-catalog.ts) | 基础设施/索引 | 本地图集校验和匹配：明确地区与完整名称／显式别名同时命中；保留括号地区，不猜子串或后缀；`scenicFor` 单独登记行政区代表图且必须属于允许地区；未命中、配置不合法或歧义返回 null；返回同域路径、真实主题和作者署名。 |
-| [src/platform/place-photos/catalog-photo-provider.ts](../src/platform/place-photos/catalog-photo-provider.ts) | 基础设施/适配器 | 天地图模式的照片适配器：读取并缓存本地索引，未命中时再读运行时已下载的照片（MediaPhotoStore：景点按地区 + 地标，市按同市已下载照片）；保留查询类型和地区；不请求外部 API；文件缺失或损坏按空目录处理。服务端渲染、封面、地点候选卡和已选地点照片都用它。 |
+| [src/platform/place-photos/photo-catalog.ts](../src/platform/place-photos/photo-catalog.ts) | 基础设施/索引 | 本地图集校验和匹配（条目可来自 Pixabay 或 Wikimedia Commons；Commons 条目必须有许可证、许可证链接和 Commons 文件页，署名带许可证名称，`catalogCredit` 控制在 120 字内）：明确地区与完整名称／显式别名同时命中；保留括号地区，不猜子串或后缀；`scenicFor` 单独登记行政区代表图且必须属于允许地区；未命中、配置不合法或歧义返回 null；返回同域路径、真实主题和作者署名。 |
+| [src/platform/place-photos/catalog-photo-provider.ts](../src/platform/place-photos/catalog-photo-provider.ts) | 基础设施/适配器 | 天地图模式的照片适配器：读取并缓存本地索引，未命中时再读运行时已下载的照片（MediaPhotoStore：景点按地区 + 地标，市按同市已下载照片）；保留查询类型和地区；不请求外部 API；文件缺失或损坏按空目录处理。服务端渲染、封面、地点候选卡和已选地点照片都用它；`loadPhotoCatalog` 供署名页列出全部条目。 |
 | [src/platform/place-photos/image-file.ts](../src/platform/place-photos/image-file.ts) | 基础设施/工具 | 从文件字节读出真实格式（JPEG／PNG／WebP）和宽高，不信 Content-Type；不合法返回 null。 |
 | [src/platform/place-photos/image-file.test.ts](../src/platform/place-photos/image-file.test.ts) | 测试（对应模块边界） | 验证三种格式的尺寸读取，HTML、空文件、截断文件头和零宽度被拒。 |
 | [src/platform/place-photos/photo-regions.ts](../src/platform/place-photos/photo-regions.ts) | 基础设施/数据 | 全部省级行政区和常见地级市的英文写法（含知名县名、景点名），常被混淆的国外地名（中英文，含与国内地名同字的釜山广安里、岘港），以及地区中文简称（大理白族自治州 → 大理）；用于从 tags 排除地点不符的照片和给搜索加地区。 |
@@ -519,11 +519,13 @@ LLM 解释自然语言并提出受限 JSON；应用校验、决定是否执行�
 | [src/platform/place-photos/media-photo-route.test.ts](../src/platform/place-photos/media-photo-route.test.ts) | 测试（对应模块边界） | 验证运行中新发布的照片立即可访问、响应头、路径穿越和记录文件 404、没有存储时 404。 |
 | [src/platform/place-photos/pixabay-test-fixtures.ts](../src/platform/place-photos/pixabay-test-fixtures.ts) | 测试辅助 | 只给测试用：假 JPEG、Pixabay 结果、按脚本回答并计数的 fetch；不连网络。 |
 | [src/platform/place-photos/photo-catalog.test.ts](../src/platform/place-photos/photo-catalog.test.ts) | 测试（对应模块边界） | 验证地区错配、无地区拒绝、明确别名、括号信息、歧义及不合法配置、实际文件及哈希不重复、景区完整名称和跨地区景点；错误旧图不再提供，替代图用新 URL；香格里拉使用松赞林寺代表图而非同义名；离线查询不调用 fetch。 |
+| [src/app/photo-credits/page.tsx](../src/app/photo-credits/page.tsx) | 页面 | 照片署名页：列出图集每张照片的说明、作者、来源（Pixabay / Wikimedia Commons）与原图页链接、许可证与许可证链接、"已缩小尺寸"，每行以文件名为锚点；底部说明运行时从 Pixabay 找到的照片。卡片署名链到这里。中英文文字在 `messages.ts` 的 `photoCredits`。 |
+| [src/app/photo-credits/photo-credits.module.css](../src/app/photo-credits/photo-credits.module.css) | 样式 | 署名页样式：浅色/深色、手机宽度单列、被锚点定位的一行加描边。 |
 | [scripts/catalog-cities.ts](../scripts/catalog-cities.ts) | 维护数据 | 图集要覆盖的城市，按批次登记：省、全称、简称、英文名（同音城市带省份）、1–2 个最常被拍的景点（中英文名）。第一批江浙沪 25 城（杭州已有代表图），第二批云南、四川、重庆、西藏 34 城（已有代表图的不列）。 |
-| [scripts/build-city-catalog.ts](../scripts/build-city-catalog.ts) | 维护工具 | 按城市补图集代表图：`fetch` 用运行时同一套规则在 Pixabay 找每城最多 3 张候选（`--views` 城市景色模式只搜城市名，每城最多 4 张），下载到 `.cache/catalog-review/` 并生成审核页（不碰 public/photos）；`apply` 按人工挑好的 picks.json（图片 ID、照片说明、文件名）复制进 public/photos 并登记 regions / scenicFor。走产品的 PixabayClient（每分钟不超过 80 次，满了等一分钟），搜索缓存 24 小时，不输出密钥。 |
+| [scripts/build-city-catalog.ts](../scripts/build-city-catalog.ts) | 维护工具 | 按城市补图集代表图：`fetch` 用运行时同一套规则在 Pixabay 找每城最多 3 张候选（`--views` 城市景色模式只搜城市名，每城最多 4 张），下载到 `.cache/catalog-review/` 并生成审核页（不碰 public/photos）；`--wikimedia` 第二图源模式从 Wikidata 取城市代表图（P18，按全称或简称加所属省份匹配），从 Commons 取作者、许可证和 500px 副本；`apply` 按人工挑好的 picks.json（图片 ID、照片说明、文件名）复制进 public/photos 并登记 regions / scenicFor，Commons 照片另记 source / license / licenseUrl。走产品的 PixabayClient（每分钟不超过 80 次，满了等一分钟），搜索缓存 24 小时，不输出密钥。 |
 | [scripts/photo-misses.ts](../scripts/photo-misses.ts) | 维护工具 | 读 `MERI_MEDIA_DIR`（未设时 `.cache/media`）的未配图记录，按次数列出景点、搜索词、返回条数和被拒原因，用来挑选值得人工补进图集的景点；只读本地，不请求 Pixabay、不改文件。 |
 | [scripts/fetch-place-photos.ts](../scripts/fetch-place-photos.ts) | 开发验证工具 | 青海湖／天山天池／松赞林寺固定审核后的 Pixabay ID，其余用关键词与 tags 筛候选；成功响应缓存 24 小时（不含密钥的参数哈希），HTTP 失败立即停止并脱敏输出；按实际 JPEG／PNG／WebP 格式、带图片 ID 的文件名下载。新图或更换来源清空地区，核对后才启用；同源刷新保留配置。支持指定地名和 --refresh。 |
-| [public/photos/](../public/photos) | 静态资源 | 预下载照片与带来源、明确地区、别名、行政区代表图配置的 photos.json；由本站提供文件。1.0628 起按城市分批补代表图（第一批江浙沪 18 张，第二批云南、四川、重庆、西藏 13 张，共 64 条）。运行时从 Pixabay 下载的照片不写进这里（生产模式启动后 public 不再变化），而是在 `MERI_MEDIA_DIR`。不代表全国覆盖或逐张审核完成。青海湖和天山天池已更换来源；香格里拉市使用独立景点松赞林寺代表图。 |
+| [public/photos/](../public/photos) | 静态资源 | 预下载照片与带来源、明确地区、别名、行政区代表图配置的 photos.json；由本站提供文件。1.0628 起按城市分批补代表图（第一批江浙沪 18 张，第二批云南、四川、重庆、西藏 13 张；1.0632 用 Wikimedia Commons 补了 Pixabay 没有的 20 个城市，共 84 条，Commons 照片带知识共享许可，署名见 /photo-credits）。运行时从 Pixabay 下载的照片不写进这里（生产模式启动后 public 不再变化），而是在 `MERI_MEDIA_DIR`。不代表全国覆盖或逐张审核完成。青海湖和天山天池已更换来源；香格里拉市使用独立景点松赞林寺代表图。 |
 | [public/photos/qinghai-lake-2631421.jpg](../public/photos/qinghai-lake-2631421.jpg) | 静态资源 | 本轮查看来源与画面后选用的青海湖畔油菜花照片，Pixabay 2631421，作者 Ponyo-；替代旧茶卡盐湖错图。 |
 | [public/photos/tianchi-xinjiang-2077003.jpg](../public/photos/tianchi-xinjiang-2077003.jpg) | 静态资源 | 本轮查看来源与画面后选用的新疆天山天池照片，Pixabay 2077003，作者 ccp877；与长白山天池使用不同照片。 |
 | [public/photos/songzanlin-4424995.jpg](../public/photos/songzanlin-4424995.jpg) | 静态资源 | 松赞林寺照片，Pixabay 4424995，作者 samyo；作为香格里拉市／迪庆州明确登记的代表图，旧香格里拉丽江雪山文件已撤下。 |

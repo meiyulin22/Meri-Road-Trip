@@ -1087,5 +1087,365 @@
    "红河哈尼族彝族自治州",
    "红河"
   ]
+ },
+ "连云港": {
+  "file": "lianyungang-city-18646554.jpg",
+  "artist": "风之清扬",
+  "pageUrl": "https://commons.wikimedia.org/wiki/File:Lianyun_District_Birdview.JPG",
+  "fetchedAt": "2026-10-24",
+  "aliases": [],
+  "regions": [
+   "连云港市",
+   "连云港"
+  ],
+  "scenicFor": [
+   "连云港市",
+   "连云港"
+  ],
+  "source": "wikimedia",
+  "license": "CC BY-SA 3.0",
+  "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0"
+ },
+ "清江浦": {
+  "file": "qingjiangpu-huaian-170844875.jpg",
+  "artist": "Cz2018764171",
+  "pageUrl": "https://commons.wikimedia.org/wiki/File:%E6%B8%85%E6%B1%9F%E6%B5%A6%E7%A0%81%E5%A4%B4%E9%A3%8E%E5%85%89.jpg",
+  "fetchedAt": "2026-10-24",
+  "aliases": [],
+  "regions": [
+   "淮安市",
+   "淮安"
+  ],
+  "scenicFor": [
+   "淮安市",
+   "淮安"
+  ],
+  "source": "wikimedia",
+  "license": "CC BY-SA 4.0",
+  "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0"
+ },
+ "靖江": {
+  "file": "jingjiang-taizhou-182526699.jpg",
+  "artist": "風雚流羽",
+  "pageUrl": "https://commons.wikimedia.org/wiki/File:Jingcheng_Subdistrict_August_2025_Jingjiang.jpg",
+  "fetchedAt": "2026-10-24",
+  "aliases": [],
+  "regions": [
+   "泰州市",
+   "泰州"
+  ],
+  "scenicFor": [
+   "泰州市",
+   "泰州"
+  ],
+  "source": "wikimedia",
+  "license": "CC BY-SA 4.0",
+  "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0"
+ },
+ "沭阳": {
+  "file": "shuyang-suqian-15772532.jpg",
+  "artist": "Sinopitt",
+  "pageUrl": "https://commons.wikimedia.org/wiki/File:Shuyang_City_View_01.JPG",
+  "fetchedAt": "2026-10-24",
+  "aliases": [],
+  "regions": [
+   "宿迁市",
+   "宿迁"
+  ],
+  "scenicFor": [
+   "宿迁市",
+   "宿迁"
+  ],
+  "source": "wikimedia",
+  "license": "CC BY-SA 3.0",
+  "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0"
+ },
+ "南湖公园": {
+  "file": "quzhou-nanhu-park-54790618.jpg",
+  "artist": "江上清风1961",
+  "pageUrl": "https://commons.wikimedia.org/wiki/File:%E8%A1%A2%E5%B7%9E%E5%B8%82%E5%8D%97%E6%B9%96%E5%85%AC%E5%9B%AD_-_panoramio.jpg",
+  "fetchedAt": "2026-10-24",
+  "aliases": [],
+  "regions": [
+   "衢州市",
+   "衢州"
+  ],
+  "scenicFor": [
+   "衢州市",
+   "衢州"
+  ],
+  "source": "wikimedia",
+  "license": "CC BY 3.0",
+  "licenseUrl": "https://creativecommons.org/licenses/by/3.0"
+ },
+ "曲靖": {
+  "file": "qujing-city-154672264.jpg",
+  "artist": "瑞丽江的河水",
+  "pageUrl": "https://commons.wikimedia.org/wiki/File:%E6%9B%B2%E9%9D%96%E5%B8%82%E5%A4%A9%E9%99%85%E7%BA%BF_-_%E8%88%AA%E6%8B%8D_-_2024-10-02_10.jpg",
+  "fetchedAt": "2026-10-24",
+  "aliases": [],
+  "regions": [
+   "曲靖市",
+   "曲靖"
+  ],
+  "scenicFor": [
+   "曲靖市",
+   "曲靖"
+  ],
+  "source": "wikimedia",
+  "license": "CC BY-SA 4.0",
+  "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0"
+ },
+ "玉溪": {
+  "file": "yuxi-city-163263289.jpg",
+  "artist": "瑞丽江的河水",
+  "pageUrl": "https://commons.wikimedia.org/wiki/File:%E7%8E%89%E6%BA%AA%E5%A4%A9%E9%99%85%E7%BA%BF_-_%E8%88%AA%E6%8B%8D_-_2024-10-22_23.jpg",
+  "fetchedAt": "2026-10-24",
+  "aliases": [],
+  "regions": [
+   "玉溪市",
+   "玉溪"
+  ],
+  "scenicFor": [
+   "玉溪市",
+   "玉溪"
+  ],
+  "source": "wikimedia",
+  "license": "CC BY-SA 4.0",
+  "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0"
+ },
+ "保山": {
+  "file": "baoshan-city-153180714.jpg",
+  "artist": "瑞丽江的河水",
+  "pageUrl": "https://commons.wikimedia.org/wiki/File:%E4%BF%9D%E5%B1%B1%E5%B8%82%E5%A4%A9%E9%99%85%E7%BA%BF_-_%E8%88%AA%E6%8B%8D_-_%E5%85%A8%E6%99%AF_-_2024-06-02_02.jpg",
+  "fetchedAt": "2026-10-24",
+  "aliases": [],
+  "regions": [
+   "保山市",
+   "保山"
+  ],
+  "scenicFor": [
+   "保山市",
+   "保山"
+  ],
+  "source": "wikimedia",
+  "license": "CC BY-SA 4.0",
+  "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0"
+ },
+ "威信": {
+  "file": "weixin-zhaotong-8840423.jpg",
+  "artist": "ICYWATER",
+  "pageUrl": "https://commons.wikimedia.org/wiki/File:%E5%A8%81%E4%BF%A1%E5%A4%A7%E5%9D%9D%E5%AD%90.jpg",
+  "fetchedAt": "2026-10-24",
+  "aliases": [],
+  "regions": [
+   "昭通市",
+   "昭通"
+  ],
+  "scenicFor": [
+   "昭通市",
+   "昭通"
+  ],
+  "source": "wikimedia",
+  "license": "CC BY-SA 4.0",
+  "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0"
+ },
+ "思茅文庙": {
+  "file": "simao-confucian-temple-154844611.jpg",
+  "artist": "瑞丽江的河水",
+  "pageUrl": "https://commons.wikimedia.org/wiki/File:%E6%80%9D%E8%8C%85%E6%96%87%E5%BA%99_-_2024-10-06.jpg",
+  "fetchedAt": "2026-10-24",
+  "aliases": [],
+  "regions": [
+   "普洱市",
+   "普洱"
+  ],
+  "scenicFor": [
+   "普洱市",
+   "普洱"
+  ],
+  "source": "wikimedia",
+  "license": "CC BY-SA 4.0",
+  "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0"
+ },
+ "临沧": {
+  "file": "lincang-city-156356673.jpg",
+  "artist": "瑞丽江的河水",
+  "pageUrl": "https://commons.wikimedia.org/wiki/File:%E4%B8%B4%E6%B2%A7%E5%A4%A9%E9%99%85%E7%BA%BF_-_%E8%88%AA%E6%8B%8D_-_2024-10-14_08.jpg",
+  "fetchedAt": "2026-10-24",
+  "aliases": [],
+  "regions": [
+   "临沧市",
+   "临沧"
+  ],
+  "scenicFor": [
+   "临沧市",
+   "临沧"
+  ],
+  "source": "wikimedia",
+  "license": "CC BY-SA 4.0",
+  "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0"
+ },
+ "三潭瀑布": {
+  "file": "santan-waterfall-dayao-52830025.jpg",
+  "artist": "zhanyoun",
+  "pageUrl": "https://commons.wikimedia.org/wiki/File:%E5%A4%A7%E5%A7%9A%E4%B8%89%E6%BD%AD%E7%80%91%E5%B8%83_-_panoramio.jpg",
+  "fetchedAt": "2026-10-24",
+  "aliases": [],
+  "regions": [
+   "楚雄彝族自治州",
+   "楚雄"
+  ],
+  "scenicFor": [
+   "楚雄彝族自治州",
+   "楚雄"
+  ],
+  "source": "wikimedia",
+  "license": "CC BY-SA 3.0",
+  "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0"
+ },
+ "芒市": {
+  "file": "mangshi-dehong-148774255.jpg",
+  "artist": "瑞丽江的河水",
+  "pageUrl": "https://commons.wikimedia.org/wiki/File:%E8%8A%92%E5%B8%82%E5%A4%A9%E9%99%85%E7%BA%BF_-_2024-05-27_03.jpg",
+  "fetchedAt": "2026-10-24",
+  "aliases": [],
+  "regions": [
+   "德宏傣族景颇族自治州",
+   "德宏"
+  ],
+  "scenicFor": [
+   "德宏傣族景颇族自治州",
+   "德宏"
+  ],
+  "source": "wikimedia",
+  "license": "CC BY-SA 4.0",
+  "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0"
+ },
+ "碧罗雪山": {
+  "file": "biluo-snow-mountain-15118415.jpg",
+  "artist": "Zhangmoon618",
+  "pageUrl": "https://commons.wikimedia.org/wiki/File:A_Mountain_in_the_Biluo_Snow_Mountain.jpg",
+  "fetchedAt": "2026-10-24",
+  "aliases": [],
+  "regions": [
+   "怒江傈僳族自治州",
+   "怒江"
+  ],
+  "scenicFor": [
+   "怒江傈僳族自治州",
+   "怒江"
+  ],
+  "source": "wikimedia",
+  "license": "CC BY-SA 3.0",
+  "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0"
+ },
+ "攀枝花": {
+  "file": "panzhihua-city-38612027.jpg",
+  "artist": "chaselei雷厚取",
+  "pageUrl": "https://commons.wikimedia.org/wiki/File:%E6%94%80%E6%9E%9D%E8%8A%B1%E5%B8%82%E4%B8%AD%E5%BF%83%E5%85%A8%E5%9B%BE%EF%BC%88%E7%82%B3%E8%8D%89%E5%B2%97%EF%BC%89chaselei_-_panoramio.jpg",
+  "fetchedAt": "2026-10-24",
+  "aliases": [],
+  "regions": [
+   "攀枝花市",
+   "攀枝花"
+  ],
+  "scenicFor": [
+   "攀枝花市",
+   "攀枝花"
+  ],
+  "source": "wikimedia",
+  "license": "CC BY-SA 3.0",
+  "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0"
+ },
+ "泸州": {
+  "file": "luzhou-city-94693836.jpg",
+  "artist": "PhiLiP",
+  "pageUrl": "https://commons.wikimedia.org/wiki/File:Luzhou,_Sichuan.jpg",
+  "fetchedAt": "2026-10-24",
+  "aliases": [],
+  "regions": [
+   "泸州市",
+   "泸州"
+  ],
+  "scenicFor": [
+   "泸州市",
+   "泸州"
+  ],
+  "source": "wikimedia",
+  "license": "CC BY-SA 4.0",
+  "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0"
+ },
+ "遂宁": {
+  "file": "suining-city-68986138.jpg",
+  "artist": "Anheizhe",
+  "pageUrl": "https://commons.wikimedia.org/wiki/File:Suining_8022.jpg",
+  "fetchedAt": "2026-10-24",
+  "aliases": [],
+  "regions": [
+   "遂宁市",
+   "遂宁"
+  ],
+  "scenicFor": [
+   "遂宁市",
+   "遂宁"
+  ],
+  "source": "wikimedia",
+  "license": "CC BY-SA 4.0",
+  "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0"
+ },
+ "内江": {
+  "file": "neijiang-riverside-22330124.jpg",
+  "artist": "PanShiBo",
+  "pageUrl": "https://commons.wikimedia.org/wiki/File:NeiJiang.JPG",
+  "fetchedAt": "2026-10-24",
+  "aliases": [],
+  "regions": [
+   "内江市",
+   "内江"
+  ],
+  "scenicFor": [
+   "内江市",
+   "内江"
+  ],
+  "source": "wikimedia",
+  "license": "CC BY-SA 3.0",
+  "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0"
+ },
+ "眉山": {
+  "file": "meishan-waterwheel-53213311.jpg",
+  "artist": "陈庆红作品",
+  "pageUrl": "https://commons.wikimedia.org/wiki/File:%E9%99%88%E5%BA%86%E7%BA%A2%E4%BD%9C%E5%93%81-%E6%B9%96%E7%95%94%E9%9C%9E%E5%85%89%E4%B9%8B%E8%80%81%E6%B0%B4%E8%BD%A6_-_panoramio.jpg",
+  "fetchedAt": "2026-10-24",
+  "aliases": [],
+  "regions": [
+   "眉山市",
+   "眉山"
+  ],
+  "scenicFor": [
+   "眉山市",
+   "眉山"
+  ],
+  "source": "wikimedia",
+  "license": "CC BY 3.0",
+  "licenseUrl": "https://creativecommons.org/licenses/by/3.0"
+ },
+ "巴中": {
+  "file": "bazhong-river-54552526.jpg",
+  "artist": "Xiaohui",
+  "pageUrl": "https://commons.wikimedia.org/wiki/File:%E5%B7%B4%E4%B8%AD_-_panoramio.jpg",
+  "fetchedAt": "2026-10-24",
+  "aliases": [],
+  "regions": [
+   "巴中市",
+   "巴中"
+  ],
+  "scenicFor": [
+   "巴中市",
+   "巴中"
+  ],
+  "source": "wikimedia",
+  "license": "CC BY 3.0",
+  "licenseUrl": "https://creativecommons.org/licenses/by/3.0"
  }
 }

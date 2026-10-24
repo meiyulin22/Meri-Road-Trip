@@ -12,6 +12,11 @@ const catalogFile = join(process.cwd(), "public", "photos", "photos.json");
 /** Read once per process; the index only changes when the fetch script writes it. */
 let cached: PhotoCatalog | null = null;
 
+/** The bundled catalog, read once per process; the credits page lists it. */
+export function loadPhotoCatalog(): PhotoCatalog {
+  return load();
+}
+
 function load(): PhotoCatalog {
   if (cached !== null) return cached;
   try {

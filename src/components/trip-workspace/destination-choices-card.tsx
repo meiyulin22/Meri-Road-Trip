@@ -155,7 +155,8 @@ function PlaceCard({ choice, checked, disabled, inJourney, onToggle, photoPendin
   readonly onToggle: () => void;
   readonly photoPending: boolean;
 }) {
-  const text = useMessages().cards;
+  const messages = useMessages();
+  const text = messages.cards;
   const [imageFailed, setImageFailed] = useState(false);
   const [loadedUrl, setLoadedUrl] = useState<string | null>(null);
   const image = imageFailed ? undefined : choice.image;
@@ -177,7 +178,10 @@ function PlaceCard({ choice, checked, disabled, inJourney, onToggle, photoPendin
       {inJourney ? <span className={styles.inJourneyBadge}>{text.inJourney}</span> : null}
       {image && !waiting ? <span className={styles.placeCaption} title={image.credit}>
         {image.caption}
-        {image.credit ? <small className={styles.placeCredit}>{image.credit}</small> : null}
+        {image.credit ? creditsHref(image.url)
+          ? <a aria-label={`${messages.photoCredits.openCredits}: ${image.credit}`} className={styles.placeCredit}
+            href={creditsHref(image.url)!} rel="noreferrer" target="_blank">{image.credit}</a>
+          : <small className={styles.placeCredit}>{image.credit}</small> : null}
       </span> : null}
     </span>
     <span className={styles.placeBody}>
@@ -188,4 +192,15 @@ function PlaceCard({ choice, checked, disabled, inJourney, onToggle, photoPendin
       {choice.legacyUnverified ? <span className={styles.choiceStatus}>{text.searchAgain}</span> : null}
     </span>
   </label>;
+}
+
+/**
+ * Where a photo's full credit is: our own copies are listed on /photo-credits — a catalog
+ * photo by its file name, one Meri found while planning in the runtime section. A provider's
+ * photo (Amap's) has no credit page.
+ */
+export function creditsHref(url: string): string | null {
+  if (url.startsWith("/photos/")) return `/photo-credits#${encodeURIComponent(url.slice("/photos/".length))}`;
+  if (url.startsWith("/media/place-photos/")) return "/photo-credits#runtime";
+  return null;
 }

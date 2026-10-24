@@ -36,7 +36,8 @@ test("in Tianditu mode, the photos every page, cover and chat reply use never re
     globalThis.fetch = (async () => { fetched += 1; throw new Error("no network here"); }) as typeof fetch;
     const photos = createPlacePhotoProvider();
     assert.equal(await photos.findPhoto({ kind: "named", keywords: "一个图集里没有的景点", region: "丽江市" }), null);
-    assert.equal(await photos.findPhoto({ kind: "scenic", region: "怒江傈僳族自治州" }), null);
+    // A region no catalog will ever hold, so the answer is a miss whatever the catalog grows to.
+    assert.equal(await photos.findPhoto({ kind: "scenic", region: "测试用不存在市" }), null);
     assert.equal(fetched, 0);
   } finally {
     globalThis.fetch = original.fetch;

@@ -10,6 +10,12 @@
  *     城市景色模式：只给列出的城市找"能代表这座城市"的照片（天际线、街道、普通建筑都行，
  *     不必是名胜），搜城市中文名和英文名，每城最多 4 张候选。用在景点找不到合适图的城市。
  *
+ *   npx tsx scripts/build-city-catalog.ts fetch southwest --wikimedia 达州市,巴中市
+ *     第二图源：Wikidata 里这座城市的代表图（P18，维基编辑选的那张），从 Wikimedia Commons
+ *     取作者、许可证和 500px 副本。一批城市只要 1 次 Wikidata 查询、每 50 个文件 1 次
+ *     Commons 查询，再逐张下载。只用于 Pixabay 找不到的城市；同样人工审核后才进图集。
+ *     Commons 的图是知识共享许可：图集记下作者、许可证和链接，/photo-credits 全部列出。
+ *
  *   npx tsx scripts/build-city-catalog.ts apply jiangzhehu picks.json
  *     picks.json 是人工看图后挑好的：{ "南通市": { "id": 4251603, "caption": "狼山", "slug": "langshan",
  *     "note": "狼山塔倒影" }, ... }。caption 是照片里实际拍到的地方（tags 只写城市时就写城市），
@@ -52,7 +58,12 @@ const searchesPerCity = 4;
 
 /** One candidate kept for review: who took it, which landmark it showed, and the file. */
 interface Candidate {
+  /** The Pixabay image ID, or the Commons page ID. */
   readonly id: number;
+  /** Absent is Pixabay. */
+  readonly source?: "wikimedia";
+  readonly license?: string;
+  readonly licenseUrl?: string;
   /** The landmark the photo was accepted as (its caption), or the city when only the city matched. */
   readonly shows: string;
   readonly kind: "landmark" | "city";
@@ -209,7 +220,7 @@ function reviewPage(batch: CatalogBatch, results: readonly CityCandidates[]): st
   <div class="row">${candidates.length === 0 ? "<p class=\"none\">没有合格候选</p>" : candidates.map((item) => `
     <figure>
       <img src="${encodeURIComponent(city.name)}/${item.file}" alt="">
-      <figcaption><b>${item.id}</b> ${escapeHtml(item.shows)}${item.kind === "city" ? "（城市图）" : ""}<br>
+      <figcaption><b>${item.id}</b> ${escapeHtml(item.shows)}${item.kind === "city" ? "（城市图）" : ""}${item.source === "wikimedia" ? ` · Wikimedia ${escapeHtml(item.license ?? "")}` : ""}<br>
         ${escapeHtml(item.artist)} · ${item.width}×${item.height} · ${Math.round(item.bytes / 1024)} KB<br>
         <a href="${escapeHtml(item.pageUrl)}">Pixabay 原图页</a><br><span class="tags">${escapeHtml(item.tags)}</span></figcaption>
     </figure>`).join("")}</div>
@@ -233,8 +244,15 @@ async function applyPicks(batch: CatalogBatch, picksPath: string): Promise<void>
     if (!city) throw new Error(`批次里没有 ${cityName}`);
     if (hasRepresentative(catalog, city)) throw new Error(`${cityName} 已有代表图`);
     const directory = join(reviewRoot, batch.id, city.name);
-    const reviewed = JSON.parse(await readFile(join(directory, "candidates.json"), "utf8")) as { candidates: Candidate[] };
-    const chosen = reviewed.candidates.find((item) => item.id === id);
+    const reviewed: Candidate[] = [];
+    for (const list of ["candidates.json", "candidates-wikimedia.json"]) {
+      try {
+        reviewed.push(...(JSON.parse(await readFile(join(directory, list), "utf8")) as { candidates: Candidate[] }).candidates);
+      } catch {
+        // A city may have only one of the two lists.
+      }
+    }
+    const chosen = reviewed.find((item) => item.id === id);
     if (!chosen) throw new Error(`${cityName} 的候选里没有 ${id}`);
     const name = caption.trim();
     if (!name || name.length > 30) throw new Error(`${cityName} 的 caption 不合法`);
@@ -243,7 +261,9 @@ async function applyPicks(batch: CatalogBatch, picksPath: string): Promise<void>
     if (!/^[a-z0-9][a-z0-9-]*\.(?:jpe?g|png|webp)$/u.test(file)) throw new Error(`${cityName} 的文件名不合法：${file}`);
     await copyFile(join(directory, chosen.file), join(photosDirectory, file));
     catalog[name] = { file, artist: chosen.artist, pageUrl: chosen.pageUrl, fetchedAt: today, aliases: [],
-      regions: [city.name, city.short], scenicFor: [city.name, city.short] };
+      regions: [city.name, city.short], scenicFor: [city.name, city.short],
+      ...(chosen.source === "wikimedia" && chosen.license && chosen.licenseUrl
+        ? { source: "wikimedia" as const, license: chosen.license, licenseUrl: chosen.licenseUrl } : {}) };
     console.log(`${cityName} ← ${name}（${file}）`);
   }
   await writeFile(catalogPath, `${JSON.stringify(catalog, null, 1)}\n`);
@@ -252,8 +272,129 @@ async function applyPicks(batch: CatalogBatch, picksPath: string): Promise<void>
   console.log(`\n图集 ${before} → ${after} 条。`);
 }
 
+const wikimediaAgent = "MeriRoadTrip-catalog/0.1 (trip planner photo catalog; https://github.com/meiyulin22/Meri-Road-Trip)";
+
+async function wikimediaJson(url: URL): Promise<unknown> {
+  const response = await fetch(url, { headers: { "User-Agent": wikimediaAgent, Accept: "application/json" },
+    signal: AbortSignal.timeout(30_000) });
+  if (!response.ok) throw new Error(`Wikimedia 返回 HTTP ${response.status}，本批停止`);
+  return response.json() as Promise<unknown>;
+}
+
+function plainText(html: string | undefined): string {
+  return (html ?? "").replace(/<[^>]+>/gu, " ").replace(/&amp;/gu, "&").replace(/&quot;/gu, "\"").replace(/&#0?39;/gu, "'")
+    .replace(/\s+/gu, " ").trim();
+}
+
+/**
+ * The official image of each city on Wikidata (P18), matched by its full Chinese name, or
+ * its short one, and constrained to its province (the item's parent), so a short name cannot
+ * land on a namesake elsewhere. A 直辖市 has no province above it and is not handled here.
+ */
+async function wikidataImages(cities: readonly CatalogCity[]): Promise<Map<string, string>> {
+  const rows = cities.map((city) => `("${city.name}"@zh "${city.short}"@zh "${city.province}"@zh)`).join(" ");
+  const query = `SELECT ?full ?image WHERE { VALUES (?full ?short ?province) { ${rows} }
+    ?parent rdfs:label ?province.
+    { ?item rdfs:label ?full } UNION { ?item rdfs:label ?short }
+    ?item wdt:P131 ?parent; wdt:P18 ?image. }`;
+  const url = new URL("https://query.wikidata.org/sparql");
+  url.search = new URLSearchParams({ format: "json", query }).toString();
+  const body = await wikimediaJson(url) as { results: { bindings: { full: { value: string }; image: { value: string } }[] } };
+  const images = new Map<string, string>();
+  for (const row of body.results.bindings) {
+    if (!images.has(row.full.value)) images.set(row.full.value, decodeURIComponent(row.image.value.split("/").pop() ?? ""));
+  }
+  return images;
+}
+
+interface CommonsFile {
+  readonly pageId: number;
+  readonly title: string;
+  readonly pageUrl: string;
+  readonly thumbUrl: string;
+  readonly width: number;
+  readonly height: number;
+  readonly artist: string;
+  readonly license: string;
+  readonly licenseUrl: string;
+  readonly description: string;
+}
+
+/**
+ * Author, licence and a 500px rendition for Commons files, 50 a request. Commons serves
+ * thumbnails only at standard widths and rounds others up (640 came back as 960, ~180 KB);
+ * 500 is one of them and still twice the 200px a card shows.
+ */
+async function commonsFiles(names: readonly string[]): Promise<Map<string, CommonsFile>> {
+  const files = new Map<string, CommonsFile>();
+  for (let start = 0; start < names.length; start += 50) {
+    const url = new URL("https://commons.wikimedia.org/w/api.php");
+    url.search = new URLSearchParams({ action: "query", format: "json", formatversion: "2", prop: "imageinfo",
+      iiprop: "extmetadata|size|url", iiurlwidth: "500",
+      titles: names.slice(start, start + 50).map((name) => `File:${name}`).join("|") }).toString();
+    const body = await wikimediaJson(url) as { query: { normalized?: { from: string; to: string }[]; pages: {
+      pageid?: number; title: string; imageinfo?: { thumburl?: string; descriptionurl?: string; width: number; height: number;
+        extmetadata?: Record<string, { value?: string }> }[] }[] } };
+    const asked = new Map((body.query.normalized ?? []).map((item) => [item.to, item.from]));
+    for (const page of body.query.pages) {
+      const info = page.imageinfo?.[0];
+      const meta = info?.extmetadata ?? {};
+      const license = plainText(meta.LicenseShortName?.value);
+      if (!page.pageid || !info?.thumburl || !info.descriptionurl || !license) continue;
+      const name = (asked.get(page.title) ?? page.title).replace(/^File:/u, "");
+      files.set(name, { pageId: page.pageid, title: page.title, pageUrl: info.descriptionurl, thumbUrl: info.thumburl,
+        width: info.width, height: info.height, artist: plainText(meta.Artist?.value).slice(0, 100) || "Unknown author",
+        // Public-domain files carry no licence link: the file page states the status instead.
+        license, licenseUrl: meta.LicenseUrl?.value?.startsWith("https://") ? meta.LicenseUrl.value
+          : (meta.LicenseUrl?.value ? meta.LicenseUrl.value.replace(/^http:\/\//u, "https://") : info.descriptionurl),
+        description: plainText(meta.ImageDescription?.value).slice(0, 200) });
+    }
+  }
+  return files;
+}
+
+/** Candidates from Wikidata and Commons for the listed cities (or every city still without a representative). */
+async function fetchWikimedia(batch: CatalogBatch, only: ReadonlySet<string> | null): Promise<void> {
+  const catalog = await readCatalog();
+  const cities = batch.cities.filter((city) => (only ? only.has(city.name) : true) && !hasRepresentative(catalog, city));
+  const images = await wikidataImages(cities);
+  const files = await commonsFiles([...new Set(images.values())]);
+  let downloads = 0;
+  const results: CityCandidates[] = [];
+  for (const city of cities) {
+    const name = images.get(city.name);
+    const file = name ? files.get(name) : undefined;
+    const candidates: Candidate[] = [];
+    const directory = join(reviewRoot, batch.id, city.name);
+    await mkdir(directory, { recursive: true });
+    if (file) {
+      await new Promise((resolve) => setTimeout(resolve, 500));
+      downloads += 1;
+      const response = await fetch(file.thumbUrl, { headers: { "User-Agent": wikimediaAgent }, signal: AbortSignal.timeout(30_000) });
+      const body = response.ok ? new Uint8Array(await response.arrayBuffer()) : null;
+      const facts = body ? readImageFacts(body) : null;
+      if (body && facts) {
+        const saved = `wikimedia-${file.pageId}.${facts.format}`;
+        await writeFile(join(directory, saved), body);
+        candidates.push({ id: file.pageId, source: "wikimedia", license: file.license, licenseUrl: file.licenseUrl,
+          shows: city.short, kind: "city", query: `Wikidata P18: ${file.title}`, artist: file.artist, pageUrl: file.pageUrl,
+          tags: file.description, file: saved, width: facts.width, height: facts.height, bytes: body.byteLength });
+      }
+    }
+    await writeFile(join(directory, "candidates-wikimedia.json"), `${JSON.stringify({ city, candidates }, null, 1)}\n`);
+    results.push({ city, candidates, searches: [name ? `Wikidata P18: ${name}` : "Wikidata 没有代表图"] });
+    console.log(`${city.name}: ${candidates.length ? `${candidates[0].license} · ${candidates[0].artist} · ${name}` : "没有"}`);
+  }
+  await writeFile(join(reviewRoot, batch.id, "review-wikimedia.html"), reviewPage(batch, results));
+  console.log(`\n${results.filter((item) => item.candidates.length).length}/${results.length} 个城市有候选。` +
+    `请求：Wikidata 1 次，Commons ${Math.ceil(images.size / 50)} 次，下载 ${downloads} 次。`);
+}
+
 async function main(): Promise<void> {
   const [mode, batchId, third, fourth] = process.argv.slice(2);
+  if (mode === "fetch" && batchId && third === "--wikimedia") {
+    return fetchWikimedia(batchOf(batchId), fourth ? new Set(fourth.split(/[,，]/u).map((name) => name.trim()).filter(Boolean)) : null);
+  }
   if (mode === "fetch" && batchId && third === "--views" && fourth) {
     return fetchBatch(batchOf(batchId), new Set(fourth.split(/[,，]/u).map((name) => name.trim()).filter(Boolean)));
   }

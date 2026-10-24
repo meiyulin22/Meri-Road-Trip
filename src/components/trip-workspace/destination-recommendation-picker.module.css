@@ -44,7 +44,8 @@
 .placeCheck { position: absolute; top: 8px; left: 8px; display: grid; place-items: center; padding: 3px; border-radius: 8px; background: rgba(255, 253, 248, .92); box-shadow: 0 1px 4px rgba(0, 0, 0, .12); }
 .placeImage .inJourneyBadge { position: absolute; top: 9px; right: 8px; margin: 0; }
 .placeCaption { position: absolute; right: 0; bottom: 0; left: 0; padding: 14px 8px 5px; overflow: hidden; background: linear-gradient(to top, rgba(20, 30, 24, .55), transparent); color: #fff; font-size: 10.5px; white-space: nowrap; text-overflow: ellipsis; }
-.placeCredit { display: block; overflow: hidden; font-size: 9px; opacity: .85; white-space: nowrap; text-overflow: ellipsis; }
+.placeCredit { display: block; overflow: hidden; font-size: 9px; opacity: .85; white-space: nowrap; text-overflow: ellipsis; color: inherit; }
+a.placeCredit { text-decoration: underline; text-underline-offset: 2px; text-decoration-thickness: 1px; }
 .placeBody { display: flex; flex-direction: column; gap: 4px; padding: 9px 11px 11px; }
 .placeBody .reason { display: -webkit-box; overflow: hidden; -webkit-line-clamp: 3; -webkit-box-orient: vertical; }
 .placeBody .choiceStatus { margin: 0; }

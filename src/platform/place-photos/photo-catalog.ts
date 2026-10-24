@@ -4,16 +4,29 @@ import type { PlacePhotoQuery } from "./place-photo-provider";
 
 /**
  * The photos Meri ships with: one file per place under `public/photos/`, described by an
- * index written by `scripts/fetch-place-photos.ts`. Looking up a photo uses no external API.
- * The browser still downloads the file from our server. A missing match is ordinary.
+ * index written by `scripts/fetch-place-photos.ts` and `scripts/build-city-catalog.ts`.
+ * Looking up a photo uses no external API. The browser still downloads the file from our
+ * server. A missing match is ordinary.
+ *
+ * Photos come from Pixabay (its own licence, no attribution required — we credit anyway)
+ * or from Wikimedia Commons (Creative Commons: author, licence with a link and the source
+ * must be shown, and a resized copy says so; /photo-credits shows all of it).
  */
+export type CatalogSource = "pixabay" | "wikimedia";
+
 export interface CatalogEntry {
   /** The file under public/photos, e.g. "potala-palace.jpg". */
   readonly file: string;
   /** Who took it, for the credit line. */
   readonly artist: string;
-  /** The Pixabay page it came from, so the credit can link somewhere. */
+  /** The page it came from (a Pixabay photo page or a Commons file page), so the credit can link somewhere. */
   readonly pageUrl: string;
+  /** Where it came from; absent is Pixabay, as every entry before 1.0632 was. */
+  readonly source?: CatalogSource;
+  /** The licence's short name, required for Commons: CC BY-SA 4.0, CC BY 3.0, CC0. */
+  readonly license?: string;
+  /** The licence's own page, required for Commons. */
+  readonly licenseUrl?: string;
   /** When it was fetched, for the operator's sake. */
   readonly fetchedAt: string;
   /** Explicit names for this same place, not nearby sights or administrative parents. */
@@ -44,14 +57,21 @@ export function parsePhotoCatalog(value: unknown): PhotoCatalog {
     if (normalizePlaceName(name) === "" || name.length > 60 ||
       typeof raw !== "object" || raw === null || Array.isArray(raw)) continue;
     const entry = raw as Record<string, unknown>;
-    const { file, artist, pageUrl, fetchedAt, aliases, regions, scenicFor } = entry;
+    const { file, artist, pageUrl, fetchedAt, aliases, regions, scenicFor, source, license, licenseUrl } = entry;
+    const wikimedia = source === "wikimedia";
+    if (!(source === undefined || source === "pixabay" || wikimedia)) continue;
+    // A Commons photo is only usable with its licence shown and linked.
+    if (wikimedia && (typeof license !== "string" || license.trim() === "" || license.length > 40 ||
+      typeof licenseUrl !== "string" || !/^https:\/\/(?:creativecommons\.org|commons\.wikimedia\.org)\//u.test(licenseUrl))) continue;
     if (typeof file !== "string" || !/^[a-z0-9][a-z0-9-]*\.(?:jpe?g|png|webp|avif)$/u.test(file) ||
       typeof artist !== "string" || artist.trim() === "" || artist.length > 100 ||
-      typeof pageUrl !== "string" || !pageUrl.startsWith("https://pixabay.com/") ||
+      typeof pageUrl !== "string" ||
+      !pageUrl.startsWith(wikimedia ? "https://commons.wikimedia.org/wiki/File:" : "https://pixabay.com/") ||
       typeof fetchedAt !== "string" || !/^\d{4}-\d{2}-\d{2}$/u.test(fetchedAt) ||
       !isNameList(aliases) || !isNameList(regions) || !isNameList(scenicFor) ||
       !scenicFor.every((region) => includesName(regions, normalizePlaceName(region)))) continue;
-    catalog[name] = { file, artist, pageUrl, fetchedAt, aliases, regions, scenicFor };
+    catalog[name] = { file, artist, pageUrl, fetchedAt, aliases, regions, scenicFor,
+      ...(wikimedia ? { source: "wikimedia" as const, license: license as string, licenseUrl: licenseUrl as string } : {}) };
   }
   return catalog;
 }
@@ -74,6 +94,14 @@ export function photoFromCatalog(catalog: PhotoCatalog, query: PlacePhotoQuery):
   return {
     url: `/photos/${entry.file}`,
     caption: name.slice(0, 60),
-    credit: `Photo: ${entry.artist} / Pixabay`,
+    credit: catalogCredit(entry),
   };
+}
+
+/** The credit line a card shows: who, and from where under which licence. Kept within 120 characters. */
+export function catalogCredit(entry: CatalogEntry): string {
+  const tail = entry.source === "wikimedia" ? ` / Wikimedia Commons, ${entry.license}` : " / Pixabay";
+  const room = 120 - "Photo: ".length - tail.length;
+  const artist = entry.artist.length > room ? `${entry.artist.slice(0, room - 1)}…` : entry.artist;
+  return `Photo: ${artist}${tail}`;
 }

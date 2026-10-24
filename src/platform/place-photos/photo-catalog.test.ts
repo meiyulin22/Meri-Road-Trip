@@ -7,7 +7,7 @@ import { findPlaceImage } from "@/capabilities/destination/place-images";
 import { parsePlaceImage } from "@/domain/location/place-image";
 
 import { CatalogPhotoProvider } from "./catalog-photo-provider";
-import { normalizePlaceName, parsePhotoCatalog, photoFromCatalog, type PhotoCatalog } from "./photo-catalog";
+import { catalogCredit, normalizePlaceName, parsePhotoCatalog, photoFromCatalog, type PhotoCatalog } from "./photo-catalog";
 import type { PlacePhotoQuery } from "./place-photo-provider";
 
 const named = (keywords: string, region: string | null): PlacePhotoQuery => ({ kind: "named", keywords, region });
@@ -205,5 +205,35 @@ test("Shangri-La uses a named local landmark as its representative, not a landma
     assert.equal(image?.url, "/photos/songzanlin-4424995.jpg");
     assert.equal(image?.caption, "松赞林寺");
     assert.equal(image?.credit, "Photo: samyo / Pixabay");
+  }
+});
+
+test("a Commons photo is kept only with its licence and a Commons page, and its credit names both", () => {
+  const commons = { file: "lianyungang-city-18646554.jpg", artist: "风之清扬",
+    pageUrl: "https://commons.wikimedia.org/wiki/File:Lianyun_District_Birdview.JPG", fetchedAt: "2026-10-24",
+    aliases: [], regions: ["连云港市"], scenicFor: ["连云港市"], source: "wikimedia",
+    license: "CC BY-SA 3.0", licenseUrl: "https://creativecommons.org/licenses/by-sa/3.0" };
+  const parsed = parsePhotoCatalog({ 连云港: commons, 无许可: { ...commons, license: undefined },
+    别处页面: { ...commons, pageUrl: "https://pixabay.com/photos/x-1/" }, 坏链接: { ...commons, licenseUrl: "http://example.com/" },
+    未知来源: { ...commons, source: "flickr" } });
+  assert.deepEqual(Object.keys(parsed), ["连云港"]);
+  assert.equal(parsed.连云港.license, "CC BY-SA 3.0");
+  assert.equal(photoFromCatalog(parsed, { kind: "scenic", region: "连云港市" })?.credit,
+    "Photo: 风之清扬 / Wikimedia Commons, CC BY-SA 3.0");
+  // Pixabay entries read as before, with no source field.
+  assert.equal(catalogCredit(catalog.布达拉宫), "Photo: InkMagiStudio / Pixabay");
+  // A long author is shortened so the licence still fits in 120 characters.
+  const long = catalogCredit({ ...parsed.连云港, artist: "x".repeat(100) });
+  assert.ok(long.length <= 120 && long.endsWith("Wikimedia Commons, CC BY-SA 3.0"));
+});
+
+test("every Commons photo in the shipped catalog carries its licence and links", () => {
+  const shipped = parsePhotoCatalog(JSON.parse(readFileSync("public/photos/photos.json", "utf8")) as unknown);
+  const raw = JSON.parse(readFileSync("public/photos/photos.json", "utf8")) as Record<string, { source?: string }>;
+  const commons = Object.entries(raw).filter(([, entry]) => entry.source === "wikimedia").map(([name]) => name);
+  assert.ok(commons.length > 0);
+  for (const name of commons) {
+    assert.ok(shipped[name], `${name} was dropped by the parser`);
+    assert.match(shipped[name].licenseUrl ?? "", /^https:\/\//u, name);
   }
 });

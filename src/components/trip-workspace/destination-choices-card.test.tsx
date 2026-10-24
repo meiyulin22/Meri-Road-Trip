@@ -111,3 +111,10 @@ test("in English the card's own words are English, and place names stay as saved
   assert.match(markup, /迪庆藏族自治州/);
   assert.doesNotMatch(markup, /添加所选|想去：/);
 });
+
+test("a photo's credit links to its own line on the credits page; a provider's photo has none", async () => {
+  const { creditsHref } = await import("./destination-choices-card");
+  assert.equal(creditsHref("/photos/lianyungang-city-18646554.jpg"), "/photo-credits#lianyungang-city-18646554.jpg");
+  assert.equal(creditsHref("/media/place-photos/pixabay-42.jpg"), "/photo-credits#runtime");
+  assert.equal(creditsHref("https://store.is.autonavi.com/showpic/x"), null);
+});

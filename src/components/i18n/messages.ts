@@ -261,6 +261,20 @@ const en = {
     deleteJourney: "Delete Journey",
     deleteFailed: "Could not delete this Journey. Please try again.",
   },
+  photoCredits: {
+    pageTitle: "Photo credits | Meri",
+    home: "Home",
+    title: "Photo credits",
+    introduction: "The photos on Meri's cards decorate a place; they are not a picture of how it is today. Each one is credited here with its author, where it came from and its licence. Copies shown by Meri are resized smaller (500 to 640 pixels wide); nothing else is changed.",
+    source: "Source",
+    licence: "Licence",
+    original: "Original",
+    resized: "Resized smaller",
+    pixabayLicence: "Pixabay Content License",
+    runtimeTitle: "Photos found while you plan",
+    runtimeText: "When a recommendation card's place has no photo above, Meri may find one on Pixabay while you plan. Those photos are used under the Pixabay Content License, and each card names its photographer.",
+    openCredits: "Photo credits",
+  },
 };
 
 export type Messages = typeof en;
@@ -514,6 +528,20 @@ const zh: Messages = {
     deleting: "删除中…",
     deleteJourney: "删除旅程",
     deleteFailed: "没能删除这个旅程，请重试。",
+  },
+  photoCredits: {
+    pageTitle: "照片署名 | Meri",
+    home: "首页",
+    title: "照片署名",
+    introduction: "Meri 卡片上的照片只用来装饰地点，不代表那里现在的样子。每张照片的作者、来源和许可证都列在这里。Meri 展示的是缩小过的副本（500 到 640 像素宽），除此之外没有改动。",
+    source: "来源",
+    licence: "许可证",
+    original: "原图",
+    resized: "已缩小尺寸",
+    pixabayLicence: "Pixabay 内容许可",
+    runtimeTitle: "规划时临时找到的照片",
+    runtimeText: "推荐卡上的地点在上面没有照片时，Meri 可能会在你规划时从 Pixabay 找一张。这些照片按 Pixabay 内容许可使用，卡片上写着摄影师的名字。",
+    openCredits: "照片署名",
   },
 };
 
