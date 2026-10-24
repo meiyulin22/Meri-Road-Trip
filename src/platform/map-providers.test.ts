@@ -53,7 +53,10 @@ test("only the recommendation-photo route may search Pixabay", () => {
       const path = join(directory, entry.name);
       if (entry.isDirectory()) visit(path);
       else if (/\.tsx?$/u.test(entry.name) && !/\.test\.tsx?$/u.test(entry.name) &&
-        readFileSync(path, "utf8").includes("createRemotePhotoFinder(")) callers.push(relative(root, path));
+        readFileSync(path, "utf8").includes("createRemotePhotoFinder(")) {
+        // relative() yields backslashes on Windows, so compare in one separator.
+        callers.push(relative(root, path).split("\\").join("/"));
+      }
     }
   };
   visit(root);
