@@ -356,9 +356,161 @@ const innerMongolia: readonly CatalogCity[] = [
     { zh: "额济纳胡杨林", en: "Ejina Populus Forest" }, { zh: "巴丹吉林沙漠", en: "Badain Jaran Desert" }] },
 ];
 
+const henan: readonly CatalogCity[] = [
+  { province: "河南省", name: "郑州市", short: "郑州", en: "Zhengzhou", landmarks: [
+    { zh: "少林寺", en: "Shaolin Monastery" }, { zh: "二七纪念塔", en: "Erqi Memorial Tower" }] },
+  { province: "河南省", name: "开封市", short: "开封", en: "Kaifeng", landmarks: [
+    { zh: "清明上河园", en: "Millennium City Park" }, { zh: "开封铁塔", en: "Iron Pagoda Kaifeng" }] },
+  { province: "河南省", name: "洛阳市", short: "洛阳", en: "Luoyang", landmarks: [
+    { zh: "龙门石窟", en: "Longmen Grottoes" }, { zh: "白马寺", en: "White Horse Temple" }] },
+  { province: "河南省", name: "平顶山市", short: "平顶山", en: "Pingdingshan", landmarks: [
+    { zh: "尧山", en: "Yaoshan" }, { zh: "中原大佛", en: "Spring Temple Buddha" }] },
+  { province: "河南省", name: "安阳市", short: "安阳", en: "Anyang", landmarks: [
+    { zh: "殷墟", en: "Yinxu" }, { zh: "红旗渠", en: "Red Flag Canal" }] },
+  { province: "河南省", name: "鹤壁市", short: "鹤壁", en: "Hebi", landmarks: [
+    { zh: "云梦山", en: "Yunmeng Mountain" }, { zh: "浚县古城", en: "Xunxian Ancient Town" }] },
+  { province: "河南省", name: "新乡市", short: "新乡", en: "Xinxiang", landmarks: [
+    { zh: "万仙山", en: "Wanxian Mountain" }, { zh: "八里沟", en: "Baligou" }] },
+  { province: "河南省", name: "焦作市", short: "焦作", en: "Jiaozuo", landmarks: [
+    { zh: "云台山", en: "Yuntai Mountain" }, { zh: "青天河", en: "Qingtian River" }] },
+  { province: "河南省", name: "濮阳市", short: "濮阳", en: "Puyang", landmarks: [
+    { zh: "戚城", en: "Qicheng" }, { zh: "张挥公园", en: "Zhanghui Park" }] },
+  { province: "河南省", name: "许昌市", short: "许昌", en: "Xuchang", landmarks: [
+    { zh: "春秋楼", en: "Chunqiu Tower Xuchang" }, { zh: "神垕古镇", en: "Shenhou Ancient Town" }] },
+  { province: "河南省", name: "漯河市", short: "漯河", en: "Luohe", landmarks: [
+    { zh: "沙澧河", en: "Shali River" }, { zh: "许慎文化园", en: "Xu Shen Culture Park" }] },
+  { province: "河南省", name: "三门峡市", short: "三门峡", en: "Sanmenxia", landmarks: [
+    { zh: "天鹅湖", en: "Swan Lake Sanmenxia" }, { zh: "函谷关", en: "Hangu Pass" }] },
+  { province: "河南省", name: "南阳市", short: "南阳", en: "Nanyang Henan", landmarks: [
+    { zh: "南阳武侯祠", en: "Nanyang Wuhou Temple" }, { zh: "老界岭", en: "Laojieling" }] },
+  { province: "河南省", name: "商丘市", short: "商丘", en: "Shangqiu", landmarks: [
+    { zh: "商丘古城", en: "Shangqiu Ancient City" }, { zh: "芒砀山", en: "Mangdang Mountain" }] },
+  { province: "河南省", name: "信阳市", short: "信阳", en: "Xinyang", landmarks: [
+    { zh: "鸡公山", en: "Jigong Mountain" }, { zh: "南湾湖", en: "Nanwan Lake" }] },
+  { province: "河南省", name: "周口市", short: "周口", en: "Zhoukou", landmarks: [
+    { zh: "太昊陵", en: "Taihao Mausoleum" }, { zh: "太清宫", en: "Taiqing Palace Luyi" }] },
+  { province: "河南省", name: "驻马店市", short: "驻马店", en: "Zhumadian", landmarks: [
+    { zh: "嵖岈山", en: "Chaya Mountain" }, { zh: "铜山湖", en: "Tongshan Lake" }] },
+];
+
+const hubei: readonly CatalogCity[] = [
+  { province: "湖北省", name: "武汉市", short: "武汉", en: "Wuhan", landmarks: [
+    { zh: "黄鹤楼", en: "Yellow Crane Tower" }, { zh: "东湖", en: "East Lake Wuhan" }] },
+  { province: "湖北省", name: "黄石市", short: "黄石", en: "Huangshi", landmarks: [
+    { zh: "东方山", en: "Dongfang Mountain" }, { zh: "磁湖", en: "Cihu Lake" }] },
+  { province: "湖北省", name: "十堰市", short: "十堰", en: "Shiyan", landmarks: [
+    { zh: "武当山", en: "Wudang Mountains" }, { zh: "丹江口水库", en: "Danjiangkou Reservoir" }] },
+  { province: "湖北省", name: "宜昌市", short: "宜昌", en: "Yichang", landmarks: [
+    { zh: "三峡大坝", en: "Three Gorges Dam" }, { zh: "三峡人家", en: "Three Gorges Tribe" }] },
+  { province: "湖北省", name: "襄阳市", short: "襄阳", en: "Xiangyang", landmarks: [
+    { zh: "古隆中", en: "Gulongzhong" }, { zh: "襄阳古城", en: "Xiangyang Ancient City" }] },
+  { province: "湖北省", name: "鄂州市", short: "鄂州", en: "Ezhou", landmarks: [
+    { zh: "西山", en: "West Mountain Ezhou" }, { zh: "梁子湖", en: "Liangzi Lake" }] },
+  { province: "湖北省", name: "荆门市", short: "荆门", en: "Jingmen", landmarks: [
+    { zh: "明显陵", en: "Xianling Tomb" }, { zh: "漳河", en: "Zhanghe Reservoir" }] },
+  { province: "湖北省", name: "孝感市", short: "孝感", en: "Xiaogan", landmarks: [
+    { zh: "双峰山", en: "Shuangfeng Mountain" }, { zh: "董永公园", en: "Dongyong Park" }] },
+  { province: "湖北省", name: "荆州市", short: "荆州", en: "Jingzhou", landmarks: [
+    { zh: "荆州古城", en: "Jingzhou Ancient City" }, { zh: "洪湖", en: "Honghu Lake" }] },
+  { province: "湖北省", name: "黄冈市", short: "黄冈", en: "Huanggang", landmarks: [
+    { zh: "东坡赤壁", en: "Dongpo Red Cliff" }, { zh: "天堂寨", en: "Tiantangzhai" }] },
+  { province: "湖北省", name: "咸宁市", short: "咸宁", en: "Xianning", landmarks: [
+    { zh: "九宫山", en: "Jiugong Mountain" }, { zh: "赤壁古战场", en: "Chibi Battlefield" }] },
+  { province: "湖北省", name: "随州市", short: "随州", en: "Suizhou", landmarks: [
+    { zh: "大洪山", en: "Dahong Mountain" }, { zh: "炎帝故里", en: "Yandi Hometown" }] },
+  { province: "湖北省", name: "恩施土家族苗族自治州", short: "恩施", en: "Enshi", landmarks: [
+    { zh: "恩施大峡谷", en: "Enshi Grand Canyon" }, { zh: "腾龙洞", en: "Tenglong Cave" }] },
+];
+
+const hunan: readonly CatalogCity[] = [
+  { province: "湖南省", name: "长沙市", short: "长沙", en: "Changsha", landmarks: [
+    { zh: "橘子洲", en: "Orange Isle" }, { zh: "岳麓山", en: "Yuelu Mountain" }] },
+  { province: "湖南省", name: "株洲市", short: "株洲", en: "Zhuzhou", landmarks: [
+    { zh: "炎帝陵", en: "Yandi Mausoleum" }, { zh: "神农谷", en: "Shennong Valley" }] },
+  { province: "湖南省", name: "湘潭市", short: "湘潭", en: "Xiangtan", landmarks: [
+    { zh: "韶山", en: "Shaoshan" }, { zh: "昭山", en: "Zhaoshan" }] },
+  { province: "湖南省", name: "衡阳市", short: "衡阳", en: "Hengyang", landmarks: [
+    { zh: "衡山", en: "Mount Heng" }, { zh: "南岳大庙", en: "Grand Temple of Mount Heng" }] },
+  { province: "湖南省", name: "邵阳市", short: "邵阳", en: "Shaoyang", landmarks: [
+    { zh: "崀山", en: "Langshan" }, { zh: "南山牧场", en: "Nanshan Ranch" }] },
+  { province: "湖南省", name: "岳阳市", short: "岳阳", en: "Yueyang", landmarks: [
+    { zh: "岳阳楼", en: "Yueyang Tower" }, { zh: "洞庭湖", en: "Dongting Lake" }] },
+  { province: "湖南省", name: "常德市", short: "常德", en: "Changde", landmarks: [
+    { zh: "桃花源", en: "Peach Blossom Land" }, { zh: "柳叶湖", en: "Liuye Lake" }] },
+  { province: "湖南省", name: "益阳市", short: "益阳", en: "Yiyang", landmarks: [
+    { zh: "桃花江", en: "Taohuajiang" }, { zh: "茶马古道", en: "Tea Horse Road Anhua" }] },
+  { province: "湖南省", name: "郴州市", short: "郴州", en: "Chenzhou", landmarks: [
+    { zh: "东江湖", en: "Dongjiang Lake" }, { zh: "莽山", en: "Mangshan" }] },
+  { province: "湖南省", name: "永州市", short: "永州", en: "Yongzhou", landmarks: [
+    { zh: "九嶷山", en: "Jiuyi Mountain" }, { zh: "阳明山", en: "Yangming Mountain" }] },
+  { province: "湖南省", name: "怀化市", short: "怀化", en: "Huaihua", landmarks: [
+    { zh: "洪江古商城", en: "Hongjiang Ancient Commercial City" }, { zh: "黔阳古城", en: "Qianyang Ancient Town" }] },
+  { province: "湖南省", name: "娄底市", short: "娄底", en: "Loudi", landmarks: [
+    { zh: "紫鹊界梯田", en: "Ziquejie Terraces" }, { zh: "梅山龙宫", en: "Meishan Dragon Palace" }] },
+  { province: "湖南省", name: "湘西土家族苗族自治州", short: "湘西", en: "Xiangxi", landmarks: [
+    { zh: "凤凰古城", en: "Fenghuang Ancient Town" }, { zh: "芙蓉镇", en: "Furong Town" }] },
+];
+
+const jiangxi: readonly CatalogCity[] = [
+  { province: "江西省", name: "南昌市", short: "南昌", en: "Nanchang", landmarks: [
+    { zh: "滕王阁", en: "Pavilion of Prince Teng" }, { zh: "八一广场", en: "Bayi Square" }] },
+  { province: "江西省", name: "景德镇市", short: "景德镇", en: "Jingdezhen", landmarks: [
+    { zh: "古窑民俗博览区", en: "Ancient Kiln Folk Customs Expo Area" }, { zh: "瑶里", en: "Yaoli" }] },
+  { province: "江西省", name: "萍乡市", short: "萍乡", en: "Pingxiang", landmarks: [
+    { zh: "武功山", en: "Wugong Mountain" }, { zh: "杨岐山", en: "Yangqi Mountain" }] },
+  { province: "江西省", name: "九江市", short: "九江", en: "Jiujiang", landmarks: [
+    { zh: "庐山", en: "Mount Lu" }, { zh: "浔阳楼", en: "Xunyang Tower" }] },
+  { province: "江西省", name: "新余市", short: "新余", en: "Xinyu", landmarks: [
+    { zh: "仙女湖", en: "Xiannü Lake" }, { zh: "抱石公园", en: "Baoshi Park" }] },
+  { province: "江西省", name: "鹰潭市", short: "鹰潭", en: "Yingtan", landmarks: [
+    { zh: "龙虎山", en: "Mount Longhu" }, { zh: "上清古镇", en: "Shangqing Ancient Town" }] },
+  { province: "江西省", name: "赣州市", short: "赣州", en: "Ganzhou", landmarks: [
+    { zh: "通天岩", en: "Tongtian Rock" }, { zh: "郁孤台", en: "Yugu Terrace" }] },
+  { province: "江西省", name: "吉安市", short: "吉安", en: "Ji'an", landmarks: [
+    { zh: "井冈山", en: "Jinggang Mountains" }, { zh: "白鹭洲书院", en: "Bailuzhou Academy" }] },
+  { province: "江西省", name: "宜春市", short: "宜春", en: "Yichun Jiangxi", landmarks: [
+    { zh: "明月山", en: "Mingyue Mountain" }, { zh: "三爪仑", en: "Sanzhualun" }] },
+  { province: "江西省", name: "抚州市", short: "抚州", en: "Fuzhou Jiangxi", landmarks: [
+    { zh: "大觉山", en: "Dajue Mountain" }, { zh: "流坑古村", en: "Liukeng Village" }] },
+];
+
+const anhui: readonly CatalogCity[] = [
+  { province: "安徽省", name: "合肥市", short: "合肥", en: "Hefei", landmarks: [
+    { zh: "包公园", en: "Baogong Park" }, { zh: "三河古镇", en: "Sanhe Ancient Town" }] },
+  { province: "安徽省", name: "芜湖市", short: "芜湖", en: "Wuhu", landmarks: [
+    { zh: "镜湖", en: "Jinghu Lake Wuhu" }, { zh: "天门山", en: "Tianmen Mountain Wuhu" }] },
+  { province: "安徽省", name: "蚌埠市", short: "蚌埠", en: "Bengbu", landmarks: [
+    { zh: "龙子湖", en: "Longzi Lake" }, { zh: "涂山", en: "Mount Tu" }] },
+  { province: "安徽省", name: "淮南市", short: "淮南", en: "Huainan", landmarks: [
+    { zh: "八公山", en: "Bagong Mountain" }, { zh: "焦岗湖", en: "Jiaogang Lake" }] },
+  { province: "安徽省", name: "马鞍山市", short: "马鞍山", en: "Ma'anshan", landmarks: [
+    { zh: "采石矶", en: "Caishiji" }, { zh: "濮塘", en: "Putang" }] },
+  { province: "安徽省", name: "淮北市", short: "淮北", en: "Huaibei", landmarks: [
+    { zh: "相山", en: "Xiangshan Huaibei" }, { zh: "隋唐运河古镇", en: "Sui-Tang Canal Town" }] },
+  { province: "安徽省", name: "铜陵市", short: "铜陵", en: "Tongling", landmarks: [
+    { zh: "天井湖", en: "Tianjing Lake" }, { zh: "大通古镇", en: "Datong Ancient Town" }] },
+  { province: "安徽省", name: "安庆市", short: "安庆", en: "Anqing", landmarks: [
+    { zh: "天柱山", en: "Mount Tianzhu" }, { zh: "振风塔", en: "Zhenfeng Pagoda" }] },
+  { province: "安徽省", name: "滁州市", short: "滁州", en: "Chuzhou", landmarks: [
+    { zh: "琅琊山", en: "Langya Mountain" }, { zh: "醉翁亭", en: "Zuiweng Pavilion" }] },
+  { province: "安徽省", name: "阜阳市", short: "阜阳", en: "Fuyang", landmarks: [
+    { zh: "八里河", en: "Balihe" }, { zh: "颍州西湖", en: "Yingzhou West Lake" }] },
+  { province: "安徽省", name: "宿州市", short: "宿州", en: "Suzhou Anhui", landmarks: [
+    { zh: "皇藏峪", en: "Huangcangyu" }, { zh: "五柳风景区", en: "Wuliu Scenic Area" }] },
+  { province: "安徽省", name: "六安市", short: "六安", en: "Lu'an", landmarks: [
+    { zh: "万佛湖", en: "Wanfo Lake" }, { zh: "天堂寨", en: "Tiantangzhai Anhui" }] },
+  { province: "安徽省", name: "亳州市", short: "亳州", en: "Bozhou", landmarks: [
+    { zh: "花戏楼", en: "Huaxi Tower" }, { zh: "曹操运兵道", en: "Cao Cao Military Tunnel" }] },
+  { province: "安徽省", name: "池州市", short: "池州", en: "Chizhou", landmarks: [
+    { zh: "九华山", en: "Mount Jiuhua" }, { zh: "杏花村", en: "Xinghua Village Chizhou" }] },
+  { province: "安徽省", name: "宣城市", short: "宣城", en: "Xuancheng", landmarks: [
+    { zh: "敬亭山", en: "Jingting Mountain" }, { zh: "桃花潭", en: "Taohua Pond" }] },
+];
+
 export const catalogBatches: readonly CatalogBatch[] = [
   { id: "jiangzhehu", cities: [...jiangsu, ...zhejiang, ...shanghai] },
   { id: "southwest", cities: [...yunnan, ...sichuan, ...chongqing, ...tibet] },
   { id: "south", cities: [...guangdong, ...guangxi, ...hainan, ...fujian] },
   { id: "north", cities: [...tianjin, ...hebei, ...shanxi, ...innerMongolia] },
+  { id: "central", cities: [...henan, ...hubei, ...hunan, ...jiangxi, ...anhui] },
 ];

@@ -2863,5 +2863,1175 @@
   "source": "wikimedia",
   "license": "CC BY-SA 2.0",
   "licenseUrl": "https://creativecommons.org/licenses/by-sa/2.0"
+ },
+ "三门峡": {
+  "file": "sanmenxia-191733562.jpg",
+  "artist": "Windmemories",
+  "pageUrl": "https://commons.wikimedia.org/wiki/File:20260503_Swan_Lake_and_Skyline_of_Hubin_District,_Sanmenxia.jpg",
+  "fetchedAt": "2026-10-24",
+  "aliases": [],
+  "regions": [
+   "三门峡市",
+   "三门峡"
+  ],
+  "scenicFor": [
+   "三门峡市",
+   "三门峡"
+  ],
+  "source": "wikimedia",
+  "license": "CC BY-SA 4.0",
+  "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0"
+ },
+ "浔阳楼": {
+  "file": "xunyang-tower-112590990.jpg",
+  "artist": "钉钉",
+  "pageUrl": "https://commons.wikimedia.org/wiki/File:Xunyang_Lou,_Jiujiang.jpg",
+  "fetchedAt": "2026-10-24",
+  "aliases": [],
+  "regions": [
+   "九江市",
+   "九江"
+  ],
+  "scenicFor": [
+   "九江市",
+   "九江"
+  ],
+  "source": "wikimedia",
+  "license": "CC BY-SA 4.0",
+  "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0"
+ },
+ "花戏楼": {
+  "file": "huaxi-tower-51661815.jpg",
+  "artist": "三猎",
+  "pageUrl": "https://commons.wikimedia.org/wiki/File:%E8%8A%B1%E6%88%8F%E6%A5%BC_%E5%B1%B1%E9%97%A8_%E5%89%AF%E6%9C%AC.jpg",
+  "fetchedAt": "2026-10-24",
+  "aliases": [],
+  "regions": [
+   "亳州市",
+   "亳州"
+  ],
+  "scenicFor": [
+   "亳州市",
+   "亳州"
+  ],
+  "source": "wikimedia",
+  "license": "CC BY-SA 4.0",
+  "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0"
+ },
+ "信阳": {
+  "file": "xinyang-60242112.jpg",
+  "artist": "飞帆陈",
+  "pageUrl": "https://commons.wikimedia.org/wiki/File:%E4%B9%A1%E6%9D%91%E6%B0%94%E6%81%AF_-_panoramio_(6).jpg",
+  "fetchedAt": "2026-10-24",
+  "aliases": [],
+  "regions": [
+   "信阳市",
+   "信阳"
+  ],
+  "scenicFor": [
+   "信阳市",
+   "信阳"
+  ],
+  "source": "wikimedia",
+  "license": "CC BY-SA 3.0",
+  "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0"
+ },
+ "六安": {
+  "file": "luan-73415542.jpg",
+  "artist": "そらみみ",
+  "pageUrl": "https://commons.wikimedia.org/wiki/File:Pihe_River_Waterway_from_train_for_Shanghai-Hongqiao_Station.jpg",
+  "fetchedAt": "2026-10-24",
+  "aliases": [],
+  "regions": [
+   "六安市",
+   "六安"
+  ],
+  "scenicFor": [
+   "六安市",
+   "六安"
+  ],
+  "source": "wikimedia",
+  "license": "CC BY-SA 4.0",
+  "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0"
+ },
+ "武当山": {
+  "file": "wudang-mountains-160513.jpg",
+  "artist": "Unknown author",
+  "pageUrl": "https://commons.wikimedia.org/wiki/File:Wudangshan_2003_10.jpg",
+  "fetchedAt": "2026-10-24",
+  "aliases": [],
+  "regions": [
+   "十堰市",
+   "十堰"
+  ],
+  "scenicFor": [
+   "十堰市",
+   "十堰"
+  ],
+  "source": "wikimedia",
+  "license": "Public domain",
+  "licenseUrl": "https://commons.wikimedia.org/wiki/File:Wudangshan_2003_10.jpg"
+ },
+ "南昌": {
+  "file": "nanchang-71965492.jpg",
+  "artist": "Windmemories",
+  "pageUrl": "https://commons.wikimedia.org/wiki/File:Nanchang_city_view_(July_2017).jpg",
+  "fetchedAt": "2026-10-24",
+  "aliases": [],
+  "regions": [
+   "南昌市",
+   "南昌"
+  ],
+  "scenicFor": [
+   "南昌市",
+   "南昌"
+  ],
+  "source": "wikimedia",
+  "license": "CC BY-SA 4.0",
+  "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0"
+ },
+ "南阳武侯祠": {
+  "file": "nanyang-wuhou-temple-176265794.jpg",
+  "artist": "Windmemories",
+  "pageUrl": "https://commons.wikimedia.org/wiki/File:20251004_Temple_of_Marquis_Wu,_Nanyang_02.jpg",
+  "fetchedAt": "2026-10-24",
+  "aliases": [],
+  "regions": [
+   "南阳市",
+   "南阳"
+  ],
+  "scenicFor": [
+   "南阳市",
+   "南阳"
+  ],
+  "source": "wikimedia",
+  "license": "CC BY-SA 4.0",
+  "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0"
+ },
+ "包公园": {
+  "file": "baogong-park-47557516.jpg",
+  "artist": "JtWang",
+  "pageUrl": "https://commons.wikimedia.org/wiki/File:%E5%8C%85%E5%85%AC%E6%B1%A0_-_panoramio.jpg",
+  "fetchedAt": "2026-10-24",
+  "aliases": [],
+  "regions": [
+   "合肥市",
+   "合肥"
+  ],
+  "scenicFor": [
+   "合肥市",
+   "合肥"
+  ],
+  "source": "wikimedia",
+  "license": "CC BY-SA 3.0",
+  "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0"
+ },
+ "白鹭洲书院": {
+  "file": "bailuzhou-academy-69196194.jpg",
+  "artist": "Zhangzhugang",
+  "pageUrl": "https://commons.wikimedia.org/wiki/File:Ji%27an_Bailuzhou_Shuyuan_2018.05.15_18-07-38.jpg",
+  "fetchedAt": "2026-10-24",
+  "aliases": [],
+  "regions": [
+   "吉安市",
+   "吉安"
+  ],
+  "scenicFor": [
+   "吉安市",
+   "吉安"
+  ],
+  "source": "wikimedia",
+  "license": "CC BY-SA 4.0",
+  "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0"
+ },
+ "太昊陵": {
+  "file": "taihao-mausoleum-199835631.jpg",
+  "artist": "Windmemories",
+  "pageUrl": "https://commons.wikimedia.org/wiki/File:20260913_Tomb_and_Temple_of_Taihao_01.jpg",
+  "fetchedAt": "2026-10-24",
+  "aliases": [],
+  "regions": [
+   "周口市",
+   "周口"
+  ],
+  "scenicFor": [
+   "周口市",
+   "周口"
+  ],
+  "source": "wikimedia",
+  "license": "CC BY-SA 4.0",
+  "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0"
+ },
+ "咸宁": {
+  "file": "xianning-69419407.jpg",
+  "artist": "Cangminzho",
+  "pageUrl": "https://commons.wikimedia.org/wiki/File:%E9%93%B6%E6%B3%89%E5%A4%A7%E9%81%93_5493.jpg",
+  "fetchedAt": "2026-10-24",
+  "aliases": [],
+  "regions": [
+   "咸宁市",
+   "咸宁"
+  ],
+  "scenicFor": [
+   "咸宁市",
+   "咸宁"
+  ],
+  "source": "wikimedia",
+  "license": "CC BY-SA 4.0",
+  "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0"
+ },
+ "商丘": {
+  "file": "shangqiu-121106616.jpg",
+  "artist": "Windmemories",
+  "pageUrl": "https://commons.wikimedia.org/wiki/File:20220726_Historic_City_of_Shangqiu_01.jpg",
+  "fetchedAt": "2026-10-24",
+  "aliases": [],
+  "regions": [
+   "商丘市",
+   "商丘"
+  ],
+  "scenicFor": [
+   "商丘市",
+   "商丘"
+  ],
+  "source": "wikimedia",
+  "license": "CC BY-SA 4.0",
+  "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0"
+ },
+ "娄底": {
+  "file": "loudi-19254509.jpg",
+  "artist": "PanShiBo",
+  "pageUrl": "https://commons.wikimedia.org/wiki/File:LouDi.jpg",
+  "fetchedAt": "2026-10-24",
+  "aliases": [],
+  "regions": [
+   "娄底市",
+   "娄底"
+  ],
+  "scenicFor": [
+   "娄底市",
+   "娄底"
+  ],
+  "source": "wikimedia",
+  "license": "CC BY-SA 3.0",
+  "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0"
+ },
+ "孝感": {
+  "file": "xiaogan-17568120.jpg",
+  "artist": "Brian Dell",
+  "pageUrl": "https://commons.wikimedia.org/wiki/File:Xiaogan.jpg",
+  "fetchedAt": "2026-10-24",
+  "aliases": [],
+  "regions": [
+   "孝感市",
+   "孝感"
+  ],
+  "scenicFor": [
+   "孝感市",
+   "孝感"
+  ],
+  "source": "wikimedia",
+  "license": "CC0",
+  "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/deed.en"
+ },
+ "天柱山": {
+  "file": "tianzhu-mountain-55064934.jpg",
+  "artist": "N509FZ",
+  "pageUrl": "https://commons.wikimedia.org/wiki/File:Tianzhu_Peak_(20170116142019).jpg",
+  "fetchedAt": "2026-10-24",
+  "aliases": [],
+  "regions": [
+   "安庆市",
+   "安庆"
+  ],
+  "scenicFor": [
+   "安庆市",
+   "安庆"
+  ],
+  "source": "wikimedia",
+  "license": "CC BY-SA 4.0",
+  "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0"
+ },
+ "殷墟": {
+  "file": "yinxu-128043679.jpg",
+  "artist": "xiquinhosilva",
+  "pageUrl": "https://commons.wikimedia.org/wiki/File:26120-Anyang_(49086436522).jpg",
+  "fetchedAt": "2026-10-24",
+  "aliases": [],
+  "regions": [
+   "安阳市",
+   "安阳"
+  ],
+  "scenicFor": [
+   "安阳市",
+   "安阳"
+  ],
+  "source": "wikimedia",
+  "license": "CC BY 2.0",
+  "licenseUrl": "https://creativecommons.org/licenses/by/2.0"
+ },
+ "三峡大坝": {
+  "file": "three-gorges-dam-11425004.jpg",
+  "artist": "Source file : Le Grand Portage Derivative work: Rehman",
+  "pageUrl": "https://commons.wikimedia.org/wiki/File:ThreeGorgesDam-China2009.jpg",
+  "fetchedAt": "2026-10-24",
+  "aliases": [],
+  "regions": [
+   "宜昌市",
+   "宜昌"
+  ],
+  "scenicFor": [
+   "宜昌市",
+   "宜昌"
+  ],
+  "source": "wikimedia",
+  "license": "CC BY 2.0",
+  "licenseUrl": "https://creativecommons.org/licenses/by/2.0"
+ },
+ "宜春": {
+  "file": "yichun-jiangxi-52464196.jpg",
+  "artist": "邓利",
+  "pageUrl": "https://commons.wikimedia.org/wiki/File:%E5%9C%A8%E8%A2%81%E5%B1%B1%E5%85%AC%E5%9B%AD%E7%9C%8B%E5%B9%BF%E7%94%B5%E4%B8%AD%E5%BF%83_-_panoramio_-_%E9%82%93%E5%88%A9.jpg",
+  "fetchedAt": "2026-10-24",
+  "aliases": [],
+  "regions": [
+   "宜春市",
+   "宜春"
+  ],
+  "scenicFor": [
+   "宜春市",
+   "宜春"
+  ],
+  "source": "wikimedia",
+  "license": "CC BY-SA 3.0",
+  "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0"
+ },
+ "宣城": {
+  "file": "xuancheng-45656900.jpg",
+  "artist": "Zhousiyuan",
+  "pageUrl": "https://commons.wikimedia.org/wiki/File:Xuancheng_City_Skyline_(2).JPG",
+  "fetchedAt": "2026-10-24",
+  "aliases": [],
+  "regions": [
+   "宣城市",
+   "宣城"
+  ],
+  "scenicFor": [
+   "宣城市",
+   "宣城"
+  ],
+  "source": "wikimedia",
+  "license": "CC BY 2.0",
+  "licenseUrl": "https://creativecommons.org/licenses/by/2.0"
+ },
+ "宿州": {
+  "file": "suzhou-anhui-48185908.jpg",
+  "artist": "WYF0710",
+  "pageUrl": "https://commons.wikimedia.org/wiki/File:%E4%B9%BE%E5%B1%B1_-_panoramio.jpg",
+  "fetchedAt": "2026-10-24",
+  "aliases": [],
+  "regions": [
+   "宿州市",
+   "宿州"
+  ],
+  "scenicFor": [
+   "宿州市",
+   "宿州"
+  ],
+  "source": "wikimedia",
+  "license": "CC BY-SA 3.0",
+  "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0"
+ },
+ "岳阳楼": {
+  "file": "yueyang-tower-69892428.jpg",
+  "artist": "Huangdan2060",
+  "pageUrl": "https://commons.wikimedia.org/wiki/File:Frontal_view_of_Yueyang_Tower,_Hunan,_China1.jpg",
+  "fetchedAt": "2026-10-24",
+  "aliases": [],
+  "regions": [
+   "岳阳市",
+   "岳阳"
+  ],
+  "scenicFor": [
+   "岳阳市",
+   "岳阳"
+  ],
+  "source": "wikimedia",
+  "license": "CC0",
+  "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/deed.en"
+ },
+ "常德": {
+  "file": "changde-54830421.jpg",
+  "artist": "涔水影人",
+  "pageUrl": "https://commons.wikimedia.org/wiki/File:%E5%B8%B8%E5%BE%B7%E5%B8%82%E5%8C%BA_-_panoramio.jpg",
+  "fetchedAt": "2026-10-24",
+  "aliases": [],
+  "regions": [
+   "常德市",
+   "常德"
+  ],
+  "scenicFor": [
+   "常德市",
+   "常德"
+  ],
+  "source": "wikimedia",
+  "license": "CC BY 3.0",
+  "licenseUrl": "https://creativecommons.org/licenses/by/3.0"
+ },
+ "中原大佛": {
+  "file": "spring-temple-buddha-79995059.jpg",
+  "artist": "Nyx Ning",
+  "pageUrl": "https://commons.wikimedia.org/wiki/File:Spring_Temple_Buddha_1.jpg",
+  "fetchedAt": "2026-10-24",
+  "aliases": [],
+  "regions": [
+   "平顶山市",
+   "平顶山"
+  ],
+  "scenicFor": [
+   "平顶山市",
+   "平顶山"
+  ],
+  "source": "wikimedia",
+  "license": "CC BY-SA 3.0",
+  "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0"
+ },
+ "清明上河园": {
+  "file": "millennium-city-park-77161176.jpg",
+  "artist": "Windmemories",
+  "pageUrl": "https://commons.wikimedia.org/wiki/File:Millennium_City_Park_02.jpg",
+  "fetchedAt": "2026-10-24",
+  "aliases": [],
+  "regions": [
+   "开封市",
+   "开封"
+  ],
+  "scenicFor": [
+   "开封市",
+   "开封"
+  ],
+  "source": "wikimedia",
+  "license": "CC BY-SA 4.0",
+  "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0"
+ },
+ "怀化": {
+  "file": "huaihua-19044131.jpg",
+  "artist": "PanShiBo",
+  "pageUrl": "https://commons.wikimedia.org/wiki/File:HuaiHua.JPG",
+  "fetchedAt": "2026-10-24",
+  "aliases": [],
+  "regions": [
+   "怀化市",
+   "怀化"
+  ],
+  "scenicFor": [
+   "怀化市",
+   "怀化"
+  ],
+  "source": "wikimedia",
+  "license": "CC BY-SA 3.0",
+  "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0"
+ },
+ "恩施": {
+  "file": "enshi-54765460.jpg",
+  "artist": "图片上传者：吴显胜（China）",
+  "pageUrl": "https://commons.wikimedia.org/wiki/File:%E6%81%A9%E6%96%BD2012-1enshi_-_panoramio.jpg",
+  "fetchedAt": "2026-10-24",
+  "aliases": [],
+  "regions": [
+   "恩施土家族苗族自治州",
+   "恩施"
+  ],
+  "scenicFor": [
+   "恩施土家族苗族自治州",
+   "恩施"
+  ],
+  "source": "wikimedia",
+  "license": "CC BY 3.0",
+  "licenseUrl": "https://creativecommons.org/licenses/by/3.0"
+ },
+ "流坑古村": {
+  "file": "liukeng-village-28186925.jpg",
+  "artist": "Symane",
+  "pageUrl": "https://commons.wikimedia.org/wiki/File:%E6%B5%81%E5%9D%91.jpg",
+  "fetchedAt": "2026-10-24",
+  "aliases": [],
+  "regions": [
+   "抚州市",
+   "抚州"
+  ],
+  "scenicFor": [
+   "抚州市",
+   "抚州"
+  ],
+  "source": "wikimedia",
+  "license": "CC BY-SA 3.0",
+  "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0"
+ },
+ "新乡": {
+  "file": "xinxiang-27629858.jpg",
+  "artist": "靠斯",
+  "pageUrl": "https://commons.wikimedia.org/wiki/File:Xinxiang01.jpg",
+  "fetchedAt": "2026-10-24",
+  "aliases": [],
+  "regions": [
+   "新乡市",
+   "新乡"
+  ],
+  "scenicFor": [
+   "新乡市",
+   "新乡"
+  ],
+  "source": "wikimedia",
+  "license": "CC BY-SA 3.0",
+  "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0"
+ },
+ "新余": {
+  "file": "xinyu-147600504.jpg",
+  "artist": "Harald Groven",
+  "pageUrl": "https://commons.wikimedia.org/wiki/File:View_from_33th_floor_in_Xinyu_building.jpg",
+  "fetchedAt": "2026-10-24",
+  "aliases": [],
+  "regions": [
+   "新余市",
+   "新余"
+  ],
+  "scenicFor": [
+   "新余市",
+   "新余"
+  ],
+  "source": "wikimedia",
+  "license": "CC BY-SA 2.0",
+  "licenseUrl": "https://creativecommons.org/licenses/by-sa/2.0"
+ },
+ "瑶里": {
+  "file": "yaoli-65220911.jpg",
+  "artist": "Zhangzhugang",
+  "pageUrl": "https://commons.wikimedia.org/wiki/File:Fuliang_Yaoli_2018.01.01_08-27-56.jpg",
+  "fetchedAt": "2026-10-24",
+  "aliases": [],
+  "regions": [
+   "景德镇市",
+   "景德镇"
+  ],
+  "scenicFor": [
+   "景德镇市",
+   "景德镇"
+  ],
+  "source": "wikimedia",
+  "license": "CC BY-SA 4.0",
+  "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0"
+ },
+ "炎帝陵": {
+  "file": "yandi-mausoleum-158415900.jpg",
+  "artist": "N509FZ",
+  "pageUrl": "https://commons.wikimedia.org/wiki/File:Mausoleum_of_Emperor_Yan,_Hunan_(20250123134405).jpg",
+  "fetchedAt": "2026-10-24",
+  "aliases": [],
+  "regions": [
+   "株洲市",
+   "株洲"
+  ],
+  "scenicFor": [
+   "株洲市",
+   "株洲"
+  ],
+  "source": "wikimedia",
+  "license": "CC BY-SA 4.0",
+  "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0"
+ },
+ "武汉": {
+  "file": "wuhan-61967773.jpg",
+  "artist": "螺钉",
+  "pageUrl": "https://commons.wikimedia.org/wiki/File:%E6%AD%A6%E6%B1%89%E9%BB%84%E9%B9%A4%E6%A5%BC%E4%BF%AF%E7%9E%B0.jpg",
+  "fetchedAt": "2026-10-24",
+  "aliases": [],
+  "regions": [
+   "武汉市",
+   "武汉"
+  ],
+  "scenicFor": [
+   "武汉市",
+   "武汉"
+  ],
+  "source": "wikimedia",
+  "license": "CC BY-SA 4.0",
+  "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0"
+ },
+ "永州": {
+  "file": "yongzhou-18948733.jpg",
+  "artist": "PanShiBo",
+  "pageUrl": "https://commons.wikimedia.org/wiki/File:YongZhou.JPG",
+  "fetchedAt": "2026-10-24",
+  "aliases": [],
+  "regions": [
+   "永州市",
+   "永州"
+  ],
+  "scenicFor": [
+   "永州市",
+   "永州"
+  ],
+  "source": "wikimedia",
+  "license": "CC BY-SA 3.0",
+  "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0"
+ },
+ "池州": {
+  "file": "chizhou-308225.jpg",
+  "artist": "Unknown author",
+  "pageUrl": "https://commons.wikimedia.org/wiki/File:Jiuhuashan_town.jpg",
+  "fetchedAt": "2026-10-24",
+  "aliases": [],
+  "regions": [
+   "池州市",
+   "池州"
+  ],
+  "scenicFor": [
+   "池州市",
+   "池州"
+  ],
+  "source": "wikimedia",
+  "license": "Public domain",
+  "licenseUrl": "https://commons.wikimedia.org/wiki/File:Jiuhuashan_town.jpg"
+ },
+ "龙门石窟": {
+  "file": "longmen-grottoes-4810278.jpg",
+  "artist": "Rialfver Original uploader was Rialfver at nl.wikipedia",
+  "pageUrl": "https://commons.wikimedia.org/wiki/File:Longmen_Grottoes_3.jpg",
+  "fetchedAt": "2026-10-24",
+  "aliases": [],
+  "regions": [
+   "洛阳市",
+   "洛阳"
+  ],
+  "scenicFor": [
+   "洛阳市",
+   "洛阳"
+  ],
+  "source": "wikimedia",
+  "license": "CC BY-SA 3.0",
+  "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0/"
+ },
+ "淮北": {
+  "file": "huaibei-16823427.jpg",
+  "artist": "Nickm57",
+  "pageUrl": "https://commons.wikimedia.org/wiki/File:Huaibei_easterly_view.jpg",
+  "fetchedAt": "2026-10-24",
+  "aliases": [],
+  "regions": [
+   "淮北市",
+   "淮北"
+  ],
+  "scenicFor": [
+   "淮北市",
+   "淮北"
+  ],
+  "source": "wikimedia",
+  "license": "CC0",
+  "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/deed.en"
+ },
+ "淮南": {
+  "file": "huainan-222147.jpg",
+  "artist": "Unknown author",
+  "pageUrl": "https://commons.wikimedia.org/wiki/File:Huainan_June_2005_02.jpg",
+  "fetchedAt": "2026-10-24",
+  "aliases": [],
+  "regions": [
+   "淮南市",
+   "淮南"
+  ],
+  "scenicFor": [
+   "淮南市",
+   "淮南"
+  ],
+  "source": "wikimedia",
+  "license": "Public domain",
+  "licenseUrl": "https://commons.wikimedia.org/wiki/File:Huainan_June_2005_02.jpg"
+ },
+ "韶山": {
+  "file": "shaoshan-9733746.jpg",
+  "artist": "Brücke-Osteuropa",
+  "pageUrl": "https://commons.wikimedia.org/wiki/File:Shaoshan_01.JPG",
+  "fetchedAt": "2026-10-24",
+  "aliases": [],
+  "regions": [
+   "湘潭市",
+   "湘潭"
+  ],
+  "scenicFor": [
+   "湘潭市",
+   "湘潭"
+  ],
+  "source": "wikimedia",
+  "license": "Public domain",
+  "licenseUrl": "https://commons.wikimedia.org/wiki/File:Shaoshan_01.JPG"
+ },
+ "凤凰古城": {
+  "file": "fenghuang-ancient-town-54881466.jpg",
+  "artist": "江上清风1961",
+  "pageUrl": "https://commons.wikimedia.org/wiki/File:%E5%87%A4%E5%87%B0%E5%8F%A4%E5%9F%8E%E4%B8%9C%E5%9F%8E%E9%97%A8_-_panoramio.jpg",
+  "fetchedAt": "2026-10-24",
+  "aliases": [],
+  "regions": [
+   "湘西土家族苗族自治州",
+   "湘西"
+  ],
+  "scenicFor": [
+   "湘西土家族苗族自治州",
+   "湘西"
+  ],
+  "source": "wikimedia",
+  "license": "CC BY 3.0",
+  "licenseUrl": "https://creativecommons.org/licenses/by/3.0"
+ },
+ "滁州": {
+  "file": "chuzhou-88193092.jpg",
+  "artist": "橙子木",
+  "pageUrl": "https://commons.wikimedia.org/wiki/File:%E6%BB%81%E5%B7%9E%E6%B8%85%E6%B5%81%E6%B2%B3%E5%85%AC%E5%9B%AD%EF%BC%88%E6%98%8E%E5%85%89%E8%B7%AF~%E6%89%AC%E5%AD%90%E8%B7%AF%E6%AE%B5%EF%BC%89.jpg",
+  "fetchedAt": "2026-10-24",
+  "aliases": [],
+  "regions": [
+   "滁州市",
+   "滁州"
+  ],
+  "scenicFor": [
+   "滁州市",
+   "滁州"
+  ],
+  "source": "wikimedia",
+  "license": "CC BY-SA 4.0",
+  "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0"
+ },
+ "漯河": {
+  "file": "luohe-87813367.jpg",
+  "artist": "Hillocks",
+  "pageUrl": "https://commons.wikimedia.org/wiki/File:%E6%BC%AF%E6%B9%BE%E6%B1%87%E5%8F%8C%E6%B5%81.jpg",
+  "fetchedAt": "2026-10-24",
+  "aliases": [],
+  "regions": [
+   "漯河市",
+   "漯河"
+  ],
+  "scenicFor": [
+   "漯河市",
+   "漯河"
+  ],
+  "source": "wikimedia",
+  "license": "CC BY-SA 4.0",
+  "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0"
+ },
+ "濮阳": {
+  "file": "puyang-54093760.jpg",
+  "artist": "wsklutz",
+  "pageUrl": "https://commons.wikimedia.org/wiki/File:%E4%BA%AC%E5%BC%80%E5%A4%A7%E9%81%93-%E8%83%9C%E5%88%A9%E8%B7%AF%E8%BD%AC%E7%9B%98_-_panoramio.jpg",
+  "fetchedAt": "2026-10-24",
+  "aliases": [],
+  "regions": [
+   "濮阳市",
+   "濮阳"
+  ],
+  "scenicFor": [
+   "濮阳市",
+   "濮阳"
+  ],
+  "source": "wikimedia",
+  "license": "CC BY-SA 3.0",
+  "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0"
+ },
+ "益阳": {
+  "file": "yiyang-10348978.jpg",
+  "artist": "Helong",
+  "pageUrl": "https://commons.wikimedia.org/wiki/File:%E5%8D%97%E5%8C%97%E5%A4%A7%E9%81%93.jpg",
+  "fetchedAt": "2026-10-24",
+  "aliases": [],
+  "regions": [
+   "益阳市",
+   "益阳"
+  ],
+  "scenicFor": [
+   "益阳市",
+   "益阳"
+  ],
+  "source": "wikimedia",
+  "license": "Public domain",
+  "licenseUrl": "https://commons.wikimedia.org/wiki/File:%E5%8D%97%E5%8C%97%E5%A4%A7%E9%81%93.jpg"
+ },
+ "芜湖": {
+  "file": "wuhu-88670162.jpg",
+  "artist": "Wu Shan",
+  "pageUrl": "https://commons.wikimedia.org/wiki/File:Wuhu_Skyline,_December_2019.jpg",
+  "fetchedAt": "2026-10-24",
+  "aliases": [],
+  "regions": [
+   "芜湖市",
+   "芜湖"
+  ],
+  "scenicFor": [
+   "芜湖市",
+   "芜湖"
+  ],
+  "source": "wikimedia",
+  "license": "CC BY-SA 4.0",
+  "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0"
+ },
+ "荆州古城": {
+  "file": "jingzhou-ancient-city-27390658.jpg",
+  "artist": "Popolon",
+  "pageUrl": "https://commons.wikimedia.org/wiki/File:Jingzhou.pont.est.jpg",
+  "fetchedAt": "2026-10-24",
+  "aliases": [],
+  "regions": [
+   "荆州市",
+   "荆州"
+  ],
+  "scenicFor": [
+   "荆州市",
+   "荆州"
+  ],
+  "source": "wikimedia",
+  "license": "CC BY-SA 3.0",
+  "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0"
+ },
+ "明显陵": {
+  "file": "xianling-tomb-22425042.jpg",
+  "artist": "Kallgan",
+  "pageUrl": "https://commons.wikimedia.org/wiki/File:Mingxianling_minglou.jpg",
+  "fetchedAt": "2026-10-24",
+  "aliases": [],
+  "regions": [
+   "荆门市",
+   "荆门"
+  ],
+  "scenicFor": [
+   "荆门市",
+   "荆门"
+  ],
+  "source": "wikimedia",
+  "license": "Public domain",
+  "licenseUrl": "https://commons.wikimedia.org/wiki/File:Mingxianling_minglou.jpg"
+ },
+ "萍乡": {
+  "file": "pingxiang-5614990.jpg",
+  "artist": "Chinaculturefriend",
+  "pageUrl": "https://commons.wikimedia.org/wiki/File:Pingxiang,_JX,_PRC.jpg",
+  "fetchedAt": "2026-10-24",
+  "aliases": [],
+  "regions": [
+   "萍乡市",
+   "萍乡"
+  ],
+  "scenicFor": [
+   "萍乡市",
+   "萍乡"
+  ],
+  "source": "wikimedia",
+  "license": "CC BY-SA 3.0",
+  "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0"
+ },
+ "蚌埠": {
+  "file": "bengbu-61054228.jpg",
+  "artist": "DKMcLaren",
+  "pageUrl": "https://commons.wikimedia.org/wiki/File:Bengbu_Huaishang_Ave._and_Beijing_-_Shanghai_Railway_2.jpg",
+  "fetchedAt": "2026-10-24",
+  "aliases": [],
+  "regions": [
+   "蚌埠市",
+   "蚌埠"
+  ],
+  "scenicFor": [
+   "蚌埠市",
+   "蚌埠"
+  ],
+  "source": "wikimedia",
+  "license": "CC BY-SA 4.0",
+  "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0"
+ },
+ "襄阳": {
+  "file": "xiangyang-105099470.jpg",
+  "artist": "Fxqf",
+  "pageUrl": "https://commons.wikimedia.org/wiki/File:Xiangyang_skyline_02.jpg",
+  "fetchedAt": "2026-10-24",
+  "aliases": [],
+  "regions": [
+   "襄阳市",
+   "襄阳"
+  ],
+  "scenicFor": [
+   "襄阳市",
+   "襄阳"
+  ],
+  "source": "wikimedia",
+  "license": "CC BY-SA 4.0",
+  "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0"
+ },
+ "许昌": {
+  "file": "xuchang-21736856.jpg",
+  "artist": "Huandy618",
+  "pageUrl": "https://commons.wikimedia.org/wiki/File:Xudu_Yizhi_Entrance.jpg",
+  "fetchedAt": "2026-10-24",
+  "aliases": [],
+  "regions": [
+   "许昌市",
+   "许昌"
+  ],
+  "scenicFor": [
+   "许昌市",
+   "许昌"
+  ],
+  "source": "wikimedia",
+  "license": "CC BY-SA 3.0",
+  "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0"
+ },
+ "通天岩": {
+  "file": "tongtian-rock-35462785.jpg",
+  "artist": "Underbar dk",
+  "pageUrl": "https://commons.wikimedia.org/wiki/File:Tongtianyan_Grottoes.JPG",
+  "fetchedAt": "2026-10-24",
+  "aliases": [],
+  "regions": [
+   "赣州市",
+   "赣州"
+  ],
+  "scenicFor": [
+   "赣州市",
+   "赣州"
+  ],
+  "source": "wikimedia",
+  "license": "CC BY-SA 3.0",
+  "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0"
+ },
+ "邵阳": {
+  "file": "shaoyang-145688556.jpg",
+  "artist": "FreeePedia",
+  "pageUrl": "https://commons.wikimedia.org/wiki/File:Shaodong_Street_View.jpg",
+  "fetchedAt": "2026-10-24",
+  "aliases": [],
+  "regions": [
+   "邵阳市",
+   "邵阳"
+  ],
+  "scenicFor": [
+   "邵阳市",
+   "邵阳"
+  ],
+  "source": "wikimedia",
+  "license": "CC BY-SA 4.0",
+  "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0"
+ },
+ "少林寺": {
+  "file": "shaolin-monastery-111852.jpg",
+  "artist": "User:Yaoleilei",
+  "pageUrl": "https://commons.wikimedia.org/wiki/File:Shaolinsi.JPG",
+  "fetchedAt": "2026-10-24",
+  "aliases": [],
+  "regions": [
+   "郑州市",
+   "郑州"
+  ],
+  "scenicFor": [
+   "郑州市",
+   "郑州"
+  ],
+  "source": "wikimedia",
+  "license": "CC BY-SA 3.0",
+  "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0/"
+ },
+ "郴州": {
+  "file": "chenzhou-144542544.jpg",
+  "artist": "Uuongkinghe",
+  "pageUrl": "https://commons.wikimedia.org/wiki/File:%E9%B9%8A%E4%BB%99%E6%A1%A5_20240125.jpg",
+  "fetchedAt": "2026-10-24",
+  "aliases": [],
+  "regions": [
+   "郴州市",
+   "郴州"
+  ],
+  "scenicFor": [
+   "郴州市",
+   "郴州"
+  ],
+  "source": "wikimedia",
+  "license": "CC BY-SA 4.0",
+  "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0"
+ },
+ "鄂州": {
+  "file": "ezhou-4996095.jpg",
+  "artist": "User:Vmenkov stitched by Marku1988 This panoramic image was created with Panorama Perfect (stitched ",
+  "pageUrl": "https://commons.wikimedia.org/wiki/File:Ezhou-city-lake.jpg",
+  "fetchedAt": "2026-10-24",
+  "aliases": [],
+  "regions": [
+   "鄂州市",
+   "鄂州"
+  ],
+  "scenicFor": [
+   "鄂州市",
+   "鄂州"
+  ],
+  "source": "wikimedia",
+  "license": "CC BY-SA 3.0",
+  "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0/"
+ },
+ "铜陵": {
+  "file": "tongling-70942104.jpg",
+  "artist": "Ranqus",
+  "pageUrl": "https://commons.wikimedia.org/wiki/File:Tongling_Urban_Landscape.jpg",
+  "fetchedAt": "2026-10-24",
+  "aliases": [],
+  "regions": [
+   "铜陵市",
+   "铜陵"
+  ],
+  "scenicFor": [
+   "铜陵市",
+   "铜陵"
+  ],
+  "source": "wikimedia",
+  "license": "CC BY-SA 4.0",
+  "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0"
+ },
+ "岳麓山": {
+  "file": "yuelu-mountain-2103504.jpg",
+  "artist": "Cncs",
+  "pageUrl": "https://commons.wikimedia.org/wiki/File:Yulu-Moutains2-en.jpg",
+  "fetchedAt": "2026-10-24",
+  "aliases": [],
+  "regions": [
+   "长沙市",
+   "长沙"
+  ],
+  "scenicFor": [
+   "长沙市",
+   "长沙"
+  ],
+  "source": "wikimedia",
+  "license": "CC BY-SA 3.0",
+  "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0/"
+ },
+ "随州": {
+  "file": "suizhou-42224890.jpg",
+  "artist": "Gmbsfd",
+  "pageUrl": "https://commons.wikimedia.org/wiki/File:Suizhou-Qingnian_Rd-2_2015.8.10.jpg",
+  "fetchedAt": "2026-10-24",
+  "aliases": [],
+  "regions": [
+   "随州市",
+   "随州"
+  ],
+  "scenicFor": [
+   "随州市",
+   "随州"
+  ],
+  "source": "wikimedia",
+  "license": "CC BY-SA 3.0",
+  "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0"
+ },
+ "采石矶": {
+  "file": "caishiji-47165932.jpg",
+  "artist": "陈宏宇",
+  "pageUrl": "https://commons.wikimedia.org/wiki/File:%E4%B8%89%E5%85%83%E6%B4%9E_-_panoramio_-_%E9%99%88%E5%AE%8F%E5%AE%87_(1).jpg",
+  "fetchedAt": "2026-10-24",
+  "aliases": [],
+  "regions": [
+   "马鞍山市",
+   "马鞍山"
+  ],
+  "scenicFor": [
+   "马鞍山市",
+   "马鞍山"
+  ],
+  "source": "wikimedia",
+  "license": "CC BY 3.0",
+  "licenseUrl": "https://creativecommons.org/licenses/by/3.0"
+ },
+ "驻马店": {
+  "file": "zhumadian-161423521.jpg",
+  "artist": "Fumikas Sagisavas",
+  "pageUrl": "https://commons.wikimedia.org/wiki/File:Snow_in_Zhumadian_(20250303_~_Image1).jpg",
+  "fetchedAt": "2026-10-24",
+  "aliases": [],
+  "regions": [
+   "驻马店市",
+   "驻马店"
+  ],
+  "scenicFor": [
+   "驻马店市",
+   "驻马店"
+  ],
+  "source": "wikimedia",
+  "license": "CC0",
+  "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/deed.en"
+ },
+ "鹤壁": {
+  "file": "hebi-156421303.jpg",
+  "artist": "Windmemories",
+  "pageUrl": "https://commons.wikimedia.org/wiki/File:20241201_View_of_Xun_County_from_Dapi_Mountain.jpg",
+  "fetchedAt": "2026-10-24",
+  "aliases": [],
+  "regions": [
+   "鹤壁市",
+   "鹤壁"
+  ],
+  "scenicFor": [
+   "鹤壁市",
+   "鹤壁"
+  ],
+  "source": "wikimedia",
+  "license": "CC BY-SA 4.0",
+  "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0"
+ },
+ "鹰潭": {
+  "file": "yingtan-62709772.jpg",
+  "artist": "Qa003qa003",
+  "pageUrl": "https://commons.wikimedia.org/wiki/File:Yingtan_20170404_161117.jpg",
+  "fetchedAt": "2026-10-24",
+  "aliases": [],
+  "regions": [
+   "鹰潭市",
+   "鹰潭"
+  ],
+  "scenicFor": [
+   "鹰潭市",
+   "鹰潭"
+  ],
+  "source": "wikimedia",
+  "license": "CC BY-SA 4.0",
+  "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0"
+ },
+ "东坡赤壁": {
+  "file": "dongpo-red-cliff-36000623.jpg",
+  "artist": "北纬向南",
+  "pageUrl": "https://commons.wikimedia.org/wiki/File:%E4%B8%9C%E5%9D%A1%E8%B5%A4%E5%A3%81%E5%BB%BA%E7%AD%91%E7%BE%A4.JPG",
+  "fetchedAt": "2026-10-24",
+  "aliases": [],
+  "regions": [
+   "黄冈市",
+   "黄冈"
+  ],
+  "scenicFor": [
+   "黄冈市",
+   "黄冈"
+  ],
+  "source": "wikimedia",
+  "license": "CC BY-SA 4.0",
+  "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0"
+ },
+ "黄石": {
+  "file": "huangshi-59696972.jpg",
+  "artist": "Amarespeco",
+  "pageUrl": "https://commons.wikimedia.org/wiki/File:Red_Star_Lake,_Qinglongshan_Park.jpg",
+  "fetchedAt": "2026-10-24",
+  "aliases": [],
+  "regions": [
+   "黄石市",
+   "黄石"
+  ],
+  "scenicFor": [
+   "黄石市",
+   "黄石"
+  ],
+  "source": "wikimedia",
+  "license": "CC BY-SA 4.0",
+  "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0"
  }
 }

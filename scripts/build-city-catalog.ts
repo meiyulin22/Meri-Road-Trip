@@ -368,12 +368,26 @@ async function fetchWikimedia(batch: CatalogBatch, cities: readonly CatalogCity[
   let queries = 0;
   let infos = 0;
   let downloads = 0;
-  const client = new WikimediaClient();
+  // A batch can wait longer than a card can: 30 seconds a query instead of the runtime's 10.
+  const client = new WikimediaClient({ queryTimeoutMs: 30_000 });
   const found = new Map<string, WikidataImage[]>();
+  const failed = new Set<string>();
   for (const city of cities) {
     queries += 1;
-    const answer = await patiently(() => client.query(cityQuery(city)));
-    if (!answer.ok) throw new Error(`${city.name} 的 Wikidata 查询失败：${answer.failure}，本批停止`);
+    let answer = await patiently(() => client.query(cityQuery(city)));
+    if (!answer.ok && answer.failure === "transient") {
+      // One slow or dropped query (安阳, 2026-10-24) should not stop the other cities: wait and ask once more.
+      await new Promise((resolve) => setTimeout(resolve, 5_000));
+      queries += 1;
+      answer = await patiently(() => client.query(cityQuery(city)));
+    }
+    if (!answer.ok && answer.failure !== "transient") throw new Error(`${city.name} 的 Wikidata 查询失败：${answer.failure}，本批停止`);
+    if (!answer.ok) {
+      console.log(`${city.name}: Wikidata 查询两次都没有回答，这次跳过`);
+      failed.add(city.name);
+      found.set(city.name, []);
+      continue;
+    }
     found.set(city.name, imagesOfCity(city, answer.rows));
   }
   const names = [...new Set([...found.values()].flat().map((image) => image.file))];
@@ -425,7 +439,7 @@ async function fetchWikimedia(batch: CatalogBatch, cities: readonly CatalogCity[
         kind: image.kind, query: `Wikidata ${image.item} P18: ${file.title}`, artist: (file.artist || "Unknown author").slice(0, 100),
         pageUrl: file.pageUrl, tags: file.title, file: saved, width: facts.width, height: facts.height, bytes: body.byteLength });
     }
-    const searches = [`Wikidata：${found.get(city.name)?.length ?? 0} 张代表图`, ...notes];
+    const searches = [failed.has(city.name) ? "Wikidata 查询失败，下次再试" : `Wikidata：${found.get(city.name)?.length ?? 0} 张代表图`, ...notes];
     await writeFile(join(directory, "candidates-wikimedia.json"), `${JSON.stringify({ city, searches, candidates }, null, 1)}\n`);
     results.set(city.name, { city, candidates, searches });
   }
