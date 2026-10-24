@@ -847,5 +847,50 @@
    "丽水市",
    "丽水"
   ]
+ },
+ "苏州": {
+  "file": "suzhou-canal-7370030.jpg",
+  "artist": "周梓皓",
+  "pageUrl": "https://pixabay.com/zh/photos/jiangnan-ancient-town-suzhou-travel-7370030/",
+  "fetchedAt": "2026-10-24",
+  "aliases": [],
+  "regions": [
+   "苏州市",
+   "苏州"
+  ],
+  "scenicFor": [
+   "苏州市",
+   "苏州"
+  ]
+ },
+ "会稽山": {
+  "file": "kuaiji-mountain-shaoxing-3622899.jpg",
+  "artist": "yongxingcunren",
+  "pageUrl": "https://pixabay.com/zh/photos/mountain-shaoxing-the-scenery-3622899/",
+  "fetchedAt": "2026-10-24",
+  "aliases": [],
+  "regions": [
+   "绍兴市",
+   "绍兴"
+  ],
+  "scenicFor": [
+   "绍兴市",
+   "绍兴"
+  ]
+ },
+ "舟山": {
+  "file": "zhoushan-sea-sunrise-7123509.jpg",
+  "artist": "志尚",
+  "pageUrl": "https://pixabay.com/zh/photos/sunrise-sea-horizon-clouds-sky-7123509/",
+  "fetchedAt": "2026-10-24",
+  "aliases": [],
+  "regions": [
+   "舟山市",
+   "舟山"
+  ],
+  "scenicFor": [
+   "舟山市",
+   "舟山"
+  ]
  }
 }

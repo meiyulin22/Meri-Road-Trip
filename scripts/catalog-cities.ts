@@ -18,6 +18,8 @@ export interface CatalogCity {
   readonly name: string;
   /** 简称：苏州、大理。图集的 regions / scenicFor 两种写法都登记。 */
   readonly short: string;
+  /** 城市的英文写法，搜城市景色时用；同音的城市带上省份（Taizhou Jiangsu）。 */
+  readonly en?: string;
   readonly landmarks: readonly CatalogLandmark[];
 }
 
@@ -35,23 +37,23 @@ const jiangsu: readonly CatalogCity[] = [
     { zh: "云龙湖", en: "Yunlong Lake" }, { zh: "龟山汉墓", en: "Guishan Han Tombs" }] },
   { province: "江苏省", name: "常州市", short: "常州", landmarks: [
     { zh: "天目湖", en: "Tianmu Lake" }, { zh: "天宁寺", en: "Tianning Temple" }] },
-  { province: "江苏省", name: "苏州市", short: "苏州", landmarks: [
+  { province: "江苏省", name: "苏州市", short: "苏州", en: "Suzhou", landmarks: [
     { zh: "拙政园", en: "Humble Administrator's Garden" }, { zh: "周庄", en: "Zhouzhuang" }] },
   { province: "江苏省", name: "南通市", short: "南通", landmarks: [
     { zh: "狼山", en: "Langshan" }, { zh: "濠河", en: "Hao River" }] },
-  { province: "江苏省", name: "连云港市", short: "连云港", landmarks: [
+  { province: "江苏省", name: "连云港市", short: "连云港", en: "Lianyungang", landmarks: [
     { zh: "花果山", en: "Huaguo Mountain" }] },
-  { province: "江苏省", name: "淮安市", short: "淮安", landmarks: [
+  { province: "江苏省", name: "淮安市", short: "淮安", en: "Huai'an", landmarks: [
     { zh: "河下古镇", en: "Hexia Ancient Town" }, { zh: "周恩来纪念馆", en: "Zhou Enlai Memorial" }] },
   { province: "江苏省", name: "盐城市", short: "盐城", landmarks: [
     { zh: "盐城湿地", en: "Yancheng Wetland" }, { zh: "丹顶鹤", en: "Red-crowned Crane Yancheng" }] },
   { province: "江苏省", name: "扬州市", short: "扬州", landmarks: [
     { zh: "瘦西湖", en: "Slender West Lake" }, { zh: "个园", en: "Ge Garden" }] },
-  { province: "江苏省", name: "镇江市", short: "镇江", landmarks: [
+  { province: "江苏省", name: "镇江市", short: "镇江", en: "Zhenjiang", landmarks: [
     { zh: "金山寺", en: "Jinshan Temple" }, { zh: "西津渡", en: "Xijindu" }] },
-  { province: "江苏省", name: "泰州市", short: "泰州", landmarks: [
+  { province: "江苏省", name: "泰州市", short: "泰州", en: "Taizhou Jiangsu", landmarks: [
     { zh: "千垛菜花", en: "Qianduo Rapeseed Flowers" }, { zh: "溱湖", en: "Qinhu Lake" }] },
-  { province: "江苏省", name: "宿迁市", short: "宿迁", landmarks: [
+  { province: "江苏省", name: "宿迁市", short: "宿迁", en: "Suqian", landmarks: [
     { zh: "项王故里", en: "Xiang Yu Hometown" }, { zh: "洪泽湖湿地", en: "Hongze Lake Wetland" }] },
 ];
 
@@ -65,13 +67,13 @@ const zhejiang: readonly CatalogCity[] = [
     { zh: "乌镇", en: "Wuzhen" }, { zh: "西塘", en: "Xitang" }] },
   { province: "浙江省", name: "湖州市", short: "湖州", landmarks: [
     { zh: "南浔古镇", en: "Nanxun Ancient Town" }, { zh: "莫干山", en: "Moganshan" }] },
-  { province: "浙江省", name: "绍兴市", short: "绍兴", landmarks: [
+  { province: "浙江省", name: "绍兴市", short: "绍兴", en: "Shaoxing", landmarks: [
     { zh: "鲁迅故里", en: "Lu Xun Native Place" }, { zh: "东湖", en: "Shaoxing East Lake" }] },
   { province: "浙江省", name: "金华市", short: "金华", landmarks: [
     { zh: "横店影视城", en: "Hengdian World Studios" }, { zh: "诸葛八卦村", en: "Zhuge Bagua Village" }] },
-  { province: "浙江省", name: "衢州市", short: "衢州", landmarks: [
+  { province: "浙江省", name: "衢州市", short: "衢州", en: "Quzhou", landmarks: [
     { zh: "江郎山", en: "Jianglang Mountain" }, { zh: "廿八都古镇", en: "Nianbadu Ancient Town" }] },
-  { province: "浙江省", name: "舟山市", short: "舟山", landmarks: [
+  { province: "浙江省", name: "舟山市", short: "舟山", en: "Zhoushan", landmarks: [
     { zh: "普陀山", en: "Mount Putuo" }] },
   { province: "浙江省", name: "台州市", short: "台州", landmarks: [
     { zh: "神仙居", en: "Shenxianju" }, { zh: "天台山", en: "Mount Tiantai" }] },

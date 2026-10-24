@@ -6,6 +6,10 @@
  *     还没有才搜城市名），用运行时同一套规则过滤，下载到 .cache/catalog-review/<批次>/，
  *     并生成 review.html。不碰 public/photos。
  *
+ *   npx tsx scripts/build-city-catalog.ts fetch jiangzhehu --views 苏州市,绍兴市
+ *     城市景色模式：只给列出的城市找"能代表这座城市"的照片（天际线、街道、普通建筑都行，
+ *     不必是名胜），搜城市中文名和英文名，每城最多 4 张候选。用在景点找不到合适图的城市。
+ *
  *   npx tsx scripts/build-city-catalog.ts apply jiangzhehu picks.json
  *     picks.json 是人工看图后挑好的：{ "南通市": { "id": 4251603, "caption": "狼山", "slug": "langshan",
  *     "note": "狼山塔倒影" }, ... }。caption 是照片里实际拍到的地方（tags 只写城市时就写城市），
@@ -30,6 +34,7 @@ const reviewRoot = join(process.cwd(), ".cache", "catalog-review");
 const photosDirectory = join(process.cwd(), "public", "photos");
 const catalogPath = join(photosDirectory, "photos.json");
 const candidatesPerCity = 3;
+const viewCandidatesPerCity = 4;
 const minuteMs = 61_000;
 
 /**
@@ -89,7 +94,7 @@ function hasRepresentative(catalog: Record<string, CatalogEntry>, city: CatalogC
   return Object.values(catalog).some((entry) => entry.scenicFor.includes(city.name) || entry.scenicFor.includes(city.short));
 }
 
-async function fetchBatch(batch: CatalogBatch): Promise<void> {
+async function fetchBatch(batch: CatalogBatch, views: ReadonlySet<string> | null = null): Promise<void> {
   const key = process.env.PIXABAY_API_KEY?.trim();
   if (!key) throw new Error("未配置 PIXABAY_API_KEY");
   let searches = 0;
@@ -105,26 +110,33 @@ async function fetchBatch(batch: CatalogBatch): Promise<void> {
   const results: CityCandidates[] = [];
 
   for (const city of batch.cities) {
+    if (views && !views.has(city.name)) continue;
     if (hasRepresentative(catalog, city)) {
       console.log(`${city.name}: 图集已有代表图，跳过`);
       continue;
     }
     const plans: { query: string; lang: "zh" | "en"; subject: RemotePhotoSubject; kind: Candidate["kind"] }[] = [];
-    for (const landmark of city.landmarks) {
+    const cityView = { province: city.province, region: city.name, landmark: city.short, ...(city.en ? { english: city.en } : {}) };
+    if (views) {
+      plans.push({ query: city.short, lang: "zh", subject: cityView, kind: "city" });
+      if (city.en) plans.push({ query: city.en, lang: "en", subject: cityView, kind: "city" });
+    }
+    for (const landmark of views ? [] : city.landmarks) {
       const subject = { province: city.province, region: city.name, landmark: landmark.zh, english: landmark.en };
       plans.push({ query: landmark.zh, lang: "zh", subject, kind: "landmark" });
       plans.push({ query: landmark.en, lang: "en", subject, kind: "landmark" });
     }
     // The city's own name last, and only when no landmark found anything: its photos are a
     // view of the city, captioned with the city, and need the closest look in review.
-    plans.push({ query: city.short, lang: "zh", subject: { province: city.province, region: city.name, landmark: city.short }, kind: "city" });
+    if (!views) plans.push({ query: city.short, lang: "zh", subject: cityView, kind: "city" });
 
     const accepted: { hit: PixabayHit; plan: (typeof plans)[number] }[] = [];
     const asked: string[] = [];
+    const wanted = views ? viewCandidatesPerCity : candidatesPerCity;
     for (const plan of plans) {
-      if (accepted.length >= candidatesPerCity) break;
+      if (accepted.length >= wanted) break;
       // The city's own name is always tried when no landmark found anything, past the landmark budget.
-      if (plan.kind === "city" ? accepted.length > 0 : asked.length >= searchesPerCity) continue;
+      if (!views && (plan.kind === "city" ? accepted.length > 0 : asked.length >= searchesPerCity)) continue;
       const parameters = new URLSearchParams({ q: plan.query, lang: plan.lang, image_type: "photo",
         orientation: "horizontal", safesearch: "true", per_page: "50" }).toString();
       let hits = await store.readSearch(parameters, Date.now());
@@ -136,7 +148,7 @@ async function fetchBatch(batch: CatalogBatch): Promise<void> {
       }
       asked.push(`${plan.query} [${plan.lang}] ${hits.length} 条`);
       for (const hit of hits) {
-        if (accepted.length >= candidatesPerCity) break;
+        if (accepted.length >= wanted) break;
         if (accepted.some((item) => item.hit.id === hit.id)) continue;
         if (judgeHit(hit, plan.subject).accepted) accepted.push({ hit, plan });
       }
@@ -179,10 +191,10 @@ async function fetchBatch(batch: CatalogBatch): Promise<void> {
     console.log(`${city.name}: ${candidates.length} 张候选（${asked.join("；")}）`);
   }
 
-  await writeFile(join(reviewRoot, batch.id, "review.html"), reviewPage(batch, results));
+  await writeFile(join(reviewRoot, batch.id, views ? "review-views.html" : "review.html"), reviewPage(batch, results));
   const covered = results.filter((item) => item.candidates.length > 0).length;
   console.log(`\n${covered}/${results.length} 个城市有候选。请求：搜索 ${searches} 次，下载 ${downloads} 次。`);
-  console.log(`审核页：${join(reviewRoot, batch.id, "review.html")}`);
+  console.log(`审核页：${join(reviewRoot, batch.id, views ? "review-views.html" : "review.html")}`);
 }
 
 function escapeHtml(text: string): string {
@@ -241,8 +253,12 @@ async function applyPicks(batch: CatalogBatch, picksPath: string): Promise<void>
 }
 
 async function main(): Promise<void> {
-  const [mode, batchId, picksPath] = process.argv.slice(2);
-  if (mode === "fetch" && batchId) return fetchBatch(batchOf(batchId));
+  const [mode, batchId, third, fourth] = process.argv.slice(2);
+  if (mode === "fetch" && batchId && third === "--views" && fourth) {
+    return fetchBatch(batchOf(batchId), new Set(fourth.split(/[,，]/u).map((name) => name.trim()).filter(Boolean)));
+  }
+  if (mode === "fetch" && batchId && !third) return fetchBatch(batchOf(batchId));
+  const picksPath = third;
   if (mode === "apply" && batchId && picksPath) return applyPicks(batchOf(batchId), picksPath);
   console.error("用法：fetch <批次> | apply <批次> <picks.json>");
   process.exitCode = 1;
