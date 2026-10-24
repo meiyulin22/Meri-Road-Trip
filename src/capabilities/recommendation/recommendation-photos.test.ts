@@ -3,7 +3,7 @@ import test from "node:test";
 
 import { placePhotoRulesVersion, type PlaceImage } from "@/domain/location/place-image";
 import type { DestinationRecommendationPresentation } from "@/domain/trip-message/trip-message";
-import type { RemotePhotoFinder, RemotePhotoResult, RemotePhotoSubject } from "@/platform/place-photos/pixabay-photo-finder";
+import type { RemotePhotoFinder, RemotePhotoResult, RemotePhotoSubject } from "@/platform/place-photos/remote-photo-finder";
 import type { PlacePhotoProvider, PlacePhotoQuery } from "@/platform/place-photos/place-photo-provider";
 
 import { findRecommendationPhotos, type DeferredRecommendationPhoto, type RecommendationPhoto } from "./recommendation-photos";
@@ -64,6 +64,12 @@ function remote(answer: (subject: RemotePhotoSubject) => RemotePhotoResult, aske
   };
 }
 
+/** The usual case in these tests: one remote source. */
+function oneRemote(answer: (subject: RemotePhotoSubject) => RemotePhotoResult, asked: RemotePhotoSubject[] = []):
+  readonly RemotePhotoFinder[] {
+  return [remote(answer, asked)];
+}
+
 const remoteCards: DestinationRecommendationPresentation = { type: "destination_recommendations", destinations: [
   { id: "lj", name: "丽江市", province: "云南省", landmark: "玉龙雪山", landmarkEn: "Jade Dragon Snow Mountain" },
   { id: "dl", name: "大理白族自治州", province: "云南省", landmark: "洱海", landmarkEn: "Erhai Lake" },
@@ -74,7 +80,7 @@ test("a card the local photos have is never searched for remotely", async () => 
   const asked: RemotePhotoSubject[] = [];
   const local = picture("玉龙雪山");
   await findRecommendationPhotos({ ...remoteCards, destinations: [remoteCards.destinations[0]] },
-    photos(() => local), () => undefined, remote(() => ({ status: "none" }), asked));
+    photos(() => local), () => undefined, oneRemote(() => ({ status: "none" }), asked));
   assert.deepEqual(asked, []);
 });
 
@@ -83,7 +89,7 @@ test("a local miss is searched remotely by its landmark, with its English name w
   const erhai: PlaceImage = { url: "/media/place-photos/pixabay-9.jpg", caption: "洱海", credit: "Photo: a / Pixabay" };
   const reported: RecommendationPhoto[] = [];
   const result = await findRecommendationPhotos(remoteCards, photos(() => null), (photo) => reported.push(photo),
-    remote((subject) => subject.landmark === "洱海" ? { status: "found", image: erhai } : { status: "none" }, asked));
+    oneRemote((subject) => subject.landmark === "洱海" ? { status: "found", image: erhai } : { status: "none" }, asked));
   assert.deepEqual(asked.map((subject) => subject.landmark).sort(), ["丙中洛", "洱海", "玉龙雪山"]);
   assert.deepEqual(asked.find((subject) => subject.landmark === "洱海"),
     { province: "云南省", region: "大理白族自治州", landmark: "洱海", english: "Erhai Lake", aliases: undefined });
@@ -97,7 +103,7 @@ test("a remote lookup that could not run leaves its card unanswered, not saved a
   const reported: RecommendationPhoto[] = [];
   const deferred: DeferredRecommendationPhoto[] = [];
   const result = await findRecommendationPhotos(remoteCards, photos(() => null), (photo) => reported.push(photo),
-    remote(() => ({ status: "unavailable", reason: "transient" })), (item) => deferred.push(item));
+    oneRemote(() => ({ status: "unavailable", reason: "transient" })), (item) => deferred.push(item));
   assert.deepEqual(reported, []);
   assert.deepEqual(deferred.map((item) => item.id).sort(), ["dl", "lj", "old"]);
   assert.equal("image" in result.destinations[0], false);
@@ -113,7 +119,7 @@ test("when a city card's own landmark has no photo, its first stand-in is tried,
       landmarkAliases: ["Kuanzhai Alley"], backupLandmarks: [
         { name: "大熊猫繁育研究基地", en: "Chengdu Research Base of Giant Panda Breeding" }, { name: "武侯祠", en: "Wuhou Shrine" }] },
   ] }, photos(() => null), () => undefined,
-  remote((subject) => subject.landmark === "大熊猫繁育研究基地" ? { status: "found", image: panda } : { status: "none" }, asked));
+  oneRemote((subject) => subject.landmark === "大熊猫繁育研究基地" ? { status: "found", image: panda } : { status: "none" }, asked));
   assert.deepEqual(asked.map((subject) => subject.landmark), ["宽窄巷子", "大熊猫繁育研究基地"]);
   assert.deepEqual(asked[0].aliases, ["Kuanzhai Alley"]);
   assert.equal(result.destinations[0].image, panda);
@@ -125,7 +131,42 @@ test("a stand-in already in the local photos is used before anything is searched
   const result = await findRecommendationPhotos({ type: "destination_recommendations", destinations: [
     { id: "cd", name: "成都市", province: "四川省", landmark: "宽窄巷子", backupLandmarks: [{ name: "武侯祠", en: "Wuhou Shrine" }] },
   ] }, photos((query) => query.kind === "named" && query.keywords === "武侯祠" ? shrine : null), () => undefined,
-  remote(() => ({ status: "none" }), asked));
+  oneRemote(() => ({ status: "none" }), asked));
   assert.deepEqual(asked, []);
   assert.equal(result.destinations[0].image, shrine);
+});
+
+test("Wikimedia is asked for both landmarks before Pixabay, and a Wikimedia photo leaves Pixabay unasked", async () => {
+  const order: string[] = [];
+  const temple: PlaceImage = { url: "/media/place-photos/wikimedia-7.jpg", caption: "武侯祠", credit: "Photo: a / Wikimedia Commons, CC BY-SA 4.0" };
+  const wikimedia = remote((subject) => { order.push(`wikimedia:${subject.landmark}`);
+    return subject.landmark === "武侯祠" ? { status: "found", image: temple } : { status: "none" }; });
+  const pixabay = remote((subject) => { order.push(`pixabay:${subject.landmark}`); return { status: "none" }; });
+  const result = await findRecommendationPhotos({ type: "destination_recommendations", destinations: [
+    { id: "cd", name: "成都市", province: "四川省", landmark: "宽窄巷子", backupLandmarks: [{ name: "武侯祠", en: "Wuhou Shrine" }] },
+  ] }, photos(() => null), () => undefined, [wikimedia, pixabay]);
+  assert.deepEqual(order, ["wikimedia:宽窄巷子", "wikimedia:武侯祠"]);
+  assert.equal(result.destinations[0].image, temple);
+});
+
+test("Wikimedia out of reach falls back to Pixabay, whose photo is used", async () => {
+  const erhai: PlaceImage = { url: "/media/place-photos/pixabay-9.jpg", caption: "洱海", credit: "Photo: a / Pixabay" };
+  const reported: RecommendationPhoto[] = [];
+  const result = await findRecommendationPhotos({ ...remoteCards, destinations: [remoteCards.destinations[1]] },
+    photos(() => null), (photo) => reported.push(photo),
+    [remote(() => ({ status: "unavailable", reason: "transient" })), remote(() => ({ status: "found", image: erhai }))]);
+  assert.deepEqual(reported, [{ id: "dl", image: erhai }]);
+  assert.equal(result.destinations[0].image, erhai);
+});
+
+test("Wikimedia out of reach and nothing on Pixabay leaves the card unanswered, to be asked again later", async () => {
+  const deferred: DeferredRecommendationPhoto[] = [];
+  const reported: RecommendationPhoto[] = [];
+  const result = await findRecommendationPhotos({ ...remoteCards, destinations: [remoteCards.destinations[1]] },
+    photos(() => null), (photo) => reported.push(photo),
+    [remote(() => ({ status: "unavailable", reason: "transient" })), remote(() => ({ status: "none" }))],
+    (item) => deferred.push(item));
+  assert.deepEqual(reported, []);
+  assert.deepEqual(deferred, [{ id: "dl", reason: "transient" }]);
+  assert.equal("photoRules" in result.destinations[0], false);
 });

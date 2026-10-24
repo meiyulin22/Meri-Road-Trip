@@ -10,7 +10,8 @@ export interface PlaceImage {
    * https only for an external host: the PWA is served over https, and an http image is
    * blocked as mixed content. A root-relative path (`/photos/potala-palace.jpg`) is also
    * accepted: it is our own copy on our own origin, which is https wherever the page is,
-   * as is a photo Meri downloaded at run time (`/media/place-photos/pixabay-<id>.jpg`).
+   * as is a photo Meri downloaded at run time (`/media/place-photos/pixabay-<id>.jpg`,
+   * `/media/place-photos/wikimedia-<id>.jpg`).
    */
   readonly url: string;
   /** What the photo shows, in the provider's words: 玉龙雪山国家级风景名胜区. */
@@ -28,12 +29,13 @@ export interface PlaceImage {
  * this number), and a remote "nothing suitable" decided under older rules no longer
  * counts. 1: 1.0624, English name only. 2: 1.0625, aliases, Chinese search, stand-in
  * landmarks. 3: 1.0627, Chinese regions read tag by tag (玄武湖, 南京 is not 湖南), and
- * aliases that only name a region no longer identify a landmark.
+ * aliases that only name a region no longer identify a landmark. 4: 1.0633, the landmark's
+ * Wikidata item and its P18 image on Wikimedia Commons are asked before Pixabay.
  */
-export const placePhotoRulesVersion = 3;
+export const placePhotoRulesVersion = 4;
 
 /** The only names the runtime photo route serves (media-photo-store.ts). */
-const runtimePhotoUrl = /^\/media\/place-photos\/pixabay-[1-9]\d{0,11}\.(?:jpg|png|webp)$/u;
+const runtimePhotoUrl = /^\/media\/place-photos\/(?:pixabay|wikimedia)-[1-9]\d{0,11}\.(?:jpg|png|webp)$/u;
 
 export function parsePlaceImage(value: unknown): PlaceImage | null {
   if (typeof value !== "object" || value === null || Array.isArray(value)) return null;

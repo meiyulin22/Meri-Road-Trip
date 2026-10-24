@@ -12,19 +12,9 @@ import {
   type RemotePhotoSubject,
   type SearchVariant,
 } from "./pixabay-photo-match";
+import type { RemotePhotoFinder, RemotePhotoResult } from "./remote-photo-finder";
 
-export type { RemotePhotoSubject } from "./pixabay-photo-match";
-
-/**
- * A remote lookup has three answers, and only two of them are final. "none" — Pixabay
- * was asked and nothing fits — may be saved on the card; "unavailable" — it could not be
- * asked, or the file could not be fetched or kept — must not be, or a moment's network
- * trouble would leave the card without a photo forever.
- */
-export type RemotePhotoResult =
-  | { readonly status: "found"; readonly image: PlaceImage }
-  | { readonly status: "none" }
-  | { readonly status: "unavailable"; readonly reason: string };
+export type { RemotePhotoFinder, RemotePhotoResult, RemotePhotoSubject } from "./remote-photo-finder";
 
 /**
  * What one set of cards may spend. Shared by every card in the set, so ten cards cannot
@@ -36,11 +26,6 @@ export interface RemoteBatch {
   downloadsLeft: number;
   readonly deadline: number;
   stopped: PixabayFailure | null;
-}
-
-export interface RemotePhotoFinder {
-  startBatch(): RemoteBatch;
-  find(subject: RemotePhotoSubject, batch: RemoteBatch): Promise<RemotePhotoResult>;
 }
 
 export interface PixabayPhotoFinderOptions {
@@ -72,7 +57,7 @@ const minimumBytes = 10 * 1024;
  * reading of each hit's tags, a checked download, and publication into the store.
  * Lookups for the same landmark in the same region share one operation while it runs.
  */
-export class PixabayPhotoFinder implements RemotePhotoFinder {
+export class PixabayPhotoFinder implements RemotePhotoFinder<RemoteBatch> {
   private readonly now: () => number;
   private readonly inFlight = new Map<string, Promise<RemotePhotoResult>>();
   private readonly retryAt = new Map<string, number>();
@@ -90,7 +75,7 @@ export class PixabayPhotoFinder implements RemotePhotoFinder {
     const key = { region: subject.region, landmark: subject.landmark };
     const stored = await this.options.store.readLookup(key);
     if (stored) return { status: "found", image: stored };
-    if (await this.options.store.recentlyNone(key, this.now(), placePhotoRulesVersion)) return { status: "none" };
+    if (await this.options.store.recentlyNone(key, this.now(), placePhotoRulesVersion, "pixabay")) return { status: "none" };
     const text = `${subject.region}|${subject.landmark}`;
     const running = this.inFlight.get(text);
     if (running) return running;
@@ -118,7 +103,7 @@ export class PixabayPhotoFinder implements RemotePhotoFinder {
       ...(result.status === "found" ? { url: result.image.url } : {}) }, "Remote place photo lookup finished");
     if (result.status === "none") {
       // Every answer it rests on is cached for the day, so asking again today under the same rules would decide the same.
-      await this.options.store.writeNone(subject, this.now(), placePhotoRulesVersion).catch(() => undefined);
+      await this.options.store.writeNone(subject, this.now(), placePhotoRulesVersion, "pixabay").catch(() => undefined);
       await this.options.store.recordMiss({ province: subject.province, ...summary }, this.now()).catch(() => undefined);
     }
     return result;

@@ -46,7 +46,7 @@ test("in Tianditu mode, the photos every page, cover and chat reply use never re
   }
 });
 
-test("only the recommendation-photo route may search Pixabay", () => {
+test("only the recommendation-photo route may search Wikimedia or Pixabay", () => {
   const root = join(process.cwd(), "src");
   const callers: string[] = [];
   const visit = (directory: string) => {
@@ -54,7 +54,7 @@ test("only the recommendation-photo route may search Pixabay", () => {
       const path = join(directory, entry.name);
       if (entry.isDirectory()) visit(path);
       else if (/\.tsx?$/u.test(entry.name) && !/\.test\.tsx?$/u.test(entry.name) &&
-        readFileSync(path, "utf8").includes("createRemotePhotoFinder(")) {
+        readFileSync(path, "utf8").includes("createRemotePhotoFinders(")) {
         // relative() yields backslashes on Windows, so compare in one separator.
         callers.push(relative(root, path).split("\\").join("/"));
       }

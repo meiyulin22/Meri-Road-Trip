@@ -5,6 +5,7 @@ import Link from "next/link";
 import { messages } from "@/components/i18n/messages";
 import { requestLocale } from "@/platform/locale/request-locale";
 import { loadPhotoCatalog } from "@/platform/place-photos/catalog-photo-provider";
+import { mediaPhotoStoreFromEnvironment } from "@/platform/place-photos/media-photo-store";
 
 import styles from "./photo-credits.module.css";
 
@@ -19,11 +20,14 @@ const pixabayLicenceUrl = "https://pixabay.com/service/license-summary/";
  * photos are Creative Commons: their licence asks for the author, the licence with a link,
  * the source, and a note that the copy was changed (resized) — every card's credit links
  * here, so all of that is one click away. Each photo has its own anchor, its file name.
+ * Commons photos Meri found while planning are read from the media directory, so one is
+ * listed as soon as it can be shown on a card.
  */
 export default async function PhotoCreditsPage() {
   const text = messages[await requestLocale()].photoCredits;
   const entries = Object.entries(loadPhotoCatalog())
     .sort(([left], [right]) => left.localeCompare(right, "zh"));
+  const found = await mediaPhotoStoreFromEnvironment()?.listWikimediaRecords().catch(() => []) ?? [];
   return (
     <main className={styles.page}>
       <div className={styles.shell}>
@@ -54,6 +58,25 @@ export default async function PhotoCreditsPage() {
         <h2 className={styles.runtimeTitle} id="runtime">{text.runtimeTitle}</h2>
         <p className={styles.introduction}>{text.runtimeText}{" "}
           <a href={pixabayLicenceUrl} rel="noreferrer license" target="_blank">{text.pixabayLicence}</a></p>
+        {found.length === 0 ? <p className={styles.introduction}>{text.runtimeEmpty}</p> : (
+          <ul className={styles.list}>
+            {found.map((record) => (
+              <li className={styles.item} id={record.file} key={record.file}>
+                <Image alt="" className={styles.thumbnail} height={72} src={`/media/place-photos/${record.file}`} width={96} />
+                <div>
+                  <h2>{record.landmark} · {record.region}</h2>
+                  <p>{record.artist}</p>
+                  <p>
+                    {text.source}: <a href={record.pageUrl} rel="noreferrer" target="_blank">
+                      Wikimedia Commons · {text.original}</a>
+                    {" · "}{text.licence}: <a href={record.licenseUrl} rel="noreferrer license" target="_blank">{record.license}</a>
+                    {" · "}{text.resized}
+                  </p>
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
       </div>
     </main>
   );

@@ -14,10 +14,11 @@ import type { PixabayHit } from "./pixabay-photo-match";
  * starts, so a file written there later would not be served; these are served by
  * `/media/place-photos/[file]` instead.
  *
- *   <MERI_MEDIA_DIR>/place-photos/files/pixabay-<id>.<ext>   the image
- *   <MERI_MEDIA_DIR>/place-photos/files/pixabay-<id>.json    its source and checks; written last, so it marks a complete file
- *   <MERI_MEDIA_DIR>/place-photos/lookups/<hash>.json        which photo a region + landmark settled on
- *   <MERI_MEDIA_DIR>/place-photos/lookups/<hash>.none.json   that it found none under rules version N, kept as long as the searches behind it
+ *   <MERI_MEDIA_DIR>/place-photos/files/<source>-<id>.<ext>  the image: pixabay-<photo id> or wikimedia-<Commons page id>
+ *   <MERI_MEDIA_DIR>/place-photos/files/<source>-<id>.json   its source, licence and checks; written last, so it marks a complete file
+ *   <MERI_MEDIA_DIR>/place-photos/lookups/<hash>.json        which photo a region + landmark settled on, from either source
+ *   <MERI_MEDIA_DIR>/place-photos/lookups/<hash>.none.json   that Pixabay had none under rules version N, kept as long as the searches behind it
+ *   <MERI_MEDIA_DIR>/place-photos/lookups/<hash>.wikimedia-none.json   the same for Wikidata, for 24 hours
  *   <MERI_MEDIA_DIR>/place-photos/regions/<hash>.json        the photos published for one 市, for a city card whose own landmark has none
  *   <MERI_MEDIA_DIR>/place-photos/misses/<hash>.json         a landmark that found nothing: how often, what was asked, why hits were refused
  *   <MERI_MEDIA_DIR>/place-photos/searches/<hash>.json       a Pixabay search answer, kept 24 hours as Pixabay requires
@@ -28,7 +29,9 @@ import type { PixabayHit } from "./pixabay-photo-match";
 export const mediaPhotoUrlPrefix = "/media/place-photos/";
 
 /** Our own names only: a request can never reach a path it made up. */
-export const mediaPhotoFilePattern = /^pixabay-[1-9]\d{0,11}\.(?:jpg|png|webp)$/u;
+export const mediaPhotoFilePattern = /^(?:pixabay|wikimedia)-[1-9]\d{0,11}\.(?:jpg|png|webp)$/u;
+
+export type RemotePhotoSource = "pixabay" | "wikimedia";
 
 export const searchCacheTtlMs = 24 * 60 * 60 * 1000;
 
@@ -40,28 +43,56 @@ export interface PhotoLookupKey {
   readonly landmark: string;
 }
 
-/** What is recorded about a published photo, beside the file itself. */
-export interface StoredPhotoRecord {
-  readonly source: "pixabay";
-  readonly id: number;
+interface StoredPhotoFacts {
   readonly file: string;
   readonly format: ImageFormat;
   readonly width: number;
   readonly height: number;
   readonly bytes: number;
   readonly artist: string;
+  /** The photo's own page: a Pixabay photo page or a Commons file page. */
   readonly pageUrl: string;
+  readonly province: string;
+  readonly region: string;
+  readonly landmark: string;
+  /** Chosen by code; no person has looked at it. */
+  readonly reviewed: false;
+  readonly fetchedAt: string;
+}
+
+/** A Pixabay photo, chosen from the uploader's tags. */
+export interface PixabayPhotoRecord extends StoredPhotoFacts {
+  readonly source: "pixabay";
+  readonly id: number;
   readonly tags: string;
   /** The search that found it and the words of the name its tags carried. */
   readonly query: string;
   readonly matched: readonly string[];
-  readonly province: string;
-  readonly region: string;
-  readonly landmark: string;
-  /** Chosen by code from the uploader's tags; no person has looked at it. */
-  readonly reviewed: false;
-  readonly fetchedAt: string;
 }
+
+/**
+ * A Commons photo, the P18 image of a Wikidata item whose name is the landmark and which
+ * lies in the card's 市. Creative Commons asks for the author, the licence with its link,
+ * the source and a note that the copy was resized: all of it is kept, and /photo-credits shows it.
+ */
+export interface WikimediaPhotoRecord extends StoredPhotoFacts {
+  readonly source: "wikimedia";
+  /** The Commons page id, which is also the file name. */
+  readonly id: number;
+  /** File:Jade Dragon Snow Mountain.jpg */
+  readonly title: string;
+  /** The Wikidata item, Q-id: https://www.wikidata.org/wiki/<item>. */
+  readonly item: string;
+  /** The name of the item that matched the landmark. */
+  readonly matched: string;
+  readonly license: string;
+  readonly licenseUrl: string;
+  readonly originalWidth: number;
+  readonly originalHeight: number;
+}
+
+/** What is recorded about a published photo, beside the file itself. */
+export type StoredPhotoRecord = PixabayPhotoRecord | WikimediaPhotoRecord;
 
 /** What scripts/photo-misses.ts lists: a landmark that keeps finding no photo, and why. */
 export interface PhotoMiss {
@@ -124,6 +155,20 @@ async function writeAtomically(file: string, body: string | Uint8Array): Promise
     await rm(temporary, { force: true });
     throw error;
   }
+}
+
+/** The Pixabay marker keeps its 1.0624 name, so "none" decided before Wikimedia existed still counts. */
+function noneFileName(text: string, source: RemotePhotoSource): string {
+  return `${hashOf(text)}.${source === "pixabay" ? "none" : "wikimedia-none"}.json`;
+}
+
+function isWikimediaRecord(value: unknown): value is WikimediaPhotoRecord {
+  if (!isRecord(value)) return false;
+  const strings = ["file", "artist", "pageUrl", "title", "item", "license", "licenseUrl", "landmark", "region", "fetchedAt"];
+  return value.source === "wikimedia" && strings.every((name) => typeof value[name] === "string") &&
+    typeof value.file === "string" && mediaPhotoFilePattern.test(value.file) && value.file.startsWith("wikimedia-") &&
+    typeof value.pageUrl === "string" && value.pageUrl.startsWith("https://commons.wikimedia.org/wiki/File:") &&
+    typeof value.licenseUrl === "string" && value.licenseUrl.startsWith("https://");
 }
 
 function isHit(value: unknown): value is PixabayHit {
@@ -236,17 +281,36 @@ export class MediaPhotoStore {
    * Whether this lookup was decided as having no suitable photo within the last 24 hours,
    * under these same rules: better rules may find what older ones refused.
    */
-  async recentlyNone(key: PhotoLookupKey, now: number, rules: number): Promise<boolean> {
+  async recentlyNone(key: PhotoLookupKey, now: number, rules: number, source: RemotePhotoSource): Promise<boolean> {
     const text = lookupKeyText(key);
-    const stored = await readJson(join(this.lookups, `${hashOf(text)}.none.json`));
+    const stored = await readJson(join(this.lookups, noneFileName(text, source)));
     return isRecord(stored) && stored.key === text && stored.rules === rules && typeof stored.decidedAt === "number" &&
       stored.decidedAt <= now && now - stored.decidedAt < searchCacheTtlMs;
   }
 
-  async writeNone(key: PhotoLookupKey, now: number, rules: number): Promise<void> {
+  async writeNone(key: PhotoLookupKey, now: number, rules: number, source: RemotePhotoSource): Promise<void> {
     const text = lookupKeyText(key);
     await mkdir(this.lookups, { recursive: true });
-    await writeAtomically(join(this.lookups, `${hashOf(text)}.none.json`), JSON.stringify({ key: text, decidedAt: now, rules }));
+    await writeAtomically(join(this.lookups, noneFileName(text, source)), JSON.stringify({ key: text, decidedAt: now, rules }));
+  }
+
+  /**
+   * Every published Commons photo, newest first, for /photo-credits. Read from the records
+   * themselves, so a photo is listed exactly when it can be served.
+   */
+  async listWikimediaRecords(): Promise<readonly WikimediaPhotoRecord[]> {
+    let names: string[] = [];
+    try {
+      names = (await readdir(this.files)).filter((name) => /^wikimedia-\d+\.json$/u.test(name));
+    } catch {
+      return [];
+    }
+    const records: WikimediaPhotoRecord[] = [];
+    for (const name of names) {
+      const stored = await readJson(join(this.files, name));
+      if (isWikimediaRecord(stored) && await exists(join(this.files, stored.file))) records.push(stored);
+    }
+    return records.sort((left, right) => right.fetchedAt.localeCompare(left.fetchedAt));
   }
 
   /** A search answered within the last 24 hours, empty answers included; null means ask again. */

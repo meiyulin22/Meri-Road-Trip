@@ -1,3 +1,4 @@
+import { readCappedBody } from "./capped-body";
 import type { PixabayHit } from "./pixabay-photo-match";
 
 /**
@@ -177,41 +178,13 @@ export class PixabayClient {
           await response.body?.cancel().catch(() => undefined);
           return { ok: false, failure: "unsuitable" };
         }
-        const body = await this.readCapped(response.body);
+        const body = await readCappedBody(response.body, this.maxDownloadBytes);
         if (body === "transient") return { ok: false, failure: "transient" };
         if (body === "too_large") return { ok: false, failure: "unsuitable" };
         return { ok: true, body, contentType };
       }
       return { ok: false, failure: "unsuitable" };
     }, { ok: false, failure: "transient" });
-  }
-
-  /** Counts the bytes that actually arrive: a missing or false Content-Length cannot overrun the cap. */
-  private async readCapped(stream: ReadableStream<Uint8Array>): Promise<Uint8Array | "too_large" | "transient"> {
-    const reader = stream.getReader();
-    const chunks: Uint8Array[] = [];
-    let total = 0;
-    try {
-      for (;;) {
-        const { value, done } = await reader.read();
-        if (done) break;
-        total += value.byteLength;
-        if (total > this.maxDownloadBytes) {
-          await reader.cancel().catch(() => undefined);
-          return "too_large";
-        }
-        chunks.push(value);
-      }
-    } catch {
-      return "transient";
-    }
-    const body = new Uint8Array(total);
-    let offset = 0;
-    for (const chunk of chunks) {
-      body.set(chunk, offset);
-      offset += chunk.byteLength;
-    }
-    return body;
   }
 
   /** One request at a time; past `maxQueue` waiting, a request is refused rather than queued without end. */

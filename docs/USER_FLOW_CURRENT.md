@@ -564,7 +564,7 @@ add/set 使用 Promise.all 查询表达。解析层保留不同 provider ID，�
 
 **第二图源：Wikimedia Commons（1.0632）：**江浙沪和西南两批里 Pixabay 找不到合适图的 27 个城市，改从维基的代表图里找。Wikidata 是维基的事实库，每个城市条目有一个"图片"字段（P18），只存维基编辑选定的那张图的文件名；图片文件本身、作者和许可证在 Wikimedia Commons（维基的图库）上。所以先问 Wikidata 这个城市的代表图是哪张（一批 1 次查询，按城市全称或简称加所属省份匹配，免得简称落到外地的同名地方），再从 Commons 取作者、许可证和 500px 副本（每 50 个文件 1 次查询，再逐张下载）。Commons 只在几个标准宽度出缩略图，640 会被放大成 960（约 180 KB），500 是标准宽度，约 55 KB，仍是卡片显示宽度 200px 的两倍多。
 
-图集照片只在这台机器上抓取、审核后随应用发布，服务器运行时不访问维基，所以大陆服务器连不上维基不影响这些照片（运行时补图仍只用 Pixabay）。Commons 的照片是知识共享许可（这一批 CC BY-SA 3.0/4.0、CC BY 3.0、CC0）：可以下载、存到自己服务器上展示，条件是写明作者、许可证名称并附许可证链接、注明原图出处、说明改动（缩小了尺寸）；CC BY-SA 的照片我们保存的这一份仍按 CC BY-SA，不加更严的限制。这些只约束照片本身，不影响 Meri 的代码。为此：图集条目新增 `source: "wikimedia"`、`license`、`licenseUrl`（Commons 条目三者缺一不收，原图页必须是 Commons 的文件页）；卡片署名写成"Photo: 作者 / Wikimedia Commons, CC BY-SA 4.0"（Pixabay 照片不变）；署名文字是链接，打开 [/photo-credits](../src/app/photo-credits/page.tsx)，定位到这张图那一行：作者、来源和原图页链接、许可证和许可证链接、"已缩小尺寸"。运行时从 Pixabay 找到的照片在同一页底部说明。以上依据许可证原文整理，不是法律意见。
+图集照片只在这台机器上抓取、审核后随应用发布，服务器运行时不访问维基，所以大陆服务器连不上维基不影响这些照片（运行时补图从 1.0633 起也先问维基，见下面"推荐卡的运行时补图：先 Wikimedia"）。Commons 的照片是知识共享许可（这一批 CC BY-SA 3.0/4.0、CC BY 3.0、CC0）：可以下载、存到自己服务器上展示，条件是写明作者、许可证名称并附许可证链接、注明原图出处、说明改动（缩小了尺寸）；CC BY-SA 的照片我们保存的这一份仍按 CC BY-SA，不加更严的限制。这些只约束照片本身，不影响 Meri 的代码。为此：图集条目新增 `source: "wikimedia"`、`license`、`licenseUrl`（Commons 条目三者缺一不收，原图页必须是 Commons 的文件页）；卡片署名写成"Photo: 作者 / Wikimedia Commons, CC BY-SA 4.0"（Pixabay 照片不变）；署名文字是链接，打开 [/photo-credits](../src/app/photo-credits/page.tsx)，定位到这张图那一行：作者、来源和原图页链接、许可证和许可证链接、"已缩小尺寸"。运行时从 Pixabay 找到的照片在同一页底部说明。以上依据许可证原文整理，不是法律意见。
 
 27 个城市里 Wikidata 有代表图的 26 个（镇江的中文名没对上条目），人工看图后选定 20 张，图集 64 → 84 条：江浙沪 连云港、淮安 清江浦、泰州（靖江城区）、宿迁（沭阳）、衢州 南湖公园；西南 曲靖、玉溪、保山、昭通（威信县城）、普洱 思茅文庙、临沧、楚雄 三潭瀑布、德宏 芒市、怒江 碧罗雪山、攀枝花、泸州、遂宁、内江、眉山、巴中。照片拍的是下辖县城时，说明写县城名。没选的 6 张：自贡（医院门口路口）、绵阳（四格拼图）、广元（三分之一是施工脚手架）、广安、达州（县城街景，带日期水印）、资阳（广告满屏的路口）。这次共 2 次 Wikidata 查询、2 次 Commons 查询、26 次下载（又重下 26 次，换成 500px）。江浙沪 25 城有图 24 个，西南 34 城有图 28 个。
 
@@ -605,13 +605,26 @@ add/set 使用 Promise.all 查询表达。解析层保留不同 provider ID，�
 6. **未配图记录：**`misses/` 里每个地标一条：被查了几次、最近一次的搜索词和各返回几条、被拒原因计数（没写这个景点名、没表明在中国、提到国外 / 别的省 / 别的市、图太小）、文件不合格几次。[photo-misses](../scripts/photo-misses.ts) 脚本按次数列出（`npx tsx scripts/photo-misses.ts`，只读本地，不请求 Pixabay），用来决定哪些景点值得挑一张审核过的图补进图集。
 7. **被拒和限流：**HTTP 400/401/403（key 不对或被拒）和 429 会让这一批里剩下的卡都不再请求，并让整个进程暂停（429 暂停 1 分钟，被拒暂停 15 分钟）；不重试，不连发。日志只记 `place_photo.remote.completed` / `place_photo.remote.unavailable`（地区、地标、原因）和 `recommendation.photos.deferred`（这批有几张没查成、原因），不记 URL 和密钥。
 
+**推荐卡的运行时补图：先 Wikimedia（1.0633）：**Pixabay 只能凭上传者写的 tags 猜地点（广安里、岘港就是这么混进来的），而 Wikidata 每个景点条目自己登记了"位于哪个行政区"（P131）和一张代表图（P18），身份不用猜。所以推荐卡在本地没有照片时，先由 [WikimediaPhotoFinder](../src/platform/place-photos/wikimedia-photo-finder.ts) 查维基，查不到或查不了再走上面的 Pixabay。条件是天地图模式且有媒体目录；维基不需要 API key（只要求请求带说明来源的 User-Agent），所以没配 `PIXABAY_API_KEY` 时也会查维基。
+
+1. **顺序：**本地（图集 → 已下载 → 备选地标的本地图）→ 维基：卡片地标，再第一个备选地标 → Pixabay：卡片地标，再第一个备选地标。两个地标都先问维基，因为维基上备选地标的确定照片比 Pixabay 上主地标按 tags 猜的照片可靠，也省 Pixabay 额度。说明文字仍写照片实际是哪个景点。
+2. **怎么认地点**（每个地标 1 次 Wikidata 查询）：条目的中文名（`zh`/`zh-hans`/`zh-cn`）、英文名或别名等于卡片地标的名字之一（中文名、英文名、模型给的别名），**并且**沿 P131 一路往上能走到卡片的市（全称或简称），这个市的上一级又是卡片的省（直辖市只看市名）；条目必须有 P18。西湖在惠州市就不会配上杭州的西湖。多个条目都对上时，优先中文名正好是地标名的条目，其次其他名称，最后别名；同级取 Q 号小的（通常是主条目）。名字由模型写，放进查询前转义，跳不出字符串。
+3. **许可证和文件**（每张图 1 次 Commons 查询，每个地标最多试 2 张图）：只收 CC BY、CC BY-SA（任何版本和地区版）、CC0、公有领域；Commons 标记为非自由的、GFDL 等其他许可证、CC BY 系列却没有作者或许可证链接的都跳过（交给 Pixabay）。原图必须是照片格式（不收 SVG/GIF）、横构图、宽至少 800。下载 Commons 给的 500px 副本：只从 `thumb.wikimedia.org`、`upload.wikimedia.org` 下载（Commons 现在把缩略图放在 thumb 主机，2026-10-24 实测），最多 2 次同主机跳转，4 MB 上限；再从文件头读真实格式和宽高，至少 480×270（500 宽的 16:9 照片高 281）、至少 10 KB。
+4. **存什么：**文件名 `wikimedia-<Commons 页面 ID>.<jpg|png|webp>`，来源记录里有 Wikidata 条目（Q 号）、对上的名字、Commons 文件名和文件页、作者、许可证、许可证链接（公有领域没有许可证页，就用文件页）、原图宽高、省/市/地标、`reviewed: false`。卡片署名写 `Photo: <作者> / Wikimedia Commons, <许可证>`，链到 `/photo-credits#wikimedia-<ID>.jpg`；[/photo-credits](../src/app/photo-credits/page.tsx) 在"规划时临时找到的照片"下逐张列出（直接读媒体目录里的来源记录，能显示在卡片上的就会列出），和图集一样有作者、原图页、许可证链接和"已缩小尺寸"。Pixabay 运行时照片仍只在那一段说明。
+5. **限额：**维基请求（查询、Commons、下载）最多同时 2 个、任意 60 秒不超过 40 次，查询 10 秒超时、下载 15 秒；一批卡片最多 12 次 Wikidata 查询、8 次 Commons 查询、8 次下载（28 次请求）、25 秒，超出的卡这次不问维基、直接去 Pixabay。Pixabay 的额度不变（每批 20 次搜索、10 次下载，每分钟 80 次），维基答上的卡不再花 Pixabay 请求。
+6. **缓存：**找到的照片和 Pixabay 的共用 `lookups/` 与按市索引，重启后 0 请求；"维基没有这个地标的图"记在 `lookups/<hash>.wikimedia-none.json`，24 小时、跟规则版本走，和 Pixabay 的"没有"分开记（一个源没有不妨碍问另一个）。
+7. **连不上维基（大陆服务器）：**网络错误、超时、5xx 都算"查不了"，不缓存；同时整个进程暂停问维基 10 分钟（429 暂停 1 分钟并遵守 `Retry-After`，403 暂停 15 分钟），所以大陆服务器每 10 分钟最多花一次超时请求，其余时间卡片直接去 Pixabay。**维基查不了、Pixabay 又没有合适的图时，这张卡不回答**（不存成没图），下次打开再查；因为 Pixabay 的"没有"缓存 24 小时、维基暂停期间不发请求，重查几乎不花请求。代价：在连不上维基的服务器上，这类卡会一直保持"没查过"。
+8. **日志：**沿用 `place_photo.remote.completed` / `place_photo.remote.unavailable`，带 `source: "wikimedia"`、被跳过的条目和原因（如 `Q83628:licence`）。
+
+**1.0633 实测（2026-10-24，本机经公司代理，真实维基，临时媒体目录）：**6 个地标一次跑完共 15 次请求，没有请求 Pixabay 和天地图。玉龙雪山（Q1465660，公有领域）、宽窄巷子（Q10951691，CC BY-SA 3.0）、黄果树瀑布（Q38432，CC BY-SA 4.0）、鼓浪屿（Q1025339，CC BY 3.0）都配上了，人工看过图，地点都对；洱海（Q83628）唯一的图许可证和构图都不合格，没有配；洪崖洞排在最后，脚本逐个查、超过了每批 25 秒，按设计记"这次查不了"（实际接口里卡片并行查，会去 Pixabay）。单个地标 2–8 秒，多数时间花在 Wikidata 查询上。第一次实测发现缩略图地址已改成 `thumb.wikimedia.org`，下载被主机白名单挡掉，已加入白名单后重测。另用生产构建打开 /photo-credits，4 张维基照片都按文件名锚点列出，缩略图经 `/_next/image` 正常加载。
+
 **运行时照片存在哪：**[MediaPhotoStore](../src/platform/place-photos/media-photo-store.ts) 把文件放在 `MERI_MEDIA_DIR/place-photos/` 下，不放 `public/`：生产模式的 Next 在启动时就确定了 `public/` 里有哪些文件，之后写进去的不会被访问到。
 
 | 路径 | 内容 |
 | --- | --- |
-| `files/pixabay-<ID>.<ext>` | 图片本身 |
-| `files/pixabay-<ID>.json` | 来源记录：Pixabay ID、作者、原图页、tags、用的查询词、命中的词、省/市/地标、宽高字节数、`reviewed: false`、时间。**最后写**，有它才算发布完成 |
-| `lookups/<hash>.json` | 某地区某地标最后用了哪张图；`<hash>.none.json` 是"没有合适的图"的 24 小时结论 |
+| `files/pixabay-<ID>.<ext>`、`files/wikimedia-<ID>.<ext>` | 图片本身 |
+| `files/pixabay-<ID>.json`、`files/wikimedia-<ID>.json` | 来源记录：Pixabay 的是 ID、作者、原图页、tags、用的查询词、命中的词；维基的是 Commons 页面 ID、文件名、文件页、Wikidata 条目、对上的名字、作者、许可证和链接、原图宽高；都有省/市/地标、宽高字节数、`reviewed: false`、时间。**最后写**，有它才算发布完成 |
+| `lookups/<hash>.json` | 某地区某地标最后用了哪张图；`<hash>.none.json` 是 Pixabay"没有合适的图"的 24 小时结论，`<hash>.wikimedia-none.json` 是维基的 |
 | `searches/<hash>.json` | Pixabay 搜索响应（只留 Meri 读的字段），24 小时；哈希和内容都不含密钥 |
 | `regions/<hash>.json` | 某个市已下载的照片（最多 20 张），市的代表图在图集里没有时用 |
 | `misses/<hash>.json` | 未配图记录 |
@@ -620,9 +633,9 @@ add/set 使用 Promise.all 查询表达。解析层保留不同 provider ID，�
 
 `MERI_MEDIA_DIR` 必须指向发布目录以外、跨部署保留的目录（例如 VPS 上的 `/var/lib/meri/media`，用 Docker 就挂一个持久卷），否则每次部署都会丢掉已下载的图，而历史消息里的链接会 404。开发环境不设时用项目里的 `.cache/media`（已被 .gitignore 忽略）；生产环境不设时**没有运行时补图**（也不会写进发布目录）。
 
-**怎么访问：**[`GET /media/place-photos/[file]`](../src/app/media/place-photos/[file]/route.ts) 从媒体目录读文件返回。只接受 `pixabay-<数字>.<jpg|png|webp>` 这种 Meri 自己起的名字，而且对应的来源记录要已经存在；其他名字、路径穿越、`.json` 一律 404。响应带正确的 Content-Type、`X-Content-Type-Options: nosniff` 和一年的 `immutable` 缓存（文件名含图片 ID，内容不会变）。卡片照片仍经 next/image，由 `/_next/image` 在服务器内部取这个地址。不需要 nginx 映射；以后想让 nginx 直接发文件，可以把 `/media/place-photos/` 映射到 `MERI_MEDIA_DIR/place-photos/files/`，但那样就跳过了"来源记录已写完"的检查。
+**怎么访问：**[`GET /media/place-photos/[file]`](../src/app/media/place-photos/[file]/route.ts) 从媒体目录读文件返回。只接受 `pixabay-<数字>.<jpg|png|webp>`、`wikimedia-<数字>.<jpg|png|webp>` 这种 Meri 自己起的名字，而且对应的来源记录要已经存在；其他名字、路径穿越、`.json` 一律 404。响应带正确的 Content-Type、`X-Content-Type-Options: nosniff` 和一年的 `immutable` 缓存（文件名含图片 ID，内容不会变）。卡片照片仍经 next/image，由 `/_next/image` 在服务器内部取这个地址。不需要 nginx 映射；以后想让 nginx 直接发文件，可以把 `/media/place-photos/` 映射到 `MERI_MEDIA_DIR/place-photos/files/`，但那样就跳过了"来源记录已写完"的检查。
 
-**已经是 null 的旧卡：**不批量重写。每张卡回答照片时记下当时的规则版本 `photoRules`（没有＝1）。打开旅程时，**带地标、存成 null、规则版本比现在旧**的卡会按新规则再查**一次**，查完写上新版本号，之后不会每次刷新都查；没有地标的卡不重查。1.0625 把版本升到 2，1.0627 升到 3（修正了中文地区误判和地区名别名），所以之前查过没图、带地标的卡都会按最新规则再查一次（按中文地标名，有英文名时也用英文名），受每批额度限制，超出的下次再查。
+**已经是 null 的旧卡：**不批量重写。每张卡回答照片时记下当时的规则版本 `photoRules`（没有＝1）。打开旅程时，**带地标、存成 null、规则版本比现在旧**的卡会按新规则再查**一次**，查完写上新版本号，之后不会每次刷新都查；没有地标的卡不重查。1.0625 把版本升到 2，1.0627 升到 3（修正了中文地区误判和地区名别名），1.0633 升到 4（先问维基），所以之前查过没图、带地标的卡都会按最新规则再查一次（按中文地标名，有英文名时也用英文名），受每批额度限制，超出的下次再查。
 
 **城市卡的照片可以是同城另一个景点：**卡片自己的地标没有图时，先找图集或已下载的同市照片（市的代表图，或之前为同市别的景点下载的图），再试模型给的备选地标；都是先本地后远程。照片说明写照片实际拍的景点（例如成都市卡片上写"大熊猫繁育研究基地"），不写卡片的地标。用户在聊天里明确点名的景点，仍只找那个景点。已下载照片按市建了索引，所以聊天地点卡、旅程封面、照片环查一个市时，也能用到它（排在图集之后，不触发下载）。
 

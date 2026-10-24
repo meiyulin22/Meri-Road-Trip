@@ -5,7 +5,7 @@ import {
   type DestinationRecommendation,
   type DestinationRecommendationPresentation,
 } from "@/domain/trip-message/trip-message";
-import type { RemoteBatch, RemotePhotoFinder, RemotePhotoResult } from "@/platform/place-photos/pixabay-photo-finder";
+import type { RemotePhotoFinder, RemotePhotoResult } from "@/platform/place-photos/remote-photo-finder";
 import type { PlacePhotoProvider } from "@/platform/place-photos/place-photo-provider";
 
 /** One card's answer: its photo, or null when there is none to show. */
@@ -35,14 +35,23 @@ function landmarksOf(item: CardAwaitingPhoto): { landmark: string; english?: str
   ];
 }
 
+/** A remote source and what this set of cards may still spend there. */
+interface RemoteSource {
+  readonly finder: RemotePhotoFinder;
+  readonly batch: unknown;
+}
+
 /**
  * One card's photo: local photos first — the card's landmark, then the 市's own
  * representative or a photo already downloaded for another sight in it, then each
- * stand-in landmark — and only then Pixabay, landmark by landmark. "unavailable" means
- * Pixabay could not be asked this time; nothing is decided.
+ * stand-in landmark — and only then the remote sources in order (Wikimedia, then
+ * Pixabay), each asked for the card's landmark and its first stand-in before the next
+ * source is. An exact Wikidata photo of the stand-in beats a tag-read Pixabay photo of
+ * the landmark, and costs no Pixabay quota. "unavailable" means some source could not be
+ * asked this time; nothing is decided.
  */
-async function photoFor(item: CardAwaitingPhoto, photos: PlacePhotoProvider, remote: RemotePhotoFinder | null,
-  batch: RemoteBatch | null): Promise<RemotePhotoResult> {
+async function photoFor(item: CardAwaitingPhoto, photos: PlacePhotoProvider, remotes: readonly RemoteSource[]):
+  Promise<RemotePhotoResult> {
   const landmarks = landmarksOf(item);
   const local = await findPlaceImage({ province: item.province, place: item.name, spot: null,
     landmark: landmarks[0]?.landmark ?? null }, photos);
@@ -51,15 +60,17 @@ async function photoFor(item: CardAwaitingPhoto, photos: PlacePhotoProvider, rem
     const image = await findPlaceImage({ province: item.province, place: item.name, spot: backup.landmark }, photos);
     if (image) return { status: "found", image };
   }
-  if (!remote || !batch) return { status: "none" };
   let unavailable: string | null = null;
-  // Remotely, the card's own landmark and its first stand-in only: at most six searches a card.
-  for (const subject of landmarks.slice(0, 2)) {
-    const result = await remote.find({ province: item.province, region: item.name, ...subject }, batch);
-    if (result.status === "found") return result;
-    if (result.status === "unavailable") unavailable ??= result.reason;
+  for (const { finder, batch } of remotes) {
+    // Remotely, the card's own landmark and its first stand-in only: on Pixabay, at most six searches a card.
+    for (const subject of landmarks.slice(0, 2)) {
+      const result = await finder.find({ province: item.province, region: item.name, ...subject }, batch);
+      if (result.status === "found") return result;
+      if (result.status === "unavailable") unavailable ??= result.reason;
+    }
   }
-  // A stand-in that found nothing does not settle a card whose own landmark could not be asked.
+  // A source that could not be asked does not let the others' "nothing" settle the card:
+  // Wikimedia out of reach and Pixabay empty leaves it to be asked again on a later visit.
   return unavailable ? { status: "unavailable", reason: unavailable } : { status: "none" };
 }
 
@@ -69,9 +80,10 @@ async function photoFor(item: CardAwaitingPhoto, photos: PlacePhotoProvider, rem
  * the slowest. The lookups all start at once; the provider's own queue spaces them out.
  *
  * Local photos are asked first (the bundled catalog, then photos downloaded earlier).
- * A card with a landmark the local ones lack may then be searched on Pixabay, its own
- * landmark first and then its first stand-in. When that search cannot run — the network, a
- * rate limit, the per-set budget — the card gets no answer at all: it is not reported,
+ * A card with a landmark the local ones lack may then be looked up remotely — on Wikidata
+ * and Commons, then on Pixabay — its own landmark first and then its first stand-in. When
+ * a source cannot be asked — the network, a rate limit, the per-set budget — and no other
+ * finds a photo, the card gets no answer at all: it is not reported,
  * keeps what it had in the saved message, and is asked again on a later visit, instead
  * of being saved as having no photo. Every answer records the photo rules it was
  * decided under, so a card saved with none is looked up again only when the rules change.
@@ -84,14 +96,14 @@ export async function findRecommendationPhotos(
   presentation: DestinationRecommendationPresentation,
   photos: PlacePhotoProvider,
   onPhoto: (photo: RecommendationPhoto) => void,
-  remote: RemotePhotoFinder | null = null,
+  remotes: readonly RemotePhotoFinder[] = [],
   onDeferred: (deferred: DeferredRecommendationPhoto) => void = () => undefined,
 ): Promise<DestinationRecommendationPresentation> {
   const shown = new Set(presentation.destinations.flatMap((item) => item.image ? [item.image.url] : []));
   const answers = new Map<string, PlaceImage | null>();
-  const batch = remote?.startBatch() ?? null;
+  const sources = remotes.map((finder) => ({ finder, batch: finder.startBatch() }));
   await Promise.all(recommendationsAwaitingPhoto(presentation).map(async (item) => {
-    const result = await photoFor(item, photos, remote, batch);
+    const result = await photoFor(item, photos, sources);
     if (result.status === "unavailable") {
       onDeferred({ id: item.id, reason: result.reason });
       return;

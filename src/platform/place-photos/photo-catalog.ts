@@ -99,7 +99,7 @@ export function photoFromCatalog(catalog: PhotoCatalog, query: PlacePhotoQuery):
 }
 
 /** The credit line a card shows: who, and from where under which licence. Kept within 120 characters. */
-export function catalogCredit(entry: CatalogEntry): string {
+export function catalogCredit(entry: Pick<CatalogEntry, "artist" | "source" | "license">): string {
   const tail = entry.source === "wikimedia" ? ` / Wikimedia Commons, ${entry.license}` : " / Pixabay";
   const room = 120 - "Photo: ".length - tail.length;
   const artist = entry.artist.length > room ? `${entry.artist.slice(0, room - 1)}…` : entry.artist;

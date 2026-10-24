@@ -11,8 +11,8 @@ import { TripNotFoundError } from "@/domain/trip/trip-errors";
 import { readGuestId } from "@/platform/identity/guest-identity";
 import { logEvents, logger } from "@/platform/observability/logger";
 import { serializeError } from "@/platform/observability/serialize-error";
-import { createPlacePhotoProvider, createRemotePhotoFinder } from "@/platform/map-providers";
-import type { RemotePhotoFinder } from "@/platform/place-photos/pixabay-photo-finder";
+import { createPlacePhotoProvider, createRemotePhotoFinders } from "@/platform/map-providers";
+import type { RemotePhotoFinder } from "@/platform/place-photos/remote-photo-finder";
 import type { PlacePhotoProvider } from "@/platform/place-photos/place-photo-provider";
 import {
   findRecommendationPhotos,
@@ -22,8 +22,8 @@ import {
 type Dependencies = {
   readonly listMessages: (tripId: string, ownerGuestId: string) => Promise<readonly TripMessage[]>;
   readonly photos: PlacePhotoProvider;
-  /** Pixabay, for cards the local photos miss; absent or null keeps the lookup local. */
-  readonly remotePhotos?: RemotePhotoFinder | null;
+  /** Wikimedia then Pixabay, in that order, for cards the local photos miss; absent or empty keeps the lookup local. */
+  readonly remotePhotos?: readonly RemotePhotoFinder[];
   readonly savePhotos: (input: {
     tripId: string; ownerGuestId: string; messageId: string; presentation: DestinationRecommendationPresentation;
   }) => Promise<void>;
@@ -98,7 +98,7 @@ export async function handleRecommendationPhotosPost(
         try {
           const deferred: DeferredRecommendationPhoto[] = [];
           const found = await findRecommendationPhotos(presentation, dependencies.photos, send,
-            dependencies.remotePhotos ?? null, (item) => deferred.push(item));
+            dependencies.remotePhotos ?? [], (item) => deferred.push(item));
           if (deferred.length > 0) {
             logger.warn({ event: logEvents.recommendationPhotosDeferred, requestId, tripId, messageId,
               count: deferred.length, reasons: [...new Set(deferred.map((item) => item.reason))] },
@@ -129,7 +129,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   return handleRecommendationPhotosPost(id, readGuestId(await cookies()), body, randomUUID(), {
     listMessages: (tripId, owner) => tripMessageService.listMessages(tripId, owner),
     photos: createPlacePhotoProvider(),
-    remotePhotos: createRemotePhotoFinder(),
+    remotePhotos: createRemotePhotoFinders(),
     savePhotos: (input) => tripMessageService.saveRecommendationPhotos(input),
   });
 }

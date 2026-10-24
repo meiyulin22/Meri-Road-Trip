@@ -7,7 +7,10 @@ import { AmapPlacePhotoProvider } from "@/platform/place-photos/amap-place-photo
 import { CatalogPhotoProvider } from "@/platform/place-photos/catalog-photo-provider";
 import { mediaPhotoStoreFromEnvironment } from "@/platform/place-photos/media-photo-store";
 import { PixabayClient } from "@/platform/place-photos/pixabay-client";
-import { PixabayPhotoFinder, type RemotePhotoFinder } from "@/platform/place-photos/pixabay-photo-finder";
+import { PixabayPhotoFinder } from "@/platform/place-photos/pixabay-photo-finder";
+import type { RemotePhotoFinder } from "@/platform/place-photos/remote-photo-finder";
+import { WikimediaClient } from "@/platform/place-photos/wikimedia-client";
+import { WikimediaPhotoFinder } from "@/platform/place-photos/wikimedia-photo-finder";
 import type { PlacePhotoProvider } from "@/platform/place-photos/place-photo-provider";
 import { TiandituInputTipsProvider } from "@/platform/tianditu/tianditu-input-tips-provider";
 import { TiandituLocationProvider } from "@/platform/tianditu/tianditu-location-provider";
@@ -21,8 +24,8 @@ import { TiandituLocationProvider } from "@/platform/tianditu/tianditu-location-
  * Tianditu has no photo API, so its journeys read photos from the catalog in
  * `public/photos` (filled by `scripts/fetch-place-photos.ts`) and from photos already
  * downloaded at run time. A place in neither has no photo, and the card shows no image —
- * an ordinary case, not an error. Recommendation cards alone may go on to search
- * Pixabay (createRemotePhotoFinder).
+ * an ordinary case, not an error. Recommendation cards alone may go on to Wikimedia
+ * and Pixabay (createRemotePhotoFinders).
  */
 export function mapProviderName(environment: Readonly<Record<string, string | undefined>> = process.env): LocationProviderName {
   const value = environment.MAP_PROVIDER?.trim();
@@ -44,19 +47,23 @@ export function createPlacePhotoProvider(): PlacePhotoProvider {
     ? new CatalogPhotoProvider(mediaPhotoStoreFromEnvironment()) : new AmapPlacePhotoProvider();
 }
 
-let remoteFinder: RemotePhotoFinder | null | undefined;
+let remoteFinders: readonly RemotePhotoFinder[] | undefined;
 
 /**
- * The Pixabay fallback for recommendation cards in Tianditu mode, one per process so
- * its queue, its shared in-flight lookups and its pauses hold across requests. Null
- * when Amap supplies photos, when PIXABAY_API_KEY is unset, or when there is no media
+ * The remote fallbacks for recommendation cards in Tianditu mode, in the order they are
+ * asked: Wikimedia (Wikidata's image of the landmark; needs no key), then Pixabay (with
+ * PIXABAY_API_KEY). One of each per process, so their queues, shared in-flight lookups and
+ * pauses hold across requests. Empty when Amap supplies photos or there is no media
  * directory to keep downloads in.
  */
-export function createRemotePhotoFinder(): RemotePhotoFinder | null {
-  if (remoteFinder !== undefined) return remoteFinder;
+export function createRemotePhotoFinders(): readonly RemotePhotoFinder[] {
+  if (remoteFinders !== undefined) return remoteFinders;
   const key = process.env.PIXABAY_API_KEY?.trim();
   const store = mediaPhotoStoreFromEnvironment();
-  remoteFinder = mapProviderName() === "tianditu" && key && store
-    ? new PixabayPhotoFinder({ client: new PixabayClient({ key }), store }) : null;
-  return remoteFinder;
+  if (mapProviderName() !== "tianditu" || !store) return remoteFinders = [];
+  remoteFinders = [
+    new WikimediaPhotoFinder({ client: new WikimediaClient(), store }),
+    ...(key ? [new PixabayPhotoFinder({ client: new PixabayClient({ key }), store })] : []),
+  ];
+  return remoteFinders;
 }

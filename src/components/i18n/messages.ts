@@ -272,7 +272,8 @@ const en = {
     resized: "Resized smaller",
     pixabayLicence: "Pixabay Content License",
     runtimeTitle: "Photos found while you plan",
-    runtimeText: "When a recommendation card's place has no photo above, Meri may find one on Pixabay while you plan. Those photos are used under the Pixabay Content License, and each card names its photographer.",
+    runtimeText: "When a recommendation card's place has no photo above, Meri may find one while you plan: first the image Wikidata gives for that sight on Wikimedia Commons, listed below with its licence, otherwise one on Pixabay. Pixabay photos are used under the Pixabay Content License, and each card names its photographer.",
+    runtimeEmpty: "No Wikimedia Commons photo has been found while planning yet.",
     openCredits: "Photo credits",
   },
 };
@@ -540,7 +541,8 @@ const zh: Messages = {
     resized: "已缩小尺寸",
     pixabayLicence: "Pixabay 内容许可",
     runtimeTitle: "规划时临时找到的照片",
-    runtimeText: "推荐卡上的地点在上面没有照片时，Meri 可能会在你规划时从 Pixabay 找一张。这些照片按 Pixabay 内容许可使用，卡片上写着摄影师的名字。",
+    runtimeText: "推荐卡上的地点在上面没有照片时，Meri 可能会在你规划时找一张：先用 Wikidata 给这个景点登记的 Wikimedia Commons 图片（连同许可证列在下面），没有再从 Pixabay 找。Pixabay 的照片按 Pixabay 内容许可使用，卡片上写着摄影师的名字。",
+    runtimeEmpty: "规划时还没有找到过 Wikimedia Commons 的照片。",
     openCredits: "照片署名",
   },
 };

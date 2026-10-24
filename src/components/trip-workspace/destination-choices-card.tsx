@@ -196,11 +196,14 @@ function PlaceCard({ choice, checked, disabled, inJourney, onToggle, photoPendin
 
 /**
  * Where a photo's full credit is: our own copies are listed on /photo-credits — a catalog
- * photo by its file name, one Meri found while planning in the runtime section. A provider's
- * photo (Amap's) has no credit page.
+ * photo or a Commons photo Meri found while planning by its file name, a Pixabay one found
+ * while planning in the runtime section. A provider's photo (Amap's) has no credit page.
  */
 export function creditsHref(url: string): string | null {
   if (url.startsWith("/photos/")) return `/photo-credits#${encodeURIComponent(url.slice("/photos/".length))}`;
+  if (url.startsWith("/media/place-photos/wikimedia-")) {
+    return `/photo-credits#${encodeURIComponent(url.slice("/media/place-photos/".length))}`;
+  }
   if (url.startsWith("/media/place-photos/")) return "/photo-credits#runtime";
   return null;
 }

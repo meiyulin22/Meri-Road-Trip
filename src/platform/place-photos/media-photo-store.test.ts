@@ -97,9 +97,43 @@ test("a 'none' counts only under the rules it was decided by", async () => {
   await withDirectory(async (directory) => {
     const store = new MediaPhotoStore(directory);
     const now = Date.parse("2026-10-24T00:00:00Z");
-    await store.writeNone(key, now, 1);
-    assert.equal(await store.recentlyNone(key, now + 1000, 1), true);
-    assert.equal(await store.recentlyNone(key, now + 1000, 2), false);
+    await store.writeNone(key, now, 1, "pixabay");
+    assert.equal(await store.recentlyNone(key, now + 1000, 1, "pixabay"), true);
+    assert.equal(await store.recentlyNone(key, now + 1000, 2, "pixabay"), false);
+  });
+});
+
+test("Wikidata's 'none' and Pixabay's are kept apart: one source having nothing does not stop the other", async () => {
+  await withDirectory(async (directory) => {
+    const store = new MediaPhotoStore(directory);
+    const now = Date.parse("2026-10-24T00:00:00Z");
+    await store.writeNone(key, now, 4, "wikimedia");
+    assert.equal(await store.recentlyNone(key, now + 1000, 4, "wikimedia"), true);
+    assert.equal(await store.recentlyNone(key, now + 1000, 4, "pixabay"), false);
+    assert.equal(await store.recentlyNone(key, now + searchCacheTtlMs, 4, "wikimedia"), false);
+  });
+});
+
+function commonsRecord(id: number, bytes: number, fetchedAt: string): StoredPhotoRecord {
+  return { source: "wikimedia", id, file: `wikimedia-${id}.jpg`, format: "jpg", width: 500, height: 333, bytes,
+    artist: "Someone", pageUrl: `https://commons.wikimedia.org/wiki/File:Yulong_${id}.jpg`, title: `File:Yulong ${id}.jpg`,
+    item: "Q1", matched: "玉龙雪山", license: "CC BY-SA 4.0", licenseUrl: "https://creativecommons.org/licenses/by-sa/4.0",
+    originalWidth: 4000, originalHeight: 2666, province: "云南省", region: "丽江市", landmark: "玉龙雪山", reviewed: false, fetchedAt };
+}
+
+test("a Commons photo is served under its own name and listed with its licence for the credits page, newest first", async () => {
+  await withDirectory(async (directory) => {
+    const store = new MediaPhotoStore(directory);
+    const body = fakeJpeg(500, 333);
+    assert.deepEqual(await store.listWikimediaRecords(), []);
+    await store.publish(commonsRecord(11, body.byteLength, "2026-10-24T00:00:00.000Z"), body);
+    await store.publish(commonsRecord(12, body.byteLength, "2026-10-25T00:00:00.000Z"), body);
+    await store.publish(record(13, body.byteLength), body);
+    assert.equal((await store.readPublished("wikimedia-11.jpg"))?.contentType, "image/jpeg");
+    const listed = await new MediaPhotoStore(directory).listWikimediaRecords();
+    assert.deepEqual(listed.map((item) => item.file), ["wikimedia-12.jpg", "wikimedia-11.jpg"]);
+    assert.equal(listed[0].license, "CC BY-SA 4.0");
+    assert.equal(await store.readPublished("wikimedia-0.jpg"), null);
   });
 });
 

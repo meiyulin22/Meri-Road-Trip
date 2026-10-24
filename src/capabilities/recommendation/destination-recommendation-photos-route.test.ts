@@ -97,8 +97,8 @@ test("a card whose remote lookup could not run gets no line, and is saved still 
   ] } };
   const { saved, deps } = dependencies([waiting], { photos: { async findPhoto() { return null; } } });
   const response = await handleRecommendationPhotosPost(tripId, owner, { messageId: "cards-1" }, "r6", { ...deps,
-    remotePhotos: { startBatch: () => ({ searchesLeft: 1, downloadsLeft: 1, deadline: Number.MAX_SAFE_INTEGER, stopped: null }),
-      async find() { return { status: "unavailable", reason: "rate_limited" }; } } });
+    remotePhotos: [{ startBatch: () => ({ searchesLeft: 1, downloadsLeft: 1, deadline: Number.MAX_SAFE_INTEGER, stopped: null }),
+      async find() { return { status: "unavailable", reason: "rate_limited" }; } }] });
   assert.deepEqual(await lines(response), []);
   assert.equal(saved.length, 1);
   assert.equal("image" in saved[0].destinations[0], false);
