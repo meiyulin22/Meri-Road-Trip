@@ -622,5 +622,230 @@
    "日喀则",
    "定日县"
   ]
+ },
+ "外滩": {
+  "file": "the-bund-shanghai-7094961.jpg",
+  "artist": "Media_Breeze",
+  "pageUrl": "https://pixabay.com/zh/photos/china-city-shanghai-bund-7094961/",
+  "fetchedAt": "2026-10-24",
+  "aliases": [],
+  "regions": [
+   "上海市",
+   "上海"
+  ],
+  "scenicFor": [
+   "上海市",
+   "上海"
+  ]
+ },
+ "中山陵": {
+  "file": "sun-yat-sen-mausoleum-6333022.jpg",
+  "artist": "Yr_Guan",
+  "pageUrl": "https://pixabay.com/zh/photos/building-entrance-6333022/",
+  "fetchedAt": "2026-10-24",
+  "aliases": [],
+  "regions": [
+   "南京市",
+   "南京"
+  ],
+  "scenicFor": [
+   "南京市",
+   "南京"
+  ]
+ },
+ "鼋头渚": {
+  "file": "yuantouzhu-wuxi-2686226.jpg",
+  "artist": "srjqhzl",
+  "pageUrl": "https://pixabay.com/zh/photos/yuantouzhu-wuxi-taihu-wuxi-wuxi-2686226/",
+  "fetchedAt": "2026-10-24",
+  "aliases": [],
+  "regions": [
+   "无锡市",
+   "无锡"
+  ],
+  "scenicFor": [
+   "无锡市",
+   "无锡"
+  ]
+ },
+ "徐州": {
+  "file": "xuzhou-city-19609.jpg",
+  "artist": "PublicDomainPictures",
+  "pageUrl": "https://pixabay.com/zh/photos/xuzhou-city-china-landscape-19609/",
+  "fetchedAt": "2026-10-24",
+  "aliases": [],
+  "regions": [
+   "徐州市",
+   "徐州"
+  ],
+  "scenicFor": [
+   "徐州市",
+   "徐州"
+  ]
+ },
+ "常州嬉戏谷": {
+  "file": "changzhou-joyland-1402329.jpg",
+  "artist": "Yinlike16",
+  "pageUrl": "https://pixabay.com/zh/photos/changzhou-playful-valley-wonderland-1402329/",
+  "fetchedAt": "2026-10-24",
+  "aliases": [],
+  "regions": [
+   "常州市",
+   "常州"
+  ],
+  "scenicFor": [
+   "常州市",
+   "常州"
+  ]
+ },
+ "狼山": {
+  "file": "langshan-nantong-4251603.jpg",
+  "artist": "liming0759",
+  "pageUrl": "https://pixabay.com/zh/photos/nantong-wolf-mountain-the-scenery-4251603/",
+  "fetchedAt": "2026-10-24",
+  "aliases": [],
+  "regions": [
+   "南通市",
+   "南通"
+  ],
+  "scenicFor": [
+   "南通市",
+   "南通"
+  ]
+ },
+ "荷兰花海": {
+  "file": "yancheng-dutch-flower-sea-6237752.jpg",
+  "artist": "Cecilia_Zhu",
+  "pageUrl": "https://pixabay.com/zh/photos/sunset-sea-yancheng-6237752/",
+  "fetchedAt": "2026-10-24",
+  "aliases": [],
+  "regions": [
+   "盐城市",
+   "盐城"
+  ],
+  "scenicFor": [
+   "盐城市",
+   "盐城"
+  ]
+ },
+ "瘦西湖": {
+  "file": "slender-west-lake-2356265.jpg",
+  "artist": "nyochi",
+  "pageUrl": "https://pixabay.com/photos/the-five-pavilion-bridge-china-2356265/",
+  "fetchedAt": "2026-10-24",
+  "aliases": [],
+  "regions": [
+   "扬州市",
+   "扬州"
+  ],
+  "scenicFor": [
+   "扬州市",
+   "扬州"
+  ]
+ },
+ "宁波": {
+  "file": "ningbo-lake-5816513.jpg",
+  "artist": "Leslin_Liu",
+  "pageUrl": "https://pixabay.com/zh/photos/trees-lake-river-reflection-woods-5816513/",
+  "fetchedAt": "2026-10-24",
+  "aliases": [],
+  "regions": [
+   "宁波市",
+   "宁波"
+  ],
+  "scenicFor": [
+   "宁波市",
+   "宁波"
+  ]
+ },
+ "雁荡山": {
+  "file": "yandang-mountain-5647952.jpg",
+  "artist": "fransteddy",
+  "pageUrl": "https://pixabay.com/zh/photos/temple-mountainside-cliff-mountains-5647952/",
+  "fetchedAt": "2026-10-24",
+  "aliases": [],
+  "regions": [
+   "温州市",
+   "温州"
+  ],
+  "scenicFor": [
+   "温州市",
+   "温州"
+  ]
+ },
+ "乌镇": {
+  "file": "wuzhen-7004632.jpg",
+  "artist": "zhangliams",
+  "pageUrl": "https://pixabay.com/zh/photos/ancient-town-street-asia-7004632/",
+  "fetchedAt": "2026-10-24",
+  "aliases": [],
+  "regions": [
+   "嘉兴市",
+   "嘉兴"
+  ],
+  "scenicFor": [
+   "嘉兴市",
+   "嘉兴"
+  ]
+ },
+ "南浔古镇": {
+  "file": "nanxun-ancient-town-4006003.jpg",
+  "artist": "huyuanzhe",
+  "pageUrl": "https://pixabay.com/zh/photos/china-watertown-ancient-town-nanxun-4006003/",
+  "fetchedAt": "2026-10-24",
+  "aliases": [],
+  "regions": [
+   "湖州市",
+   "湖州"
+  ],
+  "scenicFor": [
+   "湖州市",
+   "湖州"
+  ]
+ },
+ "东阳": {
+  "file": "dongyang-lake-5382921.jpg",
+  "artist": "anishikiya",
+  "pageUrl": "https://pixabay.com/zh/photos/lake-water-woodden-boat-fishman-5382921/",
+  "fetchedAt": "2026-10-24",
+  "aliases": [],
+  "regions": [
+   "金华市",
+   "金华"
+  ],
+  "scenicFor": [
+   "金华市",
+   "金华"
+  ]
+ },
+ "台州府城墙": {
+  "file": "taizhou-ancient-city-wall-7749910.jpg",
+  "artist": "r-q",
+  "pageUrl": "https://pixabay.com/zh/photos/great-wall-tower-ancient-building-7749910/",
+  "fetchedAt": "2026-10-24",
+  "aliases": [],
+  "regions": [
+   "台州市",
+   "台州"
+  ],
+  "scenicFor": [
+   "台州市",
+   "台州"
+  ]
+ },
+ "丽水": {
+  "file": "lishui-forest-4605203.jpg",
+  "artist": "zhangliams",
+  "pageUrl": "https://pixabay.com/zh/photos/drone-forest-tree-landscape-nature-4605203/",
+  "fetchedAt": "2026-10-24",
+  "aliases": [],
+  "regions": [
+   "丽水市",
+   "丽水"
+  ],
+  "scenicFor": [
+   "丽水市",
+   "丽水"
+  ]
  }
 }

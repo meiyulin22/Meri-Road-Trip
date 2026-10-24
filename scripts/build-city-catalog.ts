@@ -1,0 +1,257 @@
+/**
+ * 给图集按城市补代表图，分两步，中间人工审核：
+ *
+ *   npx tsx scripts/build-city-catalog.ts fetch jiangzhehu
+ *     每个城市在 Pixabay 找最多 3 张候选（先搜景点中文名、英文名，不够再搜第二个景点，
+ *     还没有才搜城市名），用运行时同一套规则过滤，下载到 .cache/catalog-review/<批次>/，
+ *     并生成 review.html。不碰 public/photos。
+ *
+ *   npx tsx scripts/build-city-catalog.ts apply jiangzhehu picks.json
+ *     picks.json 是人工看图后挑好的：{ "南通市": { "id": 4251603, "caption": "狼山", "slug": "langshan",
+ *     "note": "狼山塔倒影" }, ... }。caption 是照片里实际拍到的地方（tags 只写城市时就写城市），
+ *     slug 是文件名的英文部分。把选中的文件复制进 public/photos，登记到 photos.json：
+ *     条目名即 caption，regions / scenicFor 填城市全称和简称。
+ *
+ * 请求走产品自己的 PixabayClient：一次一个、任意 60 秒不超过 80 次（Pixabay 上限 100）。
+ * 搜索结果缓存 24 小时（.cache/catalog-review/store/）。不输出密钥和带密钥的 URL。
+ */
+import { copyFile, mkdir, readdir, readFile, writeFile } from "node:fs/promises";
+import { join } from "node:path";
+
+import { readImageFacts } from "../src/platform/place-photos/image-file";
+import { MediaPhotoStore } from "../src/platform/place-photos/media-photo-store";
+import { PixabayClient } from "../src/platform/place-photos/pixabay-client";
+import { judgeHit, type PixabayHit, type RemotePhotoSubject } from "../src/platform/place-photos/pixabay-photo-match";
+import { parsePhotoCatalog, type CatalogEntry } from "../src/platform/place-photos/photo-catalog";
+
+import { catalogBatches, type CatalogBatch, type CatalogCity } from "./catalog-cities";
+
+const reviewRoot = join(process.cwd(), ".cache", "catalog-review");
+const photosDirectory = join(process.cwd(), "public", "photos");
+const catalogPath = join(photosDirectory, "photos.json");
+const candidatesPerCity = 3;
+const minuteMs = 61_000;
+
+/**
+ * A batch script can wait out the minute instead of giving up: when our own limiter (or
+ * Pixabay's 429) says the minute is spent, wait once and try again; a second refusal stops.
+ */
+async function patiently<T extends { ok: boolean; failure?: string }>(request: () => Promise<T>): Promise<T> {
+  const first = await request();
+  if (first.ok || first.failure !== "rate_limited") return first;
+  console.log("  （这一分钟的请求数到了，等 61 秒）");
+  await new Promise((resolve) => setTimeout(resolve, minuteMs));
+  return request();
+}
+const searchesPerCity = 4;
+
+/** One candidate kept for review: who took it, which landmark it showed, and the file. */
+interface Candidate {
+  readonly id: number;
+  /** The landmark the photo was accepted as (its caption), or the city when only the city matched. */
+  readonly shows: string;
+  readonly kind: "landmark" | "city";
+  readonly query: string;
+  readonly artist: string;
+  readonly pageUrl: string;
+  readonly tags: string;
+  readonly file: string;
+  readonly width: number;
+  readonly height: number;
+  readonly bytes: number;
+}
+
+interface CityCandidates {
+  readonly city: CatalogCity;
+  readonly candidates: readonly Candidate[];
+  readonly searches: readonly string[];
+}
+
+function batchOf(id: string): CatalogBatch {
+  const batch = catalogBatches.find((item) => item.id === id);
+  if (!batch) throw new Error(`没有这个批次：${id}；可用：${catalogBatches.map((item) => item.id).join(", ")}`);
+  return batch;
+}
+
+function slugOf(text: string): string {
+  return text.toLowerCase().normalize("NFKD").replace(/[̀-ͯ]/gu, "").replace(/[^a-z0-9]+/gu, "-").replace(/^-|-$/gu, "");
+}
+
+async function readCatalog(): Promise<Record<string, CatalogEntry>> {
+  try {
+    return { ...parsePhotoCatalog(JSON.parse(await readFile(catalogPath, "utf8")) as unknown) };
+  } catch {
+    return {};
+  }
+}
+
+function hasRepresentative(catalog: Record<string, CatalogEntry>, city: CatalogCity): boolean {
+  return Object.values(catalog).some((entry) => entry.scenicFor.includes(city.name) || entry.scenicFor.includes(city.short));
+}
+
+async function fetchBatch(batch: CatalogBatch): Promise<void> {
+  const key = process.env.PIXABAY_API_KEY?.trim();
+  if (!key) throw new Error("未配置 PIXABAY_API_KEY");
+  let searches = 0;
+  let downloads = 0;
+  const counting = (async (input: string | URL | Request, init?: RequestInit) => {
+    const url = new URL(input instanceof Request ? input.url : input.toString());
+    if (url.pathname === "/api/") searches += 1; else downloads += 1;
+    return fetch(input, init);
+  }) as typeof fetch;
+  const client = new PixabayClient({ key, fetcher: counting });
+  const store = new MediaPhotoStore(join(reviewRoot, "store"));
+  const catalog = await readCatalog();
+  const results: CityCandidates[] = [];
+
+  for (const city of batch.cities) {
+    if (hasRepresentative(catalog, city)) {
+      console.log(`${city.name}: 图集已有代表图，跳过`);
+      continue;
+    }
+    const plans: { query: string; lang: "zh" | "en"; subject: RemotePhotoSubject; kind: Candidate["kind"] }[] = [];
+    for (const landmark of city.landmarks) {
+      const subject = { province: city.province, region: city.name, landmark: landmark.zh, english: landmark.en };
+      plans.push({ query: landmark.zh, lang: "zh", subject, kind: "landmark" });
+      plans.push({ query: landmark.en, lang: "en", subject, kind: "landmark" });
+    }
+    // The city's own name last, and only when no landmark found anything: its photos are a
+    // view of the city, captioned with the city, and need the closest look in review.
+    plans.push({ query: city.short, lang: "zh", subject: { province: city.province, region: city.name, landmark: city.short }, kind: "city" });
+
+    const accepted: { hit: PixabayHit; plan: (typeof plans)[number] }[] = [];
+    const asked: string[] = [];
+    for (const plan of plans) {
+      if (accepted.length >= candidatesPerCity) break;
+      // The city's own name is always tried when no landmark found anything, past the landmark budget.
+      if (plan.kind === "city" ? accepted.length > 0 : asked.length >= searchesPerCity) continue;
+      const parameters = new URLSearchParams({ q: plan.query, lang: plan.lang, image_type: "photo",
+        orientation: "horizontal", safesearch: "true", per_page: "50" }).toString();
+      let hits = await store.readSearch(parameters, Date.now());
+      if (!hits) {
+        const outcome = await patiently(() => client.search(new URLSearchParams(parameters)));
+        if (!outcome.ok) throw new Error(`${city.name}「${plan.query}」搜索失败：${outcome.failure}，本批停止`);
+        hits = outcome.hits;
+        await store.writeSearch(parameters, hits, Date.now());
+      }
+      asked.push(`${plan.query} [${plan.lang}] ${hits.length} 条`);
+      for (const hit of hits) {
+        if (accepted.length >= candidatesPerCity) break;
+        if (accepted.some((item) => item.hit.id === hit.id)) continue;
+        if (judgeHit(hit, plan.subject).accepted) accepted.push({ hit, plan });
+      }
+    }
+
+    const directory = join(reviewRoot, batch.id, city.name);
+    await mkdir(directory, { recursive: true });
+    const candidates: Candidate[] = [];
+    const kept = new Set(await readdir(directory));
+    for (const { hit, plan } of accepted) {
+      // A candidate already downloaded by an earlier run is reused, not fetched again.
+      const earlier = [...kept].find((name) => name.startsWith(`${hit.id}.`));
+      if (earlier) {
+        const body = new Uint8Array(await readFile(join(directory, earlier)));
+        const facts = readImageFacts(body);
+        if (facts) {
+          candidates.push({ id: hit.id, shows: plan.subject.landmark, kind: plan.kind, query: `${plan.query} [${plan.lang}]`,
+            artist: hit.user, pageUrl: hit.pageURL, tags: hit.tags, file: earlier, width: facts.width, height: facts.height,
+            bytes: body.byteLength });
+          continue;
+        }
+      }
+      const downloaded = await patiently(() => client.download(hit.webformatURL));
+      if (!downloaded.ok) {
+        if (downloaded.failure === "rate_limited" || downloaded.failure === "refused") {
+          throw new Error(`${city.name} 下载被拒：${downloaded.failure}，本批停止`);
+        }
+        continue;
+      }
+      const facts = readImageFacts(downloaded.body);
+      if (!facts || facts.width < 480 || facts.height < 320) continue;
+      const file = `${hit.id}.${facts.format}`;
+      await writeFile(join(directory, file), downloaded.body);
+      candidates.push({ id: hit.id, shows: plan.subject.landmark, kind: plan.kind, query: `${plan.query} [${plan.lang}]`,
+        artist: hit.user, pageUrl: hit.pageURL, tags: hit.tags, file, width: facts.width, height: facts.height,
+        bytes: downloaded.body.byteLength });
+    }
+    await writeFile(join(directory, "candidates.json"), `${JSON.stringify({ city, searches: asked, candidates }, null, 1)}\n`);
+    results.push({ city, candidates, searches: asked });
+    console.log(`${city.name}: ${candidates.length} 张候选（${asked.join("；")}）`);
+  }
+
+  await writeFile(join(reviewRoot, batch.id, "review.html"), reviewPage(batch, results));
+  const covered = results.filter((item) => item.candidates.length > 0).length;
+  console.log(`\n${covered}/${results.length} 个城市有候选。请求：搜索 ${searches} 次，下载 ${downloads} 次。`);
+  console.log(`审核页：${join(reviewRoot, batch.id, "review.html")}`);
+}
+
+function escapeHtml(text: string): string {
+  return text.replace(/[&<>"]/gu, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "\"": "&quot;" })[char] ?? char);
+}
+
+function reviewPage(batch: CatalogBatch, results: readonly CityCandidates[]): string {
+  const rows = results.map(({ city, candidates, searches }) => `
+<section>
+  <h2>${escapeHtml(city.name)} <small>${escapeHtml(city.province)}</small></h2>
+  <p class="meta">${escapeHtml(searches.join("；"))}</p>
+  <div class="row">${candidates.length === 0 ? "<p class=\"none\">没有合格候选</p>" : candidates.map((item) => `
+    <figure>
+      <img src="${encodeURIComponent(city.name)}/${item.file}" alt="">
+      <figcaption><b>${item.id}</b> ${escapeHtml(item.shows)}${item.kind === "city" ? "（城市图）" : ""}<br>
+        ${escapeHtml(item.artist)} · ${item.width}×${item.height} · ${Math.round(item.bytes / 1024)} KB<br>
+        <a href="${escapeHtml(item.pageUrl)}">Pixabay 原图页</a><br><span class="tags">${escapeHtml(item.tags)}</span></figcaption>
+    </figure>`).join("")}</div>
+</section>`).join("");
+  return `<!doctype html><html lang="zh"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>图集候选 ${escapeHtml(batch.id)}</title>
+<style>body{font:14px/1.5 system-ui,sans-serif;margin:16px;background:#fafaf7;color:#222}section{margin:0 0 28px}
+h2{font-size:18px;margin:0 0 4px}small{color:#777;font-weight:normal}.meta{color:#777;margin:0 0 8px}.row{display:flex;gap:12px;flex-wrap:wrap}
+figure{margin:0;width:320px}img{width:320px;aspect-ratio:4/3;object-fit:cover;border-radius:6px;display:block}
+figcaption{font-size:12px;margin-top:4px}.tags{color:#888}.none{color:#b44}</style></head><body>
+<h1>图集候选：${escapeHtml(batch.id)}</h1>${rows}</body></html>\n`;
+}
+
+async function applyPicks(batch: CatalogBatch, picksPath: string): Promise<void> {
+  const picks = JSON.parse(await readFile(picksPath, "utf8")) as Record<string, { id: number; caption: string; slug: string }>;
+  const catalog = await readCatalog();
+  const before = Object.keys(catalog).length;
+  const today = new Date().toISOString().slice(0, 10);
+  for (const [cityName, { id, caption, slug }] of Object.entries(picks)) {
+    const city = batch.cities.find((item) => item.name === cityName);
+    if (!city) throw new Error(`批次里没有 ${cityName}`);
+    if (hasRepresentative(catalog, city)) throw new Error(`${cityName} 已有代表图`);
+    const directory = join(reviewRoot, batch.id, city.name);
+    const reviewed = JSON.parse(await readFile(join(directory, "candidates.json"), "utf8")) as { candidates: Candidate[] };
+    const chosen = reviewed.candidates.find((item) => item.id === id);
+    if (!chosen) throw new Error(`${cityName} 的候选里没有 ${id}`);
+    const name = caption.trim();
+    if (!name || name.length > 30) throw new Error(`${cityName} 的 caption 不合法`);
+    if (catalog[name]) throw new Error(`图集里已有「${name}」，换一个条目名`);
+    const file = `${slugOf(slug)}-${chosen.id}.${chosen.file.split(".").pop()}`;
+    if (!/^[a-z0-9][a-z0-9-]*\.(?:jpe?g|png|webp)$/u.test(file)) throw new Error(`${cityName} 的文件名不合法：${file}`);
+    await copyFile(join(directory, chosen.file), join(photosDirectory, file));
+    catalog[name] = { file, artist: chosen.artist, pageUrl: chosen.pageUrl, fetchedAt: today, aliases: [],
+      regions: [city.name, city.short], scenicFor: [city.name, city.short] };
+    console.log(`${cityName} ← ${name}（${file}）`);
+  }
+  await writeFile(catalogPath, `${JSON.stringify(catalog, null, 1)}\n`);
+  const after = Object.keys(parsePhotoCatalog(JSON.parse(await readFile(catalogPath, "utf8")) as unknown)).length;
+  if (after !== Object.keys(catalog).length) throw new Error("写入后有条目没通过图集校验");
+  console.log(`\n图集 ${before} → ${after} 条。`);
+}
+
+async function main(): Promise<void> {
+  const [mode, batchId, picksPath] = process.argv.slice(2);
+  if (mode === "fetch" && batchId) return fetchBatch(batchOf(batchId));
+  if (mode === "apply" && batchId && picksPath) return applyPicks(batchOf(batchId), picksPath);
+  console.error("用法：fetch <批次> | apply <批次> <picks.json>");
+  process.exitCode = 1;
+}
+
+main().catch((error: unknown) => {
+  const key = process.env.PIXABAY_API_KEY?.trim();
+  let message = error instanceof Error ? error.message : "未知错误";
+  if (key) message = message.replaceAll(key, "[REDACTED]");
+  console.error(`停止：${message.replace(/https?:\/\/\S+/giu, "[URL]")}`);
+  process.exitCode = 1;
+});
