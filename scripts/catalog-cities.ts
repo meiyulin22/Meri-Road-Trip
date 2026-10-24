@@ -276,8 +276,89 @@ const fujian: readonly CatalogCity[] = [
     { zh: "太姥山", en: "Mount Taimu" }, { zh: "霞浦滩涂", en: "Xiapu Mudflats" }] },
 ];
 
+const tianjin: readonly CatalogCity[] = [
+  { province: "天津市", name: "天津市", short: "天津", en: "Tianjin", landmarks: [
+    { zh: "天津之眼", en: "Tianjin Eye" }, { zh: "五大道", en: "Five Great Avenues" }] },
+];
+
+const hebei: readonly CatalogCity[] = [
+  { province: "河北省", name: "石家庄市", short: "石家庄", en: "Shijiazhuang", landmarks: [
+    { zh: "赵州桥", en: "Zhaozhou Bridge" }, { zh: "正定古城", en: "Zhengding Ancient City" }] },
+  { province: "河北省", name: "唐山市", short: "唐山", en: "Tangshan", landmarks: [
+    { zh: "唐山南湖", en: "Tangshan Nanhu Park" }, { zh: "清东陵", en: "Eastern Qing Tombs" }] },
+  { province: "河北省", name: "秦皇岛市", short: "秦皇岛", en: "Qinhuangdao", landmarks: [
+    { zh: "山海关", en: "Shanhai Pass" }, { zh: "北戴河", en: "Beidaihe" }] },
+  { province: "河北省", name: "邯郸市", short: "邯郸", en: "Handan", landmarks: [
+    { zh: "广府古城", en: "Guangfu Ancient City" }, { zh: "娲皇宫", en: "Wahuang Palace" }] },
+  { province: "河北省", name: "邢台市", short: "邢台", en: "Xingtai", landmarks: [
+    { zh: "崆山白云洞", en: "Kongshan Baiyun Cave" }, { zh: "邢台大峡谷", en: "Xingtai Grand Canyon" }] },
+  { province: "河北省", name: "保定市", short: "保定", en: "Baoding", landmarks: [
+    { zh: "白洋淀", en: "Baiyangdian" }, { zh: "直隶总督署", en: "Zhili Governor's Office" }] },
+  { province: "河北省", name: "张家口市", short: "张家口", en: "Zhangjiakou", landmarks: [
+    { zh: "大境门", en: "Dajingmen" }, { zh: "崇礼", en: "Chongli" }] },
+  { province: "河北省", name: "承德市", short: "承德", en: "Chengde", landmarks: [
+    { zh: "避暑山庄", en: "Chengde Mountain Resort" }, { zh: "普宁寺", en: "Puning Temple" }] },
+  { province: "河北省", name: "沧州市", short: "沧州", en: "Cangzhou", landmarks: [
+    { zh: "沧州铁狮子", en: "Iron Lion of Cangzhou" }, { zh: "吴桥杂技大世界", en: "Wuqiao Acrobatics World" }] },
+  { province: "河北省", name: "廊坊市", short: "廊坊", en: "Langfang", landmarks: [
+    { zh: "天下第一城", en: "First City Under Heaven" }, { zh: "胜芳古镇", en: "Shengfang Ancient Town" }] },
+  { province: "河北省", name: "衡水市", short: "衡水", en: "Hengshui", landmarks: [
+    { zh: "衡水湖", en: "Hengshui Lake" }, { zh: "宝云塔", en: "Baoyun Pagoda" }] },
+];
+
+const shanxi: readonly CatalogCity[] = [
+  { province: "山西省", name: "太原市", short: "太原", en: "Taiyuan", landmarks: [
+    { zh: "晋祠", en: "Jinci Temple" }, { zh: "双塔寺", en: "Twin Pagoda Temple" }] },
+  { province: "山西省", name: "大同市", short: "大同", en: "Datong", landmarks: [
+    { zh: "云冈石窟", en: "Yungang Grottoes" }, { zh: "悬空寺", en: "Hanging Temple" }] },
+  { province: "山西省", name: "阳泉市", short: "阳泉", en: "Yangquan", landmarks: [
+    { zh: "娘子关", en: "Niangzi Pass" }, { zh: "藏山", en: "Cangshan Yangquan" }] },
+  { province: "山西省", name: "长治市", short: "长治", en: "Changzhi", landmarks: [
+    { zh: "太行山大峡谷", en: "Taihang Grand Canyon" }, { zh: "通天峡", en: "Tongtian Gorge" }] },
+  { province: "山西省", name: "晋城市", short: "晋城", en: "Jincheng", landmarks: [
+    { zh: "皇城相府", en: "Huangcheng Xiangfu" }, { zh: "王莽岭", en: "Wangmang Ridge" }] },
+  { province: "山西省", name: "朔州市", short: "朔州", en: "Shuozhou", landmarks: [
+    { zh: "应县木塔", en: "Yingxian Wooden Pagoda" }, { zh: "崇福寺", en: "Chongfu Temple" }] },
+  { province: "山西省", name: "晋中市", short: "晋中", en: "Jinzhong", landmarks: [
+    { zh: "平遥古城", en: "Pingyao Ancient City" }, { zh: "乔家大院", en: "Qiao Family Compound" }] },
+  { province: "山西省", name: "运城市", short: "运城", en: "Yuncheng", landmarks: [
+    { zh: "鹳雀楼", en: "Stork Tower" }, { zh: "解州关帝庙", en: "Xiezhou Guandi Temple" }] },
+  { province: "山西省", name: "忻州市", short: "忻州", en: "Xinzhou", landmarks: [
+    { zh: "五台山", en: "Mount Wutai" }, { zh: "雁门关", en: "Yanmen Pass" }] },
+  { province: "山西省", name: "临汾市", short: "临汾", en: "Linfen", landmarks: [
+    { zh: "壶口瀑布", en: "Hukou Waterfall" }, { zh: "云丘山", en: "Yunqiu Mountain" }] },
+  { province: "山西省", name: "吕梁市", short: "吕梁", en: "Lüliang", landmarks: [
+    { zh: "碛口古镇", en: "Qikou Ancient Town" }, { zh: "北武当山", en: "Mount Beiwudang" }] },
+];
+
+const innerMongolia: readonly CatalogCity[] = [
+  { province: "内蒙古自治区", name: "呼和浩特市", short: "呼和浩特", en: "Hohhot", landmarks: [
+    { zh: "大召寺", en: "Dazhao Temple" }, { zh: "昭君墓", en: "Tomb of Wang Zhaojun" }] },
+  { province: "内蒙古自治区", name: "包头市", short: "包头", en: "Baotou", landmarks: [
+    { zh: "五当召", en: "Wudang Lamasery" }, { zh: "赛汗塔拉", en: "Saihantala" }] },
+  { province: "内蒙古自治区", name: "乌海市", short: "乌海", en: "Wuhai", landmarks: [
+    { zh: "乌海湖", en: "Wuhai Lake" }, { zh: "甘德尔山", en: "Gandeer Mountain" }] },
+  { province: "内蒙古自治区", name: "赤峰市", short: "赤峰", en: "Chifeng", landmarks: [
+    { zh: "阿斯哈图石林", en: "Asihatu Stone Forest" }, { zh: "乌兰布统", en: "Ulan Butong" }] },
+  { province: "内蒙古自治区", name: "通辽市", short: "通辽", en: "Tongliao", landmarks: [
+    { zh: "大青沟", en: "Daqinggou" }, { zh: "扎鲁特草原", en: "Jarud Grassland" }] },
+  { province: "内蒙古自治区", name: "鄂尔多斯市", short: "鄂尔多斯", en: "Ordos", landmarks: [
+    { zh: "响沙湾", en: "Xiangshawan" }, { zh: "成吉思汗陵", en: "Mausoleum of Genghis Khan" }] },
+  { province: "内蒙古自治区", name: "巴彦淖尔市", short: "巴彦淖尔", en: "Bayannur", landmarks: [
+    { zh: "乌梁素海", en: "Ulansuhai Lake" }, { zh: "阴山岩画", en: "Yinshan Rock Paintings" }] },
+  { province: "内蒙古自治区", name: "乌兰察布市", short: "乌兰察布", en: "Ulanqab", landmarks: [
+    { zh: "辉腾锡勒草原", en: "Huitengxile Grassland" }, { zh: "岱海", en: "Daihai Lake" }] },
+  { province: "内蒙古自治区", name: "兴安盟", short: "兴安", en: "Hinggan League", landmarks: [
+    { zh: "阿尔山", en: "Arxan" }, { zh: "成吉思汗庙", en: "Genghis Khan Temple Ulanhot" }] },
+  { province: "内蒙古自治区", name: "锡林郭勒盟", short: "锡林郭勒", en: "Xilingol", landmarks: [
+    { zh: "锡林郭勒草原", en: "Xilingol Grassland" }, { zh: "元上都遗址", en: "Xanadu" }] },
+  { province: "内蒙古自治区", name: "阿拉善盟", short: "阿拉善", en: "Alxa", landmarks: [
+    { zh: "额济纳胡杨林", en: "Ejina Populus Forest" }, { zh: "巴丹吉林沙漠", en: "Badain Jaran Desert" }] },
+];
+
 export const catalogBatches: readonly CatalogBatch[] = [
   { id: "jiangzhehu", cities: [...jiangsu, ...zhejiang, ...shanghai] },
   { id: "southwest", cities: [...yunnan, ...sichuan, ...chongqing, ...tibet] },
   { id: "south", cities: [...guangdong, ...guangxi, ...hainan, ...fujian] },
+  { id: "north", cities: [...tianjin, ...hebei, ...shanxi, ...innerMongolia] },
 ];

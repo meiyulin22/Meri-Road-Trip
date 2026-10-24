@@ -298,8 +298,10 @@ async function applyPicks(batch: CatalogBatch, picksPath: string): Promise<void>
 function cityQuery(city: CatalogCity): string {
   const names = [chineseLiterals([city.name, city.short, ...city.landmarks.map((landmark) => landmark.zh)]),
     ...city.landmarks.map((landmark) => `${literal(landmark.en)}@en`)].join(" ");
+  // A 直辖市 has no province to pin it; "in China" (P17 = Q148) at least keeps out the moon
+  // crater named 天津 that Wikidata also labels 天津 (found in the 1.0635 north batch).
   const municipality = city.name === city.province;
-  const province = municipality ? ""
+  const province = municipality ? "?region wdt:P17 wd:Q148."
     : `?region wdt:P131 ?province. VALUES ?provinceName { ${chineseLiterals([city.province])} } ?province rdfs:label ?provinceName.`;
   return `SELECT DISTINCT ?item ?image ?name WHERE {
   VALUES ?name { ${names} }

@@ -2269,5 +2269,599 @@
   "source": "wikimedia",
   "license": "CC BY-SA 4.0",
   "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0"
+ },
+ "天津之眼": {
+  "file": "tianjin-eye-12786387.jpg",
+  "artist": "kele_jb1984",
+  "pageUrl": "https://commons.wikimedia.org/wiki/File:%E7%82%AB%E5%BD%A9%E6%B4%A5%E9%97%A811Tianjin_Eye_and_Haihe_River.jpg",
+  "fetchedAt": "2026-10-24",
+  "aliases": [],
+  "regions": [
+   "天津市",
+   "天津"
+  ],
+  "scenicFor": [
+   "天津市",
+   "天津"
+  ],
+  "source": "wikimedia",
+  "license": "CC BY-SA 2.0",
+  "licenseUrl": "https://creativecommons.org/licenses/by-sa/2.0"
+ },
+ "赵州桥": {
+  "file": "zhaozhou-bridge-94102959.jpg",
+  "artist": "Siyuwj",
+  "pageUrl": "https://commons.wikimedia.org/wiki/File:Anji_Bridge,_Zhao_County,_2020-09-06_05.jpg",
+  "fetchedAt": "2026-10-24",
+  "aliases": [],
+  "regions": [
+   "石家庄市",
+   "石家庄"
+  ],
+  "scenicFor": [
+   "石家庄市",
+   "石家庄"
+  ],
+  "source": "wikimedia",
+  "license": "CC BY-SA 4.0",
+  "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0"
+ },
+ "清东陵": {
+  "file": "eastern-qing-tombs-7234657.jpg",
+  "artist": "gongfu_king",
+  "pageUrl": "https://commons.wikimedia.org/wiki/File:Eastern_Qing_Tombs.jpg",
+  "fetchedAt": "2026-10-24",
+  "aliases": [],
+  "regions": [
+   "唐山市",
+   "唐山"
+  ],
+  "scenicFor": [
+   "唐山市",
+   "唐山"
+  ],
+  "source": "wikimedia",
+  "license": "CC BY-SA 2.0",
+  "licenseUrl": "https://creativecommons.org/licenses/by-sa/2.0"
+ },
+ "山海关": {
+  "file": "shanhai-pass-58499405.jpg",
+  "artist": "Nyx Ning",
+  "pageUrl": "https://commons.wikimedia.org/wiki/File:%E6%B2%B3%E5%8C%97%E7%9C%81_%E5%A4%A9%E4%B8%8B%E7%AC%AC%E4%B8%80%E5%85%B3_-_panoramio.jpg",
+  "fetchedAt": "2026-10-24",
+  "aliases": [],
+  "regions": [
+   "秦皇岛市",
+   "秦皇岛"
+  ],
+  "scenicFor": [
+   "秦皇岛市",
+   "秦皇岛"
+  ],
+  "source": "wikimedia",
+  "license": "CC BY-SA 3.0",
+  "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0"
+ },
+ "娲皇宫": {
+  "file": "wahuang-palace-82092055.jpg",
+  "artist": "Anagoria",
+  "pageUrl": "https://commons.wikimedia.org/wiki/File:20190907_Wahuanggong_Palast_der_G%C3%B6ttin_N%C3%BCwa_Shexian_Hebei_06_anagoria.jpg",
+  "fetchedAt": "2026-10-24",
+  "aliases": [],
+  "regions": [
+   "邯郸市",
+   "邯郸"
+  ],
+  "scenicFor": [
+   "邯郸市",
+   "邯郸"
+  ],
+  "source": "wikimedia",
+  "license": "CC BY 3.0",
+  "licenseUrl": "https://creativecommons.org/licenses/by/3.0"
+ },
+ "邢台": {
+  "file": "xingtai-132199201.jpg",
+  "artist": "Huangchinhai",
+  "pageUrl": "https://commons.wikimedia.org/wiki/File:%E9%9A%86%E5%B0%A7%E5%8E%BF20230429.jpg",
+  "fetchedAt": "2026-10-24",
+  "aliases": [],
+  "regions": [
+   "邢台市",
+   "邢台"
+  ],
+  "scenicFor": [
+   "邢台市",
+   "邢台"
+  ],
+  "source": "wikimedia",
+  "license": "CC BY-SA 4.0",
+  "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0"
+ },
+ "直隶总督署": {
+  "file": "zhili-governors-office-181033313.jpg",
+  "artist": "瑞丽江的河水",
+  "pageUrl": "https://commons.wikimedia.org/wiki/File:%E7%9B%B4%E9%9A%B6%E6%80%BB%E7%9D%A3%E7%BD%B2_-_%E5%A4%A7%E9%97%A8_-_2025-10-24_01.jpg",
+  "fetchedAt": "2026-10-24",
+  "aliases": [],
+  "regions": [
+   "保定市",
+   "保定"
+  ],
+  "scenicFor": [
+   "保定市",
+   "保定"
+  ],
+  "source": "wikimedia",
+  "license": "CC BY-SA 4.0",
+  "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0"
+ },
+ "大境门": {
+  "file": "dajingmen-10814327.jpg",
+  "artist": "Wangyunfeng",
+  "pageUrl": "https://commons.wikimedia.org/wiki/File:Dajingmen_04_July_2,2010.jpg",
+  "fetchedAt": "2026-10-24",
+  "aliases": [],
+  "regions": [
+   "张家口市",
+   "张家口"
+  ],
+  "scenicFor": [
+   "张家口市",
+   "张家口"
+  ],
+  "source": "wikimedia",
+  "license": "CC BY-SA 3.0",
+  "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0"
+ },
+ "避暑山庄": {
+  "file": "chengde-mountain-resort-15652420.jpg",
+  "artist": "takwing.kwong",
+  "pageUrl": "https://commons.wikimedia.org/wiki/File:Chengde_Mountain_Resort_1.jpg",
+  "fetchedAt": "2026-10-24",
+  "aliases": [],
+  "regions": [
+   "承德市",
+   "承德"
+  ],
+  "scenicFor": [
+   "承德市",
+   "承德"
+  ],
+  "source": "wikimedia",
+  "license": "CC BY-SA 2.0",
+  "licenseUrl": "https://creativecommons.org/licenses/by-sa/2.0"
+ },
+ "沧州铁狮子": {
+  "file": "cangzhou-iron-lion-109284605.jpg",
+  "artist": "ScareCriterion12",
+  "pageUrl": "https://commons.wikimedia.org/wiki/File:%E6%B2%A7%E5%B7%9E%E9%93%81%E7%8B%AE%E5%AD%902020_(4).jpg",
+  "fetchedAt": "2026-10-24",
+  "aliases": [],
+  "regions": [
+   "沧州市",
+   "沧州"
+  ],
+  "scenicFor": [
+   "沧州市",
+   "沧州"
+  ],
+  "source": "wikimedia",
+  "license": "CC BY-SA 4.0",
+  "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0"
+ },
+ "衡水": {
+  "file": "hengshui-15301693.jpg",
+  "artist": "Owuawb",
+  "pageUrl": "https://commons.wikimedia.org/wiki/File:%E8%A1%A1%E6%B0%B4.jpg",
+  "fetchedAt": "2026-10-24",
+  "aliases": [],
+  "regions": [
+   "衡水市",
+   "衡水"
+  ],
+  "scenicFor": [
+   "衡水市",
+   "衡水"
+  ],
+  "source": "wikimedia",
+  "license": "CC BY-SA 3.0",
+  "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0"
+ },
+ "晋祠": {
+  "file": "jinci-temple-5355987.jpg",
+  "artist": "Gisling",
+  "pageUrl": "https://commons.wikimedia.org/wiki/File:Goddess_Temple_Jinsi.JPG",
+  "fetchedAt": "2026-10-24",
+  "aliases": [],
+  "regions": [
+   "太原市",
+   "太原"
+  ],
+  "scenicFor": [
+   "太原市",
+   "太原"
+  ],
+  "source": "wikimedia",
+  "license": "CC BY 3.0",
+  "licenseUrl": "https://creativecommons.org/licenses/by/3.0"
+ },
+ "云冈石窟": {
+  "file": "yungang-grottoes-12025651.jpg",
+  "artist": "Marcin Białek",
+  "pageUrl": "https://commons.wikimedia.org/wiki/File:Yungang11_2010.JPG",
+  "fetchedAt": "2026-10-24",
+  "aliases": [],
+  "regions": [
+   "大同市",
+   "大同"
+  ],
+  "scenicFor": [
+   "大同市",
+   "大同"
+  ],
+  "source": "wikimedia",
+  "license": "CC BY-SA 4.0",
+  "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0"
+ },
+ "阳泉": {
+  "file": "yangquan-8308107.jpg",
+  "artist": "Boboaiguo",
+  "pageUrl": "https://commons.wikimedia.org/wiki/File:%E9%98%B3%E6%B3%89%E5%B8%82%E4%B8%AD%E5%BF%83.JPG",
+  "fetchedAt": "2026-10-24",
+  "aliases": [],
+  "regions": [
+   "阳泉市",
+   "阳泉"
+  ],
+  "scenicFor": [
+   "阳泉市",
+   "阳泉"
+  ],
+  "source": "wikimedia",
+  "license": "CC BY-SA 3.0",
+  "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0"
+ },
+ "长治": {
+  "file": "changzhi-158731563.jpg",
+  "artist": "1969社论",
+  "pageUrl": "https://commons.wikimedia.org/wiki/File:Changzhi_bayi_square_rostrum.jpg",
+  "fetchedAt": "2026-10-24",
+  "aliases": [],
+  "regions": [
+   "长治市",
+   "长治"
+  ],
+  "scenicFor": [
+   "长治市",
+   "长治"
+  ],
+  "source": "wikimedia",
+  "license": "CC BY-SA 4.0",
+  "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0"
+ },
+ "皇城相府": {
+  "file": "huangcheng-xiangfu-35358013.jpg",
+  "artist": "Underbar dk",
+  "pageUrl": "https://commons.wikimedia.org/wiki/File:Huangcheng_Xiangfu_2.JPG",
+  "fetchedAt": "2026-10-24",
+  "aliases": [],
+  "regions": [
+   "晋城市",
+   "晋城"
+  ],
+  "scenicFor": [
+   "晋城市",
+   "晋城"
+  ],
+  "source": "wikimedia",
+  "license": "CC BY-SA 4.0",
+  "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0"
+ },
+ "崇福寺": {
+  "file": "chongfu-temple-16037800.jpg",
+  "artist": "猫猫的日记本",
+  "pageUrl": "https://commons.wikimedia.org/wiki/File:Chongfu_Temple_in_Shuozhou_2011-07.JPG",
+  "fetchedAt": "2026-10-24",
+  "aliases": [],
+  "regions": [
+   "朔州市",
+   "朔州"
+  ],
+  "scenicFor": [
+   "朔州市",
+   "朔州"
+  ],
+  "source": "wikimedia",
+  "license": "CC BY 3.0",
+  "licenseUrl": "https://creativecommons.org/licenses/by/3.0"
+ },
+ "平遥古城": {
+  "file": "pingyao-ancient-city-21573178.jpg",
+  "artist": "Nicor",
+  "pageUrl": "https://commons.wikimedia.org/wiki/File:Pingyao_40.JPG",
+  "fetchedAt": "2026-10-24",
+  "aliases": [],
+  "regions": [
+   "晋中市",
+   "晋中"
+  ],
+  "scenicFor": [
+   "晋中市",
+   "晋中"
+  ],
+  "source": "wikimedia",
+  "license": "CC BY-SA 3.0",
+  "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0"
+ },
+ "解州关帝庙": {
+  "file": "xiezhou-guandi-temple-192963519.jpg",
+  "artist": "Windmemories",
+  "pageUrl": "https://commons.wikimedia.org/wiki/File:20260504_Haizhou_Emperor_Guan_Temple_11.jpg",
+  "fetchedAt": "2026-10-24",
+  "aliases": [],
+  "regions": [
+   "运城市",
+   "运城"
+  ],
+  "scenicFor": [
+   "运城市",
+   "运城"
+  ],
+  "source": "wikimedia",
+  "license": "CC BY-SA 4.0",
+  "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0"
+ },
+ "雁门关": {
+  "file": "yanmen-pass-169968037.jpg",
+  "artist": "N509FZ",
+  "pageUrl": "https://commons.wikimedia.org/wiki/File:Yanmen_Pass_(20250712164217).jpg",
+  "fetchedAt": "2026-10-24",
+  "aliases": [],
+  "regions": [
+   "忻州市",
+   "忻州"
+  ],
+  "scenicFor": [
+   "忻州市",
+   "忻州"
+  ],
+  "source": "wikimedia",
+  "license": "CC BY-SA 4.0",
+  "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0"
+ },
+ "壶口瀑布": {
+  "file": "hukou-waterfall-6755428.jpg",
+  "artist": "Leruswing",
+  "pageUrl": "https://commons.wikimedia.org/wiki/File:Hukou_Waterfall.jpg",
+  "fetchedAt": "2026-10-24",
+  "aliases": [],
+  "regions": [
+   "临汾市",
+   "临汾"
+  ],
+  "scenicFor": [
+   "临汾市",
+   "临汾"
+  ],
+  "source": "wikimedia",
+  "license": "CC BY-SA 3.0",
+  "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0"
+ },
+ "北武当山": {
+  "file": "beiwudang-mountain-53044889.jpg",
+  "artist": "Li Meng",
+  "pageUrl": "https://commons.wikimedia.org/wiki/File:%E5%8C%97%E6%AD%A6%E5%BD%93%E5%B1%B1-2006_-_panoramio_-_Li_Meng.jpg",
+  "fetchedAt": "2026-10-24",
+  "aliases": [],
+  "regions": [
+   "吕梁市",
+   "吕梁"
+  ],
+  "scenicFor": [
+   "吕梁市",
+   "吕梁"
+  ],
+  "source": "wikimedia",
+  "license": "CC BY-SA 3.0",
+  "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0"
+ },
+ "大召寺": {
+  "file": "dazhao-temple-8860720.jpg",
+  "artist": "兜兜",
+  "pageUrl": "https://commons.wikimedia.org/wiki/File:Da_Zhao_Temple_in_Hohhot3.JPG",
+  "fetchedAt": "2026-10-24",
+  "aliases": [],
+  "regions": [
+   "呼和浩特市",
+   "呼和浩特"
+  ],
+  "scenicFor": [
+   "呼和浩特市",
+   "呼和浩特"
+  ],
+  "source": "wikimedia",
+  "license": "CC BY-SA 3.0",
+  "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0"
+ },
+ "包头": {
+  "file": "baotou-73359053.jpg",
+  "artist": "Nickm57",
+  "pageUrl": "https://commons.wikimedia.org/wiki/File:Baotou,_Inner_Mongolia.jpg",
+  "fetchedAt": "2026-10-24",
+  "aliases": [],
+  "regions": [
+   "包头市",
+   "包头"
+  ],
+  "scenicFor": [
+   "包头市",
+   "包头"
+  ],
+  "source": "wikimedia",
+  "license": "CC BY-SA 4.0",
+  "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0"
+ },
+ "乌海": {
+  "file": "wuhai-8428069.jpg",
+  "artist": "GreatHan",
+  "pageUrl": "https://commons.wikimedia.org/wiki/File:%E4%B9%8C%E6%B5%B7%E4%B8%9C%E5%B1%B1%E9%B8%9F%E7%9E%B0.JPG",
+  "fetchedAt": "2026-10-24",
+  "aliases": [],
+  "regions": [
+   "乌海市",
+   "乌海"
+  ],
+  "scenicFor": [
+   "乌海市",
+   "乌海"
+  ],
+  "source": "wikimedia",
+  "license": "CC BY-SA 3.0",
+  "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0"
+ },
+ "乌兰布统": {
+  "file": "ulan-butong-22450357.jpg",
+  "artist": "孫路洋 ( Sunluyang )",
+  "pageUrl": "https://commons.wikimedia.org/wiki/File:P8050566WuLanBuTong.JPG",
+  "fetchedAt": "2026-10-24",
+  "aliases": [],
+  "regions": [
+   "赤峰市",
+   "赤峰"
+  ],
+  "scenicFor": [
+   "赤峰市",
+   "赤峰"
+  ],
+  "source": "wikimedia",
+  "license": "Public domain",
+  "licenseUrl": "https://commons.wikimedia.org/wiki/File:P8050566WuLanBuTong.JPG"
+ },
+ "通辽": {
+  "file": "tongliao-189049938.jpg",
+  "artist": "Liuxingy",
+  "pageUrl": "https://commons.wikimedia.org/wiki/File:%E7%A7%91%E5%B0%94%E6%B2%81_%E9%80%9A%E9%9C%8D%E9%93%81%E8%B7%AF%E4%B8%8E%E5%A4%A7%E9%83%91%E9%93%81%E8%B7%AF%E7%BA%BF%E8%B7%AF%E6%89%80_01.jpg",
+  "fetchedAt": "2026-10-24",
+  "aliases": [],
+  "regions": [
+   "通辽市",
+   "通辽"
+  ],
+  "scenicFor": [
+   "通辽市",
+   "通辽"
+  ],
+  "source": "wikimedia",
+  "license": "CC BY-SA 4.0",
+  "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0"
+ },
+ "成吉思汗陵": {
+  "file": "genghis-khan-mausoleum-107989490.jpg",
+  "artist": "ScareCriterion12",
+  "pageUrl": "https://commons.wikimedia.org/wiki/File:%E6%88%90%E5%90%89%E6%80%9D%E6%B1%97%E9%99%B52021.jpg",
+  "fetchedAt": "2026-10-24",
+  "aliases": [],
+  "regions": [
+   "鄂尔多斯市",
+   "鄂尔多斯"
+  ],
+  "scenicFor": [
+   "鄂尔多斯市",
+   "鄂尔多斯"
+  ],
+  "source": "wikimedia",
+  "license": "CC BY-SA 4.0",
+  "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0"
+ },
+ "巴彦淖尔": {
+  "file": "bayannur-28878469.jpg",
+  "artist": "FranzSchd",
+  "pageUrl": "https://commons.wikimedia.org/wiki/File:Bayan_Bolig.jpg",
+  "fetchedAt": "2026-10-24",
+  "aliases": [],
+  "regions": [
+   "巴彦淖尔市",
+   "巴彦淖尔"
+  ],
+  "scenicFor": [
+   "巴彦淖尔市",
+   "巴彦淖尔"
+  ],
+  "source": "wikimedia",
+  "license": "CC BY-SA 3.0",
+  "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0"
+ },
+ "乌兰察布": {
+  "file": "ulanqab-48268469.jpg",
+  "artist": "天王星",
+  "pageUrl": "https://commons.wikimedia.org/wiki/File:%E8%A1%97%E6%99%AF_-_panoramio.jpg",
+  "fetchedAt": "2026-10-24",
+  "aliases": [],
+  "regions": [
+   "乌兰察布市",
+   "乌兰察布"
+  ],
+  "scenicFor": [
+   "乌兰察布市",
+   "乌兰察布"
+  ],
+  "source": "wikimedia",
+  "license": "CC BY-SA 3.0",
+  "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0"
+ },
+ "兴安": {
+  "file": "hinggan-122072906.jpg",
+  "artist": "維基小霸王",
+  "pageUrl": "https://commons.wikimedia.org/wiki/File:%E4%B9%8C%E5%85%B0%E6%B5%A9%E7%89%B9_03.jpg",
+  "fetchedAt": "2026-10-24",
+  "aliases": [],
+  "regions": [
+   "兴安盟",
+   "兴安"
+  ],
+  "scenicFor": [
+   "兴安盟",
+   "兴安"
+  ],
+  "source": "wikimedia",
+  "license": "CC BY-SA 4.0",
+  "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0"
+ },
+ "元上都遗址": {
+  "file": "xanadu-site-167650354.jpg",
+  "artist": "xiquinhosilva",
+  "pageUrl": "https://commons.wikimedia.org/wiki/File:Xanadu_(54565367991).jpg",
+  "fetchedAt": "2026-10-24",
+  "aliases": [],
+  "regions": [
+   "锡林郭勒盟",
+   "锡林郭勒"
+  ],
+  "scenicFor": [
+   "锡林郭勒盟",
+   "锡林郭勒"
+  ],
+  "source": "wikimedia",
+  "license": "CC BY 2.0",
+  "licenseUrl": "https://creativecommons.org/licenses/by/2.0"
+ },
+ "阿拉善": {
+  "file": "alxa-22936947.jpg",
+  "artist": "Carsten Ullrich from Shanghai, China",
+  "pageUrl": "https://commons.wikimedia.org/wiki/File:A_picture_from_China_every_day_293.jpg",
+  "fetchedAt": "2026-10-24",
+  "aliases": [],
+  "regions": [
+   "阿拉善盟",
+   "阿拉善"
+  ],
+  "scenicFor": [
+   "阿拉善盟",
+   "阿拉善"
+  ],
+  "source": "wikimedia",
+  "license": "CC BY-SA 2.0",
+  "licenseUrl": "https://creativecommons.org/licenses/by-sa/2.0"
  }
 }

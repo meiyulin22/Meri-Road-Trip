@@ -74,7 +74,7 @@ function namesOf(subject: RemotePhotoSubject): { chinese: string[]; latin: strin
  * the card's 市 by Wikidata's own "located in" chain (P131, followed upwards), and have an
  * image (P18). The 市 is itself pinned to its province, so neither the landmark nor a short
  * 市 name can land on a namesake elsewhere: 西湖 in 惠州市 is not 西湖 in 杭州市.
- * A 直辖市 is its own province, so only its name is asked.
+ * A 直辖市 is its own province, so only its name and its country are asked.
  */
 export function landmarkQuery(subject: RemotePhotoSubject): string | null {
   const { chinese, latin } = namesOf(subject);
@@ -82,7 +82,8 @@ export function landmarkQuery(subject: RemotePhotoSubject): string | null {
   const names = [chineseLiterals(chinese), ...latin.map((name) => `${literal(name)}@en`)].filter(Boolean).join(" ");
   const regions = chineseLiterals([subject.region, regionShortName(subject.region)]);
   const municipality = regionShortName(subject.region) === regionShortName(subject.province);
-  const province = municipality ? ""
+  // A 直辖市 has no province above it: "in China" (P17 = Q148) keeps out namesakes such as the moon crater 天津.
+  const province = municipality ? "?region wdt:P17 wd:Q148."
     : `?region wdt:P131 ?province. VALUES ?provinceName { ${chineseLiterals([subject.province])} } ?province rdfs:label ?provinceName.`;
   return `SELECT DISTINCT ?item ?image ?name ?rank WHERE {
   VALUES ?name { ${names} }

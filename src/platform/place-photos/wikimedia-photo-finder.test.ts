@@ -184,6 +184,7 @@ test("the query pins the landmark to its 市 and the 市 to its province, and no
   assert.match(query, /"玉龙\\"\} \. \?x \?y \?z \{\\""@zh/u);
   const chongqing = landmarkQuery({ province: "重庆市", region: "重庆市", landmark: "洪崖洞" }) ?? "";
   assert.doesNotMatch(chongqing, /\?province/u);
+  assert.match(chongqing, /\?region wdt:P17 wd:Q148\./u);
 });
 
 test("the landmark's own Chinese label ranks first, then other labels, then aliases; the older item breaks a tie", () => {
