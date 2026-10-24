@@ -892,5 +892,200 @@
    "舟山市",
    "舟山"
   ]
+ },
+ "东安湖": {
+  "file": "chengdu-dongan-lake-7892214.jpg",
+  "artist": "adrian2019",
+  "pageUrl": "https://pixabay.com/zh/photos/lake-bridge-park-sky-chengdu-7892214/",
+  "fetchedAt": "2026-10-24",
+  "aliases": [],
+  "regions": [
+   "成都市",
+   "成都"
+  ],
+  "scenicFor": [
+   "成都市",
+   "成都"
+  ]
+ },
+ "洪崖洞": {
+  "file": "hongyadong-chongqing-7093033.jpg",
+  "artist": "Media_Breeze",
+  "pageUrl": "https://pixabay.com/zh/photos/chongqing-yangtze-river-night-river-7093033/",
+  "fetchedAt": "2026-10-24",
+  "aliases": [],
+  "regions": [
+   "重庆市",
+   "重庆"
+  ],
+  "scenicFor": [
+   "重庆市",
+   "重庆"
+  ]
+ },
+ "滇池": {
+  "file": "dianchi-lake-kunming-915738.jpg",
+  "artist": "MsPuff",
+  "pageUrl": "https://pixabay.com/zh/photos/dianchi-yunnan-kunming-dianchi-915738/",
+  "fetchedAt": "2026-10-24",
+  "aliases": [],
+  "regions": [
+   "昆明市",
+   "昆明"
+  ],
+  "scenicFor": [
+   "昆明市",
+   "昆明"
+  ]
+ },
+ "羊卓雍错": {
+  "file": "yamdrok-lake-6590698.jpg",
+  "artist": "wuxf",
+  "pageUrl": "https://pixabay.com/zh/photos/lake-nature-travel-exploration-6590698/",
+  "fetchedAt": "2026-10-24",
+  "aliases": [],
+  "regions": [
+   "山南市",
+   "山南"
+  ],
+  "scenicFor": [
+   "山南市",
+   "山南"
+  ]
+ },
+ "冈仁波齐": {
+  "file": "mount-kailash-317458.jpg",
+  "artist": "213852",
+  "pageUrl": "https://pixabay.com/zh/photos/kailash-tibet-mountain-kora-317458/",
+  "fetchedAt": "2026-10-24",
+  "aliases": [],
+  "regions": [
+   "阿里地区",
+   "阿里"
+  ],
+  "scenicFor": [
+   "阿里地区",
+   "阿里"
+  ]
+ },
+ "然乌": {
+  "file": "ranwu-qamdo-1163848.jpg",
+  "artist": "Yuanyumin",
+  "pageUrl": "https://pixabay.com/photos/mountain-fog-cloud-tibet-ranwu-1163848/",
+  "fetchedAt": "2026-10-24",
+  "aliases": [],
+  "regions": [
+   "昌都市",
+   "昌都"
+  ],
+  "scenicFor": [
+   "昌都市",
+   "昌都"
+  ]
+ },
+ "普者黑": {
+  "file": "puzhehei-7072090.jpg",
+  "artist": "青丘丨飒嫚飒",
+  "pageUrl": "https://pixabay.com/photos/nature-sky-clouds-travel-scenery-7072090/",
+  "fetchedAt": "2026-10-24",
+  "aliases": [],
+  "regions": [
+   "文山壮族苗族自治州",
+   "文山"
+  ],
+  "scenicFor": [
+   "文山壮族苗族自治州",
+   "文山"
+  ]
+ },
+ "碧峰峡": {
+  "file": "bifengxia-yaan-2873752.jpg",
+  "artist": "mingjunyu2",
+  "pageUrl": "https://pixabay.com/photos/yaan-on-the-inside-the-ancient-town-2873752/",
+  "fetchedAt": "2026-10-24",
+  "aliases": [],
+  "regions": [
+   "雅安市",
+   "雅安"
+  ],
+  "scenicFor": [
+   "雅安市",
+   "雅安"
+  ]
+ },
+ "三星堆": {
+  "file": "sanxingdui-8410996.jpg",
+  "artist": "ymyphoto",
+  "pageUrl": "https://pixabay.com/photos/sanxingdui-ancient-shu-kingdom-8410996/",
+  "fetchedAt": "2026-10-24",
+  "aliases": [],
+  "regions": [
+   "德阳市",
+   "德阳"
+  ],
+  "scenicFor": [
+   "德阳市",
+   "德阳"
+  ]
+ },
+ "南充": {
+  "file": "nanchong-river-3773849.jpg",
+  "artist": "alfle",
+  "pageUrl": "https://pixabay.com/zh/photos/jiang-river-nanchong-wetlands-3773849/",
+  "fetchedAt": "2026-10-24",
+  "aliases": [],
+  "regions": [
+   "南充市",
+   "南充"
+  ],
+  "scenicFor": [
+   "南充市",
+   "南充"
+  ]
+ },
+ "宜宾竹海": {
+  "file": "yibin-bamboo-sea-747796.jpg",
+  "artist": "voyager",
+  "pageUrl": "https://pixabay.com/zh/photos/roof-watt-yibin-sichuan-bamboo-sea-747796/",
+  "fetchedAt": "2026-10-24",
+  "aliases": [],
+  "regions": [
+   "宜宾市",
+   "宜宾"
+  ],
+  "scenicFor": [
+   "宜宾市",
+   "宜宾"
+  ]
+ },
+ "班章茶园": {
+  "file": "banzhang-tea-garden-2241700.jpg",
+  "artist": "kangaroo000",
+  "pageUrl": "https://pixabay.com/zh/photos/yunnan-tea-garden-xishuangbanna-2241700/",
+  "fetchedAt": "2026-10-24",
+  "aliases": [],
+  "regions": [
+   "西双版纳傣族自治州",
+   "西双版纳"
+  ],
+  "scenicFor": [
+   "西双版纳傣族自治州",
+   "西双版纳"
+  ]
+ },
+ "元阳梯田": {
+  "file": "yuanyang-rice-terraces-7247206.jpg",
+  "artist": "WeAreGuides",
+  "pageUrl": "https://pixabay.com/zh/photos/yuanyang-rice-terraces-yunnan-china-7247206/",
+  "fetchedAt": "2026-10-24",
+  "aliases": [],
+  "regions": [
+   "红河哈尼族彝族自治州",
+   "红河"
+  ],
+  "scenicFor": [
+   "红河哈尼族彝族自治州",
+   "红河"
+  ]
  }
 }

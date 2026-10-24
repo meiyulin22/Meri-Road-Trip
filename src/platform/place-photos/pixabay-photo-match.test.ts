@@ -145,3 +145,10 @@ test("an alias that only names a region does not identify the landmark", () => {
   const huangshan: RemotePhotoSubject = { province: "安徽省", region: "黄山市", landmark: "黄山", english: "Huangshan" };
   assert.equal(judgeHit(hit(5, "黄山, 安徽, 云海"), huangshan).accepted, true);
 });
+
+test("广安里 in Busan is not 广安市: the shared name is ruled out by the foreign place beside it", () => {
+  // The catalog's 广安 candidates were all of Busan's Gwangalli bridge (2026-10-24).
+  const guangan: RemotePhotoSubject = { province: "四川省", region: "广安市", landmark: "广安" };
+  assert.deepEqual(judgeHit(hit(9202902, "节日, 烟花, 釜山, 广安桥, 夜景, 城市"), guangan), { accepted: false, reason: "foreign" });
+  assert.deepEqual(judgeHit(hit(2078844, "广安桥, 广安里海滩, 广安里近海"), guangan), { accepted: false, reason: "foreign" });
+});

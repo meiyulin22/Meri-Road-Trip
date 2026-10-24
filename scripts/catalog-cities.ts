@@ -86,6 +86,89 @@ const shanghai: readonly CatalogCity[] = [
     { zh: "外滩", en: "The Bund Shanghai" }, { zh: "东方明珠", en: "Oriental Pearl Tower" }] },
 ];
 
+// 第二批：云南、四川、重庆、西藏里还没有代表图的城市（丽江、大理、迪庆、乐山、阿坝、甘孜、凉山、
+// 拉萨、日喀则、林芝、那曲已有）。
+const yunnan: readonly CatalogCity[] = [
+  { province: "云南省", name: "昆明市", short: "昆明", en: "Kunming", landmarks: [
+    { zh: "滇池", en: "Dianchi Lake" }, { zh: "石林", en: "Stone Forest Kunming" }] },
+  { province: "云南省", name: "曲靖市", short: "曲靖", en: "Qujing", landmarks: [
+    { zh: "罗平油菜花", en: "Luoping Rapeseed Flowers" }, { zh: "九龙瀑布", en: "Jiulong Waterfall Luoping" }] },
+  { province: "云南省", name: "玉溪市", short: "玉溪", en: "Yuxi", landmarks: [
+    { zh: "抚仙湖", en: "Fuxian Lake" }] },
+  { province: "云南省", name: "保山市", short: "保山", en: "Baoshan Yunnan", landmarks: [
+    { zh: "和顺古镇", en: "Heshun Ancient Town" }, { zh: "腾冲火山", en: "Tengchong Volcano" }] },
+  { province: "云南省", name: "昭通市", short: "昭通", en: "Zhaotong", landmarks: [
+    { zh: "大山包", en: "Dashanbao" }] },
+  { province: "云南省", name: "普洱市", short: "普洱", en: "Pu'er Yunnan", landmarks: [
+    { zh: "景迈山", en: "Jingmai Mountain" }, { zh: "普洱茶园", en: "Pu'er Tea Garden" }] },
+  { province: "云南省", name: "临沧市", short: "临沧", en: "Lincang", landmarks: [
+    { zh: "翁丁古寨", en: "Wengding Village" }] },
+  { province: "云南省", name: "楚雄彝族自治州", short: "楚雄", en: "Chuxiong", landmarks: [
+    { zh: "元谋土林", en: "Yuanmou Earth Forest" }] },
+  { province: "云南省", name: "红河哈尼族彝族自治州", short: "红河", en: "Honghe Yunnan", landmarks: [
+    { zh: "元阳梯田", en: "Yuanyang Rice Terraces" }, { zh: "建水古城", en: "Jianshui Ancient Town" }] },
+  { province: "云南省", name: "文山壮族苗族自治州", short: "文山", en: "Wenshan Yunnan", landmarks: [
+    { zh: "普者黑", en: "Puzhehei" }] },
+  { province: "云南省", name: "西双版纳傣族自治州", short: "西双版纳", en: "Xishuangbanna", landmarks: [
+    { zh: "告庄西双景", en: "Gaozhuang Xishuangjing" }, { zh: "野象谷", en: "Wild Elephant Valley" }] },
+  { province: "云南省", name: "德宏傣族景颇族自治州", short: "德宏", en: "Dehong", landmarks: [
+    { zh: "瑞丽", en: "Ruili" }, { zh: "芒市", en: "Mangshi" }] },
+  { province: "云南省", name: "怒江傈僳族自治州", short: "怒江", en: "Nujiang", landmarks: [
+    { zh: "丙中洛", en: "Bingzhongluo" }, { zh: "怒江大峡谷", en: "Nujiang Grand Canyon" }] },
+];
+
+const sichuan: readonly CatalogCity[] = [
+  { province: "四川省", name: "成都市", short: "成都", en: "Chengdu", landmarks: [
+    { zh: "大熊猫繁育研究基地", en: "Chengdu Research Base of Giant Panda Breeding" }, { zh: "宽窄巷子", en: "Kuanzhai Alley" }] },
+  { province: "四川省", name: "自贡市", short: "自贡", en: "Zigong", landmarks: [
+    { zh: "自贡灯会", en: "Zigong Lantern Festival" }, { zh: "自贡恐龙博物馆", en: "Zigong Dinosaur Museum" }] },
+  { province: "四川省", name: "攀枝花市", short: "攀枝花", en: "Panzhihua", landmarks: [
+    { zh: "二滩", en: "Ertan Panzhihua" }] },
+  { province: "四川省", name: "泸州市", short: "泸州", en: "Luzhou", landmarks: [
+    { zh: "黄荆老林", en: "Huangjing Laolin" }] },
+  { province: "四川省", name: "德阳市", short: "德阳", en: "Deyang", landmarks: [
+    { zh: "三星堆", en: "Sanxingdui" }] },
+  { province: "四川省", name: "绵阳市", short: "绵阳", en: "Mianyang", landmarks: [
+    { zh: "越王楼", en: "Yuewang Tower" }, { zh: "窦圌山", en: "Douchuan Mountain" }] },
+  { province: "四川省", name: "广元市", short: "广元", en: "Guangyuan", landmarks: [
+    { zh: "剑门关", en: "Jianmen Pass" }] },
+  { province: "四川省", name: "遂宁市", short: "遂宁", en: "Suining", landmarks: [
+    { zh: "中国死海", en: "Suining Dead Sea" }] },
+  { province: "四川省", name: "内江市", short: "内江", en: "Neijiang", landmarks: [
+    { zh: "隆昌石牌坊", en: "Longchang Stone Archways" }] },
+  { province: "四川省", name: "南充市", short: "南充", en: "Nanchong", landmarks: [
+    { zh: "阆中古城", en: "Langzhong Ancient Town" }] },
+  { province: "四川省", name: "眉山市", short: "眉山", en: "Meishan", landmarks: [
+    { zh: "瓦屋山", en: "Wawu Mountain" }, { zh: "三苏祠", en: "Sansu Shrine" }] },
+  { province: "四川省", name: "宜宾市", short: "宜宾", en: "Yibin", landmarks: [
+    { zh: "蜀南竹海", en: "Shunan Bamboo Sea" }] },
+  { province: "四川省", name: "广安市", short: "广安", en: "Guang'an", landmarks: [
+    { zh: "华蓥山", en: "Huaying Mountain" }] },
+  { province: "四川省", name: "达州市", short: "达州", en: "Dazhou", landmarks: [
+    { zh: "巴山大峡谷", en: "Bashan Grand Canyon" }] },
+  { province: "四川省", name: "雅安市", short: "雅安", en: "Ya'an", landmarks: [
+    { zh: "碧峰峡", en: "Bifengxia" }, { zh: "牛背山", en: "Niubei Mountain" }] },
+  { province: "四川省", name: "巴中市", short: "巴中", en: "Bazhong", landmarks: [
+    { zh: "光雾山", en: "Guangwu Mountain" }] },
+  { province: "四川省", name: "资阳市", short: "资阳", en: "Ziyang Sichuan", landmarks: [
+    { zh: "安岳石刻", en: "Anyue Grottoes" }] },
+];
+
+const chongqing: readonly CatalogCity[] = [
+  { province: "重庆市", name: "重庆市", short: "重庆", en: "Chongqing", landmarks: [
+    { zh: "洪崖洞", en: "Hongyadong" }, { zh: "解放碑", en: "Jiefangbei Chongqing" }] },
+];
+
+const tibet: readonly CatalogCity[] = [
+  { province: "西藏自治区", name: "昌都市", short: "昌都", en: "Qamdo", landmarks: [
+    { zh: "然乌湖", en: "Ranwu Lake" }, { zh: "来古冰川", en: "Laigu Glacier" }] },
+  { province: "西藏自治区", name: "山南市", short: "山南", en: "Shannan Tibet", landmarks: [
+    { zh: "羊卓雍错", en: "Yamdrok Lake" }, { zh: "雍布拉康", en: "Yumbulagang" }] },
+  { province: "西藏自治区", name: "阿里地区", short: "阿里", en: "Ngari", landmarks: [
+    { zh: "冈仁波齐", en: "Mount Kailash" }, { zh: "玛旁雍错", en: "Lake Manasarovar" }] },
+];
+
 export const catalogBatches: readonly CatalogBatch[] = [
   { id: "jiangzhehu", cities: [...jiangsu, ...zhejiang, ...shanghai] },
+  { id: "southwest", cities: [...yunnan, ...sichuan, ...chongqing, ...tibet] },
 ];

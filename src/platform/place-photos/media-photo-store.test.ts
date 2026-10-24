@@ -152,8 +152,9 @@ test("the shared provider answers from the catalog first, then from what was dow
     // 玉龙雪山 in 丽江市 is in the bundled catalog, so the catalog's photo wins over the download.
     assert.match((await provider.findPhoto({ kind: "named", keywords: "玉龙雪山", region: "丽江市" }))?.url ?? "", /^\/photos\//u);
     assert.deepEqual(await provider.findPhoto({ kind: "scenic", region: "丽江市" }) !== null, true);
-    assert.deepEqual(await provider.findPhoto({ kind: "scenic", region: "成都市" }), null);
-    await store.writeLookup({ region: "成都市", landmark: "宽窄巷子" }, "pixabay-7.jpg", { ...image, caption: "宽窄巷子" });
-    assert.equal((await provider.findPhoto({ kind: "scenic", region: "成都市" }))?.caption, "宽窄巷子");
+    // 达州市 has no representative in the bundled catalog (batch 2 found none on Pixabay).
+    assert.deepEqual(await provider.findPhoto({ kind: "scenic", region: "达州市" }), null);
+    await store.writeLookup({ region: "达州市", landmark: "巴山大峡谷" }, "pixabay-7.jpg", { ...image, caption: "巴山大峡谷" });
+    assert.equal((await provider.findPhoto({ kind: "scenic", region: "达州市" }))?.caption, "巴山大峡谷");
   });
 });

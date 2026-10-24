@@ -185,6 +185,8 @@ export const foreignWords: readonly string[] = [
   "kyrgyzstan", "kazakhstan", "turkey", "indonesia", "bali", "philippines", "malaysia", "singapore",
   "greece", "greek", "meteora", "spain", "portugal", "croatia", "slovenia", "mexico", "brazil", "argentina", "chile",
   "australia", "georgia", "armenia", "iran", "jordan", "egypt", "morocco", "uzbekistan", "tajikistan",
+  // 广安里 (Gwangalli) in Busan shares its first two characters with 广安市 (2026-10-24).
+  "busan", "gwangalli", "da nang", "danang", "hoi an",
 ];
 
 /** The same lookalike places in Chinese, for tags Pixabay returns when asked with lang=zh. */
@@ -193,6 +195,7 @@ export const foreignWordsZh: readonly string[] = [
   "老挝", "缅甸", "柬埔寨", "东南亚", "瑞士", "阿尔卑斯", "意大利", "法国", "挪威", "冰岛", "加拿大", "美国", "秘鲁",
   "新西兰", "奥地利", "苏格兰", "德国", "英国", "俄罗斯", "土耳其", "印尼", "巴厘", "菲律宾", "马来西亚", "新加坡",
   "希腊", "西班牙", "葡萄牙", "墨西哥", "巴西", "澳大利亚", "埃及", "摩洛哥",
+  "釜山", "广安里", "岘港", "会安",
 ];
 
 const ethnicGroups = /(?:白|藏|羌|傣|哈尼|彝|傈僳|景颇|壮|苗|侗|土家|朝鲜|蒙古|哈萨克|回|布依|黎|柯尔克孜|纳西|瑶|畲|满|土|撒拉)族/gu;
