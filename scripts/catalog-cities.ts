@@ -584,6 +584,113 @@ const heilongjiang: readonly CatalogCity[] = [
     { zh: "北极村", en: "Beiji Village Mohe" }, { zh: "九曲十八弯", en: "Jiuqu Shiba Wan Huzhong" }] },
 ];
 
+const shaanxi: readonly CatalogCity[] = [
+  { province: "陕西省", name: "西安市", short: "西安", en: "Xi'an", landmarks: [
+    { zh: "兵马俑", en: "Terracotta Army" }, { zh: "大雁塔", en: "Giant Wild Goose Pagoda" }] },
+  { province: "陕西省", name: "铜川市", short: "铜川", en: "Tongchuan", landmarks: [
+    { zh: "药王山", en: "Yaowang Mountain" }, { zh: "照金", en: "Zhaojin" }] },
+  { province: "陕西省", name: "宝鸡市", short: "宝鸡", en: "Baoji", landmarks: [
+    { zh: "法门寺", en: "Famen Temple" }, { zh: "太白山", en: "Mount Taibai" }] },
+  { province: "陕西省", name: "咸阳市", short: "咸阳", en: "Xianyang", landmarks: [
+    { zh: "乾陵", en: "Qianling Mausoleum" }, { zh: "袁家村", en: "Yuanjia Village" }] },
+  { province: "陕西省", name: "渭南市", short: "渭南", en: "Weinan", landmarks: [
+    { zh: "华山", en: "Mount Hua" }, { zh: "党家村", en: "Dangjia Village" }] },
+  { province: "陕西省", name: "延安市", short: "延安", en: "Yan'an", landmarks: [
+    { zh: "宝塔山", en: "Baota Hill" }, { zh: "黄帝陵", en: "Mausoleum of the Yellow Emperor" }] },
+  { province: "陕西省", name: "汉中市", short: "汉中", en: "Hanzhong", landmarks: [
+    { zh: "石门栈道", en: "Shimen Plank Road" }, { zh: "张良庙", en: "Zhang Liang Temple" }] },
+  { province: "陕西省", name: "榆林市", short: "榆林", en: "Yulin Shaanxi", landmarks: [
+    { zh: "镇北台", en: "Zhenbeitai" }, { zh: "红碱淖", en: "Hongjiannao" }] },
+  { province: "陕西省", name: "安康市", short: "安康", en: "Ankang", landmarks: [
+    { zh: "瀛湖", en: "Yinghu Lake" }, { zh: "香溪洞", en: "Xiangxi Cave" }] },
+  { province: "陕西省", name: "商洛市", short: "商洛", en: "Shangluo", landmarks: [
+    { zh: "金丝峡", en: "Jinsi Gorge" }, { zh: "牛背梁", en: "Niubeiliang" }] },
+];
+
+const gansu: readonly CatalogCity[] = [
+  { province: "甘肃省", name: "兰州市", short: "兰州", en: "Lanzhou", landmarks: [
+    { zh: "中山桥", en: "Zhongshan Bridge Lanzhou" }, { zh: "白塔山", en: "Baita Mountain" }] },
+  { province: "甘肃省", name: "嘉峪关市", short: "嘉峪关", en: "Jiayuguan", landmarks: [
+    { zh: "嘉峪关关城", en: "Jiayu Pass" }, { zh: "悬壁长城", en: "Overhanging Great Wall" }] },
+  { province: "甘肃省", name: "金昌市", short: "金昌", en: "Jinchang", landmarks: [
+    { zh: "骊靬古城", en: "Liqian Ancient City" }, { zh: "北海子", en: "Beihaizi Park" }] },
+  { province: "甘肃省", name: "白银市", short: "白银", en: "Baiyin", landmarks: [
+    { zh: "黄河石林", en: "Yellow River Stone Forest" }, { zh: "寿鹿山", en: "Shoulu Mountain" }] },
+  { province: "甘肃省", name: "天水市", short: "天水", en: "Tianshui", landmarks: [
+    { zh: "麦积山石窟", en: "Maijishan Grottoes" }, { zh: "伏羲庙", en: "Fuxi Temple" }] },
+  { province: "甘肃省", name: "武威市", short: "武威", en: "Wuwei", landmarks: [
+    { zh: "雷台汉墓", en: "Leitai Han Tomb" }, { zh: "武威文庙", en: "Wuwei Confucian Temple" }] },
+  { province: "甘肃省", name: "张掖市", short: "张掖", en: "Zhangye", landmarks: [
+    { zh: "七彩丹霞", en: "Zhangye Danxia" }, { zh: "马蹄寺", en: "Mati Temple" }] },
+  { province: "甘肃省", name: "平凉市", short: "平凉", en: "Pingliang", landmarks: [
+    { zh: "崆峒山", en: "Kongtong Mountain" }, { zh: "云崖寺", en: "Yunya Temple" }] },
+  { province: "甘肃省", name: "庆阳市", short: "庆阳", en: "Qingyang Gansu", landmarks: [
+    { zh: "周祖陵", en: "Zhouzu Mausoleum" }, { zh: "北石窟寺", en: "North Grotto Temple" }] },
+  { province: "甘肃省", name: "定西市", short: "定西", en: "Dingxi", landmarks: [
+    { zh: "渭河源", en: "Weihe Source" }, { zh: "贵清山", en: "Guiqing Mountain" }] },
+  { province: "甘肃省", name: "陇南市", short: "陇南", en: "Longnan", landmarks: [
+    { zh: "官鹅沟", en: "Guan'e Gully" }, { zh: "万象洞", en: "Wanxiang Cave" }] },
+  { province: "甘肃省", name: "临夏回族自治州", short: "临夏", en: "Linxia", landmarks: [
+    { zh: "炳灵寺", en: "Bingling Temple" }, { zh: "八坊十三巷", en: "Bafang Thirteen Lanes" }] },
+  { province: "甘肃省", name: "甘南藏族自治州", short: "甘南", en: "Gannan", landmarks: [
+    { zh: "拉卜楞寺", en: "Labrang Monastery" }, { zh: "扎尕那", en: "Zhagana" }] },
+];
+
+const ningxia: readonly CatalogCity[] = [
+  { province: "宁夏回族自治区", name: "银川市", short: "银川", en: "Yinchuan", landmarks: [
+    { zh: "西夏王陵", en: "Western Xia Tombs" }, { zh: "镇北堡西部影城", en: "Zhenbeibu Western Film Studio" }] },
+  { province: "宁夏回族自治区", name: "石嘴山市", short: "石嘴山", en: "Shizuishan", landmarks: [
+    { zh: "沙湖", en: "Sand Lake Ningxia" }, { zh: "北武当庙", en: "Beiwudang Temple" }] },
+  { province: "宁夏回族自治区", name: "吴忠市", short: "吴忠", en: "Wuzhong", landmarks: [
+    { zh: "一百零八塔", en: "108 Stupas" }, { zh: "青铜峡", en: "Qingtongxia" }] },
+  { province: "宁夏回族自治区", name: "固原市", short: "固原", en: "Guyuan", landmarks: [
+    { zh: "须弥山石窟", en: "Xumishan Grottoes" }, { zh: "六盘山", en: "Liupan Mountain" }] },
+  { province: "宁夏回族自治区", name: "中卫市", short: "中卫", en: "Zhongwei", landmarks: [
+    { zh: "沙坡头", en: "Shapotou" }, { zh: "高庙", en: "Gaomiao Zhongwei" }] },
+];
+
+const qinghai: readonly CatalogCity[] = [
+  { province: "青海省", name: "西宁市", short: "西宁", en: "Xining", landmarks: [
+    { zh: "塔尔寺", en: "Kumbum Monastery" }, { zh: "东关清真大寺", en: "Dongguan Mosque" }] },
+  { province: "青海省", name: "海东市", short: "海东", en: "Haidong", landmarks: [
+    { zh: "瞿昙寺", en: "Qutan Temple" }, { zh: "孟达天池", en: "Mengda Tianchi" }] },
+  { province: "青海省", name: "黄南藏族自治州", short: "黄南", en: "Huangnan", landmarks: [
+    { zh: "坎布拉", en: "Kanbula" }, { zh: "隆务寺", en: "Rongwo Monastery" }] },
+  { province: "青海省", name: "果洛藏族自治州", short: "果洛", en: "Golog", landmarks: [
+    { zh: "年保玉则", en: "Nyanbo Yurtse" }, { zh: "阿尼玛卿", en: "Amne Machin" }] },
+  { province: "青海省", name: "玉树藏族自治州", short: "玉树", en: "Yushu", landmarks: [
+    { zh: "结古寺", en: "Jyekundo Monastery" }, { zh: "勒巴沟", en: "Leba Valley" }] },
+  { province: "青海省", name: "海西蒙古族藏族自治州", short: "海西", en: "Haixi", landmarks: [
+    { zh: "茶卡盐湖", en: "Chaka Salt Lake" }, { zh: "察尔汗盐湖", en: "Qarhan Salt Lake" }] },
+];
+
+const xinjiang: readonly CatalogCity[] = [
+  { province: "新疆维吾尔自治区", name: "乌鲁木齐市", short: "乌鲁木齐", en: "Urumqi", landmarks: [
+    { zh: "红山公园", en: "Hongshan Park Urumqi" }, { zh: "天山大峡谷", en: "Tianshan Grand Canyon" }] },
+  { province: "新疆维吾尔自治区", name: "克拉玛依市", short: "克拉玛依", en: "Karamay", landmarks: [
+    { zh: "魔鬼城", en: "Urho Ghost City" }, { zh: "黑油山", en: "Heiyou Mountain" }] },
+  { province: "新疆维吾尔自治区", name: "吐鲁番市", short: "吐鲁番", en: "Turpan", landmarks: [
+    { zh: "火焰山", en: "Flaming Mountains" }, { zh: "交河故城", en: "Jiaohe Ruins" }] },
+  { province: "新疆维吾尔自治区", name: "哈密市", short: "哈密", en: "Hami", landmarks: [
+    { zh: "哈密回王府", en: "Hami King's Palace" }, { zh: "巴里坤草原", en: "Barkol Grassland" }] },
+  { province: "新疆维吾尔自治区", name: "博尔塔拉蒙古自治州", short: "博尔塔拉", en: "Bortala", landmarks: [
+    { zh: "赛里木湖", en: "Sayram Lake" }, { zh: "怪石峪", en: "Guaishiyu" }] },
+  { province: "新疆维吾尔自治区", name: "巴音郭楞蒙古自治州", short: "巴音郭楞", en: "Bayingolin", landmarks: [
+    { zh: "博斯腾湖", en: "Bosten Lake" }, { zh: "巴音布鲁克", en: "Bayanbulak" }] },
+  { province: "新疆维吾尔自治区", name: "阿克苏地区", short: "阿克苏", en: "Aksu", landmarks: [
+    { zh: "天山神秘大峡谷", en: "Tianshan Mysterious Canyon" }, { zh: "托木尔峰", en: "Jengish Chokusu" }] },
+  { province: "新疆维吾尔自治区", name: "克孜勒苏柯尔克孜自治州", short: "克孜勒苏", en: "Kizilsu", landmarks: [
+    { zh: "奥依塔克", en: "Oytagh Glacier" }, { zh: "阿图什天门", en: "Shipton's Arch" }] },
+  { province: "新疆维吾尔自治区", name: "喀什地区", short: "喀什", en: "Kashgar", landmarks: [
+    { zh: "艾提尕尔清真寺", en: "Id Kah Mosque" }, { zh: "喀什古城", en: "Kashgar Old City" }] },
+  { province: "新疆维吾尔自治区", name: "和田地区", short: "和田", en: "Hotan", landmarks: [
+    { zh: "玉龙喀什河", en: "Yurungkash River" }, { zh: "热瓦克佛寺", en: "Rawak Stupa" }] },
+  { province: "新疆维吾尔自治区", name: "伊犁哈萨克自治州", short: "伊犁", en: "Ili", landmarks: [
+    { zh: "那拉提", en: "Nalati" }, { zh: "喀拉峻", en: "Kalajun" }] },
+  { province: "新疆维吾尔自治区", name: "塔城地区", short: "塔城", en: "Tacheng", landmarks: [
+    { zh: "巴尔鲁克山", en: "Barluk Mountains" }, { zh: "塔城红楼", en: "Tacheng Red Building" }] },
+];
+
 export const catalogBatches: readonly CatalogBatch[] = [
   { id: "jiangzhehu", cities: [...jiangsu, ...zhejiang, ...shanghai] },
   { id: "southwest", cities: [...yunnan, ...sichuan, ...chongqing, ...tibet] },
@@ -591,4 +698,5 @@ export const catalogBatches: readonly CatalogBatch[] = [
   { id: "north", cities: [...tianjin, ...hebei, ...shanxi, ...innerMongolia] },
   { id: "central", cities: [...henan, ...hubei, ...hunan, ...jiangxi, ...anhui] },
   { id: "northeast", cities: [...liaoning, ...jilin, ...heilongjiang] },
+  { id: "northwest", cities: [...shaanxi, ...gansu, ...ningxia, ...qinghai, ...xinjiang] },
 ];
