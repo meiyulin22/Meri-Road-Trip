@@ -691,6 +691,60 @@ const xinjiang: readonly CatalogCity[] = [
     { zh: "巴尔鲁克山", en: "Barluk Mountains" }, { zh: "塔城红楼", en: "Tacheng Red Building" }] },
 ];
 
+const shandong: readonly CatalogCity[] = [
+  { province: "山东省", name: "济南市", short: "济南", en: "Jinan", landmarks: [
+    { zh: "趵突泉", en: "Baotu Spring" }, { zh: "大明湖", en: "Daming Lake" }] },
+  { province: "山东省", name: "青岛市", short: "青岛", en: "Qingdao", landmarks: [
+    { zh: "栈桥", en: "Zhanqiao Pier" }, { zh: "崂山", en: "Mount Lao" }] },
+  { province: "山东省", name: "淄博市", short: "淄博", en: "Zibo", landmarks: [
+    { zh: "周村古商城", en: "Zhoucun Ancient Commercial Town" }, { zh: "潭溪山", en: "Tanxi Mountain" }] },
+  { province: "山东省", name: "枣庄市", short: "枣庄", en: "Zaozhuang", landmarks: [
+    { zh: "台儿庄古城", en: "Tai'erzhuang Ancient Town" }, { zh: "抱犊崮", en: "Baodugu" }] },
+  { province: "山东省", name: "东营市", short: "东营", en: "Dongying", landmarks: [
+    { zh: "黄河入海口", en: "Yellow River Estuary" }, { zh: "天鹅湖", en: "Swan Lake Dongying" }] },
+  { province: "山东省", name: "烟台市", short: "烟台", en: "Yantai", landmarks: [
+    { zh: "蓬莱阁", en: "Penglai Pavilion" }, { zh: "养马岛", en: "Yangma Island" }] },
+  { province: "山东省", name: "潍坊市", short: "潍坊", en: "Weifang", landmarks: [
+    { zh: "十笏园", en: "Shihu Garden" }, { zh: "青州古城", en: "Qingzhou Ancient City" }] },
+  { province: "山东省", name: "济宁市", short: "济宁", en: "Jining", landmarks: [
+    { zh: "曲阜孔庙", en: "Temple of Confucius Qufu" }, { zh: "微山湖", en: "Weishan Lake" }] },
+  { province: "山东省", name: "威海市", short: "威海", en: "Weihai", landmarks: [
+    { zh: "刘公岛", en: "Liugong Island" }, { zh: "成山头", en: "Chengshantou" }] },
+  { province: "山东省", name: "日照市", short: "日照", en: "Rizhao", landmarks: [
+    { zh: "万平口", en: "Wanpingkou" }, { zh: "五莲山", en: "Wulian Mountain" }] },
+  { province: "山东省", name: "临沂市", short: "临沂", en: "Linyi", landmarks: [
+    { zh: "沂蒙山", en: "Yimeng Mountain" }, { zh: "竹泉村", en: "Zhuquan Village" }] },
+  { province: "山东省", name: "德州市", short: "德州", en: "Dezhou", landmarks: [
+    { zh: "董子园", en: "Dongzi Garden" }, { zh: "苏禄王墓", en: "Tomb of the Sultan of Sulu" }] },
+  { province: "山东省", name: "聊城市", short: "聊城", en: "Liaocheng", landmarks: [
+    { zh: "光岳楼", en: "Guangyue Tower" }, { zh: "东昌湖", en: "Dongchang Lake" }] },
+  { province: "山东省", name: "滨州市", short: "滨州", en: "Binzhou", landmarks: [
+    { zh: "魏氏庄园", en: "Wei Family Manor" }, { zh: "鹤伴山", en: "Heban Mountain" }] },
+  { province: "山东省", name: "菏泽市", short: "菏泽", en: "Heze", landmarks: [
+    { zh: "曹州牡丹园", en: "Caozhou Peony Garden" }, { zh: "水浒好汉城", en: "Water Margin Heroes City" }] },
+];
+
+const guizhou: readonly CatalogCity[] = [
+  { province: "贵州省", name: "贵阳市", short: "贵阳", en: "Guiyang", landmarks: [
+    { zh: "甲秀楼", en: "Jiaxiu Tower" }, { zh: "青岩古镇", en: "Qingyan Ancient Town" }] },
+  { province: "贵州省", name: "六盘水市", short: "六盘水", en: "Liupanshui", landmarks: [
+    { zh: "乌蒙大草原", en: "Wumeng Grassland" }, { zh: "妥乐古银杏", en: "Tuole Ginkgo Village" }] },
+  { province: "贵州省", name: "遵义市", short: "遵义", en: "Zunyi", landmarks: [
+    { zh: "遵义会议会址", en: "Zunyi Conference Site" }, { zh: "赤水丹霞", en: "Chishui Danxia" }] },
+  { province: "贵州省", name: "安顺市", short: "安顺", en: "Anshun", landmarks: [
+    { zh: "黄果树瀑布", en: "Huangguoshu Waterfall" }, { zh: "龙宫", en: "Dragon Palace Anshun" }] },
+  { province: "贵州省", name: "毕节市", short: "毕节", en: "Bijie", landmarks: [
+    { zh: "百里杜鹃", en: "Baili Rhododendron" }, { zh: "织金洞", en: "Zhijin Cave" }] },
+  { province: "贵州省", name: "铜仁市", short: "铜仁", en: "Tongren", landmarks: [
+    { zh: "梵净山", en: "Mount Fanjing" }, { zh: "苗王城", en: "Miao King City" }] },
+  { province: "贵州省", name: "黔西南布依族苗族自治州", short: "黔西南", en: "Qianxinan", landmarks: [
+    { zh: "万峰林", en: "Wanfenglin" }, { zh: "马岭河峡谷", en: "Maling River Canyon" }] },
+  { province: "贵州省", name: "黔东南苗族侗族自治州", short: "黔东南", en: "Qiandongnan", landmarks: [
+    { zh: "西江千户苗寨", en: "Xijiang Miao Village" }, { zh: "镇远古城", en: "Zhenyuan Ancient Town" }] },
+  { province: "贵州省", name: "黔南布依族苗族自治州", short: "黔南", en: "Qiannan", landmarks: [
+    { zh: "小七孔", en: "Xiaoqikong" }, { zh: "中国天眼", en: "FAST Telescope" }] },
+];
+
 export const catalogBatches: readonly CatalogBatch[] = [
   { id: "jiangzhehu", cities: [...jiangsu, ...zhejiang, ...shanghai] },
   { id: "southwest", cities: [...yunnan, ...sichuan, ...chongqing, ...tibet] },
@@ -699,4 +753,5 @@ export const catalogBatches: readonly CatalogBatch[] = [
   { id: "central", cities: [...henan, ...hubei, ...hunan, ...jiangxi, ...anhui] },
   { id: "northeast", cities: [...liaoning, ...jilin, ...heilongjiang] },
   { id: "northwest", cities: [...shaanxi, ...gansu, ...ningxia, ...qinghai, ...xinjiang] },
+  { id: "shandong-guizhou", cities: [...shandong, ...guizhou] },
 ];

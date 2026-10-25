@@ -5314,5 +5314,383 @@
   "source": "wikimedia",
   "license": "CC BY 2.0",
   "licenseUrl": "https://creativecommons.org/licenses/by/2.0"
+ },
+ "趵突泉": {
+  "file": "baotu-spring-72068119.jpg",
+  "artist": "Windmemories",
+  "pageUrl": "https://commons.wikimedia.org/wiki/File:Baotu_Spring,_Jinan_in_Oct_2013.jpg",
+  "fetchedAt": "2026-10-25",
+  "aliases": [],
+  "regions": [
+   "济南市",
+   "济南"
+  ],
+  "scenicFor": [
+   "济南市",
+   "济南"
+  ],
+  "source": "wikimedia",
+  "license": "CC BY-SA 4.0",
+  "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0"
+ },
+ "青岛": {
+  "file": "qingdao-7430910.jpg",
+  "artist": "we-o_rd35hjddgdeuyacd8",
+  "pageUrl": "https://pixabay.com/zh/photos/sea-ocean-nature-pier-7430910/",
+  "fetchedAt": "2026-10-25",
+  "aliases": [],
+  "regions": [
+   "青岛市",
+   "青岛"
+  ],
+  "scenicFor": [
+   "青岛市",
+   "青岛"
+  ]
+ },
+ "台儿庄古城": {
+  "file": "taierzhuang-ancient-town-28321429.jpg",
+  "artist": "蟋有的蟀",
+  "pageUrl": "https://commons.wikimedia.org/wiki/File:%E5%8F%B0%E5%84%BF%E5%BA%84%E5%8F%A4%E5%9F%8E99.jpg",
+  "fetchedAt": "2026-10-25",
+  "aliases": [],
+  "regions": [
+   "枣庄市",
+   "枣庄"
+  ],
+  "scenicFor": [
+   "枣庄市",
+   "枣庄"
+  ],
+  "source": "wikimedia",
+  "license": "CC BY-SA 3.0",
+  "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0"
+ },
+ "东营": {
+  "file": "dongying-60714531.jpg",
+  "artist": "rheins",
+  "pageUrl": "https://commons.wikimedia.org/wiki/File:%E8%83%9C%E5%88%A9%E7%94%B5%E8%A7%86%E5%A1%94_-_Shengli_Television_Tower_-_2016.05_-_panoramio.jpg",
+  "fetchedAt": "2026-10-25",
+  "aliases": [],
+  "regions": [
+   "东营市",
+   "东营"
+  ],
+  "scenicFor": [
+   "东营市",
+   "东营"
+  ],
+  "source": "wikimedia",
+  "license": "CC BY 3.0",
+  "licenseUrl": "https://creativecommons.org/licenses/by/3.0"
+ },
+ "烟台": {
+  "file": "yantai-75849106.jpg",
+  "artist": "HaoLinFotos",
+  "pageUrl": "https://commons.wikimedia.org/wiki/File:Yantai2017.jpg",
+  "fetchedAt": "2026-10-25",
+  "aliases": [],
+  "regions": [
+   "烟台市",
+   "烟台"
+  ],
+  "scenicFor": [
+   "烟台市",
+   "烟台"
+  ],
+  "source": "wikimedia",
+  "license": "CC BY-SA 4.0",
+  "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0"
+ },
+ "青州古城": {
+  "file": "qingzhou-ancient-city-112579337.jpg",
+  "artist": "Ngguls",
+  "pageUrl": "https://commons.wikimedia.org/wiki/File:20211114_%E9%9D%92%E5%B7%9E%E5%8F%A4%E5%9F%8E%E6%99%AF%E5%8C%BA_%E4%B8%89%E5%AE%98%E5%BA%99_03.jpg",
+  "fetchedAt": "2026-10-25",
+  "aliases": [],
+  "regions": [
+   "潍坊市",
+   "潍坊"
+  ],
+  "scenicFor": [
+   "潍坊市",
+   "潍坊"
+  ],
+  "source": "wikimedia",
+  "license": "CC BY-SA 4.0",
+  "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0"
+ },
+ "曲阜孔庙": {
+  "file": "qufu-confucius-temple-134453450.jpg",
+  "artist": "Yumeto",
+  "pageUrl": "https://commons.wikimedia.org/wiki/File:20230612_Dacheng_Dian,_Qufu_Kongmiao.jpg",
+  "fetchedAt": "2026-10-25",
+  "aliases": [],
+  "regions": [
+   "济宁市",
+   "济宁"
+  ],
+  "scenicFor": [
+   "济宁市",
+   "济宁"
+  ],
+  "source": "wikimedia",
+  "license": "CC BY-SA 4.0",
+  "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0"
+ },
+ "刘公岛": {
+  "file": "liugong-island-26087828.jpg",
+  "artist": "Popolon",
+  "pageUrl": "https://commons.wikimedia.org/wiki/File:Weihai.port_de_Liugong_dao.jpg",
+  "fetchedAt": "2026-10-25",
+  "aliases": [],
+  "regions": [
+   "威海市",
+   "威海"
+  ],
+  "scenicFor": [
+   "威海市",
+   "威海"
+  ],
+  "source": "wikimedia",
+  "license": "CC BY-SA 3.0",
+  "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0"
+ },
+ "日照": {
+  "file": "rizhao-5921325.jpg",
+  "artist": "Smainali3",
+  "pageUrl": "https://commons.wikimedia.org/wiki/File:Dengta_square_beach.jpg",
+  "fetchedAt": "2026-10-25",
+  "aliases": [],
+  "regions": [
+   "日照市",
+   "日照"
+  ],
+  "scenicFor": [
+   "日照市",
+   "日照"
+  ],
+  "source": "wikimedia",
+  "license": "CC BY-SA 3.0",
+  "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0"
+ },
+ "沂蒙山": {
+  "file": "yimeng-mountain-149488249.jpg",
+  "artist": "WPTO",
+  "pageUrl": "https://commons.wikimedia.org/wiki/File:%E6%B2%82%E8%92%99%E5%B1%B1%E5%A4%A9%E8%92%99%E6%97%85%E6%B8%B8%E5%8C%BA%E6%9C%9B%E6%B5%B7%E6%A5%BC%EF%BC%88%E8%83%8C%E9%9D%A2%EF%BC%89.jpg",
+  "fetchedAt": "2026-10-25",
+  "aliases": [],
+  "regions": [
+   "临沂市",
+   "临沂"
+  ],
+  "scenicFor": [
+   "临沂市",
+   "临沂"
+  ],
+  "source": "wikimedia",
+  "license": "CC BY 4.0",
+  "licenseUrl": "https://creativecommons.org/licenses/by/4.0"
+ },
+ "苏禄王墓": {
+  "file": "sulu-sultan-tomb-85065480.jpg",
+  "artist": "Suginami",
+  "pageUrl": "https://commons.wikimedia.org/wiki/File:%E5%BE%B7%E5%B7%9E%E8%8B%8F%E7%A6%84%E7%8E%8B%E5%A2%93.jpg",
+  "fetchedAt": "2026-10-25",
+  "aliases": [],
+  "regions": [
+   "德州市",
+   "德州"
+  ],
+  "scenicFor": [
+   "德州市",
+   "德州"
+  ],
+  "source": "wikimedia",
+  "license": "CC BY-SA 4.0",
+  "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0"
+ },
+ "聊城": {
+  "file": "liaocheng-144439198.jpg",
+  "artist": "Uuongkinghe",
+  "pageUrl": "https://commons.wikimedia.org/wiki/File:%E9%BE%99%E5%A0%A4%E8%A5%BF%E6%9C%9B_20240122.jpg",
+  "fetchedAt": "2026-10-25",
+  "aliases": [],
+  "regions": [
+   "聊城市",
+   "聊城"
+  ],
+  "scenicFor": [
+   "聊城市",
+   "聊城"
+  ],
+  "source": "wikimedia",
+  "license": "CC BY-SA 4.0",
+  "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0"
+ },
+ "滨州": {
+  "file": "binzhou-94460036.jpg",
+  "artist": "起名字好费劲",
+  "pageUrl": "https://commons.wikimedia.org/wiki/File:%E6%BB%A8%E5%B7%9E%E5%B8%82.jpg",
+  "fetchedAt": "2026-10-25",
+  "aliases": [],
+  "regions": [
+   "滨州市",
+   "滨州"
+  ],
+  "scenicFor": [
+   "滨州市",
+   "滨州"
+  ],
+  "source": "wikimedia",
+  "license": "CC BY-SA 4.0",
+  "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0"
+ },
+ "菏泽": {
+  "file": "heze-19845226.jpg",
+  "artist": "抱树无尾熊",
+  "pageUrl": "https://commons.wikimedia.org/wiki/File:Tang_tower_of_Yuncheng.jpg",
+  "fetchedAt": "2026-10-25",
+  "aliases": [],
+  "regions": [
+   "菏泽市",
+   "菏泽"
+  ],
+  "scenicFor": [
+   "菏泽市",
+   "菏泽"
+  ],
+  "source": "wikimedia",
+  "license": "CC BY-SA 3.0",
+  "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0"
+ },
+ "青岩古镇": {
+  "file": "qingyan-ancient-town-3438621.jpg",
+  "artist": "lin2015",
+  "pageUrl": "https://pixabay.com/zh/photos/guiyang-qingyan-ancient-town-huaxi-3438621/",
+  "fetchedAt": "2026-10-25",
+  "aliases": [],
+  "regions": [
+   "贵阳市",
+   "贵阳"
+  ],
+  "scenicFor": [
+   "贵阳市",
+   "贵阳"
+  ]
+ },
+ "六盘水": {
+  "file": "liupanshui-34492825.jpg",
+  "artist": "Gmbsfd",
+  "pageUrl": "https://commons.wikimedia.org/wiki/File:Liuzhi_Special_District_2014-02-07.jpg",
+  "fetchedAt": "2026-10-25",
+  "aliases": [],
+  "regions": [
+   "六盘水市",
+   "六盘水"
+  ],
+  "scenicFor": [
+   "六盘水市",
+   "六盘水"
+  ],
+  "source": "wikimedia",
+  "license": "CC BY-SA 4.0",
+  "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0"
+ },
+ "十丈洞瀑布": {
+  "file": "shizhangdong-waterfall-5777392.jpg",
+  "artist": "lin2015",
+  "pageUrl": "https://pixabay.com/zh/photos/fall-shizhangdong-waterfall-valley-5777392/",
+  "fetchedAt": "2026-10-25",
+  "aliases": [],
+  "regions": [
+   "遵义市",
+   "遵义"
+  ],
+  "scenicFor": [
+   "遵义市",
+   "遵义"
+  ]
+ },
+ "黄果树瀑布": {
+  "file": "huangguoshu-waterfall-2682302.jpg",
+  "artist": "Robinliu",
+  "pageUrl": "https://pixabay.com/zh/photos/guizhou-huangguoshu-fall-guizhou-2682302/",
+  "fetchedAt": "2026-10-25",
+  "aliases": [],
+  "regions": [
+   "安顺市",
+   "安顺"
+  ],
+  "scenicFor": [
+   "安顺市",
+   "安顺"
+  ]
+ },
+ "百里杜鹃": {
+  "file": "baili-rhododendron-19877630.jpg",
+  "artist": "Fanghong",
+  "pageUrl": "https://commons.wikimedia.org/wiki/File:Azaleas_Area.JPG",
+  "fetchedAt": "2026-10-25",
+  "aliases": [],
+  "regions": [
+   "毕节市",
+   "毕节"
+  ],
+  "scenicFor": [
+   "毕节市",
+   "毕节"
+  ],
+  "source": "wikimedia",
+  "license": "CC BY-SA 3.0",
+  "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0"
+ },
+ "万峰林": {
+  "file": "wanfenglin-174497795.jpg",
+  "artist": "名字长的让人受不了",
+  "pageUrl": "https://commons.wikimedia.org/wiki/File:WanFengLin-ShangNaHui2025-08.jpg",
+  "fetchedAt": "2026-10-25",
+  "aliases": [],
+  "regions": [
+   "黔西南布依族苗族自治州",
+   "黔西南"
+  ],
+  "scenicFor": [
+   "黔西南布依族苗族自治州",
+   "黔西南"
+  ],
+  "source": "wikimedia",
+  "license": "CC BY-SA 4.0",
+  "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0"
+ },
+ "西江千户苗寨": {
+  "file": "xijiang-miao-village-4717743.jpg",
+  "artist": "htb888",
+  "pageUrl": "https://pixabay.com/photos/blue-village-village-4717743/",
+  "fetchedAt": "2026-10-25",
+  "aliases": [],
+  "regions": [
+   "黔东南苗族侗族自治州",
+   "黔东南"
+  ],
+  "scenicFor": [
+   "黔东南苗族侗族自治州",
+   "黔东南"
+  ]
+ },
+ "小七孔": {
+  "file": "xiaoqikong-2376522.jpg",
+  "artist": "wx1117",
+  "pageUrl": "https://pixabay.com/photos/xiaoqikong-water-scenic-spot-moss-2376522/",
+  "fetchedAt": "2026-10-25",
+  "aliases": [],
+  "regions": [
+   "黔南布依族苗族自治州",
+   "黔南"
+  ],
+  "scenicFor": [
+   "黔南布依族苗族自治州",
+   "黔南"
+  ]
  }
 }
