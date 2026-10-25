@@ -10,7 +10,7 @@ import type { PlacePhotoQuery } from "./place-photo-provider";
  *
  * Photos come from Pixabay (its own licence, no attribution required — we credit anyway)
  * or from Wikimedia Commons (Creative Commons: author, licence with a link and the source
- * must be shown, and a resized copy says so; /photo-credits shows all of it).
+ * must be shown; cards name the licence and resizing and link to the Commons file page).
  */
 export type CatalogSource = "pixabay" | "wikimedia";
 
@@ -19,6 +19,8 @@ export interface CatalogEntry {
   readonly file: string;
   /** Who took it, for the credit line. */
   readonly artist: string;
+  /** The photographer's verified Pixabay profile, when its user ID was available. */
+  readonly artistUrl?: string;
   /** The page it came from (a Pixabay photo page or a Commons file page), so the credit can link somewhere. */
   readonly pageUrl: string;
   /** Where it came from; absent is Pixabay, as every entry before 1.0632 was. */
@@ -49,6 +51,18 @@ function isNameList(value: unknown): value is string[] {
     typeof name === "string" && normalizePlaceName(name) !== "");
 }
 
+/** An optional profile must stay on Pixabay; an invalid one never hides a usable photo. */
+export function parsePixabayArtistUrl(value: unknown): string | undefined {
+  if (typeof value !== "string" || value.length > 500) return undefined;
+  try {
+    const url = new URL(value);
+    return url.origin === "https://pixabay.com" && !url.username && !url.password && !url.search && !url.hash &&
+      /^\/users\/[^/]+-[1-9]\d*\/$/u.test(url.pathname) ? url.href : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
 /** Unconfigured downloads remain candidates: empty regions/scenicFor cannot match. */
 export function parsePhotoCatalog(value: unknown): PhotoCatalog {
   if (typeof value !== "object" || value === null || Array.isArray(value)) return {};
@@ -70,7 +84,9 @@ export function parsePhotoCatalog(value: unknown): PhotoCatalog {
       typeof fetchedAt !== "string" || !/^\d{4}-\d{2}-\d{2}$/u.test(fetchedAt) ||
       !isNameList(aliases) || !isNameList(regions) || !isNameList(scenicFor) ||
       !scenicFor.every((region) => includesName(regions, normalizePlaceName(region)))) continue;
+    const artistUrl = wikimedia ? undefined : parsePixabayArtistUrl(entry.artistUrl);
     catalog[name] = { file, artist, pageUrl, fetchedAt, aliases, regions, scenicFor,
+      ...(artistUrl ? { artistUrl } : {}),
       ...(wikimedia ? { source: "wikimedia" as const, license: license as string, licenseUrl: licenseUrl as string } : {}) };
   }
   return catalog;

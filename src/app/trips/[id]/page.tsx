@@ -11,9 +11,10 @@ import { TripStateNotFoundError } from "@/capabilities/journey/journey-errors";
 import { journeyService } from "@/capabilities/journey/journey-service-instance";
 import { tripMessageService } from "@/capabilities/conversation/trip-message-service-instance";
 import { imagesShownInConversation, selectedPlaceImages, type SelectedPlaceImage } from "@/capabilities/destination/place-images";
+import { withLocalRecommendationPhotos } from "@/capabilities/recommendation/recommendation-photos";
 import type { TripMessage } from "@/domain/trip-message/trip-message";
 import type { TripState } from "@/domain/trip-state/trip-state";
-import { createPlacePhotoProvider } from "@/platform/map-providers";
+import { createPlacePhotoProvider, mapProviderName } from "@/platform/map-providers";
 
 import { messages } from "@/components/i18n/messages";
 import { requestLocale } from "@/platform/locale/request-locale";
@@ -58,10 +59,16 @@ export default async function TripWorkspacePage({
     return <MissingTripState />;
   }
 
-  const initialMessages = await tripMessageService.listMessages(
+  const storedMessages = await tripMessageService.listMessages(
     journey.trip.id,
     ownerGuestId,
   );
+  const localPhotos = mapProviderName() === "tianditu" ? createPlacePhotoProvider() : null;
+  const initialMessages = localPhotos ? await Promise.all(storedMessages.map(async (message) => {
+    if (message.presentation?.type !== "destination_recommendations") return message;
+    const presentation = await withLocalRecommendationPhotos(message.presentation, localPhotos);
+    return presentation === message.presentation ? message : { ...message, presentation };
+  })) : storedMessages;
 
   return (
     <TripWorkspace

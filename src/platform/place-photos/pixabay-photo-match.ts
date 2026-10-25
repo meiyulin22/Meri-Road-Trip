@@ -1,4 +1,4 @@
-import { normalizePlaceName } from "./photo-catalog";
+import { normalizePlaceName, parsePixabayArtistUrl } from "./photo-catalog";
 import {
   foreignWords,
   foreignWordsZh,
@@ -31,6 +31,14 @@ export interface PixabayHit {
   readonly imageWidth: number;
   readonly imageHeight: number;
   readonly user: string;
+  /** Older cached searches did not retain the contributor ID. */
+  readonly user_id?: number;
+}
+
+/** Pixabay documents profile URLs as /users/{username}-{user_id}/. */
+export function pixabayArtistUrl(hit: Pick<PixabayHit, "user" | "user_id">): string | undefined {
+  if (!Number.isSafeInteger(hit.user_id) || (hit.user_id ?? 0) <= 0 || !hit.user.trim()) return undefined;
+  return parsePixabayArtistUrl(`https://pixabay.com/users/${encodeURIComponent(hit.user.trim())}-${hit.user_id}/`);
 }
 
 export type RejectionReason = "too_small" | "no_identity" | "not_in_china" | "foreign" | "other_province" | "other_region";

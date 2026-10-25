@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdtemp, rm } from "node:fs/promises";
+import { mkdtemp, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
@@ -28,7 +28,7 @@ function finder(directory: string, scripted: ScriptedFetch, clock = { now: Date.
 
 test("a miss is searched, checked, downloaded and kept; a restarted server answers it with no request", async () => {
   await withDirectory(async (directory) => {
-    const scripted = scriptedFetch({ search: () => searchAnswer([hit(42, "jade dragon snow mountain, lijiang")]) });
+    const scripted = scriptedFetch({ search: () => searchAnswer([hit(42, "jade dragon snow mountain, lijiang", { user_id: 123 })]) });
     const first = finder(directory, scripted);
     const found = await first.find(yulong, first.startBatch());
     assert.deepEqual(found, { status: "found", image: { url: "/media/place-photos/pixabay-42.jpg", caption: "玉龙雪山",
@@ -36,6 +36,8 @@ test("a miss is searched, checked, downloaded and kept; a restarted server answe
     assert.equal(scripted.searches(), 1);
     assert.equal(scripted.downloads(), 1);
     assert.match(scripted.asked[1], /g42_640\.jpg$/u);
+    const record = JSON.parse(await readFile(join(directory, "place-photos", "files", "pixabay-42.json"), "utf8")) as Record<string, unknown>;
+    assert.equal(record.artistUrl, "https://pixabay.com/users/uploader-123/");
 
     const after = scriptedFetch({ search: () => { throw new Error("must not search"); } });
     const restarted = finder(directory, after);

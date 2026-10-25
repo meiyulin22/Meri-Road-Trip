@@ -15,6 +15,7 @@ import { createHash } from "node:crypto";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { parsePhotoCatalog, type CatalogEntry } from "../src/platform/place-photos/photo-catalog";
+import { pixabayArtistUrl } from "../src/platform/place-photos/pixabay-photo-match";
 
 interface Place { readonly zh: string; readonly en: string; readonly require?: string; readonly imageId?: number }
 interface Hit {
@@ -25,9 +26,10 @@ interface Hit {
   readonly imageWidth: number;
   readonly imageHeight: number;
   readonly user: string;
+  readonly user_id?: number;
   readonly pageURL: string;
 }
-type Entry = Pick<CatalogEntry, "file" | "artist" | "pageUrl" | "fetchedAt">;
+type Entry = Pick<CatalogEntry, "file" | "artist" | "artistUrl" | "pageUrl" | "fetchedAt">;
 type SearchAnswer = { readonly hits: Hit[] };
 
 const photosDirectory = join(process.cwd(), "public", "photos");
@@ -215,7 +217,9 @@ async function fetchPhoto(key: string, place: Place): Promise<Entry | null> {
   const file = `${slugOf(place.en)}-${hit.id}.${extension}`;
   writeFileSync(join(photosDirectory, file), body);
   console.log(`  ${place.zh} ✅ ${file}  ${hit.imageWidth}x${hit.imageHeight}  ${Math.round(body.byteLength / 1024)}KB  by ${hit.user}`);
-  return { file, artist: hit.user, pageUrl: hit.pageURL, fetchedAt: new Date().toISOString().slice(0, 10) };
+  const artistUrl = pixabayArtistUrl(hit);
+  return { file, artist: hit.user, ...(artistUrl ? { artistUrl } : {}), pageUrl: hit.pageURL,
+    fetchedAt: new Date().toISOString().slice(0, 10) };
 }
 
 async function main(): Promise<void> {

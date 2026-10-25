@@ -7,7 +7,7 @@ import { findPlaceImage } from "@/capabilities/destination/place-images";
 import { parsePlaceImage } from "@/domain/location/place-image";
 
 import { CatalogPhotoProvider } from "./catalog-photo-provider";
-import { catalogCredit, normalizePlaceName, parsePhotoCatalog, photoFromCatalog, type PhotoCatalog } from "./photo-catalog";
+import { catalogCredit, normalizePlaceName, parsePhotoCatalog, parsePixabayArtistUrl, photoFromCatalog, type PhotoCatalog } from "./photo-catalog";
 import type { PlacePhotoQuery } from "./place-photo-provider";
 
 const named = (keywords: string, region: string | null): PlacePhotoQuery => ({ kind: "named", keywords, region });
@@ -28,6 +28,18 @@ test("a catalogued place gets our own copy, with the photographer credited", () 
 
 test("a place that is not catalogued has no photo, which is not an error", () => {
   assert.equal(photoFromCatalog(catalog, named("贡嘎山", "甘孜藏族自治州")), null);
+});
+
+test("a catalog keeps a verified Pixabay profile, and ignores unsafe optional profile links", () => {
+  const artistUrl = "https://pixabay.com/users/InkMagiStudio-123/";
+  assert.equal(parsePhotoCatalog({ 布达拉宫: { ...catalog.布达拉宫, artistUrl } }).布达拉宫.artistUrl, artistUrl);
+  for (const invalid of [undefined, "http://pixabay.com/users/name-1/", "https://pixabay.com.evil.test/users/name-1/",
+    "https://pixabay.com@evil.test/users/name-1/", "https://user:password@pixabay.com/users/name-1/",
+    "https://pixabay.com:444/users/name-1/", "https://pixabay.com/users/name-1/?next=evil", "https://pixabay.com/users/name-0/",
+    "https://pixabay.com/photos/example-1/", "javascript:alert(1)"]) {
+    assert.equal(parsePixabayArtistUrl(invalid), undefined, String(invalid));
+    assert.ok(parsePhotoCatalog({ 布达拉宫: { ...catalog.布达拉宫, artistUrl: invalid } }).布达拉宫);
+  }
 });
 
 test("normalization handles width and whitespace without discarding location qualifiers", () => {

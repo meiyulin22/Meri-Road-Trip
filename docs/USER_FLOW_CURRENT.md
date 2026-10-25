@@ -564,7 +564,7 @@ add/set 使用 Promise.all 查询表达。解析层保留不同 provider ID，�
 
 **第二图源：Wikimedia Commons（1.0632）：**江浙沪和西南两批里 Pixabay 找不到合适图的 27 个城市，改从维基的代表图里找。Wikidata 是维基的事实库，每个城市条目有一个"图片"字段（P18），只存维基编辑选定的那张图的文件名；图片文件本身、作者和许可证在 Wikimedia Commons（维基的图库）上。所以先问 Wikidata 这个城市的代表图是哪张（一批 1 次查询，按城市全称或简称加所属省份匹配，免得简称落到外地的同名地方），再从 Commons 取作者、许可证和 500px 副本（每 50 个文件 1 次查询，再逐张下载）。Commons 只在几个标准宽度出缩略图，640 会被放大成 960（约 180 KB），500 是标准宽度，约 55 KB，仍是卡片显示宽度 200px 的两倍多。
 
-图集照片只在这台机器上抓取、审核后随应用发布，服务器运行时不访问维基，所以大陆服务器连不上维基不影响这些照片（运行时补图从 1.0633 起也先问维基，见下面"推荐卡的运行时补图：先 Wikimedia"）。Commons 的照片是知识共享许可（这一批 CC BY-SA 3.0/4.0、CC BY 3.0、CC0）：可以下载、存到自己服务器上展示，条件是写明作者、许可证名称并附许可证链接、注明原图出处、说明改动（缩小了尺寸）；CC BY-SA 的照片我们保存的这一份仍按 CC BY-SA，不加更严的限制。这些只约束照片本身，不影响 Meri 的代码。为此：图集条目新增 `source: "wikimedia"`、`license`、`licenseUrl`（Commons 条目三者缺一不收，原图页必须是 Commons 的文件页）；卡片署名写成"Photo: 作者 / Wikimedia Commons, CC BY-SA 4.0"（Pixabay 照片不变）；署名文字是链接，打开 [/photo-credits](../src/app/photo-credits/page.tsx)，定位到这张图那一行：作者、来源和原图页链接、许可证和许可证链接、"已缩小尺寸"。运行时从 Pixabay 找到的照片在同一页底部说明。以上依据许可证原文整理，不是法律意见。
+图集照片只在这台机器上抓取、审核后随应用发布，服务器运行时不访问维基，所以大陆服务器连不上维基不影响这些照片（运行时补图从 1.0633 起也先问维基，见下面"推荐卡的运行时补图：先 Wikimedia"）。Commons 的照片是知识共享许可（这一批 CC BY-SA 3.0/4.0、CC BY 3.0、CC0）：可以下载、存到自己服务器上展示，条件是写明作者、许可证名称并附许可证链接、注明原图出处、说明改动（缩小了尺寸）；CC BY-SA 的照片我们保存的这一份仍按 CC BY-SA，不加更严的限制。这些只约束照片本身，不影响 Meri 的代码。为此：图集条目新增 `source: "wikimedia"`、`license`、`licenseUrl`（Commons 条目三者缺一不收，原图页必须是 Commons 的文件页）；卡片署名写成"Photo: 作者 / Wikimedia Commons, CC BY-SA 4.0"（Pixabay 照片不变）。当时的站内 `/photo-credits` 列表页现已移除：卡片保留作者、许可名称和缩小尺寸说明，点击署名先显示来源确认弹窗，确认后打开 Commons 原图页；来源字段与存储位置见下方维护记录。
 
 27 个城市里 Wikidata 有代表图的 26 个（镇江的中文名没对上条目），人工看图后选定 20 张，图集 64 → 84 条：江浙沪 连云港、淮安 清江浦、泰州（靖江城区）、宿迁（沭阳）、衢州 南湖公园；西南 曲靖、玉溪、保山、昭通（威信县城）、普洱 思茅文庙、临沧、楚雄 三潭瀑布、德宏 芒市、怒江 碧罗雪山、攀枝花、泸州、遂宁、内江、眉山、巴中。照片拍的是下辖县城时，说明写县城名。没选的 6 张：自贡（医院门口路口）、绵阳（四格拼图）、广元（三分之一是施工脚手架）、广安、达州（县城街景，带日期水印）、资阳（广告满屏的路口）。这次共 2 次 Wikidata 查询、2 次 Commons 查询、26 次下载（又重下 26 次，换成 500px）。江浙沪 25 城有图 24 个，西南 34 城有图 28 个。
 
@@ -605,6 +605,8 @@ add/set 使用 Promise.all 查询表达。解析层保留不同 provider ID，�
 **补漏：换一批搜索词（2026-10-25，1.0641）：**同样的词再搜只会得到同样的结果，所以这 20 城各换了一两个别的景点，再加上主城区和县——区县的 Wikidata 条目常有自己的代表图，城市条目没有或不合格时可用，照片说明写区县名。第一次跑到庆阳时一次 Pixabay 搜索没有回答，整批停了；抓图脚本的 Pixabay 搜索也改成等 5 秒再问一次、仍不行就跳过这一次搜索（被拒和限流仍整批停）。重跑后 20 城都有候选：Wikidata 两次共 40 次查询、Commons 4 次、下载 51 次；Pixabay 两次合计不到 50 次请求（第二次搜索 22 次、下载 5 次，其余是第一次已缓存的）。选定 17 张，图集 324 → 341 条：自贡 西秦会馆、焦作 嘉应观、广安 邓小平故居、哈密 伊吾县雪山、辽源 龙山区、铜仁 碧江区、衡阳 回雁峰、鹤岗 萝北县、廊坊 广阳区、达州 通川区、绵阳 江油、广元（Pixabay 的嘉陵江夜景，tags 写广元），以及偏弱但诚实的东莞 虎门镇、阜阳 颍上县、淄博 博山区、资阳 雁江区；三沙用赵述岛的卫星照片——三沙市本身就是海上的岛群，岛的俯视照是诚实的代表图。仍然没有图的 3 个：塔城（Pixabay 只有花朵特写，维基没有）、平凉（维基只有一张老黑白照）、庆阳（维基只有楼前一棵树）。
 
 到 1.0641 为止，图集为 330 个地级行政区和 4 个直辖市配了代表图，约占全国 337 个的 99%。
+
+**补万宁市（2026-10-25）：**上述城市批次以地级行政区为清单，未覆盖海南省直辖县级市万宁。现补入 [石梅湾](https://commons.wikimedia.org/wiki/File:Shimei_Bay_in_Wanning.jpg)（Zhangmoon618，CC BY-SA 3.0），人工看图确认海岸风景，500×333，24,186 bytes；图集共 342 条。`regions` / `scenicFor` 显式登记万宁市和万宁，照片说明仍写石梅湾。
 
 **关键词实测（2026-10-24）：**只为上述三个目标做了 12 次搜索，每次 `image_type=photo`、`orientation=horizontal`、`safesearch=true`、`per_page=15`、`min_width=640`、`order=popular`，语言按下表设置。完整响应缓存 24 小时，只有筛出的少量候选下载后看图；没有请求天地图。`total` 是搜索服务报告的匹配量，不是正确景点照片数量。
 
@@ -648,20 +650,20 @@ add/set 使用 Promise.all 查询表达。解析层保留不同 provider ID，�
 1. **顺序：**本地（图集 → 已下载 → 备选地标的本地图）→ 维基：卡片地标，再第一个备选地标 → Pixabay：卡片地标，再第一个备选地标。两个地标都先问维基，因为维基上备选地标的确定照片比 Pixabay 上主地标按 tags 猜的照片可靠，也省 Pixabay 额度。说明文字仍写照片实际是哪个景点。
 2. **怎么认地点**（每个地标 1 次 Wikidata 查询）：条目的中文名（`zh`/`zh-hans`/`zh-cn`）、英文名或别名等于卡片地标的名字之一（中文名、英文名、模型给的别名），**并且**沿 P131 一路往上能走到卡片的市（全称或简称），这个市的上一级又是卡片的省（直辖市只看市名）；条目必须有 P18。西湖在惠州市就不会配上杭州的西湖。多个条目都对上时，优先中文名正好是地标名的条目，其次其他名称，最后别名；同级取 Q 号小的（通常是主条目）。名字由模型写，放进查询前转义，跳不出字符串。
 3. **许可证和文件**（每张图 1 次 Commons 查询，每个地标最多试 2 张图）：只收 CC BY、CC BY-SA（任何版本和地区版）、CC0、公有领域；Commons 标记为非自由的、GFDL 等其他许可证、CC BY 系列却没有作者或许可证链接的都跳过（交给 Pixabay）。原图必须是照片格式（不收 SVG/GIF）、横构图、宽至少 800。下载 Commons 给的 500px 副本：只从 `thumb.wikimedia.org`、`upload.wikimedia.org` 下载（Commons 现在把缩略图放在 thumb 主机，2026-10-24 实测），最多 2 次同主机跳转，4 MB 上限；再从文件头读真实格式和宽高，至少 480×270（500 宽的 16:9 照片高 281）、至少 10 KB。
-4. **存什么：**文件名 `wikimedia-<Commons 页面 ID>.<jpg|png|webp>`，来源记录里有 Wikidata 条目（Q 号）、对上的名字、Commons 文件名和文件页、作者、许可证、许可证链接（公有领域没有许可证页，就用文件页）、原图宽高、省/市/地标、`reviewed: false`。卡片署名写 `Photo: <作者> / Wikimedia Commons, <许可证>`，链到 `/photo-credits#wikimedia-<ID>.jpg`；[/photo-credits](../src/app/photo-credits/page.tsx) 在"规划时临时找到的照片"下逐张列出（直接读媒体目录里的来源记录，能显示在卡片上的就会列出），和图集一样有作者、原图页、许可证链接和"已缩小尺寸"。Pixabay 运行时照片仍只在那一段说明。
+4. **存什么：**文件名 `wikimedia-<Commons 页面 ID>.<jpg|png|webp>`，来源记录里有 Wikidata 条目（Q 号）、对上的名字、Commons 文件名和文件页、作者、许可证、许可证链接（公有领域没有许可证页，就用文件页）、原图宽高、省/市/地标、`reviewed: false`。卡片署名写 `Photo: <作者> / Wikimedia Commons, <许可证>` 并注明副本已缩小，点击后先显示来源确认弹窗，确认后打开记录的 Commons 原图页；完整来源记录保留在媒体目录，不再通过站内署名列表页展示。
 5. **限额：**维基请求（查询、Commons、下载）最多同时 2 个、任意 60 秒不超过 40 次，查询 10 秒超时、下载 15 秒；一批卡片最多 12 次 Wikidata 查询、8 次 Commons 查询、8 次下载（28 次请求）、25 秒，超出的卡这次不问维基、直接去 Pixabay。Pixabay 的额度不变（每批 20 次搜索、10 次下载，每分钟 80 次），维基答上的卡不再花 Pixabay 请求。
 6. **缓存：**找到的照片和 Pixabay 的共用 `lookups/` 与按市索引，重启后 0 请求；"维基没有这个地标的图"记在 `lookups/<hash>.wikimedia-none.json`，24 小时、跟规则版本走，和 Pixabay 的"没有"分开记（一个源没有不妨碍问另一个）。
 7. **连不上维基（大陆服务器）：**网络错误、超时、5xx 都算"查不了"，不缓存；同时整个进程暂停问维基 10 分钟（429 暂停 1 分钟并遵守 `Retry-After`，403 暂停 15 分钟），所以大陆服务器每 10 分钟最多花一次超时请求，其余时间卡片直接去 Pixabay。**维基查不了、Pixabay 又没有合适的图时，这张卡不回答**（不存成没图），下次打开再查；因为 Pixabay 的"没有"缓存 24 小时、维基暂停期间不发请求，重查几乎不花请求。代价：在连不上维基的服务器上，这类卡会一直保持"没查过"。
 8. **日志：**沿用 `place_photo.remote.completed` / `place_photo.remote.unavailable`，带 `source: "wikimedia"`、被跳过的条目和原因（如 `Q83628:licence`）。
 
-**1.0633 实测（2026-10-24，本机经公司代理，真实维基，临时媒体目录）：**6 个地标一次跑完共 15 次请求，没有请求 Pixabay 和天地图。玉龙雪山（Q1465660，公有领域）、宽窄巷子（Q10951691，CC BY-SA 3.0）、黄果树瀑布（Q38432，CC BY-SA 4.0）、鼓浪屿（Q1025339，CC BY 3.0）都配上了，人工看过图，地点都对；洱海（Q83628）唯一的图许可证和构图都不合格，没有配；洪崖洞排在最后，脚本逐个查、超过了每批 25 秒，按设计记"这次查不了"（实际接口里卡片并行查，会去 Pixabay）。单个地标 2–8 秒，多数时间花在 Wikidata 查询上。第一次实测发现缩略图地址已改成 `thumb.wikimedia.org`，下载被主机白名单挡掉，已加入白名单后重测。另用生产构建打开 /photo-credits，4 张维基照片都按文件名锚点列出，缩略图经 `/_next/image` 正常加载。
+**1.0633 实测（2026-10-24，本机经公司代理，真实维基，临时媒体目录）：**6 个地标一次跑完共 15 次请求，没有请求 Pixabay 和天地图。玉龙雪山（Q1465660，公有领域）、宽窄巷子（Q10951691，CC BY-SA 3.0）、黄果树瀑布（Q38432，CC BY-SA 4.0）、鼓浪屿（Q1025339，CC BY 3.0）都配上了，人工看过图，地点都对；洱海（Q83628）唯一的图许可证和构图都不合格，没有配；洪崖洞排在最后，脚本逐个查、超过了每批 25 秒，按设计记"这次查不了"（实际接口里卡片并行查，会去 Pixabay）。单个地标 2–8 秒，多数时间花在 Wikidata 查询上。第一次实测发现缩略图地址已改成 `thumb.wikimedia.org`，下载被主机白名单挡掉，已加入白名单后重测。当时另用生产构建打开 /photo-credits，4 张维基照片都按文件名锚点列出，缩略图经 `/_next/image` 正常加载；这是旧列表页的历史验证，该页现已移除。
 
 **运行时照片存在哪：**[MediaPhotoStore](../src/platform/place-photos/media-photo-store.ts) 把文件放在 `MERI_MEDIA_DIR/place-photos/` 下，不放 `public/`：生产模式的 Next 在启动时就确定了 `public/` 里有哪些文件，之后写进去的不会被访问到。
 
 | 路径 | 内容 |
 | --- | --- |
 | `files/pixabay-<ID>.<ext>`、`files/wikimedia-<ID>.<ext>` | 图片本身 |
-| `files/pixabay-<ID>.json`、`files/wikimedia-<ID>.json` | 来源记录：Pixabay 的是 ID、作者、原图页、tags、用的查询词、命中的词；维基的是 Commons 页面 ID、文件名、文件页、Wikidata 条目、对上的名字、作者、许可证和链接、原图宽高；都有省/市/地标、宽高字节数、`reviewed: false`、时间。**最后写**，有它才算发布完成 |
+| `files/pixabay-<ID>.json`、`files/wikimedia-<ID>.json` | 来源记录：Pixabay 的是 ID、作者、原图页、可选作者主页 `artistUrl`、tags、用的查询词、命中的词；维基的是 Commons 页面 ID、文件名、文件页、Wikidata 条目、对上的名字、作者、许可证和链接、原图宽高；都有省/市/地标、宽高字节数、`reviewed: false`、时间。**最后写**，有它才算发布完成 |
 | `lookups/<hash>.json` | 某地区某地标最后用了哪张图；`<hash>.none.json` 是 Pixabay"没有合适的图"的 24 小时结论，`<hash>.wikimedia-none.json` 是维基的 |
 | `searches/<hash>.json` | Pixabay 搜索响应（只留 Meri 读的字段），24 小时；哈希和内容都不含密钥 |
 | `regions/<hash>.json` | 某个市已下载的照片（最多 20 张），市的代表图在图集里没有时用 |
@@ -673,7 +675,9 @@ add/set 使用 Promise.all 查询表达。解析层保留不同 provider ID，�
 
 **怎么访问：**[`GET /media/place-photos/[file]`](../src/app/media/place-photos/[file]/route.ts) 从媒体目录读文件返回。只接受 `pixabay-<数字>.<jpg|png|webp>`、`wikimedia-<数字>.<jpg|png|webp>` 这种 Meri 自己起的名字，而且对应的来源记录要已经存在；其他名字、路径穿越、`.json` 一律 404。响应带正确的 Content-Type、`X-Content-Type-Options: nosniff` 和一年的 `immutable` 缓存（文件名含图片 ID，内容不会变）。卡片照片仍经 next/image，由 `/_next/image` 在服务器内部取这个地址。不需要 nginx 映射；以后想让 nginx 直接发文件，可以把 `/media/place-photos/` 映射到 `MERI_MEDIA_DIR/place-photos/files/`，但那样就跳过了"来源记录已写完"的检查。
 
-**已经是 null 的旧卡：**不批量重写。每张卡回答照片时记下当时的规则版本 `photoRules`（没有＝1）。打开旅程时，**带地标、存成 null、规则版本比现在旧**的卡会按新规则再查**一次**，查完写上新版本号，之后不会每次刷新都查；没有地标的卡不重查。1.0625 把版本升到 2，1.0627 升到 3（修正了中文地区误判和地区名别名），1.0633 升到 4（先问维基），所以之前查过没图、带地标的卡都会按最新规则再查一次（按中文地标名，有英文名时也用英文名），受每批额度限制，超出的下次再查。
+**已经是 null 的旧卡：**不批量重写。天地图模式重新打开 Workspace 时，[页面](../src/app/trips/%5Bid%5D/page.tsx)通过 [withLocalRecommendationPhotos](../src/capabilities/recommendation/recommendation-photos.ts) 给有省份、保存为 null 的推荐卡再读一次本地照片，按原来的地标→本市代表图→备选地标顺序补图；只改变本次页面显示，不写消息或 TripState，不请求远程，不改 `photoRules`。已有照片和还没查过的卡保持原状，同组图片不重复。这样原先无图的万宁卡刷新后可以显示新补的石梅湾。
+
+远程重查仍按规则版本：每张卡回答照片时记下当时的 `photoRules`（没有＝1）。打开旅程时，**带地标、存成 null、规则版本比现在旧**的卡会按新规则再查**一次**，查完写上新版本号，之后不会每次刷新都远程查；没有地标的卡不远程重查。1.0625 把版本升到 2，1.0627 升到 3（修正了中文地区误判和地区名别名），1.0633 升到 4（先问维基），所以之前查过没图、带地标的卡都会按最新规则再查一次（按中文地标名，有英文名时也用英文名），受每批额度限制，超出的下次再查。
 
 **城市卡的照片可以是同城另一个景点：**卡片自己的地标没有图时，先找图集或已下载的同市照片（市的代表图，或之前为同市别的景点下载的图），再试模型给的备选地标；都是先本地后远程。照片说明写照片实际拍的景点（例如成都市卡片上写"大熊猫繁育研究基地"），不写卡片的地标。用户在聊天里明确点名的景点，仍只找那个景点。已下载照片按市建了索引，所以聊天地点卡、旅程封面、照片环查一个市时，也能用到它（排在图集之后，不触发下载）。
 
@@ -708,7 +712,21 @@ add/set 使用 Promise.all 查询表达。解析层保留不同 provider ID，�
 - 页面服务端渲染时带上照片（最多等 1.5 秒，超时则不带，浏览器打开后再请求），刷新时不闪烁。目的地变化后，[TripWorkspace](../src/components/trip-workspace/trip-workspace.tsx)调用 `GET /api/trips/[id]/destination-photos` 重新取。
 - 标题左侧缩略图是第一个已选地点的照片（[coverPhoto](../src/components/trip-workspace/destination-photos-model.ts)），只在第一个地点变化时才换；没有地点时仍是默认风景图。
 
-图集更新只影响新的照片查询，不重写历史消息的 presentation；已选地点仍可能优先复用历史卡片的 image。已撤文件的历史 URL 在没有已有缓存时会加载失败并走现有 UI 兜底，不会自动替换为另一张照片；已缓存图片可能继续显示至缓存失效。当前卡片仍为 4:3；无图或加载失败显示图钉，署名为不可点击文本。16:9、无图省略图片区和可点击来源页尚未实现。
+图集更新影响新的照片查询和上述历史空图卡的本地显示补图，不重写历史消息的 presentation；已选地点仍可能优先复用历史卡片的 image。已撤文件的历史 URL 在没有已有缓存时会加载失败并走现有 UI 兜底，不会自动替换为另一张照片；已缓存图片可能继续显示至缓存失效。当前卡片仍为 4:3；无图或加载失败显示图钉。16:9、无图省略图片区尚未实现。
+
+**点击照片署名：**[DestinationChoicesCard](../src/components/trip-workspace/destination-choices-card.tsx) 的 [PhotoSourceCredit](../src/components/trip-workspace/photo-source-dialog.tsx) 打开确认弹窗，先让用户确认将要访问的网站，不再打开站内署名列表。弹窗显示照片说明，向 [`GET /photo-credits/source/[file]?format=json`](../src/app/photo-credits/source/%5Bfile%5D/route.ts) 请求来源，成功后展示作者、平台和完整外部网址；用户点击访问按钮才在新标签页打开，取消、关闭按钮、Escape 或点击遮罩只关闭弹窗并恢复署名按钮焦点。点击署名不勾选或提交地点卡。加载时不提供外部链接；来源读取失败或超过 10 秒时留在弹窗中说明失败并允许重试。关闭、卸载或重试会中止之前的读取，不用旧请求的结果更新新弹窗。
+
+来源路由按图片文件名读取图集或完整发布的运行时来源记录，返回 `{url, artist, source}`，不要求重写旧消息，也不请求外部 API。Pixabay 优先作者主页：新搜索保留 `user_id`，按官方格式生成 `https://pixabay.com/users/<用户名>-<用户ID>/`，图集和运行时来源记录可保存 `artistUrl`；旧来源缺少作者主页时使用该照片的原图页，不猜用户名链接。Commons 使用记录的 `https://commons.wikimedia.org/wiki/File:...` 原图页，用户能在那里查看作者和许可证链接；卡片自身仍显示作者、许可名称和副本已缩小的说明。只允许两家来源指定的 HTTPS 页面，未知文件、未发布文件、路径穿越和不合法目标返回 404，解析结果不缓存；不带 `format=json` 时直接返回 307 跳转，用于来源链接兼容。高德没有作者署名链接。
+
+**作者、来源、许可证存在哪（维护记录）：**完整来源信息继续保存在文件中；下面是维护者查看的位置，不作为用户的浏览页面。
+
+| 照片类型 | 图片文件 | 来源记录及字段 |
+| --- | --- | --- |
+| 随应用发布的图集照片 | `public/photos/<file>` | [public/photos/photos.json](../public/photos/photos.json) 按照片说明名称索引：`file`、`artist`、`pageUrl`、`fetchedAt`、地区与别名配置；Commons 另有 `source: "wikimedia"`、`license`、`licenseUrl`，Pixabay 可有 `artistUrl` |
+| 规划时下载的照片 | `MERI_MEDIA_DIR/place-photos/files/<source>-<ID>.<ext>` | 同目录 `<source>-<ID>.json`：`source`、`artist`、`pageUrl`、地区／地标、宽高／字节数和抓取时间；Commons 另有 `license`、`licenseUrl`、Commons 文件名、Wikidata 条目及原图宽高，Pixabay 可有 `artistUrl`。开发环境默认根目录是 `.cache/media` |
+| 会话中的照片引用 | 消息 `presentation` 中各卡片的 `image`，没有图片字节 | 仅保存 `url`、`caption`、可选 `credit`；跳转时按文件名找到上述完整来源记录，不把作者主页或许可证字段补写进旧消息 |
+
+例如用户看到的思茅文庙图：`photos.json` 的“思茅文庙”条目登记 `simao-confucian-temple-154844611.jpg`，作者“瑞丽江的河水”，许可 CC BY-SA 4.0，[原图页](https://commons.wikimedia.org/wiki/File:%E6%80%9D%E8%8C%85%E6%96%87%E5%BA%99_-_2024-10-06.jpg)与[许可证页](https://creativecommons.org/licenses/by-sa/4.0)均已保存。点击它的署名并在弹窗中确认后会打开原图页，不再打开 `localhost:3000/photo-credits#...`。
 
 **本地图集缓存：**索引在进程内读取并复用，修改文件后需重启进程才能读取新版。查图不消耗外部图片 API 额度；本站图片下载和 next/image 优化仍有流量、CPU 与磁盘缓存开销。运行时下载的照片不写进这份索引，而是存在媒体目录里，每次查询从磁盘读，所以新下载的照片不需要重启就能被查到和访问。
 
@@ -722,6 +740,7 @@ add/set 使用 Promise.all 查询表达。解析层保留不同 provider ID，�
 | --- | --- | --- |
 | `GET /api/trips/[id]/destination-photos` | 无 body；guest cookie 决定 owner | 200 `{photos: [{key, label, image}]}`，`Cache-Control: private, no-store`；无 owner/旅程 404；其他失败 500，界面只显示地球 |
 | `POST /api/trips/[id]/destination-recommendation-photos` | `{messageId}`（只此一个字段），guest cookie 决定 owner | 200 流式 `application/x-ndjson`：每张还没照片的卡一行 `{id, image\|null}`，查完并保存后结束；没有待查的卡时为空响应。带 `X-Accel-Buffering: no`（nginx 反向代理默认缓冲，会把所有行攒到最后），`Cache-Control: private, no-store, no-transform`。body 不合法 400；无 owner、旅程不存在或该消息不是推荐卡 404；读取消息失败 500。保存失败不影响已发出的行 |
+| `GET /photo-credits/source/[file]` | 精确图片文件名；弹窗加 `?format=json` | JSON 模式 200 `{url, artist, source}`，只解析本地已知来源，不访问外部网站；其他请求 307 跳转到同一来源。图集／媒体目录没有记录、媒体尚未发布、文件名或外部目标不合法均 404；所有结果 `Cache-Control: no-store`。弹窗失败时提供重试，确认访问前不导航，不修改目的地、消息或来源记录 |
 
 ### 5.7 地图提供方：高德（默认）或天地图
 
@@ -880,6 +899,7 @@ add/set 使用 Promise.all 查询表达。解析层保留不同 provider ID，�
 | 推荐流水线 | [workflow](../src/capabilities/recommendation/destination-recommendation-workflow.ts) | 搜索、生成、省范围过滤，卡片带地标、不带照片 |
 | 推荐卡照片 | [recommendation-photos](../src/capabilities/recommendation/recommendation-photos.ts)、[photos route](../src/app/api/trips/[id]/destination-recommendation-photos/route.ts)、[stream reader](../src/components/trip-workspace/destination-recommendation-model.ts)、[Skeleton](../src/components/ui/skeleton.tsx) | 卡片出现后逐张流式补照片，查完写回卡片消息 |
 | 地点照片 | [place-images](../src/capabilities/destination/place-images.ts)、[Amap photo provider](../src/platform/place-photos/amap-place-photo-provider.ts)、[destination-photos route](../src/app/api/trips/[id]/destination-photos/route.ts) | 查询顺序、卡片配图、已选地点照片、7 天缓存 |
+| 照片来源确认 | [photo-source-dialog](../src/components/trip-workspace/photo-source-dialog.tsx)、[source route](../src/app/photo-credits/source/%5Bfile%5D/route.ts)、[photo catalog](../src/platform/place-photos/photo-catalog.ts)、[media store](../src/platform/place-photos/media-photo-store.ts) | 从本地记录解析外部作者／原图页，展示完整网址后由用户确认访问；来源、作者、许可的维护位置见 5.6 |
 | 照片环与标题图 | [journey-orbit](../src/components/trip-workspace/journey-orbit.tsx)、[photos model](../src/components/trip-workspace/destination-photos-model.ts)、[workspace-header](../src/components/trip-workspace/workspace-header.tsx) | 旋转、暂停、点击转到前方、封面 |
 | 统一选卡提交 | [selection route](../src/app/api/trips/[id]/destination-recommendation-selection/route.ts) | offer 校验、整批核验、替换、重试 |
 | 提交身份复核 | [verified-choice](../src/capabilities/destination/verified-destination-choice.ts) | provider ID 与历史规范名 |

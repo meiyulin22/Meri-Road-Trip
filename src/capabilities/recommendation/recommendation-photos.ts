@@ -75,6 +75,35 @@ async function photoFor(item: CardAwaitingPhoto, photos: PlacePhotoProvider, rem
 }
 
 /**
+ * A reopened card saved without a photo can use a newly added local photo. The caller
+ * supplies a local provider: this read-time decoration never searches remotely or
+ * changes the saved message, its photo rules, or cards still awaiting their first lookup.
+ */
+export async function withLocalRecommendationPhotos(
+  presentation: DestinationRecommendationPresentation,
+  photos: PlacePhotoProvider,
+): Promise<DestinationRecommendationPresentation> {
+  const shown = new Set(presentation.destinations.flatMap((item) => item.image ? [item.image.url] : []));
+  const destinations: DestinationRecommendation[] = [];
+  let changed = false;
+  for (const item of presentation.destinations) {
+    if (item.image !== null || item.province === null) {
+      destinations.push(item);
+      continue;
+    }
+    const result = await photoFor({ ...item, province: item.province }, photos, []);
+    if (result.status !== "found" || shown.has(result.image.url)) {
+      destinations.push(item);
+      continue;
+    }
+    shown.add(result.image.url);
+    destinations.push({ ...item, image: result.image });
+    changed = true;
+  }
+  return changed ? { ...presentation, destinations } : presentation;
+}
+
+/**
  * Looks up the photo of every card that has none yet and reports each one the moment
  * it is known, so the browser can fill cards in as they arrive instead of waiting for
  * the slowest. The lookups all start at once; the provider's own queue spaces them out.

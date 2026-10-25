@@ -6,6 +6,7 @@ import { mediaPhotoUrlPrefix, type MediaPhotoStore, type StoredPhotoRecord } fro
 import type { PixabayClient, PixabayFailure } from "./pixabay-client";
 import {
   assessHits,
+  pixabayArtistUrl,
   searchVariants,
   type PixabayHit,
   type RejectionReason,
@@ -191,8 +192,10 @@ export class PixabayPhotoFinder implements RemotePhotoFinder<RemoteBatch> {
     const file = `pixabay-${hit.id}.${facts.format}`;
     const image: PlaceImage = { url: `${mediaPhotoUrlPrefix}${file}`, caption: subject.landmark.slice(0, 60),
       credit: `Photo: ${hit.user.trim().slice(0, 80)} / Pixabay` };
+    const artistUrl = pixabayArtistUrl(hit);
     const record: StoredPhotoRecord = { source: "pixabay", id: hit.id, file, format: facts.format,
       width: facts.width, height: facts.height, bytes: downloaded.body.byteLength, artist: hit.user,
+      ...(artistUrl ? { artistUrl } : {}),
       pageUrl: hit.pageURL, tags: hit.tags, query, matched, province: subject.province, region: subject.region,
       landmark: subject.landmark, reviewed: false, fetchedAt: new Date(this.now()).toISOString() };
     let published: "published" | "full";

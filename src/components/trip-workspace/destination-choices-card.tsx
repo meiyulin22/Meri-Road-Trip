@@ -14,6 +14,7 @@ import { useMessages } from "@/components/i18n/locale-context";
 
 import { AnimatedCheckbox } from "../ui/animated-checkbox";
 import { Skeleton } from "../ui/skeleton";
+import { PhotoSourceCredit } from "./photo-source-dialog";
 import styles from "./destination-recommendation-picker.module.css";
 
 export function DestinationChoicesCard({ presentation, areas, active, pending, error, onCommit, photoPendingIds = [] }: {
@@ -107,11 +108,13 @@ function ProvinceRow({ province, children }: { readonly province: string; readon
   }, [emblaApi, updateEdges]);
 
   function handlePointerDown(event: PointerEvent<HTMLDivElement>): void {
+    if (event.target instanceof Element && event.target.closest("dialog")) return;
     pointerStart.current = { x: event.clientX, y: event.clientY };
     dragged.current = false;
   }
 
   function handlePointerMove(event: PointerEvent<HTMLDivElement>): void {
+    if (event.target instanceof Element && event.target.closest("dialog")) return;
     const start = pointerStart.current;
     if (start && Math.abs(event.clientX - start.x) > 8 &&
       Math.abs(event.clientX - start.x) > Math.abs(event.clientY - start.y)) {
@@ -121,6 +124,7 @@ function ProvinceRow({ province, children }: { readonly province: string; readon
 
   // A drag that ends over a card must not also tick its checkbox.
   function suppressDragClick(event: MouseEvent<HTMLDivElement>): void {
+    if (event.target instanceof Element && event.target.closest("dialog")) return;
     if (event.detail > 0 && dragged.current) {
       event.preventDefault();
       event.stopPropagation();
@@ -179,8 +183,7 @@ function PlaceCard({ choice, checked, disabled, inJourney, onToggle, photoPendin
       {image && !waiting ? <span className={styles.placeCaption} title={image.credit}>
         {image.caption}
         {image.credit ? creditsHref(image.url)
-          ? <a aria-label={`${messages.photoCredits.openCredits}: ${image.credit}`} className={styles.placeCredit}
-            href={creditsHref(image.url)!} rel="noreferrer" target="_blank">{image.credit}</a>
+          ? <PhotoSourceCredit className={styles.placeCredit} href={creditsHref(image.url)!} image={image} />
           : <small className={styles.placeCredit}>{image.credit}</small> : null}
       </span> : null}
     </span>
@@ -195,15 +198,12 @@ function PlaceCard({ choice, checked, disabled, inJourney, onToggle, photoPendin
 }
 
 /**
- * Where a photo's full credit is: our own copies are listed on /photo-credits — a catalog
- * photo or a Commons photo Meri found while planning by its file name, a Pixabay one found
- * while planning in the runtime section. A provider's photo (Amap's) has no credit page.
+ * Every local credit resolves from its source record, so old cards need no data rewrite.
+ * The confirmation dialog fetches the external destination before allowing navigation.
  */
 export function creditsHref(url: string): string | null {
-  if (url.startsWith("/photos/")) return `/photo-credits#${encodeURIComponent(url.slice("/photos/".length))}`;
-  if (url.startsWith("/media/place-photos/wikimedia-")) {
-    return `/photo-credits#${encodeURIComponent(url.slice("/media/place-photos/".length))}`;
+  if (url.startsWith("/photos/") || /^\/media\/place-photos\/(?:pixabay|wikimedia)-/u.test(url)) {
+    return `/photo-credits/source/${encodeURIComponent(url.slice(url.lastIndexOf("/") + 1))}`;
   }
-  if (url.startsWith("/media/place-photos/")) return "/photo-credits#runtime";
   return null;
 }

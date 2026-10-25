@@ -64,6 +64,8 @@ interface StoredPhotoFacts {
 export interface PixabayPhotoRecord extends StoredPhotoFacts {
   readonly source: "pixabay";
   readonly id: number;
+  /** The contributor's profile, when Pixabay supplied their user ID. */
+  readonly artistUrl?: string;
   readonly tags: string;
   /** The search that found it and the words of the name its tags carried. */
   readonly query: string;
@@ -73,7 +75,8 @@ export interface PixabayPhotoRecord extends StoredPhotoFacts {
 /**
  * A Commons photo, the P18 image of a Wikidata item whose name is the landmark and which
  * lies in the card's 市. Creative Commons asks for the author, the licence with its link,
- * the source and a note that the copy was resized: all of it is kept, and /photo-credits shows it.
+ * the source and a note that the copy was resized: the card names the licence and resizing,
+ * links to the Commons file page, and retains the full source facts here.
  */
 export interface WikimediaPhotoRecord extends StoredPhotoFacts {
   readonly source: "wikimedia";
@@ -175,7 +178,9 @@ function isHit(value: unknown): value is PixabayHit {
   if (!isRecord(value)) return false;
   return typeof value.id === "number" && Number.isSafeInteger(value.id) && value.id > 0 &&
     typeof value.tags === "string" && typeof value.pageURL === "string" && typeof value.webformatURL === "string" &&
-    typeof value.user === "string" && typeof value.imageWidth === "number" && value.imageWidth > 0 &&
+    typeof value.user === "string" &&
+    (value.user_id === undefined || (Number.isSafeInteger(value.user_id) && (value.user_id as number) > 0)) &&
+    typeof value.imageWidth === "number" && value.imageWidth > 0 &&
     typeof value.imageHeight === "number" && value.imageHeight > 0;
 }
 
@@ -295,7 +300,7 @@ export class MediaPhotoStore {
   }
 
   /**
-   * Every published Commons photo, newest first, for /photo-credits. Read from the records
+   * Every published Commons photo, newest first, for source inspection. Read from the records
    * themselves, so a photo is listed exactly when it can be served.
    */
   async listWikimediaRecords(): Promise<readonly WikimediaPhotoRecord[]> {
@@ -371,6 +376,19 @@ export class MediaPhotoStore {
     } catch {
       return null;
     }
+  }
+
+  /** Source facts for an existing card's credit, without changing its saved image. */
+  async readPhotoCredit(file: string): Promise<{
+    readonly source: RemotePhotoSource; readonly artist: string; readonly pageUrl: string; readonly artistUrl?: string;
+  } | null> {
+    if (!mediaPhotoFilePattern.test(file)) return null;
+    const stored = await readJson(join(this.files, `${file.slice(0, file.lastIndexOf("."))}.json`));
+    if (!isRecord(stored) || (stored.source !== "pixabay" && stored.source !== "wikimedia") ||
+      !file.startsWith(`${stored.source}-`) || stored.file !== file || typeof stored.artist !== "string" ||
+      typeof stored.pageUrl !== "string" || !(await exists(join(this.files, file)))) return null;
+    return { source: stored.source, artist: stored.artist, pageUrl: stored.pageUrl,
+      ...(typeof stored.artistUrl === "string" ? { artistUrl: stored.artistUrl } : {}) };
   }
 
   private async isPublished(file: string): Promise<boolean> {

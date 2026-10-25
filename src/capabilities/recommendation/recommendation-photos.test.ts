@@ -3,16 +3,62 @@ import test from "node:test";
 
 import { placePhotoRulesVersion, type PlaceImage } from "@/domain/location/place-image";
 import type { DestinationRecommendationPresentation } from "@/domain/trip-message/trip-message";
+import { CatalogPhotoProvider } from "@/platform/place-photos/catalog-photo-provider";
 import type { RemotePhotoFinder, RemotePhotoResult, RemotePhotoSubject } from "@/platform/place-photos/remote-photo-finder";
 import type { PlacePhotoProvider, PlacePhotoQuery } from "@/platform/place-photos/place-photo-provider";
 
-import { findRecommendationPhotos, type DeferredRecommendationPhoto, type RecommendationPhoto } from "./recommendation-photos";
+import { findRecommendationPhotos, withLocalRecommendationPhotos, type DeferredRecommendationPhoto, type RecommendationPhoto } from "./recommendation-photos";
 
 const picture = (caption: string): PlaceImage => ({ url: `https://store.is.autonavi.com/showpic/${encodeURIComponent(caption)}`, caption });
 
 function photos(answer: (query: PlacePhotoQuery) => PlaceImage | null, asked: PlacePhotoQuery[] = []): PlacePhotoProvider {
   return { async findPhoto(query) { asked.push(query); return answer(query); } };
 }
+
+test("a reopened Wanning card saved with no photo uses its new local representative without changing the saved card", async (context) => {
+  const fetch = context.mock.method(globalThis, "fetch", async () => { throw new Error("Network forbidden"); });
+  const saved: DestinationRecommendationPresentation = { type: "destination_recommendations", destinations: [
+    { id: "wn", name: "万宁市", province: "海南省", landmark: "日月湾", image: null, photoRules: placePhotoRulesVersion },
+  ] };
+  const before = structuredClone(saved);
+  const result = await withLocalRecommendationPhotos(saved, new CatalogPhotoProvider());
+  assert.equal(result.destinations[0].image?.url, "/photos/shimei-bay-wanning-25170960.jpg");
+  assert.equal(result.destinations[0].image?.caption, "石梅湾");
+  assert.equal(result.destinations[0].photoRules, placePhotoRulesVersion);
+  assert.deepEqual(saved, before);
+  assert.equal(fetch.mock.callCount(), 0);
+});
+
+test("local read-time photos leave existing images, unlooked-up cards, missing regions and local misses unchanged", async () => {
+  const existing = picture("大理古城");
+  const saved: DestinationRecommendationPresentation = { type: "destination_recommendations", destinations: [
+    { id: "kept", name: "大理白族自治州", province: "云南省", image: existing },
+    { id: "pending", name: "万宁市", province: "海南省" },
+    { id: "old", name: "云南", province: null, image: null },
+    { id: "miss", name: "未收录市", province: "云南省", image: null, photoRules: placePhotoRulesVersion },
+  ] };
+  const asked: PlacePhotoQuery[] = [];
+  const result = await withLocalRecommendationPhotos(saved, photos(() => null, asked));
+  assert.equal(result, saved);
+  assert.deepEqual(asked, [{ kind: "scenic", region: "未收录市" }]);
+});
+
+test("local read-time photos keep existing image priority and do not repeat a new photo within the set", async () => {
+  const existing = picture("已有照片");
+  const added = picture("新增照片");
+  const saved: DestinationRecommendationPresentation = { type: "destination_recommendations", destinations: [
+    { id: "duplicate-existing", name: "甲市", province: "云南省", image: null },
+    { id: "kept", name: "乙市", province: "云南省", image: existing },
+    { id: "new", name: "丙市", province: "云南省", image: null },
+    { id: "duplicate-new", name: "丁市", province: "云南省", image: null },
+  ] };
+  const result = await withLocalRecommendationPhotos(saved,
+    photos((query) => query.region === "甲市" ? existing : added));
+  assert.deepEqual(result.destinations.map((item) => item.image), [null, existing, added, null]);
+  assert.equal(result.destinations[0], saved.destinations[0]);
+  assert.equal(result.destinations[1], saved.destinations[1]);
+  assert.equal(result.destinations[3], saved.destinations[3]);
+});
 
 test("each card without a photo is looked up by its landmark, reported as it lands, and returned filled in", async () => {
   const presentation: DestinationRecommendationPresentation = { type: "destination_recommendations", destinations: [

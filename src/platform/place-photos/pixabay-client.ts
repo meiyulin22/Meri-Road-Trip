@@ -58,8 +58,10 @@ function isHit(value: unknown): value is PixabayHit {
 
 /** Only what Meri reads is kept, so the 24-hour cache holds no more than it needs. */
 function trimmed(hit: PixabayHit): PixabayHit {
-  const { id, tags, pageURL, webformatURL, imageWidth, imageHeight, user } = hit;
-  return { id, tags, pageURL, webformatURL, imageWidth, imageHeight, user };
+  const { id, tags, pageURL, webformatURL, imageWidth, imageHeight, user, user_id } = hit;
+  const validUserId = Number.isSafeInteger(user_id) && (user_id ?? 0) > 0;
+  return { id, tags, pageURL, webformatURL, imageWidth, imageHeight, user,
+    ...(validUserId ? { user_id } : {}) };
 }
 
 function allowedDownload(url: string): URL | null {

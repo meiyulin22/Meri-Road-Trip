@@ -30,6 +30,15 @@ test("a refused key, a rate limit and a broken answer are told apart", async () 
   assert.deepEqual(await offline.search(query), { ok: false, failure: "transient" });
 });
 
+test("a contributor ID is retained when valid and omitted when absent or malformed", async () => {
+  for (const user_id of [5722660, undefined, 0, -1, 1.5, "5722660", Number.MAX_SAFE_INTEGER + 1]) {
+    const scripted = scriptedFetch({ search: () => searchAnswer([{ ...hit(1, "sanya"), user_id } as never]) });
+    const result = await new PixabayClient({ key: "k", fetcher: scripted.fetcher }).search(query);
+    assert.ok(result.ok);
+    assert.equal(result.hits[0].user_id, user_id === 5722660 ? 5722660 : undefined);
+  }
+});
+
 test("downloads come only from Pixabay's hosts, redirects included", async () => {
   const client = new PixabayClient({ key: "k", fetcher: scriptedFetch({ download: (url) => url.includes("redirect")
     ? new Response(null, { status: 302, headers: { location: "https://evil.example/photo.jpg" } })

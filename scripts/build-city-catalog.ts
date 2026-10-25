@@ -10,7 +10,7 @@
  *     公有领域的照片，下载 500px 副本（竖图也留着，审核页标出来，由人决定）。每城最多 4 张候选。Pixabay：每城最多 3 张
  *     （先搜景点中文名、英文名，还没有才搜城市名，用运行时同一套规则过滤）。
  *     候选下载到 .cache/catalog-review/<批次>/，生成 review.html。不碰 public/photos。
- *     Commons 的图是知识共享许可：图集记下作者、许可证和链接，/photo-credits 全部列出。
+ *     Commons 的图是知识共享许可：图集记下作者、许可证和链接，卡片署名经确认后打开原图页。
  *
  *   npx tsx scripts/build-city-catalog.ts fetch jiangzhehu --views 苏州市,绍兴市
  *     城市景色模式（只用 Pixabay）：只给列出的城市找"能代表这座城市"的照片（天际线、街道、
@@ -36,8 +36,8 @@ import { join } from "node:path";
 import { readImageFacts } from "../src/platform/place-photos/image-file";
 import { MediaPhotoStore } from "../src/platform/place-photos/media-photo-store";
 import { PixabayClient } from "../src/platform/place-photos/pixabay-client";
-import { judgeHit, type PixabayHit, type RemotePhotoSubject } from "../src/platform/place-photos/pixabay-photo-match";
-import { parsePhotoCatalog, type CatalogEntry } from "../src/platform/place-photos/photo-catalog";
+import { judgeHit, pixabayArtistUrl, type PixabayHit, type RemotePhotoSubject } from "../src/platform/place-photos/pixabay-photo-match";
+import { parsePhotoCatalog, parsePixabayArtistUrl, type CatalogEntry } from "../src/platform/place-photos/photo-catalog";
 import { WikimediaClient, type CommonsFile } from "../src/platform/place-photos/wikimedia-client";
 import { chineseLiterals, literal, usageRefusalOf } from "../src/platform/place-photos/wikimedia-photo-finder";
 
@@ -77,6 +77,7 @@ interface Candidate {
   readonly kind: "landmark" | "city";
   readonly query: string;
   readonly artist: string;
+  readonly artistUrl?: string;
   readonly pageUrl: string;
   readonly tags: string;
   readonly file: string;
@@ -198,6 +199,7 @@ async function fetchBatch(batch: CatalogBatch, views: ReadonlySet<string> | null
     const candidates: Candidate[] = [];
     const kept = new Set(await readdir(directory));
     for (const { hit, plan } of accepted) {
+      const artistUrl = pixabayArtistUrl(hit);
       // A candidate already downloaded by an earlier run is reused, not fetched again.
       const earlier = [...kept].find((name) => name.startsWith(`${hit.id}.`));
       if (earlier) {
@@ -205,6 +207,7 @@ async function fetchBatch(batch: CatalogBatch, views: ReadonlySet<string> | null
         const facts = readImageFacts(body);
         if (facts) {
           candidates.push({ id: hit.id, shows: plan.subject.landmark, kind: plan.kind, query: `${plan.query} [${plan.lang}]`,
+            ...(artistUrl ? { artistUrl } : {}),
             artist: hit.user, pageUrl: hit.pageURL, tags: hit.tags, file: earlier, width: facts.width, height: facts.height,
             bytes: body.byteLength });
           continue;
@@ -222,6 +225,7 @@ async function fetchBatch(batch: CatalogBatch, views: ReadonlySet<string> | null
       const file = `${hit.id}.${facts.format}`;
       await writeFile(join(directory, file), downloaded.body);
       candidates.push({ id: hit.id, shows: plan.subject.landmark, kind: plan.kind, query: `${plan.query} [${plan.lang}]`,
+        ...(artistUrl ? { artistUrl } : {}),
         artist: hit.user, pageUrl: hit.pageURL, tags: hit.tags, file, width: facts.width, height: facts.height,
         bytes: downloaded.body.byteLength });
     }
@@ -306,7 +310,8 @@ async function applyPicks(batch: CatalogBatch, picksPath: string): Promise<void>
     const file = `${slugOf(slug)}-${chosen.id}.${chosen.file.split(".").pop()}`;
     if (!/^[a-z0-9][a-z0-9-]*\.(?:jpe?g|png|webp)$/u.test(file)) throw new Error(`${cityName} 的文件名不合法：${file}`);
     await copyFile(join(directory, chosen.file), join(photosDirectory, file));
-    catalog[name] = { file, artist: chosen.artist, pageUrl: chosen.pageUrl, fetchedAt: today, aliases: [],
+    const artistUrl = chosen.source === "wikimedia" ? undefined : parsePixabayArtistUrl(chosen.artistUrl);
+    catalog[name] = { file, artist: chosen.artist, ...(artistUrl ? { artistUrl } : {}), pageUrl: chosen.pageUrl, fetchedAt: today, aliases: [],
       regions: [city.name, city.short], scenicFor: [city.name, city.short],
       ...(chosen.source === "wikimedia" && chosen.license && chosen.licenseUrl
         ? { source: "wikimedia" as const, license: chosen.license, licenseUrl: chosen.licenseUrl } : {}) };

@@ -1,12 +1,20 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { assessHits, judgeHit, rankHits, searchVariants, type RemotePhotoSubject } from "./pixabay-photo-match";
+import { assessHits, judgeHit, pixabayArtistUrl, rankHits, searchVariants, type RemotePhotoSubject } from "./pixabay-photo-match";
 import { regionShortName } from "./photo-regions";
 import { hit } from "./pixabay-test-fixtures";
 
 const yulong: RemotePhotoSubject = { province: "云南省", region: "丽江市", landmark: "玉龙雪山", english: "Jade Dragon Snow Mountain" };
 const cangshan: RemotePhotoSubject = { province: "云南省", region: "大理白族自治州", landmark: "苍山", english: "Cangshan Mountain" };
+
+test("a photographer profile uses the contributor ID instead of guessing from a display name", () => {
+  assert.equal(pixabayArtistUrl({ user: "wangsuishi", user_id: 5722660 }), "https://pixabay.com/users/wangsuishi-5722660/");
+  assert.equal(pixabayArtistUrl({ user: "Name With Spaces", user_id: 12 }), "https://pixabay.com/users/Name%20With%20Spaces-12/");
+  assert.equal(pixabayArtistUrl({ user: "wangsuishi" }), undefined);
+  assert.equal(pixabayArtistUrl({ user: "wangsuishi", user_id: 0 }), undefined);
+  assert.equal(pixabayArtistUrl({ user: "", user_id: 12 }), undefined);
+});
 
 test("a hit names the landmark only through every distinctive word, never through 'mountain' or 'Yunnan'", () => {
   assert.deepEqual(judgeHit(hit(1, "jade dragon snow mountain, lijiang, yunnan"), yulong),

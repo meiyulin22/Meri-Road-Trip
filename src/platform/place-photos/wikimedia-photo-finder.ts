@@ -48,7 +48,7 @@ const pauseAfterRefusalMs = 15 * 60 * 1000;
 const minimumBytes = 10 * 1024;
 
 /**
- * The licences whose terms the credit line and /photo-credits meet: Creative Commons BY
+ * The licences whose attribution the credit line and linked source preserve: Creative Commons BY
  * and BY-SA (any version or port), CC0 and public domain. Anything else — GFDL-only, a
  * licence Commons names oddly, no licence — is passed over, and Pixabay is asked instead.
  */
