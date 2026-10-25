@@ -745,6 +745,53 @@ const guizhou: readonly CatalogCity[] = [
     { zh: "小七孔", en: "Xiaoqikong" }, { zh: "中国天眼", en: "FAST Telescope" }] },
 ];
 
+/**
+ * 前几批没配上图的 20 个城市（1.0641）：换一批搜索词——另一两个景点，加上主城区和县，
+ * 因为区县的 Wikidata 条目常有自己的代表图，城市条目没有或不合格时可用。
+ */
+const misses: readonly CatalogCity[] = [
+  { province: "海南省", name: "三沙市", short: "三沙", en: "Sansha", landmarks: [
+    { zh: "西沙群岛", en: "Paracel Islands" }, { zh: "赵述岛", en: "Zhaoshu Island" }] },
+  { province: "广东省", name: "东莞市", short: "东莞", en: "Dongguan", landmarks: [
+    { zh: "松山湖", en: "Songshan Lake Dongguan" }, { zh: "虎门镇", en: "Humen Town" }] },
+  { province: "河北省", name: "廊坊市", short: "廊坊", en: "Langfang", landmarks: [
+    { zh: "广阳区", en: "Guangyang District" }, { zh: "霸州市", en: "Bazhou" }, { zh: "三河市", en: "Sanhe" }] },
+  { province: "河南省", name: "焦作市", short: "焦作", en: "Jiaozuo", landmarks: [
+    { zh: "神农山", en: "Shennong Mountain" }, { zh: "嘉应观", en: "Jiaying Temple" }, { zh: "沁阳市", en: "Qinyang" }] },
+  { province: "湖南省", name: "衡阳市", short: "衡阳", en: "Hengyang", landmarks: [
+    { zh: "石鼓书院", en: "Shigu Academy" }, { zh: "回雁峰", en: "Huiyan Peak" }, { zh: "南岳区", en: "Nanyue District" }] },
+  { province: "安徽省", name: "阜阳市", short: "阜阳", en: "Fuyang", landmarks: [
+    { zh: "阜阳文峰塔", en: "Wenfeng Pagoda Fuyang" }, { zh: "颍上县", en: "Yingshang County" }, { zh: "界首市", en: "Jieshou" }] },
+  { province: "吉林省", name: "辽源市", short: "辽源", en: "Liaoyuan", landmarks: [
+    { zh: "辽河源", en: "Source of the Liao River" }, { zh: "龙山区", en: "Longshan District Liaoyuan" }, { zh: "东丰县", en: "Dongfeng County" }] },
+  { province: "黑龙江省", name: "鹤岗市", short: "鹤岗", en: "Hegang", landmarks: [
+    { zh: "金顶山", en: "Jinding Mountain Hegang" }, { zh: "萝北县", en: "Luobei County" }, { zh: "绥滨县", en: "Suibin County" }] },
+  { province: "新疆维吾尔自治区", name: "哈密市", short: "哈密", en: "Hami", landmarks: [
+    { zh: "伊州区", en: "Yizhou District" }, { zh: "巴里坤哈萨克自治县", en: "Barkol County" }, { zh: "伊吾县", en: "Yiwu County" }] },
+  { province: "新疆维吾尔自治区", name: "塔城地区", short: "塔城", en: "Tacheng", landmarks: [
+    { zh: "塔城市", en: "Tacheng City" }, { zh: "乌苏市", en: "Wusu" }, { zh: "额敏县", en: "Emin County" }] },
+  { province: "甘肃省", name: "平凉市", short: "平凉", en: "Pingliang", landmarks: [
+    { zh: "柳湖", en: "Liuhu Park Pingliang" }, { zh: "崆峒区", en: "Kongtong District" }, { zh: "静宁县", en: "Jingning County" }] },
+  { province: "甘肃省", name: "庆阳市", short: "庆阳", en: "Qingyang Gansu", landmarks: [
+    { zh: "董志塬", en: "Dongzhiyuan" }, { zh: "西峰区", en: "Xifeng District" }, { zh: "环县", en: "Huan County" }] },
+  { province: "山东省", name: "淄博市", short: "淄博", en: "Zibo", landmarks: [
+    { zh: "齐长城", en: "Great Wall of Qi" }, { zh: "博山区", en: "Boshan District" }, { zh: "临淄区", en: "Linzi District" }] },
+  { province: "贵州省", name: "铜仁市", short: "铜仁", en: "Tongren", landmarks: [
+    { zh: "梵净山", en: "Mount Fanjing" }, { zh: "碧江区", en: "Bijiang District" }, { zh: "江口县", en: "Jiangkou County" }] },
+  { province: "四川省", name: "自贡市", short: "自贡", en: "Zigong", landmarks: [
+    { zh: "西秦会馆", en: "Xiqin Guild Hall" }, { zh: "桑海井", en: "Shenhai Well" }, { zh: "自流井区", en: "Ziliujing District" }] },
+  { province: "四川省", name: "绵阳市", short: "绵阳", en: "Mianyang", landmarks: [
+    { zh: "越王楼", en: "Yuewang Tower" }, { zh: "江油市", en: "Jiangyou" }, { zh: "涪城区", en: "Fucheng District" }] },
+  { province: "四川省", name: "广元市", short: "广元", en: "Guangyuan", landmarks: [
+    { zh: "剑门关", en: "Jianmen Pass" }, { zh: "皇泽寺", en: "Huangze Temple" }, { zh: "昭化古城", en: "Zhaohua Ancient Town" }] },
+  { province: "四川省", name: "广安市", short: "广安", en: "Guang'an", landmarks: [
+    { zh: "邓小平故居", en: "Deng Xiaoping's Former Residence" }, { zh: "华蓥山", en: "Huaying Mountain" }, { zh: "岳池县", en: "Yuechi County" }] },
+  { province: "四川省", name: "达州市", short: "达州", en: "Dazhou", landmarks: [
+    { zh: "真佛山", en: "Zhenfo Mountain" }, { zh: "巴山大峡谷", en: "Bashan Grand Canyon" }, { zh: "通川区", en: "Tongchuan District" }] },
+  { province: "四川省", name: "资阳市", short: "资阳", en: "Ziyang", landmarks: [
+    { zh: "安岳石刻", en: "Anyue Grottoes" }, { zh: "雁江区", en: "Yanjiang District" }, { zh: "乐至县", en: "Lezhi County" }] },
+];
+
 export const catalogBatches: readonly CatalogBatch[] = [
   { id: "jiangzhehu", cities: [...jiangsu, ...zhejiang, ...shanghai] },
   { id: "southwest", cities: [...yunnan, ...sichuan, ...chongqing, ...tibet] },
@@ -754,4 +801,5 @@ export const catalogBatches: readonly CatalogBatch[] = [
   { id: "northeast", cities: [...liaoning, ...jilin, ...heilongjiang] },
   { id: "northwest", cities: [...shaanxi, ...gansu, ...ningxia, ...qinghai, ...xinjiang] },
   { id: "shandong-guizhou", cities: [...shandong, ...guizhou] },
+  { id: "misses", cities: misses },
 ];

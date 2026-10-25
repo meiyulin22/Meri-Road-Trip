@@ -169,8 +169,19 @@ async function fetchBatch(batch: CatalogBatch, views: ReadonlySet<string> | null
         orientation: "horizontal", safesearch: "true", per_page: "50" }).toString();
       let hits = await store.readSearch(parameters, Date.now());
       if (!hits) {
-        const outcome = await patiently(() => client.search(new URLSearchParams(parameters)));
-        if (!outcome.ok) throw new Error(`${city.name}「${plan.query}」搜索失败：${outcome.failure}，本批停止`);
+        let outcome = await patiently(() => client.search(new URLSearchParams(parameters)));
+        if (!outcome.ok && outcome.failure === "transient") {
+          // One dropped search (庆阳「西峰区」, 2026-10-25) should not stop the other cities: wait and ask once more.
+          await new Promise((resolve) => setTimeout(resolve, 5_000));
+          outcome = await patiently(() => client.search(new URLSearchParams(parameters)));
+        }
+        if (!outcome.ok && outcome.failure !== "transient") {
+          throw new Error(`${city.name}「${plan.query}」搜索失败：${outcome.failure}，本批停止`);
+        }
+        if (!outcome.ok) {
+          asked.push(`${plan.query} [${plan.lang}] 没有回答，跳过`);
+          continue;
+        }
         hits = outcome.hits;
         await store.writeSearch(parameters, hits, Date.now());
       }
