@@ -185,6 +185,10 @@ test("the query pins the landmark to its 市 and the 市 to its province, and no
   const chongqing = landmarkQuery({ province: "重庆市", region: "重庆市", landmark: "洪崖洞" }) ?? "";
   assert.doesNotMatch(chongqing, /\?province/u);
   assert.match(chongqing, /\?region wdt:P17 wd:Q148\./u);
+  // 吉林市 shares its short name with 吉林省 but is an ordinary 市: its province is still checked.
+  const jilin = landmarkQuery({ province: "吉林省", region: "吉林市", landmark: "松花湖" }) ?? "";
+  assert.match(jilin, /VALUES \?provinceName \{ "吉林省"@zh/u);
+  assert.doesNotMatch(jilin, /wdt:P17/u);
 });
 
 test("the landmark's own Chinese label ranks first, then other labels, then aliases; the older item breaks a tie", () => {

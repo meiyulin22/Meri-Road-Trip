@@ -70,6 +70,12 @@ function namesOf(subject: RemotePhotoSubject): { chinese: string[]; latin: strin
 }
 
 /**
+ * The four 直辖市, named outright: comparing a 市's short name with its province's would
+ * also call 吉林市 (in 吉林省) one, and drop the province check for it.
+ */
+const municipalities = new Set(["北京", "上海", "天津", "重庆"]);
+
+/**
  * Items named like the landmark — label or alias, in Chinese or English — that lie in
  * the card's 市 by Wikidata's own "located in" chain (P131, followed upwards), and have an
  * image (P18). The 市 is itself pinned to its province, so neither the landmark nor a short
@@ -81,7 +87,8 @@ export function landmarkQuery(subject: RemotePhotoSubject): string | null {
   if (chinese.length === 0 && latin.length === 0) return null;
   const names = [chineseLiterals(chinese), ...latin.map((name) => `${literal(name)}@en`)].filter(Boolean).join(" ");
   const regions = chineseLiterals([subject.region, regionShortName(subject.region)]);
-  const municipality = regionShortName(subject.region) === regionShortName(subject.province);
+  const municipality = municipalities.has(regionShortName(subject.region)) &&
+    regionShortName(subject.region) === regionShortName(subject.province);
   // A 直辖市 has no province above it: "in China" (P17 = Q148) keeps out namesakes such as the moon crater 天津.
   const province = municipality ? "?region wdt:P17 wd:Q148."
     : `?region wdt:P131 ?province. VALUES ?provinceName { ${chineseLiterals([subject.province])} } ?province rdfs:label ?provinceName.`;

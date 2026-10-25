@@ -507,10 +507,88 @@ const anhui: readonly CatalogCity[] = [
     { zh: "敬亭山", en: "Jingting Mountain" }, { zh: "桃花潭", en: "Taohua Pond" }] },
 ];
 
+const liaoning: readonly CatalogCity[] = [
+  { province: "辽宁省", name: "沈阳市", short: "沈阳", en: "Shenyang", landmarks: [
+    { zh: "沈阳故宫", en: "Mukden Palace" }, { zh: "清昭陵", en: "Zhaoling Mausoleum" }] },
+  { province: "辽宁省", name: "大连市", short: "大连", en: "Dalian", landmarks: [
+    { zh: "星海广场", en: "Xinghai Square" }, { zh: "老虎滩", en: "Tiger Beach Dalian" }] },
+  { province: "辽宁省", name: "鞍山市", short: "鞍山", en: "Anshan", landmarks: [
+    { zh: "千山", en: "Qianshan" }, { zh: "玉佛苑", en: "Jade Buddha Palace" }] },
+  { province: "辽宁省", name: "抚顺市", short: "抚顺", en: "Fushun", landmarks: [
+    { zh: "赫图阿拉城", en: "Hetu Ala" }, { zh: "抚顺西露天矿", en: "Fushun West Open-pit Mine" }] },
+  { province: "辽宁省", name: "本溪市", short: "本溪", en: "Benxi", landmarks: [
+    { zh: "本溪水洞", en: "Benxi Water Cave" }, { zh: "关门山", en: "Guanmen Mountain" }] },
+  { province: "辽宁省", name: "丹东市", short: "丹东", en: "Dandong", landmarks: [
+    { zh: "鸭绿江断桥", en: "Broken Bridge Yalu River" }, { zh: "虎山长城", en: "Hushan Great Wall" }] },
+  { province: "辽宁省", name: "锦州市", short: "锦州", en: "Jinzhou Liaoning", landmarks: [
+    { zh: "笔架山", en: "Bijia Mountain" }, { zh: "锦州古塔", en: "Jinzhou Ancient Pagoda" }] },
+  { province: "辽宁省", name: "营口市", short: "营口", en: "Yingkou", landmarks: [
+    { zh: "鲅鱼圈", en: "Bayuquan" }, { zh: "西炮台", en: "Xipaotai Fort" }] },
+  { province: "辽宁省", name: "阜新市", short: "阜新", en: "Fuxin", landmarks: [
+    { zh: "海棠山", en: "Haitang Mountain" }, { zh: "瑞应寺", en: "Ruiying Temple" }] },
+  { province: "辽宁省", name: "辽阳市", short: "辽阳", en: "Liaoyang", landmarks: [
+    { zh: "辽阳白塔", en: "Liaoyang White Pagoda" }, { zh: "弓长岭", en: "Gongchangling" }] },
+  { province: "辽宁省", name: "盘锦市", short: "盘锦", en: "Panjin", landmarks: [
+    { zh: "红海滩", en: "Red Beach Panjin" }, { zh: "辽河口湿地", en: "Liao River Delta Wetland" }] },
+  { province: "辽宁省", name: "铁岭市", short: "铁岭", en: "Tieling", landmarks: [
+    { zh: "龙首山", en: "Longshou Mountain Tieling" }, { zh: "莲花湖", en: "Lianhua Lake Tieling" }] },
+  { province: "辽宁省", name: "朝阳市", short: "朝阳", en: "Chaoyang Liaoning", landmarks: [
+    { zh: "凤凰山", en: "Fenghuang Mountain Chaoyang" }, { zh: "朝阳北塔", en: "North Pagoda Chaoyang" }] },
+  { province: "辽宁省", name: "葫芦岛市", short: "葫芦岛", en: "Huludao", landmarks: [
+    { zh: "兴城古城", en: "Xingcheng Ancient City" }, { zh: "觉华岛", en: "Juehua Island" }] },
+];
+
+const jilin: readonly CatalogCity[] = [
+  { province: "吉林省", name: "长春市", short: "长春", en: "Changchun", landmarks: [
+    { zh: "伪满皇宫", en: "Puppet Manchukuo Palace" }, { zh: "净月潭", en: "Jingyuetan" }] },
+  { province: "吉林省", name: "吉林市", short: "吉林", en: "Jilin City", landmarks: [
+    { zh: "松花湖", en: "Songhua Lake" }, { zh: "雾凇岛", en: "Wusong Island" }] },
+  { province: "吉林省", name: "四平市", short: "四平", en: "Siping", landmarks: [
+    { zh: "叶赫古城", en: "Yehe Ancient City" }, { zh: "二龙湖", en: "Erlong Lake" }] },
+  { province: "吉林省", name: "辽源市", short: "辽源", en: "Liaoyuan", landmarks: [
+    { zh: "龙首山", en: "Longshou Mountain Liaoyuan" }, { zh: "鴜鹭湖", en: "Cilu Lake" }] },
+  { province: "吉林省", name: "通化市", short: "通化", en: "Tonghua", landmarks: [
+    { zh: "高句丽王城", en: "Capital Cities of Koguryo" }, { zh: "五女峰", en: "Wunü Peak" }] },
+  { province: "吉林省", name: "松原市", short: "松原", en: "Songyuan", landmarks: [
+    { zh: "查干湖", en: "Chagan Lake" }, { zh: "龙华寺", en: "Longhua Temple Songyuan" }] },
+  { province: "吉林省", name: "白城市", short: "白城", en: "Baicheng", landmarks: [
+    { zh: "向海", en: "Xianghai" }, { zh: "莫莫格", en: "Momoge" }] },
+];
+
+const heilongjiang: readonly CatalogCity[] = [
+  { province: "黑龙江省", name: "哈尔滨市", short: "哈尔滨", en: "Harbin", landmarks: [
+    { zh: "圣索菲亚教堂", en: "Saint Sophia Cathedral Harbin" }, { zh: "中央大街", en: "Central Street Harbin" }] },
+  { province: "黑龙江省", name: "齐齐哈尔市", short: "齐齐哈尔", en: "Qiqihar", landmarks: [
+    { zh: "扎龙", en: "Zhalong" }, { zh: "明月岛", en: "Mingyue Island" }] },
+  { province: "黑龙江省", name: "鸡西市", short: "鸡西", en: "Jixi", landmarks: [
+    { zh: "兴凯湖", en: "Xingkai Lake" }, { zh: "珍宝岛", en: "Zhenbao Island" }] },
+  { province: "黑龙江省", name: "鹤岗市", short: "鹤岗", en: "Hegang", landmarks: [
+    { zh: "名山", en: "Mingshan Luobei" }, { zh: "龙江三峡", en: "Longjiang Three Gorges" }] },
+  { province: "黑龙江省", name: "双鸭山市", short: "双鸭山", en: "Shuangyashan", landmarks: [
+    { zh: "七星峰", en: "Qixing Peak" }, { zh: "安邦河", en: "Anbang River" }] },
+  { province: "黑龙江省", name: "大庆市", short: "大庆", en: "Daqing", landmarks: [
+    { zh: "连环湖", en: "Lianhuan Lake" }, { zh: "龙凤湿地", en: "Longfeng Wetland" }] },
+  { province: "黑龙江省", name: "伊春市", short: "伊春", en: "Yichun Heilongjiang", landmarks: [
+    { zh: "汤旺河", en: "Tangwang River" }, { zh: "五营", en: "Wuying Forest Park" }] },
+  { province: "黑龙江省", name: "佳木斯市", short: "佳木斯", en: "Jiamusi", landmarks: [
+    { zh: "黑瞎子岛", en: "Bolshoy Ussuriysky Island" }, { zh: "街津口", en: "Jiejinkou" }] },
+  { province: "黑龙江省", name: "七台河市", short: "七台河", en: "Qitaihe", landmarks: [
+    { zh: "石龙山", en: "Shilong Mountain" }, { zh: "桃山湖", en: "Taoshan Lake" }] },
+  { province: "黑龙江省", name: "牡丹江市", short: "牡丹江", en: "Mudanjiang", landmarks: [
+    { zh: "镜泊湖", en: "Jingpo Lake" }, { zh: "雪乡", en: "China Snow Town" }] },
+  { province: "黑龙江省", name: "黑河市", short: "黑河", en: "Heihe", landmarks: [
+    { zh: "五大连池", en: "Wudalianchi" }, { zh: "瑷珲古城", en: "Aihui" }] },
+  { province: "黑龙江省", name: "绥化市", short: "绥化", en: "Suihua", landmarks: [
+    { zh: "绥化西湖", en: "Suihua West Lake" }, { zh: "诺敏河", en: "Nuomin River" }] },
+  { province: "黑龙江省", name: "大兴安岭地区", short: "大兴安岭", en: "Greater Khingan", landmarks: [
+    { zh: "北极村", en: "Beiji Village Mohe" }, { zh: "九曲十八弯", en: "Jiuqu Shiba Wan Huzhong" }] },
+];
+
 export const catalogBatches: readonly CatalogBatch[] = [
   { id: "jiangzhehu", cities: [...jiangsu, ...zhejiang, ...shanghai] },
   { id: "southwest", cities: [...yunnan, ...sichuan, ...chongqing, ...tibet] },
   { id: "south", cities: [...guangdong, ...guangxi, ...hainan, ...fujian] },
   { id: "north", cities: [...tianjin, ...hebei, ...shanxi, ...innerMongolia] },
   { id: "central", cities: [...henan, ...hubei, ...hunan, ...jiangxi, ...anhui] },
+  { id: "northeast", cities: [...liaoning, ...jilin, ...heilongjiang] },
 ];

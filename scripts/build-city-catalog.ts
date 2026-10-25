@@ -2,11 +2,13 @@
  * 给图集按城市补代表图，分两步，中间人工审核：
  *
  *   npx tsx scripts/build-city-catalog.ts fetch south
- *     先问 Wikidata（1.0634 起）：每个城市 1 次查询，找名字是这座城市或它的景点、并且按维基
+ *     两个图源都抓（1.0638 起），审核页上 Pixabay 的候选排前面：Pixabay 的照片通常更好看，
+ *     地点对就优先用；Wikidata 的地点确定，放在旁边对照，Pixabay 没有或不对时用它。
+ *     Wikidata（1.0634 起）：每个城市 1 次查询，找名字是这座城市或它的景点、并且按维基
  *     自己的"位于"关系（P131）落在这座城市里（城市又属于它的省）的条目，取它们的代表图（P18）；
  *     再从 Wikimedia Commons 读作者和许可证（每 50 个文件 1 次），只留 CC BY / CC BY-SA / CC0 /
- *     公有领域的照片，下载 500px 副本（竖图也留着，审核页标出来，由人决定）。每城最多 4 张候选。Wikidata 一张都没有的城市，
- *     才去 Pixabay 找最多 3 张（先搜景点中文名、英文名，还没有才搜城市名，用运行时同一套规则过滤）。
+ *     公有领域的照片，下载 500px 副本（竖图也留着，审核页标出来，由人决定）。每城最多 4 张候选。Pixabay：每城最多 3 张
+ *     （先搜景点中文名、英文名，还没有才搜城市名，用运行时同一套规则过滤）。
  *     候选下载到 .cache/catalog-review/<批次>/，生成 review.html。不碰 public/photos。
  *     Commons 的图是知识共享许可：图集记下作者、许可证和链接，/photo-credits 全部列出。
  *
@@ -136,14 +138,9 @@ async function fetchBatch(batch: CatalogBatch, views: ReadonlySet<string> | null
       continue;
     }
     const fromWikidata = wikimedia?.get(city.name);
-    if (fromWikidata && fromWikidata.candidates.length > 0) {
-      results.push(fromWikidata);
-      console.log(`${city.name}: Wikidata ${fromWikidata.candidates.length} 张候选`);
-      continue;
-    }
     if (!key) {
       results.push(fromWikidata ?? { city, candidates: [], searches: [] });
-      console.log(`${city.name}: Wikidata 没有，未配置 PIXABAY_API_KEY，不查 Pixabay`);
+      console.log(`${city.name}: Wikidata ${fromWikidata?.candidates.length ?? 0} 张候选；未配置 PIXABAY_API_KEY，不查 Pixabay`);
       continue;
     }
     const plans: { query: string; lang: "zh" | "en"; subject: RemotePhotoSubject; kind: Candidate["kind"] }[] = [];
@@ -218,8 +215,11 @@ async function fetchBatch(batch: CatalogBatch, views: ReadonlySet<string> | null
         bytes: downloaded.body.byteLength });
     }
     await writeFile(join(directory, "candidates.json"), `${JSON.stringify({ city, searches: asked, candidates }, null, 1)}\n`);
-    results.push({ city, candidates, searches: [...(fromWikidata?.searches ?? []), ...asked] });
-    console.log(`${city.name}: ${candidates.length} 张候选（${asked.join("；")}）`);
+    // Pixabay first on the page: its photos are usually the better-looking ones, and are taken
+    // when the place is right; Wikidata's, certain of the place, are beside them for comparison.
+    results.push({ city, candidates: [...candidates, ...(fromWikidata?.candidates ?? [])],
+      searches: [...asked, ...(fromWikidata?.searches ?? [])] });
+    console.log(`${city.name}: Pixabay ${candidates.length} 张${fromWikidata ? `，Wikidata ${fromWikidata.candidates.length} 张` : ""}（${asked.join("；")}）`);
   }
 
   await writeFile(join(reviewRoot, batch.id, views ? "review-views.html" : "review.html"), await reviewPage(batch, results));
@@ -453,7 +453,7 @@ async function rebuildReview(batch: CatalogBatch): Promise<void> {
   for (const city of batch.cities) {
     const candidates: Candidate[] = [];
     const searches: string[] = [];
-    for (const list of ["candidates-wikimedia.json", "candidates.json"]) {
+    for (const list of ["candidates.json", "candidates-wikimedia.json"]) {
       try {
         const saved = JSON.parse(await readFile(join(reviewRoot, batch.id, city.name, list), "utf8")) as
           { candidates: Candidate[]; searches?: string[] };

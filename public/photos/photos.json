@@ -4033,5 +4033,566 @@
   "source": "wikimedia",
   "license": "CC BY-SA 4.0",
   "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0"
+ },
+ "沈阳故宫": {
+  "file": "mukden-palace-95540195.jpg",
+  "artist": "Techyan",
+  "pageUrl": "https://commons.wikimedia.org/wiki/File:Mukden_Palace_drone_view_5_(cropped_%26_rotated).jpg",
+  "fetchedAt": "2026-10-25",
+  "aliases": [],
+  "regions": [
+   "沈阳市",
+   "沈阳"
+  ],
+  "scenicFor": [
+   "沈阳市",
+   "沈阳"
+  ],
+  "source": "wikimedia",
+  "license": "CC BY-SA 4.0",
+  "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0"
+ },
+ "星海广场": {
+  "file": "xinghai-square-105329299.jpg",
+  "artist": "HSJ233",
+  "pageUrl": "https://commons.wikimedia.org/wiki/File:Xinghai_Square_.jpg",
+  "fetchedAt": "2026-10-25",
+  "aliases": [],
+  "regions": [
+   "大连市",
+   "大连"
+  ],
+  "scenicFor": [
+   "大连市",
+   "大连"
+  ],
+  "source": "wikimedia",
+  "license": "CC BY-SA 4.0",
+  "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0"
+ },
+ "通明山": {
+  "file": "tongming-mountain-1411668.jpg",
+  "artist": "shaoxy",
+  "pageUrl": "https://pixabay.com/zh/photos/tongming-mountain-scenery-spring-1411668/",
+  "fetchedAt": "2026-10-25",
+  "aliases": [],
+  "regions": [
+   "鞍山市",
+   "鞍山"
+  ],
+  "scenicFor": [
+   "鞍山市",
+   "鞍山"
+  ]
+ },
+ "抚顺": {
+  "file": "fushun-167566157.jpg",
+  "artist": "H2v5o68z",
+  "pageUrl": "https://commons.wikimedia.org/wiki/File:%E6%8A%9A%E9%A1%BA%E7%94%9F%E5%91%BD%E4%B9%8B%E7%8E%AF_9.jpg",
+  "fetchedAt": "2026-10-25",
+  "aliases": [],
+  "regions": [
+   "抚顺市",
+   "抚顺"
+  ],
+  "scenicFor": [
+   "抚顺市",
+   "抚顺"
+  ],
+  "source": "wikimedia",
+  "license": "CC0",
+  "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/deed.en"
+ },
+ "蒲石河": {
+  "file": "pushi-river-418659.jpg",
+  "artist": "yeeger",
+  "pageUrl": "https://pixabay.com/zh/photos/liaoning-province-benxipu-shihe-418659/",
+  "fetchedAt": "2026-10-25",
+  "aliases": [],
+  "regions": [
+   "本溪市",
+   "本溪"
+  ],
+  "scenicFor": [
+   "本溪市",
+   "本溪"
+  ]
+ },
+ "鸭绿江断桥": {
+  "file": "yalu-broken-bridge-6355104.jpg",
+  "artist": "The original uploader was Ragnar19 at German Wikipedia .",
+  "pageUrl": "https://commons.wikimedia.org/wiki/File:Dandong_Bruecke.JPG",
+  "fetchedAt": "2026-10-25",
+  "aliases": [],
+  "regions": [
+   "丹东市",
+   "丹东"
+  ],
+  "scenicFor": [
+   "丹东市",
+   "丹东"
+  ],
+  "source": "wikimedia",
+  "license": "CC BY-SA 3.0",
+  "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0/"
+ },
+ "笔架山": {
+  "file": "bijia-mountain-9672990.jpg",
+  "artist": "Wen2li3 ( talk )",
+  "pageUrl": "https://commons.wikimedia.org/wiki/File:Bi_jia_shan_at_high_tide.JPG",
+  "fetchedAt": "2026-10-25",
+  "aliases": [],
+  "regions": [
+   "锦州市",
+   "锦州"
+  ],
+  "scenicFor": [
+   "锦州市",
+   "锦州"
+  ],
+  "source": "wikimedia",
+  "license": "CC BY-SA 4.0",
+  "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0"
+ },
+ "营口": {
+  "file": "yingkou-53069842.jpg",
+  "artist": "Matthew Summerton",
+  "pageUrl": "https://commons.wikimedia.org/wiki/File:Zhanqian,_Yingkou,_Liaoning,_China_-_panoramio_-_Matthew_Summerton.jpg",
+  "fetchedAt": "2026-10-25",
+  "aliases": [],
+  "regions": [
+   "营口市",
+   "营口"
+  ],
+  "scenicFor": [
+   "营口市",
+   "营口"
+  ],
+  "source": "wikimedia",
+  "license": "CC BY-SA 3.0",
+  "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0"
+ },
+ "阜新": {
+  "file": "fuxin-46642544.jpg",
+  "artist": "Jacky Lee",
+  "pageUrl": "https://commons.wikimedia.org/wiki/File:%E8%A7%A3%E6%94%BE%E5%B9%BF%E5%9C%BA_Jie_Fang_square_-_panoramio.jpg",
+  "fetchedAt": "2026-10-25",
+  "aliases": [],
+  "regions": [
+   "阜新市",
+   "阜新"
+  ],
+  "scenicFor": [
+   "阜新市",
+   "阜新"
+  ],
+  "source": "wikimedia",
+  "license": "CC BY 3.0",
+  "licenseUrl": "https://creativecommons.org/licenses/by/3.0"
+ },
+ "辽阳": {
+  "file": "liaoyang-142637902.jpg",
+  "artist": "红烧腰果",
+  "pageUrl": "https://commons.wikimedia.org/wiki/File:%E8%BE%BD%E9%98%B3%E5%B8%82%E7%99%BD%E5%A1%94%E5%8C%BA.jpg",
+  "fetchedAt": "2026-10-25",
+  "aliases": [],
+  "regions": [
+   "辽阳市",
+   "辽阳"
+  ],
+  "scenicFor": [
+   "辽阳市",
+   "辽阳"
+  ],
+  "source": "wikimedia",
+  "license": "CC BY 4.0",
+  "licenseUrl": "https://creativecommons.org/licenses/by/4.0"
+ },
+ "红海滩": {
+  "file": "red-beach-panjin-83582.jpg",
+  "artist": "lemontfaron",
+  "pageUrl": "https://pixabay.com/photos/red-beach-beach-water-holidays-83582/",
+  "fetchedAt": "2026-10-25",
+  "aliases": [],
+  "regions": [
+   "盘锦市",
+   "盘锦"
+  ],
+  "scenicFor": [
+   "盘锦市",
+   "盘锦"
+  ]
+ },
+ "铁岭": {
+  "file": "tieling-93015852.jpg",
+  "artist": "Tomskyhaha",
+  "pageUrl": "https://commons.wikimedia.org/wiki/File:A_rain_in_Fanhe_20200810_prelude_01.jpg",
+  "fetchedAt": "2026-10-25",
+  "aliases": [],
+  "regions": [
+   "铁岭市",
+   "铁岭"
+  ],
+  "scenicFor": [
+   "铁岭市",
+   "铁岭"
+  ],
+  "source": "wikimedia",
+  "license": "CC BY-SA 4.0",
+  "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0"
+ },
+ "朝阳北塔": {
+  "file": "chaoyang-north-pagoda-43742495.jpg",
+  "artist": "猫猫的日记本",
+  "pageUrl": "https://commons.wikimedia.org/wiki/File:Northern_Chaoyang_Pagoda_04_2015-09.JPG",
+  "fetchedAt": "2026-10-25",
+  "aliases": [],
+  "regions": [
+   "朝阳市",
+   "朝阳"
+  ],
+  "scenicFor": [
+   "朝阳市",
+   "朝阳"
+  ],
+  "source": "wikimedia",
+  "license": "CC BY-SA 4.0",
+  "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0"
+ },
+ "葫芦岛": {
+  "file": "huludao-22535113.jpg",
+  "artist": "Pandakinghy",
+  "pageUrl": "https://commons.wikimedia.org/wiki/File:Huludao_City.jpg",
+  "fetchedAt": "2026-10-25",
+  "aliases": [],
+  "regions": [
+   "葫芦岛市",
+   "葫芦岛"
+  ],
+  "scenicFor": [
+   "葫芦岛市",
+   "葫芦岛"
+  ],
+  "source": "wikimedia",
+  "license": "CC BY-SA 3.0",
+  "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0"
+ },
+ "净月潭": {
+  "file": "jingyuetan-56686525.jpg",
+  "artist": "wanghongliu",
+  "pageUrl": "https://commons.wikimedia.org/wiki/File:%E5%87%80%E6%9C%88%E6%BD%AD_jing_yue_tan_-_panoramio.jpg",
+  "fetchedAt": "2026-10-25",
+  "aliases": [],
+  "regions": [
+   "长春市",
+   "长春"
+  ],
+  "scenicFor": [
+   "长春市",
+   "长春"
+  ],
+  "source": "wikimedia",
+  "license": "CC BY-SA 3.0",
+  "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0"
+ },
+ "吉林": {
+  "file": "jilin-city-192644081.jpg",
+  "artist": "H2v5o68z",
+  "pageUrl": "https://commons.wikimedia.org/wiki/File:%E5%90%89%E6%9E%97%E9%BE%99%E5%B1%B1%E8%A7%82%E5%9F%8E_1.jpg",
+  "fetchedAt": "2026-10-25",
+  "aliases": [],
+  "regions": [
+   "吉林市",
+   "吉林"
+  ],
+  "scenicFor": [
+   "吉林市",
+   "吉林"
+  ],
+  "source": "wikimedia",
+  "license": "CC0",
+  "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/deed.en"
+ },
+ "四平": {
+  "file": "siping-61697099.jpg",
+  "artist": "Amarespeco",
+  "pageUrl": "https://commons.wikimedia.org/wiki/File:%E5%8D%97%E6%B2%B3%EF%BC%8C%E5%9B%9B%E5%B9%B32017.jpg",
+  "fetchedAt": "2026-10-25",
+  "aliases": [],
+  "regions": [
+   "四平市",
+   "四平"
+  ],
+  "scenicFor": [
+   "四平市",
+   "四平"
+  ],
+  "source": "wikimedia",
+  "license": "CC BY-SA 4.0",
+  "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0"
+ },
+ "通化": {
+  "file": "tonghua-140317816.jpg",
+  "artist": "EditQ",
+  "pageUrl": "https://commons.wikimedia.org/wiki/File:Views_from_Yuhuang_Mountain,_Tonghua_1.jpg",
+  "fetchedAt": "2026-10-25",
+  "aliases": [],
+  "regions": [
+   "通化市",
+   "通化"
+  ],
+  "scenicFor": [
+   "通化市",
+   "通化"
+  ],
+  "source": "wikimedia",
+  "license": "CC0",
+  "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/deed.en"
+ },
+ "查干湖": {
+  "file": "chagan-lake-3326925.jpg",
+  "artist": "jwr1",
+  "pageUrl": "https://pixabay.com/photos/mammal-winter-horses-brown-3326925/",
+  "fetchedAt": "2026-10-25",
+  "aliases": [],
+  "regions": [
+   "松原市",
+   "松原"
+  ],
+  "scenicFor": [
+   "松原市",
+   "松原"
+  ]
+ },
+ "白城": {
+  "file": "baicheng-81044956.jpg",
+  "artist": "Augoustoshai",
+  "pageUrl": "https://commons.wikimedia.org/wiki/File:%E6%B5%B7%E6%98%8E%E8%B7%AF%E6%AD%A5%E8%A1%8C%E8%A1%97170157.jpg",
+  "fetchedAt": "2026-10-25",
+  "aliases": [],
+  "regions": [
+   "白城市",
+   "白城"
+  ],
+  "scenicFor": [
+   "白城市",
+   "白城"
+  ],
+  "source": "wikimedia",
+  "license": "CC BY-SA 4.0",
+  "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0"
+ },
+ "圣索菲亚教堂": {
+  "file": "saint-sophia-cathedral-135317444.jpg",
+  "artist": "N509FZ",
+  "pageUrl": "https://commons.wikimedia.org/wiki/File:West_facade_of_St._Sophia_Cathedral,_Harbin_(20230721150450).jpg",
+  "fetchedAt": "2026-10-25",
+  "aliases": [],
+  "regions": [
+   "哈尔滨市",
+   "哈尔滨"
+  ],
+  "scenicFor": [
+   "哈尔滨市",
+   "哈尔滨"
+  ],
+  "source": "wikimedia",
+  "license": "CC BY-SA 4.0",
+  "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0"
+ },
+ "扎龙": {
+  "file": "zhalong-3628100.jpg",
+  "artist": "Vined",
+  "pageUrl": "https://pixabay.com/zh/photos/heilongjiang-pinned-dragon-wetlands-3628100/",
+  "fetchedAt": "2026-10-25",
+  "aliases": [],
+  "regions": [
+   "齐齐哈尔市",
+   "齐齐哈尔"
+  ],
+  "scenicFor": [
+   "齐齐哈尔市",
+   "齐齐哈尔"
+  ]
+ },
+ "珍宝岛": {
+  "file": "zhenbao-island-57238376.jpg",
+  "artist": "TowerCard",
+  "pageUrl": "https://commons.wikimedia.org/wiki/File:%E4%BB%8E%E9%AB%98%E5%A4%84%E4%BF%AF%E8%A7%86%E7%8F%8D%E5%AE%9D%E5%B2%9B_-_panoramio.jpg",
+  "fetchedAt": "2026-10-25",
+  "aliases": [],
+  "regions": [
+   "鸡西市",
+   "鸡西"
+  ],
+  "scenicFor": [
+   "鸡西市",
+   "鸡西"
+  ],
+  "source": "wikimedia",
+  "license": "CC BY-SA 3.0",
+  "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0"
+ },
+ "双鸭山": {
+  "file": "shuangyashan-176562210.jpg",
+  "artist": "H2v5o68z",
+  "pageUrl": "https://commons.wikimedia.org/wiki/File:Civic_Square,_Shuangyashan_1.jpg",
+  "fetchedAt": "2026-10-25",
+  "aliases": [],
+  "regions": [
+   "双鸭山市",
+   "双鸭山"
+  ],
+  "scenicFor": [
+   "双鸭山市",
+   "双鸭山"
+  ],
+  "source": "wikimedia",
+  "license": "CC0",
+  "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/deed.en"
+ },
+ "大庆": {
+  "file": "daqing-167110334.jpg",
+  "artist": "TurnOnTheNight",
+  "pageUrl": "https://commons.wikimedia.org/wiki/File:Cityscape_of_Dongfeng_Xincun_20250530174919.jpg",
+  "fetchedAt": "2026-10-25",
+  "aliases": [],
+  "regions": [
+   "大庆市",
+   "大庆"
+  ],
+  "scenicFor": [
+   "大庆市",
+   "大庆"
+  ],
+  "source": "wikimedia",
+  "license": "CC BY-SA 4.0",
+  "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0"
+ },
+ "伊春": {
+  "file": "yichun-heilongjiang-68574028.jpg",
+  "artist": "Xwn0122",
+  "pageUrl": "https://commons.wikimedia.org/wiki/File:Sight_of_the_city_from_the_top_of_Xing%27an_Tower,_Yichun,_Heilongjiang,_China.jpg",
+  "fetchedAt": "2026-10-25",
+  "aliases": [],
+  "regions": [
+   "伊春市",
+   "伊春"
+  ],
+  "scenicFor": [
+   "伊春市",
+   "伊春"
+  ],
+  "source": "wikimedia",
+  "license": "CC BY-SA 4.0",
+  "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0"
+ },
+ "佳木斯": {
+  "file": "jiamusi-176926700.jpg",
+  "artist": "H2v5o68z",
+  "pageUrl": "https://commons.wikimedia.org/wiki/File:Zhiqing_Culture_Plaza_3.jpg",
+  "fetchedAt": "2026-10-25",
+  "aliases": [],
+  "regions": [
+   "佳木斯市",
+   "佳木斯"
+  ],
+  "scenicFor": [
+   "佳木斯市",
+   "佳木斯"
+  ],
+  "source": "wikimedia",
+  "license": "CC0",
+  "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/deed.en"
+ },
+ "七台河": {
+  "file": "qitaihe-16635708.jpg",
+  "artist": "Brian Dell",
+  "pageUrl": "https://commons.wikimedia.org/wiki/File:Qitaihe_Xuefu_St.jpg",
+  "fetchedAt": "2026-10-25",
+  "aliases": [],
+  "regions": [
+   "七台河市",
+   "七台河"
+  ],
+  "scenicFor": [
+   "七台河市",
+   "七台河"
+  ],
+  "source": "wikimedia",
+  "license": "CC0",
+  "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/deed.en"
+ },
+ "牡丹江": {
+  "file": "mudanjiang-8677722.jpg",
+  "artist": "Bosiota",
+  "pageUrl": "https://commons.wikimedia.org/wiki/File:MDJ_vista_sul_fiume.jpg",
+  "fetchedAt": "2026-10-25",
+  "aliases": [],
+  "regions": [
+   "牡丹江市",
+   "牡丹江"
+  ],
+  "scenicFor": [
+   "牡丹江市",
+   "牡丹江"
+  ],
+  "source": "wikimedia",
+  "license": "Public domain",
+  "licenseUrl": "https://commons.wikimedia.org/wiki/File:MDJ_vista_sul_fiume.jpg"
+ },
+ "瑷珲古城": {
+  "file": "aihui-61764536.jpg",
+  "artist": "Amarespeco",
+  "pageUrl": "https://commons.wikimedia.org/wiki/File:%E9%BB%91%E6%B2%B3%E4%B8%AD%E5%A4%AE%E8%A1%97-2-2017.jpg",
+  "fetchedAt": "2026-10-25",
+  "aliases": [],
+  "regions": [
+   "黑河市",
+   "黑河"
+  ],
+  "scenicFor": [
+   "黑河市",
+   "黑河"
+  ],
+  "source": "wikimedia",
+  "license": "CC BY-SA 4.0",
+  "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0"
+ },
+ "绥化": {
+  "file": "suihua-61125895.jpg",
+  "artist": "Amarespeco",
+  "pageUrl": "https://commons.wikimedia.org/wiki/File:%E6%9C%9B%E5%A5%8E%E5%8E%BF%E5%B9%BF%E5%9C%BA%E8%A1%97%E8%A1%97%E6%99%AF.jpg",
+  "fetchedAt": "2026-10-25",
+  "aliases": [],
+  "regions": [
+   "绥化市",
+   "绥化"
+  ],
+  "scenicFor": [
+   "绥化市",
+   "绥化"
+  ],
+  "source": "wikimedia",
+  "license": "CC BY-SA 4.0",
+  "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0"
+ },
+ "北极村": {
+  "file": "beiji-village-54018212.jpg",
+  "artist": "funcn",
+  "pageUrl": "https://commons.wikimedia.org/wiki/File:%E5%8C%97%E6%9E%81%E6%9D%91%E7%9A%84%E7%AB%A5%E8%AF%9D%E4%B8%96%E7%95%8C_QQ696847_-_panoramio.jpg",
+  "fetchedAt": "2026-10-25",
+  "aliases": [],
+  "regions": [
+   "大兴安岭地区",
+   "大兴安岭"
+  ],
+  "scenicFor": [
+   "大兴安岭地区",
+   "大兴安岭"
+  ],
+  "source": "wikimedia",
+  "license": "CC BY 3.0",
+  "licenseUrl": "https://creativecommons.org/licenses/by/3.0"
  }
 }
