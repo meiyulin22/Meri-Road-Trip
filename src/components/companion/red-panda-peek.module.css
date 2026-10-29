@@ -10,7 +10,8 @@
   bottom: calc(100% - 0.6rem);
   width: clamp(5rem, 15vw, 6.5rem);
   aspect-ratio: 384 / 327;
-  overflow: hidden;
+  /* Clip only below the box edge, so a turning head keeps its ears. */
+  clip-path: inset(-40% -25% 0 -25%);
   pointer-events: none;
   user-select: none;
 }
@@ -21,9 +22,10 @@
   will-change: transform;
 }
 
-/* Once settled, the original picture already includes the paws. */
-.layer[data-hidden="true"] {
-  visibility: hidden;
+.head {
+  position: absolute;
+  inset: 0;
+  transform-origin: 50% 100%;
 }
 
 .picture,

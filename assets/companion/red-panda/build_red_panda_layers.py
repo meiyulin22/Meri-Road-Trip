@@ -10,7 +10,7 @@ the body is v2 as it is. All three layers keep one shared canvas (cropped to the
 so the page can stack them with no offsets. Also measures the two plain white eyes,
 which the page fills with code-drawn pupils and eyelids.
 
-Writes public/companion/red-panda/{whole,body,paw-left,paw-right}.webp and red-panda.json.
+Writes public/companion/red-panda/{body,paw-left,paw-right}.webp and red-panda.json.
 Run from anywhere:  python3 assets/companion/red-panda/build_red_panda_layers.py [--preview DIR]
 Needs Pillow with WebP (present on the development Mac). Not part of the app runtime.
 """
@@ -157,9 +157,7 @@ def main() -> None:
         return layer.crop(box).resize(size, Image.LANCZOS)
 
     OUT_DIR.mkdir(parents=True, exist_ok=True)
-    # "whole" is the original picture, shown once the panda has settled: the cut layers only carry the
-    # moment it climbs, so the still frame people look at is the untouched drawing.
-    outputs = {"whole": export(whole), "body": export(body), "paw-left": export(left_paw), "paw-right": export(right_paw)}
+    outputs = {"body": export(body), "paw-left": export(left_paw), "paw-right": export(right_paw)}
     for name, image in outputs.items():
         image.save(OUT_DIR / f"{name}.webp", "WEBP", quality=88, method=6)
 
@@ -186,7 +184,7 @@ def main() -> None:
         stacked = outputs["body"].copy()
         stacked.alpha_composite(outputs["paw-left"])
         stacked.alpha_composite(outputs["paw-right"])
-        for i, image in enumerate((outputs["whole"], outputs["paw-left"], outputs["paw-right"], stacked)):
+        for i, image in enumerate((outputs["body"], outputs["paw-left"], outputs["paw-right"], stacked)):
             sheet.alpha_composite(image, (i * size[0], 0))
         sheet.save(PREVIEW_DIR / "red-panda-layers.png")
 

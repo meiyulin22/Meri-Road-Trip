@@ -13,8 +13,9 @@ import { nextBlinkDelay, pupilOffset, typingTarget, type Point } from "./red-pan
  * the pointer (or the text being typed) and it blinks now and then. Decoration only: hidden from
  * assistive technology and from the pointer, so it never gets in the way of typing or clicking.
  *
- * The layers come from assets/companion/red-panda/build_red_panda_layers.py. They only carry the
- * climb; once settled the untouched original picture is shown, so the still frame has no cut edges.
+ * The layers come from assets/companion/red-panda/build_red_panda_layers.py. The body (with the
+ * head) also turns a little toward what the panda looks at, pivoting at the neck, while the paws
+ * stay planted on the edge and cover the seam.
  */
 const { width: W, height: H, eyes } = geometry;
 const eyePoints = eyes.map((eye) => ({ cx: eye.cx * W, cy: eye.cy * H, rx: eye.rx * W, ry: eye.ry * H }));
@@ -55,6 +56,9 @@ export function RedPandaPeek({ active, input }: {
   const rightX = useSpring(0, springy);
   const rightY = useSpring(0, springy);
   const pupils = [{ x: leftX, y: leftY }, { x: rightX, y: rightY }];
+  // The head follows more slowly than the eyes, as a real head would.
+  const headTurn = useSpring(0, { stiffness: 120, damping: 18 });
+  const headShift = useSpring(0, { stiffness: 120, damping: 18 });
 
   useEffect(() => {
     if (!active) return;
@@ -66,10 +70,16 @@ export function RedPandaPeek({ active, input }: {
       const scale = box.width / W;
       eyePoints.forEach((eye, index) => {
         const centre = { x: box.left + eye.cx * scale, y: box.top + eye.cy * scale };
-        const offset = pupilOffset(centre, target, Math.min(eye.rx, eye.ry) * 0.42, 320);
+        // Big pupils leave little white to move in; going a touch past it lets the eye-ring clip them, which reads as a sideways glance.
+        const offset = pupilOffset(centre, target, Math.min(eye.rx, eye.ry) * 0.26, 320);
         axes[index].x.set(offset.x);
         axes[index].y.set(offset.y);
       });
+      if (reduce) return;
+      // Up to 7° and 3% sideways toward the target, eased in over a screen-width's distance.
+      const lean = Math.max(-1, Math.min(1, (target.x - (box.left + box.width / 2)) / 600));
+      headTurn.set(lean * 7);
+      headShift.set(lean * 3);
     };
     const onPointer = (event: PointerEvent) => look({ x: event.clientX, y: event.clientY });
     const field = input.current;
@@ -84,7 +94,7 @@ export function RedPandaPeek({ active, input }: {
       window.removeEventListener("pointermove", onPointer);
       field?.removeEventListener("input", onTyping);
     };
-  }, [active, input, leftX, leftY, rightX, rightY]);
+  }, [active, input, reduce, leftX, leftY, rightX, rightY, headTurn, headShift]);
 
   useEffect(() => {
     if (!settled || reduce) return;
@@ -103,15 +113,15 @@ export function RedPandaPeek({ active, input }: {
   }, [settled, reduce]);
 
   const state = active ? "up" : "down";
-  const layers = !settled;
 
   return (
     <div aria-hidden="true" className={styles.stage} data-active={active}>
       <motion.div animate={state} className={styles.layer} initial="down" variants={climbVariants("body", reduce)}
         onAnimationComplete={(definition) => setSettled(definition === "up")}
         onAnimationStart={() => setSettled(false)}>
+        <motion.div className={styles.head} style={{ rotate: headTurn, x: headShift }}>
         {/* eslint-disable-next-line @next/next/no-img-element -- a fixed local decoration; next/image adds nothing here */}
-        <img alt="" className={styles.picture} draggable={false} src={layers ? "/companion/red-panda/body.webp" : "/companion/red-panda/whole.webp"} />
+        <img alt="" className={styles.picture} draggable={false} src="/companion/red-panda/body.webp" />
         <svg className={styles.eyes} ref={svg} viewBox={`0 0 ${W} ${H}`}>
           <defs>
             {eyePoints.map((eye, index) => (
@@ -121,12 +131,14 @@ export function RedPandaPeek({ active, input }: {
             ))}
           </defs>
           {eyePoints.map((eye, index) => {
-            const radius = Math.min(eye.rx, eye.ry) * 0.5;
+            // Large dark pupils with two catch-lights: small pupils in big whites read as a startled stare.
+            const radius = Math.min(eye.rx, eye.ry) * 0.82;
             return (
               <g clipPath={`url(#red-panda-eye-${index})`} key={index}>
                 <motion.g style={{ x: pupils[index].x, y: pupils[index].y }}>
                   <circle cx={eye.cx} cy={eye.cy} fill="#2a1a14" r={radius} />
-                  <circle cx={eye.cx + radius * 0.35} cy={eye.cy - radius * 0.38} fill="#ffffff" r={radius * 0.3} />
+                  <circle cx={eye.cx + radius * 0.3} cy={eye.cy - radius * 0.35} fill="#ffffff" r={radius * 0.3} />
+                  <circle cx={eye.cx - radius * 0.35} cy={eye.cy + radius * 0.35} fill="#ffffff" fillOpacity={0.9} r={radius * 0.12} />
                 </motion.g>
                 <motion.rect animate={{ height: blinking ? eye.ry * 2 + 2 : 0 }} fill={lidColour}
                   height={0} initial={false} transition={{ duration: 0.07, ease: "easeInOut" }}
@@ -135,14 +147,13 @@ export function RedPandaPeek({ active, input }: {
             );
           })}
         </svg>
+        </motion.div>
       </motion.div>
-      <motion.div animate={state} className={styles.layer} data-hidden={!layers} initial="down"
-        variants={climbVariants("pawLeft", reduce)}>
+      <motion.div animate={state} className={styles.layer} initial="down" variants={climbVariants("pawLeft", reduce)}>
         {/* eslint-disable-next-line @next/next/no-img-element -- see above */}
         <img alt="" className={styles.picture} draggable={false} src="/companion/red-panda/paw-left.webp" />
       </motion.div>
-      <motion.div animate={state} className={styles.layer} data-hidden={!layers} initial="down"
-        variants={climbVariants("pawRight", reduce)}>
+      <motion.div animate={state} className={styles.layer} initial="down" variants={climbVariants("pawRight", reduce)}>
         {/* eslint-disable-next-line @next/next/no-img-element -- see above */}
         <img alt="" className={styles.picture} draggable={false} src="/companion/red-panda/paw-right.webp" />
       </motion.div>
