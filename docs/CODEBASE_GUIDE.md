@@ -159,7 +159,7 @@ LLM 解释自然语言并提出受限 JSON；应用校验、决定是否执行�
 
 下表按目录分类，每个路径都有独立一行。测试不是运行时业务层；同目录测试主要验证对应层的规则或适配边界，多数使用 mock/内存替身，不据此宣称真实提供方已验证。
 
-本次索引按路径去重共 391 个文件，其中 103 个测试文件。
+本次索引按路径去重共 387 个文件，其中 103 个测试文件。
 
 ### 6.1 根目录配置与入口
 
@@ -237,7 +237,7 @@ LLM 解释自然语言并提出受限 JSON；应用校验、决定是否执行�
 | --- | --- | --- |
 | [src/components/meri-shell/home-entrance.tsx](../src/components/meri-shell/home-entrance.tsx) | 表现层 | Motion 首页分区入场动画，支持减少动态效果偏好；不是背景水彩显露动画。 |
 | [src/components/meri-shell/meri-app-shell.module.css](../src/components/meri-shell/meri-app-shell.module.css) | 表现层 | 首页背景、品牌、输入区、角色、布局及响应式样式。 |
-| [src/components/meri-shell/meri-app-shell.tsx](../src/components/meri-shell/meri-app-shell.tsx) | 表现层 | 首页服务端外壳，读取最近旅程、它们的封面照片（最多等 1.5 秒）和访客语言，组合「认识 Meri」按钮（深蓝胶囊加发光小太阳，进入 /intro 的唯一入口）、Profile、语言切换、品牌、标题（英文像素字体，中文用系统字体的普通 h1）、输入、角色和 HomeEntrance。 |
+| [src/components/meri-shell/meri-app-shell.tsx](../src/components/meri-shell/meri-app-shell.tsx) | 表现层 | 首页服务端外壳，读取最近旅程、它们的封面照片（最多等 1.5 秒）和访客语言，组合「认识 Meri」按钮（深蓝胶囊加发光小太阳，进入 /intro 的唯一入口）、Profile、语言切换、品牌、标题（英文像素字体，中文用系统字体的普通 h1）、输入和 HomeEntrance。 |
 | [src/components/meri-shell/new-trip-composer-model.test.ts](../src/components/meri-shell/new-trip-composer-model.test.ts) | 测试（对应模块边界） | 验证空输入、提取/创建失败、保留输入、真实 Trip ID 导航及重试不重复创建。 |
 | [src/components/meri-shell/new-trip-composer-model.ts](../src/components/meri-shell/new-trip-composer-model.ts) | 表现层 | 首页 reducer 与请求模型：提取草稿、创建 Journey、处理 opening_failed 和导航。 |
 | [src/components/meri-shell/new-trip-composer.tsx](../src/components/meri-shell/new-trip-composer.tsx) | 表现层 | 首页客户端业务容器，组合 ChatComposer 展示组件，绑定阶段、错误、创建导航和 opening 重试操作。 |
@@ -636,7 +636,7 @@ LLM 解释自然语言并提出受限 JSON；应用校验、决定是否执行�
 | [public/brand/meri-wordmark.svg](../public/brand/meri-wordmark.svg) | 展示资源 | Journey 列表/缺状态页面使用的文字标识。 |
 | [public/companion/bear/bear-sprites.json](../public/companion/bear/bear-sprites.json) | 展示资源 | 小熊精灵图帧清单：帧尺寸、每个动画所在行、帧数和每帧毫秒；由生成脚本写出。 |
 | [public/companion/bear/bear-sprites.png](../public/companion/bear/bear-sprites.png) | 展示资源 | 小熊营地小桌精灵图：9 个动画、42 帧，1 倍尺寸透明背景；由生成脚本写出。 |
-| [public/companion/home-v2-companion.png](../public/companion/home-v2-companion.png) | 展示资源 | 首页、聊天头像和 Workspace Companion 使用的角色图。 |
+| [public/companion/home-v2-companion.png](../public/companion/home-v2-companion.png) | 展示资源 | 聊天头像和 Workspace Companion 使用的角色图。 |
 
 ### 6.17 设计和素材制作
 
@@ -652,10 +652,6 @@ LLM 解释自然语言并提出受限 JSON；应用校验、决定是否执行�
 | [assets/companion/bear/generate_bear_sprites.py](../assets/companion/bear/generate_bear_sprites.py) | 设计/素材制作 | 用 Pillow 从 home-v2-companion.png 生成 64px 底图并合成全部小熊帧，写出 public/companion/bear 下的精灵图和帧清单；可加 --preview 输出预览。不是运行时代码。 |
 | [assets/logo/Logo.png](../assets/logo/Logo.png) | 设计/素材制作 | 角色/品牌制作参考图片，不是业务逻辑。 |
 | [assets/logo/LogoSVG-framework.png](../assets/logo/LogoSVG-framework.png) | 设计/素材制作 | 品牌图形制作参考，不是运行时组件。 |
-| [assets/3Ddesign/visual-media-v1-prompts.json](../assets/3Ddesign/visual-media-v1-prompts.json) | 设计/素材制作 | 两张视觉效果图的完整生成提示词、输出文件与讨论状态；使用内置图像生成工具。 |
-| [assets/3Ddesign/home-visual-media-v2.png](../assets/3Ddesign/home-visual-media-v2.png) | 设计/素材制作 | 当前首页截图引导的局部营地设计稿；保留最新背景和布局，非像素级实现。 |
-| [assets/3Ddesign/workspace-visual-media-v2.png](../assets/3Ddesign/workspace-visual-media-v2.png) | 设计/素材制作 | 当前 Workspace 截图引导的纸上营地设计稿；保留实际页面状态，未接入 3D。 |
-| [assets/3Ddesign/visual-media-v2-prompts.json](../assets/3Ddesign/visual-media-v2-prompts.json) | 设计/素材制作 | 第二轮截图引导生成的完整提示词、参考素材与未批准状态。 |
 
 ### 6.18 历史目录占位文件
 

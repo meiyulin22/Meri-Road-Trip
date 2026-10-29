@@ -162,16 +162,6 @@
   mask-image: linear-gradient(to bottom, transparent, #000 38%);
 }
 
-.companion {
-  position: absolute;
-  z-index: 1;
-  right: calc(clamp(1rem, 5vw, 5rem) + env(safe-area-inset-right, 0px));
-  bottom: calc(0.15rem + env(safe-area-inset-bottom, 0px));
-  width: clamp(8rem, 12vw, 11rem);
-  height: auto;
-  pointer-events: none;
-  image-rendering: pixelated;
-}
 
 .srOnly {
   position: absolute;
@@ -223,10 +213,6 @@
 
   .landscape {
     height: clamp(13rem, 34dvh, 22rem);
-  }
-
-  .companion {
-    width: clamp(7rem, 24vw, 8.5rem);
   }
 }
 

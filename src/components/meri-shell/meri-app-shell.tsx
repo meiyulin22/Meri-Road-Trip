@@ -105,15 +105,6 @@ export async function MeriAppShell() {
       />
 
       <div className={styles.landscape} aria-hidden="true" />
-      <Image
-        alt=""
-        aria-hidden="true"
-        className={styles.companion}
-        height={1024}
-        src="/companion/home-v2-companion.png"
-        unoptimized
-        width={1536}
-      />
     </main>
   );
 }
