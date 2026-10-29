@@ -25,7 +25,6 @@
 | `docs/agent-planner/` | Planner Agent 的规划讨论与 Agent 课程笔记 | 规划资料，定稿并实现后写入 `src/agents/README.md` |
 | `public/` | 通过网站 URL 直接访问的背景、品牌、角色图片等静态文件 | 展示资源 |
 | `assets/` | 设计参考、品牌预览、角色原图和素材处理脚本 | 设计与素材制作，不是业务层 |
-| `prototypes/meri-motion/` | 可复制到另一台机器的独立动效交接包：说明、演示数据和素材副本，目前没有动画实现 | 设计原型资料，不接正式应用 |
 | `drizzle/` | 按顺序执行的数据库迁移 SQL 及生成元数据 | 基础设施：数据库演进 |
 | `drizzle/meta/` | 迁移 journal 与历史 schema snapshot | Drizzle 工具元数据 |
 | `scripts/` | 人工运行的真实提供方/模型验证工具 | 开发工具，不是 Web API |
@@ -161,7 +160,7 @@ LLM 解释自然语言并提出受限 JSON；应用校验、决定是否执行�
 
 下表按目录分类，每个路径都有独立一行。测试不是运行时业务层；同目录测试主要验证对应层的规则或适配边界，多数使用 mock/内存替身，不据此宣称真实提供方已验证。
 
-本次索引按路径去重共 424 个文件，其中 107 个测试文件。
+本次索引按路径去重共 407 个文件，其中 107 个测试文件。
 
 ### 6.1 根目录配置与入口
 
@@ -645,8 +644,6 @@ LLM 解释自然语言并提出受限 JSON；应用校验、决定是否执行�
 | --- | --- | --- |
 | [public/backgrounds/home-v2-landscape.png](../public/backgrounds/home-v2-landscape.png) | 展示资源 | 当前首页 landscape 背景，由 meri-app-shell.module.css 引用。 |
 | [public/backgrounds/meri-world-desktop.png](../public/backgrounds/meri-world-desktop.png) | 展示资源 | 当前 Journey 列表背景，由 trips.module.css 引用。 |
-| [public/backgrounds/meri-world-mobile.png](../public/backgrounds/meri-world-mobile.png) | 展示资源 | 保留的移动场景背景素材，当前源码没有直接引用。 |
-| [public/backgrounds/trip-workspace-desktop.png](../public/backgrounds/trip-workspace-desktop.png) | 展示资源 | 保留的旧 Workspace 桌面背景，当前主样式采用 workspace-alpine-day。 |
 | [public/backgrounds/workspace-alpine-day.png](../public/backgrounds/workspace-alpine-day.png) | 展示资源 | 当前 Workspace 背景、旅程缩略图和右侧封面共用的山景图。 |
 | [public/brand/meri-app-icon-1024.png](../public/brand/meri-app-icon-1024.png) | 展示资源 | layout/manifest 使用的应用安装图标。 |
 | [public/brand/meri-favicon.svg](../public/brand/meri-favicon.svg) | 展示资源 | layout 使用的网站 favicon。 |
@@ -657,16 +654,11 @@ LLM 解释自然语言并提出受限 JSON；应用校验、决定是否执行�
 | [public/companion/bear/bear-sprites.json](../public/companion/bear/bear-sprites.json) | 展示资源 | 小熊精灵图帧清单：帧尺寸、每个动画所在行、帧数和每帧毫秒；由生成脚本写出。 |
 | [public/companion/bear/bear-sprites.png](../public/companion/bear/bear-sprites.png) | 展示资源 | 小熊营地小桌精灵图：9 个动画、42 帧，1 倍尺寸透明背景；由生成脚本写出。 |
 | [public/companion/home-v2-companion.png](../public/companion/home-v2-companion.png) | 展示资源 | 首页、聊天头像和 Workspace Companion 使用的角色图。 |
-| [public/metadata.json](../public/metadata.json) | 展示资源 | 素材导出的角色信息、方向和原始路径元数据，不是当前业务配置或用户数据。 |
 
 ### 6.17 设计和素材制作
 
 | 文件地址 | 层/类别 | 做什么 |
 | --- | --- | --- |
-| [assets/brand/meri-favicon-preview.png](../assets/brand/meri-favicon-preview.png) | 设计/素材制作 | favicon 设计预览，区别于 public 中上线 SVG。 |
-| [assets/brand/meri-lockup-preview.png](../assets/brand/meri-lockup-preview.png) | 设计/素材制作 | 组合品牌标识的设计预览。 |
-| [assets/brand/meri-mark-preview.png](../assets/brand/meri-mark-preview.png) | 设计/素材制作 | 独立品牌图形的设计预览。 |
-| [assets/brand/meri-wordmark-preview.png](../assets/brand/meri-wordmark-preview.png) | 设计/素材制作 | 品牌文字标识的设计预览。 |
 | [assets/companion/red-panda/red-panda-body-no-paws-v2.png](../assets/companion/red-panda/red-panda-body-no-paws-v2.png) | 设计/角色素材 | 基于睁眼原图编辑的去前爪版 PNG（1254×1254，真实 Alpha），用于胸毛补丁；头部毛发仍有细节重绘，不保证像素级一致，尚未接入界面。 |
 | [assets/companion/red-panda/build_red_panda_layers.py](../assets/companion/red-panda/build_red_panda_layers.py) | 设计/素材脚本 | 用两张原图做出小熊猫的网页图层：爪子按"无爪版在这里明显更亮"从原图抠出（颜色分不开爪子和阴影里的毛），每边只留最大的一块并补洞、柔化边缘；输出身体、左右爪三张 WebP（384 宽，共约 46 KB）和眼睛位置 JSON。人工运行，不属于应用运行时。 |
 | [public/companion/red-panda/body.webp](../public/companion/red-panda/body.webp) | 静态资源 | 小熊猫无爪身体层（含头），转头时单独旋转。 |
@@ -681,16 +673,6 @@ LLM 解释自然语言并提出受限 JSON；应用校验、决定是否执行�
 | [assets/3Ddesign/home-visual-media-v2.png](../assets/3Ddesign/home-visual-media-v2.png) | 设计/素材制作 | 当前首页截图引导的局部营地设计稿；保留最新背景和布局，非像素级实现。 |
 | [assets/3Ddesign/workspace-visual-media-v2.png](../assets/3Ddesign/workspace-visual-media-v2.png) | 设计/素材制作 | 当前 Workspace 截图引导的纸上营地设计稿；保留实际页面状态，未接入 3D。 |
 | [assets/3Ddesign/visual-media-v2-prompts.json](../assets/3Ddesign/visual-media-v2-prompts.json) | 设计/素材制作 | 第二轮截图引导生成的完整提示词、参考素材与未批准状态。 |
-| [prototypes/meri-motion/README.md](../prototypes/meri-motion/README.md) | 独立设计原型/交接 | 给另一台机器上的 Claude 制作首页入场、规划过渡和聊天框趴熊的需求、素材说明、隔离边界和交付要求；目前没有动画实现，不接正式应用。 |
-| [prototypes/meri-motion/demo-scenarios.json](../prototypes/meri-motion/demo-scenarios.json) | 原型演示数据 | 正常完成、并行、重试失败、等待后继续和含未知项的演示步骤及最小计划预览；不是 Mastra 或后端协议。 |
-| [prototypes/meri-motion/previews/animation-storyboard-v1.png](../prototypes/meri-motion/previews/animation-storyboard-v1.png) | 原型效果图 | 内置图像生成的六格连续分镜：从首页入场、工作区点击规划到山路进度和示例计划展开；不是运行截图。 |
-| [prototypes/meri-motion/previews/composer-bear-v1.png](../prototypes/meri-motion/previews/composer-bear-v1.png) | 原型效果图 | 内置图像生成的趴框小熊效果图，确认上沿偏右的位置、双爪搭边及看向鼠标的姿势；不是已实现动作。 |
-| [prototypes/meri-motion/reference-assets/backgrounds/home-v2-landscape.png](../prototypes/meri-motion/reference-assets/backgrounds/home-v2-landscape.png) | 原型参考素材 | 从当前 public 复制的首页山景快照，供独立制作，不与源素材自动同步。 |
-| [prototypes/meri-motion/reference-assets/backgrounds/workspace-alpine-day.png](../prototypes/meri-motion/reference-assets/backgrounds/workspace-alpine-day.png) | 原型参考素材 | 从当前 public 复制的 Workspace 山景快照。 |
-| [prototypes/meri-motion/reference-assets/brand/meri-home-mountain.png](../prototypes/meri-motion/reference-assets/brand/meri-home-mountain.png) | 原型参考素材 | 从当前 public 复制的山形品牌图快照。 |
-| [prototypes/meri-motion/reference-assets/companion/home-v2-companion.png](../prototypes/meri-motion/reference-assets/companion/home-v2-companion.png) | 原型参考素材 | 从当前 public 复制的小熊角色图快照。 |
-| [prototypes/meri-motion/reference-assets/companion/bear/bear-sprites.png](../prototypes/meri-motion/reference-assets/companion/bear/bear-sprites.png) | 原型参考素材 | 从当前 public 复制的小熊营地动作精灵图快照，没有走路帧。 |
-| [prototypes/meri-motion/reference-assets/companion/bear/bear-sprites.json](../prototypes/meri-motion/reference-assets/companion/bear/bear-sprites.json) | 原型参考素材 | 精灵图帧清单副本，与原型内 bear-sprites.png 配套。 |
 
 ### 6.18 历史目录占位文件
 
