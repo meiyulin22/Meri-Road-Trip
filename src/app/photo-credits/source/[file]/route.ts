@@ -24,6 +24,22 @@ function commonsFilePage(value: string): string | null {
   }
 }
 
+/**
+ * A Commons licence link Meri may show: the licence deed on creativecommons.org, or the file's
+ * own Commons page (public-domain files have no licence page). Anything else is dropped.
+ */
+function licenceLink(value: string | undefined): string | null {
+  if (!value) return null;
+  try {
+    const url = new URL(value);
+    if (url.protocol !== "https:" || url.username || url.password || url.search || url.hash) return null;
+    return url.host === "creativecommons.org" || (url.host === "commons.wikimedia.org" && url.pathname.startsWith("/wiki/File:"))
+      ? url.href : null;
+  } catch {
+    return null;
+  }
+}
+
 /** Resolve stored filenames so old cards also reach their photographer or original photo. */
 export async function handlePhotoCreditGet(
   file: string, catalog: PhotoCatalog, store: MediaPhotoStore | null, asJson = false,
@@ -37,7 +53,13 @@ export async function handlePhotoCreditGet(
   const target = source === "wikimedia" ? commonsFilePage(entry.pageUrl)
     : parsePixabayArtistUrl(entry.artistUrl) ?? pixabayPhotoPage(entry.pageUrl);
   if (!target) return new Response("Not found.", { status: 404, headers: { "Cache-Control": "no-store" } });
-  if (asJson) return Response.json({ url: target, artist: entry.artist, source }, { headers: { "Cache-Control": "no-store" } });
+  // Creative Commons asks for the licence and a link to it next to the credit, so Commons answers carry both.
+  const license = source === "wikimedia" && entry.license?.trim() ? entry.license.trim().slice(0, 40) : null;
+  const licenseUrl = license ? licenceLink(entry.licenseUrl) : null;
+  if (asJson) {
+    return Response.json({ url: target, artist: entry.artist, source, ...(license ? { license } : {}),
+      ...(licenseUrl ? { licenseUrl } : {}) }, { headers: { "Cache-Control": "no-store" } });
+  }
   return new Response(null, { status: 307, headers: { Location: target, "Cache-Control": "no-store" } });
 }
 

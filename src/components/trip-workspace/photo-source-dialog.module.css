@@ -41,6 +41,8 @@
 .photoDetails h3 { margin: 0; font-size: 14px; font-weight: 600; line-height: 1.4; overflow-wrap: anywhere; }
 .photoDetails p { margin: 4px 0 0; color: #5f705a; font-size: 12px; line-height: 1.5; overflow-wrap: anywhere; }
 .platform { display: block; margin-top: 4px; color: #65745e; font-size: 10px; line-height: 1.3; }
+.licence { margin: 3px 0 0; color: #65745e; font-size: 10px; line-height: 1.4; }
+.licence a { color: #42633e; text-decoration: underline; text-underline-offset: 2px; }
 .destination { min-height: 84px; padding: 17px 2px 20px; }
 .urlLabel { display: block; margin-bottom: 6px; color: #64735d; font-size: 10px; font-weight: 600; letter-spacing: .08em; }
 .url { margin: 0; color: #45613f; font-family: var(--font-geist-mono), ui-monospace, monospace; font-size: 11.5px; line-height: 1.8; overflow-wrap: anywhere; user-select: all; }

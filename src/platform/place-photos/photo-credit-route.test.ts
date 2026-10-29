@@ -58,7 +58,8 @@ test("the reported Simao Commons credit resolves to its exact external file page
   assert.equal(details.status, 200);
   assert.equal(details.headers.get("Location"), null);
   assert.equal(details.headers.get("Cache-Control"), "no-store");
-  assert.deepEqual(await details.json(), { url: simaoEntry.pageUrl, artist: "瑞丽江的河水", source: "wikimedia" });
+  assert.deepEqual(await details.json(), { url: simaoEntry.pageUrl, artist: "瑞丽江的河水", source: "wikimedia",
+    license: simaoEntry.license, licenseUrl: simaoEntry.licenseUrl });
   const redirect = await handlePhotoCreditGet(file, catalog, null);
   assert.equal(redirect.status, 307);
   assert.equal(redirect.headers.get("Location"), simaoEntry.pageUrl);
@@ -79,6 +80,9 @@ test("a runtime Commons photo resolves from a complete source record, with unsaf
     assert.equal((await handlePhotoCreditGet(record.file, {}, store)).status, 404);
     await store.publish(record, body);
     assert.equal((await handlePhotoCreditGet(record.file, {}, store)).headers.get("Location"), record.pageUrl);
+    // The stored licence travels with the credit, so the dialog can show and link it.
+    assert.deepEqual(await (await handlePhotoCreditGet(record.file, {}, store, true)).json(), { url: record.pageUrl,
+      artist: "Photographer", source: "wikimedia", license: "CC BY-SA 3.0", licenseUrl: record.licenseUrl });
     const metadata = join(directory, "place-photos", "files", "wikimedia-321.json");
     for (const pageUrl of ["https://commons.wikimedia.org.evil.test/wiki/File:Test.jpg", "http://commons.wikimedia.org/wiki/File:Test.jpg",
       "https://commons.wikimedia.org/wiki/Special:Redirect/file/Test.jpg", "https://commons.wikimedia.org/wiki/File:",

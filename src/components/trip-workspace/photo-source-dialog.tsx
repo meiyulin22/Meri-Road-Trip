@@ -14,6 +14,22 @@ export interface PhotoSource {
   readonly url: string;
   readonly artist: string;
   readonly source: "pixabay" | "wikimedia";
+  /** Commons only: the licence name, and its deed (or the file page, for public domain) when there is one. */
+  readonly license?: string;
+  readonly licenseUrl?: string;
+}
+
+/** Only a licence deed on creativecommons.org or a Commons file page may become the licence link. */
+function parseLicenceUrl(value: unknown): string | null {
+  if (typeof value !== "string" || value.length > 300) return null;
+  try {
+    const url = new URL(value);
+    if (url.protocol !== "https:" || url.username || url.password || url.search || url.hash) return null;
+    return url.host === "creativecommons.org" || (url.host === "commons.wikimedia.org" && url.pathname.startsWith("/wiki/File:"))
+      ? url.href : null;
+  } catch {
+    return null;
+  }
 }
 
 type SourceState = { readonly status: "loading" | "error" } |
@@ -22,7 +38,7 @@ type SourceState = { readonly status: "loading" | "error" } |
 /** A malformed response never becomes a link outside Meri. */
 export function parsePhotoSource(value: unknown): PhotoSource | null {
   if (typeof value !== "object" || value === null || Array.isArray(value)) return null;
-  const { url, artist, source } = value as Record<string, unknown>;
+  const { url, artist, source, license, licenseUrl } = value as Record<string, unknown>;
   if (typeof url !== "string" || url.length > 2000 || typeof artist !== "string" ||
     artist.trim() === "" || artist.length > 100 || !(source === "pixabay" || source === "wikimedia")) return null;
   try {
@@ -32,7 +48,11 @@ export function parsePhotoSource(value: unknown): PhotoSource | null {
       : /^\/(?:users\/[^/]+-[1-9]\d*|(?:[a-z]{2}\/)?(?:photos\/)?[^/]+-[1-9]\d*)\/$/u.test(target.pathname);
     if (target.protocol !== "https:" || target.host !== host || target.username || target.password ||
       target.search || target.hash || !validPath) return null;
-    return { url: target.href, artist: artist.trim(), source };
+    const licenseName = source === "wikimedia" && typeof license === "string" && license.trim() !== "" && license.length <= 40
+      ? license.trim() : null;
+    const licenseLink = licenseName ? parseLicenceUrl(licenseUrl) : null;
+    return { url: target.href, artist: artist.trim(), source, ...(licenseName ? { license: licenseName } : {}),
+      ...(licenseLink ? { licenseUrl: licenseLink } : {}) };
   } catch {
     return null;
   }
@@ -129,6 +149,9 @@ export function PhotoSourceCredit({ image, href, className }: {
           {source.status === "ready" ? <>
             <p>{source.value.artist}</p>
             <span className={styles.platform}>{source.value.source === "pixabay" ? "Pixabay" : "Wikimedia Commons"}</span>
+            {source.value.license ? <p className={styles.licence}>{text.licence}: {source.value.licenseUrl
+              ? <a href={source.value.licenseUrl} rel="noopener noreferrer license" target="_blank">{source.value.license}</a>
+              : source.value.license}</p> : null}
           </> : <p>{text.photographer}</p>}
         </div>
       </div>

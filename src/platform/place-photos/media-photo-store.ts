@@ -381,6 +381,7 @@ export class MediaPhotoStore {
   /** Source facts for an existing card's credit, without changing its saved image. */
   async readPhotoCredit(file: string): Promise<{
     readonly source: RemotePhotoSource; readonly artist: string; readonly pageUrl: string; readonly artistUrl?: string;
+    readonly license?: string; readonly licenseUrl?: string;
   } | null> {
     if (!mediaPhotoFilePattern.test(file)) return null;
     const stored = await readJson(join(this.files, `${file.slice(0, file.lastIndexOf("."))}.json`));
@@ -388,7 +389,9 @@ export class MediaPhotoStore {
       !file.startsWith(`${stored.source}-`) || stored.file !== file || typeof stored.artist !== "string" ||
       typeof stored.pageUrl !== "string" || !(await exists(join(this.files, file)))) return null;
     return { source: stored.source, artist: stored.artist, pageUrl: stored.pageUrl,
-      ...(typeof stored.artistUrl === "string" ? { artistUrl: stored.artistUrl } : {}) };
+      ...(typeof stored.artistUrl === "string" ? { artistUrl: stored.artistUrl } : {}),
+      ...(typeof stored.license === "string" ? { license: stored.license } : {}),
+      ...(typeof stored.licenseUrl === "string" ? { licenseUrl: stored.licenseUrl } : {}) };
   }
 
   private async isPublished(file: string): Promise<boolean> {

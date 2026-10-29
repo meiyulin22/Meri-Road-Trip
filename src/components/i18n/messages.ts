@@ -293,6 +293,7 @@ const en = {
   photoCredits: {
     openCredits: "View photo source",
     resized: "Resized copy",
+    licence: "Licence",
     confirmTitle: "Meet the photo's creator?",
     confirmDescription: "You're about to visit another website to see this photo's photographer and original work.",
     photographer: "Photographer and original work",
@@ -591,6 +592,7 @@ const zh: Messages = {
   photoCredits: {
     openCredits: "查看照片来源",
     resized: "已缩小尺寸",
+    licence: "许可证",
     confirmTitle: "去看看照片背后的作者？",
     confirmDescription: "你将前往外部网站，查看这张照片的作者与原始作品。",
     photographer: "照片作者与原始作品",

@@ -29,6 +29,21 @@ test("only the two photo platforms' expected HTTPS destinations become confirmab
   ]) assert.equal(parsePhotoSource(source), null, JSON.stringify(source));
 });
 
+test("a Commons licence comes with its deed link, and a link anywhere else is dropped", async () => {
+  const { parsePhotoSource } = await import("./photo-source-dialog");
+  const deed = "https://creativecommons.org/licenses/by-sa/4.0";
+  assert.deepEqual(parsePhotoSource({ ...commons, license: "CC BY-SA 4.0", licenseUrl: deed }),
+    { ...commons, license: "CC BY-SA 4.0", licenseUrl: `${deed}` });
+  assert.deepEqual(parsePhotoSource({ ...commons, license: "Public domain", licenseUrl: commons.url }),
+    { ...commons, license: "Public domain", licenseUrl: commons.url });
+  for (const licenseUrl of ["https://evil.test/licenses/by-sa/4.0", "javascript:alert(1)", "http://creativecommons.org/licenses/by/4.0",
+    "https://creativecommons.org/licenses/by/4.0?x=1"]) {
+    assert.deepEqual(parsePhotoSource({ ...commons, license: "CC BY 4.0", licenseUrl }), { ...commons, license: "CC BY 4.0" }, licenseUrl);
+  }
+  // Pixabay photos carry no licence line.
+  assert.deepEqual(parsePhotoSource({ ...pixabay, license: "CC0", licenseUrl: deed }), pixabay);
+});
+
 test("source lookup asks the local JSON endpoint and refuses redirects before user confirmation", async () => {
   const { requestPhotoSource } = await import("./photo-source-dialog");
   let requests = 0;
