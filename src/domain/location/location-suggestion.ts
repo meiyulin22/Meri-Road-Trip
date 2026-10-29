@@ -1,6 +1,9 @@
 import type { CoordinateSystem } from "./location";
 
-/** The map providers Meri can verify places with; `MAP_PROVIDER` picks one. */
+/**
+ * The map providers a saved place can come from. Meri verifies with Tianditu; "amap" stays
+ * so places saved before 1.0702, when Amap was removed, still read back.
+ */
 export const locationProviders = ["amap", "tianditu"] as const;
 export type LocationProviderName = (typeof locationProviders)[number];
 

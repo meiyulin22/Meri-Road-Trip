@@ -44,7 +44,6 @@ export const logEvents = {
   placePhotoRemoteCompleted: "place_photo.remote.completed",
   placePhotoRemoteUnavailable: "place_photo.remote.unavailable",
   recommendationPhotosDeferred: "recommendation.photos.deferred",
-  amapRateLimited: "amap.rate_limited",
   tiandituRefused: "tianditu.refused",
   tiandituRateLimited: "tianditu.rate_limited",
   destinationAccessUncertain: "destination_access.uncertain",

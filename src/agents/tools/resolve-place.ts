@@ -3,7 +3,7 @@ import { z } from "zod";
 
 import { LocationService, type LocationResolveResult } from "@/capabilities/destination/location-service";
 import type { LocationCandidate } from "@/domain/location/location";
-import { AmapLocationProvider } from "@/platform/location-provider/amap-location-provider";
+import { createLocationProvider } from "@/platform/map-providers";
 
 const maxPlaces = 5;
 
@@ -43,14 +43,14 @@ export function resolvePlaceAnswer(result: LocationResolveResult): z.infer<typeo
 }
 
 /**
- * Amap's identity check for one Chinese place name, the same one the Workspace uses
+ * Tianditu's identity check for one Chinese place name, the same one the Workspace uses
  * before a place is saved. Coordinates are GCJ-02. Finding a place says nothing about
  * whether it is open, safe or reachable.
  */
 export function createResolvePlaceTool(resolve: (name: string) => Promise<LocationResolveResult>) {
   return createTool({
     id: "resolve-place",
-    description: "Look up one place in China by its Chinese name (丽江, 玉龙雪山) with the Amap map provider. " +
+    description: "Look up one place in China by its Chinese name (丽江, 玉龙雪山) with Tianditu, the national map platform. " +
       "Returns the matching place with province, city and GCJ-02 coordinates, several candidates when the name " +
       "is ambiguous, or the province when the name is a whole province. It does not say whether a place is open or reachable.",
     inputSchema: z.object({ name: z.string().min(1).max(40).describe("The place's Chinese name") }),
@@ -60,4 +60,4 @@ export function createResolvePlaceTool(resolve: (name: string) => Promise<Locati
 }
 
 export const resolvePlaceTool = createResolvePlaceTool((name) =>
-  new LocationService(new AmapLocationProvider()).resolveExpression(name));
+  new LocationService(createLocationProvider()).resolveExpression(name));

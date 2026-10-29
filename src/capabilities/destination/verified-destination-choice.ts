@@ -11,7 +11,7 @@ export type VerifiedChoice =
   | { readonly status: "verified"; readonly pick: DestinationPick }
   | { readonly status: "unresolved" | "provider_error" };
 
-/** Recheck a persisted offer against Amap before it can alter the Journey. */
+/** Recheck a persisted offer against the map provider before it can alter the Journey. */
 export async function verifyDestinationChoice(
   choice: DestinationChoice,
   service: Pick<LocationService, "search">,

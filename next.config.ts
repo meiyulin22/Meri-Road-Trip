@@ -4,7 +4,8 @@ import { placePhotoHosts } from "./src/platform/place-photos/place-photo-provide
 
 const nextConfig: NextConfig = {
   images: {
-    // Place photos are Amap's; the optimizer may fetch only from its photo hosts.
+    // Our photos are served from this origin; these hosts are only for cards saved before
+    // 1.0702 that still link to Amap or Wikimedia, so the optimizer may fetch only from them.
     remotePatterns: placePhotoHosts.map((hostname) => ({ protocol: "https", hostname })),
     // A local proxy in TUN/fake-IP mode answers DNS with 198.18.x.x, so the optimizer
     // reads every photo host as a private address and answers 400 — on the developer's

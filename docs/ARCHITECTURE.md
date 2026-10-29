@@ -29,9 +29,8 @@ flowchart TB
   ui -->|HTTP 请求| entry
   adapters --> db[(Neon PostgreSQL)]
   adapters --> kimi[Kimi / Moonshot]
-  adapters --> amap[高德地点与输入建议（默认）]
-  adapters --> tianditu[天地图地点与输入建议（MAP_PROVIDER=tianditu）]
-  adapters --> catalog[本地图集 public/photos（天地图模式）]
+  adapters --> tianditu[天地图地点核验与输入建议]
+  adapters --> catalog[本地图集 public/photos + 运行时补图]
   adapters --> bocha[Bocha Discovery Search]
 ```
 
@@ -45,7 +44,7 @@ flowchart TB
 | --- | --- |
 | 已实现 | 访客所属 Journey、自然语言创建、持久化会话、普通字段编辑、目的地省/市/spot、显式多选确认、推荐与准备度检查 |
 | 已实现但有范围限制 | PWA manifest/图标，无离线缓存；推荐使用搜索启发，无访问检查或排序；地点照片只作装饰 |
-| 试验阶段 | Agent 技术栈：Mastra + Kimi 经 Mastra 调用高德地点核验和网页搜索（1.0300，只有试验 Agent）；设计见 [src/agents/README.md](../src/agents/README.md) |
+| 试验阶段 | Agent 技术栈：Mastra + Kimi 经 Mastra 调用地点核验（天地图）和网页搜索（1.0300，只有试验 Agent）；设计见 [src/agents/README.md](../src/agents/README.md) |
 | 未实现 | 真正 Generate Plan（Planner Agent）、实时天气/路线研究、证据系统、Agent 运行追踪与评估、后台监控、Adaptive Workspace |
 
 ## 2. 技术栈与接入位置
@@ -58,7 +57,7 @@ flowchart TB
 | React 19.2.8 / TypeScript 5 | UI、状态协调、类型及业务契约 | `src/components/`、`src/domain/`、`tsconfig.json` | 类型检查不能代替运行时校验 |
 | CSS Modules / 全局 CSS | 页面与组件样式、响应式布局 | `*.module.css`、`src/app/globals.css` | 当前没有整套 Tailwind UI 样式框架 |
 | Motion 13 / Radix Popover / Lucide / Embla | 入场与浮层动画、照片环旋转、图标、首页 Aceternity 风格轮播的悬停视差；Embla 用于聊天卡片按省横滑 | `src/components/ui/`、`src/components/meri-shell/`、`journey-orbit.tsx`、`destination-choices-card.tsx` | 首页轮播以 CSS 轨道与透视缩放适配参考组件，无 Tailwind 依赖；背景水彩显露尚未实施 |
-| 界面语言（自建，无 i18n 库） | 首页中/英切换，全部界面文字的字典 | `src/components/i18n/`、`src/platform/locale/`、`src/components/ui/language-toggle.tsx`、根布局 | cookie `meri_locale` 优先，否则 Accept-Language；不使用 `/[lang]` 路由；首页、旅程页面和列表页的界面文字以及 Meri 在代码里写的句子（`capabilities/conversation/meri-replies.ts`）都已覆盖，不判断用户输入的语言；模型的回复、推荐理由和旅程名由提示词按同一语言写（`capabilities/conversation/prompts/reply-language-guidance.ts`），聊天/开场回复按用户这条消息的语言写、分不清时用首页语言（由模型判断）；提示词规则共用一份、示例和地名规则按语言分写，中文提示词由快照测试锁定；英文界面下地名由模型翻成中文再查高德（高德查不到拉丁地名），翻译出的地名总是出卡确认 |
+| 界面语言（自建，无 i18n 库） | 首页中/英切换，全部界面文字的字典 | `src/components/i18n/`、`src/platform/locale/`、`src/components/ui/language-toggle.tsx`、根布局 | cookie `meri_locale` 优先，否则 Accept-Language；不使用 `/[lang]` 路由；首页、旅程页面和列表页的界面文字以及 Meri 在代码里写的句子（`capabilities/conversation/meri-replies.ts`）都已覆盖，不判断用户输入的语言；模型的回复、推荐理由和旅程名由提示词按同一语言写（`capabilities/conversation/prompts/reply-language-guidance.ts`），聊天/开场回复按用户这条消息的语言写、分不清时用首页语言（由模型判断）；提示词规则共用一份、示例和地名规则按语言分写，中文提示词由快照测试锁定；英文界面下地名由模型翻成中文再查地图（地图服务查不到拉丁地名），翻译出的地名总是出卡确认 |
 | react-day-picker 10 | “何时”范围日历（中文 locale，样式通过 CSS 变量换成 Meri 配色） | `src/components/trip-workspace/trip-dates-editor.tsx` | 已用于日期选择 |
 | Vercel AI SDK 6 / `@ai-sdk/react` 3 | 服务端结构化模型调用、前端 useChat/transport 适配 | `src/platform/llm/ai-sdk-kimi-client.ts`、`workspace-chat-transport.ts` | 当前 API 返回完整 JSON，前端逐字显示不是服务端 token 流 |
 | Kimi / Moonshot（默认 kimi-k2.6） | 草稿、Workspace 解释、opening 和推荐生成 | `src/platform/llm/`、各能力的 `prompts/` | `LLM_MODEL` 可覆盖；默认超时 60 秒、零 SDK 自动重试 |
@@ -67,9 +66,7 @@ flowchart TB
 | Zod 4 / 自定义领域校验 | 推荐结构校验及其他输入/模型/状态契约验证 | `src/domain/` | 不把外部 JSON 直接当可信业务数据 |
 | Neon PostgreSQL / Neon serverless | 跨请求持久化身份、状态与消息 | `src/platform/persistence/database/db.ts` | HTTP 数据库客户端；数据不依赖 Web 实例内存 |
 | Drizzle ORM 0.45 / Drizzle Kit | schema、查询、JSONB 条件更新与迁移 | `src/platform/persistence/`、`drizzle/`、`drizzle.config.ts` | 迁移文件存在不代表在线环境已执行 |
-| 高德 Web API | 地点关键词核验与 InputTips 建议 | `src/platform/location-provider/`、`src/platform/amap/amap-fetch.ts`（所有高德调用共用一个队列：开始间隔 ≥350ms，超时从发出时起算；被限流时整队暂停 1 秒，被拒请求排队首重试，最多 3 次） | 身份核验不证明开放、安全、交通或可达 |
-| 高德地点照片（v5 搜索 `show_fields=photos`） | 卡片、照片环、标题图的装饰照片 | `src/platform/place-photos/`、`next.config.ts` 的 images.remotePatterns | http 地址升级为 https；只允许两个照片主机；只缓存真实答案的进程内缓存 7 天（不用 fetch 缓存，因限流也返回 HTTP 200）；失败即无图 |
-| 天地图 Web API（`MAP_PROVIDER=tianditu` 时） | 地点关键词核验（`show: "2"` 带省市区和类别）、分类搜索（一次请求取 `风景名胜,山` 两类）、建议词搜索作输入提示、逆地理编码 | `src/platform/tianditu/`（独立队列：开始间隔 ≥300ms；防火墙拦截页或 418 视为拒绝，不当作"没有这个地方"；分类页被拒时整次核验失败，不退回同名外地地点）；字段、样本与实测结论见 [TIANDITU_FIELDS.md](TIANDITU_FIELDS.md) | 坐标 CGCS2000，不与高德 GCJ-02 互转；按文字排序，没有热度信号，同名的外地景点可能排前面，代码只把"整个景区"提前；天地图没有照片 API，Meri 在此模式下使用本地图集 |
+| 天地图 Web API（唯一地图提供方；高德已于 1.0702 移除，旧记录里的 `amap` 仍可读） | 地点关键词核验（`show: "2"` 带省市区和类别）、分类搜索（一次请求取 `风景名胜,山` 两类）、建议词搜索作输入提示、逆地理编码 | `src/platform/tianditu/`（独立队列：开始间隔 ≥300ms；防火墙拦截页或 418 视为拒绝，不当作"没有这个地方"；分类页被拒时整次核验失败，不退回同名外地地点）；字段、样本与实测结论见 [TIANDITU_FIELDS.md](TIANDITU_FIELDS.md) | 坐标 CGCS2000，不与高德 GCJ-02 互转；按文字排序，没有热度信号，同名的外地景点可能排前面，代码只把"整个景区"提前；天地图没有照片 API，Meri 在此模式下使用本地图集 |
 | 本地图集（Pixabay + Wikimedia Commons） | 天地图模式下卡片、照片环和标题图的装饰照片 | `public/photos/`、`photo-catalog.ts`、`catalog-photo-provider.ts`；Commons 照片由 `scripts/build-city-catalog.ts fetch` 先经 Wikidata P18 找候选（城市和它的景点，按 P131 落在这座城市里），没有才用 Pixabay，人工审核后写入；来源、作者和许可保存在 `public/photos/photos.json` | 按明确地区与完整名称／显式别名匹配，行政区代表图单独配置；未命中或歧义返回 null；图片预下载随应用部署（图集本身不在运行时抓取）；Commons 条目必须带许可证和链接，卡片保留作者、许可和缩小尺寸说明，点击署名打开 Commons 原图页；不代表全国覆盖 |
 | Wikidata + Wikimedia Commons（运行时补图，天地图模式，1.0633） | 只给推荐卡，排在 Pixabay 之前：图集和已下载的都没有、卡片有地标时，先按地标名找位于卡片所在市（P131 往上）的 Wikidata 条目，取它的 P18 图，到 Commons 读作者和许可证、下载 500px 副本；主地标和第一个备选地标都先问维基 | `wikimedia-client.ts`（不需要 key，带 User-Agent；最多同时 2 个、任意 60 秒不超过 40 次、超时、4 MB 上限、只从 `thumb.wikimedia.org`/`upload.wikimedia.org` 下载）、`wikimedia-photo-finder.ts`（每批 12 次查询 / 8 次 Commons / 8 次下载 / 25 秒；只收 CC BY、CC BY-SA、CC0、公有领域；横构图；连不上时整个进程暂停 10 分钟）、`remote-photo-finder.ts`（两个远程源共用的接口）；照片与 Pixabay 共用 `media-photo-store.ts`，完整来源与许可写入 `MERI_MEDIA_DIR/place-photos/files/wikimedia-<ID>.json` | 身份来自 Wikidata 自己的条目和行政区关系，不靠 tags，但照片同样未经人工审核（`reviewed: false`）；大陆服务器连不上维基时直接走 Pixabay；维基查不了且 Pixabay 没有时卡片不回答、下次再查；"维基没有"缓存 24 小时并跟规则版本走 |
 | Pixabay API（运行时补图，天地图模式） | 只给推荐卡：图集和已下载的都没有、卡片有地标时，当场按英文名、中文名（`lang=zh`）和别名搜图，主地标没有再试一个备选地标，下载、发布 | `pixabay-client.ts`（一次一个请求、任意 60 秒不超过 80 次并遵守 `X-RateLimit-Remaining`、超时、字节上限、只从 Pixabay 主机下载）、`pixabay-photo-match.ts`（按中英文 tags 判断身份、地区冲突、必须表明在中国）、`pixabay-photo-finder.ts`（每批 20 次搜索 / 10 次下载 / 45 秒，每个地标最多 3 次搜索，同一地标共用一次操作，限流和被拒时整批停止并暂停，记录未配图原因）、`media-photo-store.ts`（`MERI_MEDIA_DIR`，原子写入，500 MB 上限，按市索引）、`/media/place-photos/[file]` 路由、`scripts/photo-misses.ts` | 只凭上传者 tags，不证明拍摄地点，也不判断好不好看，照片未经人工审核（记 `reviewed: false`）；搜索响应和"没有合适的图"各缓存 24 小时（后者跟规则版本走），临时失败不缓存；其他照片消费方（服务端渲染、封面、地点候选卡、已选地点）只读本地 |
@@ -167,7 +164,7 @@ flowchart TD
   idea[用户原话] --> draft[POST /api/trip-drafts：结构化提取与校验]
   draft --> create[POST /api/journeys：访客身份与创建协调]
   create --> edit{有原话及地点 edit？}
-  edit -->|有| resolve[高德核验：准备固定正文与候选]
+  edit -->|有| resolve[天地图核验：准备固定正文与候选]
   edit -->|无| save[保存 Trip / 初始 TripState / 原话 / 可选固定开场]
   resolve --> save
   save --> opening{已有固定开场？}
@@ -177,7 +174,7 @@ flowchart TD
   model -->|失败| retry[保留 Journey，可重试开场或先进入]
 ```
 
-初始 destination 为 missing；用户原话里的地点被高德精确匹配时直接写入初始状态，其余先出卡。状态/初始消息保存失败尝试删除 Trip，这是补偿回滚；清理失败保留创建与清理错误。普通 opening 不允许 changes、目的地 edit 或推荐意图；稳定助手 ID 和现有消息检查支持重试，不重新创建 Journey。
+初始 destination 为 missing；用户原话里的地点被天地图精确匹配时直接写入初始状态，其余先出卡。状态/初始消息保存失败尝试删除 Trip，这是补偿回滚；清理失败保留创建与清理错误。普通 opening 不允许 changes、目的地 edit 或推荐意图；稳定助手 ID 和现有消息检查支持重试，不重新创建 Journey。
 
 ### 5.2 Workspace 聊天与分支
 
@@ -189,7 +186,7 @@ flowchart TD
   validate --> save[先保存普通字段]
   save --> edit{destinationEdit}
   edit -->|add/set 精确且为用户原话| direct[带 expectedDestination 直接写入]
-  edit -->|add/set 不确定| offer[高德查询，待选 choices 或失败事实；不写目的地]
+  edit -->|add/set 不确定| offer[天地图查询，待选 choices 或失败事实；不写目的地]
   edit -->|remove| remove[当前状态唯一匹配，带 expectedDestination 删除]
   edit -->|none| eligible{推荐信号且写入后状态允许？}
   direct --> eligible
@@ -214,7 +211,7 @@ flowchart TD
 flowchart TD
   card[保存的助手 offer] --> pick[用户多选并统一提交 messageId + choiceIds]
   pick --> guard[检查 owner、offer、选择 ID、未消费/过期及 replace 基底]
-  guard --> verify[高德复核选择身份/省市景点偏好]
+  guard --> verify[天地图复核选择身份/省市景点偏好]
   verify --> fresh[重读最新状态与消息，复查提交资格]
   fresh --> same{已有同组确认且目标仍匹配？}
   same -->|是| reuse[复用保存的确认，不写状态]
@@ -240,7 +237,7 @@ flowchart LR
   validate --> filter[within：限已定省份 / elsewhere：排除已保存省份]
   filter --> persist[以派生 ID 保存卡片消息]
   persist --> select[用户选择]
-  select --> verify[高德复核与状态保存]
+  select --> verify[天地图复核与状态保存]
 ```
 
 最多 12 个建议地点；Discovery 失败降级为空搜索上下文，模型失败仍报错（卡片请求返回 502，界面可重试）。推荐分两个请求：聊天请求只保存模型的简短引导和 `destination_recommendations_pending` 标记，客户端再调用 `POST /api/trips/[id]/destination-recommendations`；该接口从保存的对话还原触发原话，只为仍是最新消息的 pending 生成卡片，卡片消息 ID 由 pending 消息派生，重复请求返回同一条。推荐只从聊天触发，使用真实原话；没有推荐按钮入口，不另存 action、不伪造 user 消息。未接通访问检查或排序，workflow 是普通确定性编排，不是 Vercel Workflow runtime 或 Agent 循环。卡片不等照片：每张卡带配图用的地标先保存返回，客户端再调用 `POST /api/trips/[id]/destination-recommendation-photos`，服务器每查到一张照片就以 NDJSON 流式推一行，全部查完后写回该卡片消息的 presentation（消息唯一的更新），卡片在照片到达前显示骨架块。
@@ -254,11 +251,11 @@ Generate plan 只有一个，位于聊天下方：missing→按钮不可用并�
 | 所有权 | guest cookie + owner-scoped Trip 查询，缺失/他人 Journey 返回相同 not-found | 无账号协作权限系统 |
 | 外部输入 | 模型 JSON、请求体、提供方数据和数据库读取经过校验；聊天解释和首页草稿逐项挽救，不合格的单项丢弃并记日志，其余照常执行 | 不能靠 TypeScript 断言信任外部数据；没有可用 reply 或不是对象时整轮仍失败 |
 | 状态更新 | 最新状态应用 patch，CAS 最多 3 次；Postgres UPDATE 比较原始 JSONB | 无 CAS 的测试替身允许退回 update，不能代表生产保护 |
-| 目的地并发 | 专用操作带 expectedDestination，冲突拒绝旧 patch；普通字段重读重算 | 通用 state PATCH 仍接受 destination，未统一高德核验，冲突错误当前未单独映射 409 |
+| 目的地并发 | 专用操作带 expectedDestination，冲突拒绝旧 patch；普通字段重读重算 | 通用 state PATCH 仍接受 destination，未统一地点核验，冲突错误当前未单独映射 409 |
 | 保存与会话 | 保存真实正文及 presentation，刷新重读；选卡半成功返回真实状态；推荐卡照片查完后只替换该消息的 presentation | 状态与会话不是跨所有步骤的一笔事务，普通聊天失败需刷新核对 |
 | 重试 | 开场/同组选卡确认/推荐卡片使用稳定身份；过期卡不能恢复删除项 | 普通聊天 POST 没有全局幂等保证；同一 pending 并发请求可能各跑一次工作流，但只保存一条 |
 | 旧数据 | 旧目的地/卡片读取适配，无法核验文本保留 legacyText | 不静默丢弃或将景点假装成市；spot 同名不能只靠状态区分 POI |
-| 提供方故障 | Kimi 错误/超时归一化；Bocha 搜索可降级；高德故障不编造地点 | 手动 destinations 归属加载当前将异常统一视为 not-found |
+| 提供方故障 | Kimi 错误/超时归一化；Bocha 搜索可降级；天地图故障不编造地点 | 手动 destinations 归属加载当前将异常统一视为 not-found |
 | 日志 | Pino 事件、requestId、耗时、错误脱敏 | 不输出密钥；调试输出按环境配置 |
 
 准确 HTTP 状态、请求体及每个操作的失败恢复见 USER_FLOW_CURRENT。上述限制是现有实现记录，本轮文档更新不顺带修复代码或增加事务框架。
@@ -279,7 +276,7 @@ Adaptive Workspace 的简短方向见 [product/adaptive-workspace.md](product/ad
 
 `npm run lint`、`npm run typecheck`、`npm test`、`npm run build` 分别检查规则、类型、Node 测试和生产构建。测试按文件邻近组织，覆盖领域规则、应用分支、提供方适配、并发与错误；外部系统多为 mock，`scripts/verify-*.ts` 是需配置的人工真实调用，不和单测通过混为一谈。
 
-运行配置见 README 和 `.env.example`：数据库/Kimi/高德在服务端读取密钥，Bocha 缺失可降级。页面有 manifest 和图标，未实现 service worker/offline cache。文档记录仓库支持标准 Next.js 部署，不证明已部署到任何指定平台。
+运行配置见 README 和 `.env.example`：数据库/Kimi/天地图在服务端读取密钥，Bocha 缺失可降级。页面有 manifest 和图标，未实现 service worker/offline cache。文档记录仓库支持标准 Next.js 部署，不证明已部署到任何指定平台。
 
 ### 8.1 本地数据库（开发期）
 

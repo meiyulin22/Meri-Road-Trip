@@ -37,7 +37,7 @@ Required:
 | --- | --- |
 | `MOONSHOT_API_KEY` | The LLM behind conversation, extraction, and recommendation |
 | `DATABASE_URL` | Neon Postgres connection string |
-| `AMAP_API_KEY` | Amap, which validates that a destination really exists (default map provider) |
+| `TIANDITU_API_KEY` | Tianditu, the national map platform, which validates that a destination really exists and suggests places as you type |
 
 Optional. Recommendation degrades without it rather than failing:
 
@@ -51,28 +51,20 @@ The remaining variables in `.env.example` override defaults:
 
 ### Map provider
 
-`MAP_PROVIDER` picks the whole set used for place checks and input tips: `amap` (the
-default) or `tianditu`. Tianditu mode needs `TIANDITU_API_KEY` instead of
-`AMAP_API_KEY`. Tianditu has no popularity signal — it ranks same-named places by text,
-so 苍山 may lead with the village in 广西 rather than the mountain in 大理 — and it has
-no photo API. Its cards and covers use the reviewed catalog in `public/photos`, and
-recommendation cards the catalog misses may be filled from Pixabay at run time when
-`PIXABAY_API_KEY` is set; those downloads are kept in `MERI_MEDIA_DIR` (required in
-production, outside the release directory and kept across deploys; development falls
-back to `.cache/media`), capped by `MERI_MEDIA_MAX_BYTES` (default 500 MB). A Wikidata lookup with
-Wikimedia Commons photos stood in for both until 2026-10-23, when it was removed: a
-server in mainland China cannot reach either, so it only ever worked on a developer's
-proxied machine.
+Meri verifies places with Tianditu. Amap was removed in 1.0702: its free tier for
+individual developers ends a year after sign-up and a public deployment needs a paid
+licence. Tianditu has no popularity signal — it ranks same-named places by text, so
+苍山 may lead with the village in 广西 rather than the mountain in 大理 — and it has no
+photo API. Cards and covers use the reviewed catalog in `public/photos`, and
+recommendation cards the catalog misses may be filled at run time from Wikimedia
+Commons and, with `PIXABAY_API_KEY`, Pixabay; those downloads are kept in
+`MERI_MEDIA_DIR` (required in production, outside the release directory and kept across
+deploys; development falls back to `.cache/media`), capped by `MERI_MEDIA_MAX_BYTES`
+(default 500 MB).
 
-```bash
-MAP_PROVIDER=tianditu npm run dev
-```
-
-The block at the end of `.env.example` (`AMAP_JS_KEY`, `AMAP_JS_SECURITY_CODE`,
-`QWEATHER_API_KEY`, `QWEATHER_API_HOST`, `ROLLINGGO_API_KEY`, `TUNIU_API_KEY`,
-`TYPESAFE_API_KEY`, `ANYSEARCH_API_KEY`, `TIANDITU_API_KEY`, `DASHSCOPE_API_KEY`, `HUAWEI_SITE_API_KEY`) holds keys for the
-provider trials. The `scripts/verify-*.ts` scripts read them; of these the app
-itself reads only `TIANDITU_API_KEY`, and only with `MAP_PROVIDER=tianditu`.
+The block near the end of `.env.example` (`QWEATHER_API_KEY`, `QWEATHER_API_HOST`,
+`TUNIU_API_KEY`, `ROLLINGGO_API_KEY`) holds keys Generate plan is planned to use; the
+app does not read them yet.
 
 ## Validate
 
@@ -138,7 +130,8 @@ designed in [src/agents/README.md](src/agents/README.md).
 
 ```text
 src/platform/llm/                Structured-output port, Moonshot adapter
-src/platform/location-provider/  Location and suggestion ports, Amap adapters
+src/platform/location-provider/  Location and suggestion ports
+src/platform/tianditu/           Tianditu place check and input tips
 src/platform/search/             Search ports, one shared Bocha Web Search
                                  request and the Discovery Search adapter
 src/platform/persistence/        Repository ports at the top, with the Postgres

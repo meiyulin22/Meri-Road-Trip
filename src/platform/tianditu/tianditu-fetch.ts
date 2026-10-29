@@ -1,11 +1,11 @@
-import { createPacer, type Gate } from "@/platform/amap/amap-fetch";
+import { createPacer, type Gate } from "@/platform/http/request-pacer";
 import { logger, logEvents } from "@/platform/observability/logger";
 
 const apiBase = "https://api.tianditu.gov.cn";
 /**
  * Measured 2026-10-22 on this project's key: twenty searches back to back lost eleven
  * to empty answers, while one every 0.3 s never failed. The pacer is the same
- * generic one the Amap adapters use, with a queue of its own.
+ * shared request pacer (platform/http/request-pacer.ts), with a queue of its own.
  */
 const minStartIntervalMs = 300;
 /**

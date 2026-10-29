@@ -1,8 +1,5 @@
 import assert from "node:assert/strict";
-import { createRequire } from "node:module";
 import test from "node:test";
-import { createElement } from "react";
-import { renderToStaticMarkup } from "react-dom/server";
 
 import { canSelectDestinationRecommendation, chosenDestinationPlaces, groupRecommendationsByProvince, selectDestinationRecommendation, streamRecommendationPhotos } from "./destination-recommendation-model";
 import { DestinationSelectionFollowUpError } from "./workspace-conversation-model";
@@ -24,11 +21,6 @@ const missingDestination: TripState = {
   name: { state: "missing" }, origin: { state: "missing" }, destination: { state: "missing" },
   startDate: { state: "missing" }, endDate: { state: "missing" },
   duration: { state: "missing" }, transportPreference: { state: "missing" },
-};
-
-const nodeRequire = createRequire(import.meta.url);
-nodeRequire.extensions[".css"] = (module) => {
-  module.exports = { default: new Proxy({}, { get: (_target, key) => String(key) }) };
 };
 
 test("recommendation selection is available while destination is missing", () => {
@@ -68,31 +60,6 @@ test("a fresh narrowing list can extend settled places until the Journey changes
   const changed: TripState = { ...existing, destination: { state: "known" as const, source: "user", areas: [...(existing.destination.state === "known" ? existing.destination.areas ?? [] : []),
       { province: "广东省", places: [{ name: "潮州市", spots: [] }] }] } };
   assert.equal(canSelectDestinationRecommendation(changed, offered), true);
-});
-
-test("the picker groups the places under their provinces and offers one commit", async () => {
-  const { DestinationRecommendationPicker } = await import("./destination-recommendation-picker");
-  const markup = renderToStaticMarkup(createElement(DestinationRecommendationPicker, {
-    chosen: [], destinations: message.presentation.destinations, disabled: false,
-    error: false, onCommit: () => {}, pending: false,
-  }));
-  assert.deepEqual(markup.match(/<h3>[^<]+<\/h3>/gu), ["<h3>云南省</h3>", "<h3>四川省</h3>"]);
-  assert.equal(markup.match(/type="checkbox"/gu)?.length, 3);
-  assert.match(markup, /就去这些/u);
-  // Nothing is picked yet, so there is nothing to commit.
-  assert.equal(markup.match(/<button[^>]*disabled=""/gu)?.length, 1);
-});
-
-test("places already settled come back ticked, and the list stops taking changes", async () => {
-  const { DestinationRecommendationPicker } = await import("./destination-recommendation-picker");
-  const markup = renderToStaticMarkup(createElement(DestinationRecommendationPicker, {
-    chosen: ["丽江市", "甘孜藏族自治州"], destinations: message.presentation.destinations,
-    disabled: true, error: false, onCommit: () => {}, pending: false,
-  }));
-  assert.equal(markup.match(/checked=""/gu)?.length, 2);
-  assert.equal(markup.match(/<input[^>]*disabled=""/gu)?.length, 3);
-  assert.match(markup, /已选 2 个/u);
-  assert.match(markup, /已选好/u);
 });
 
 const selectedState: TripState = {

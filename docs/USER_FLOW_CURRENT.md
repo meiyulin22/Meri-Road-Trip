@@ -562,7 +562,7 @@ add/set 使用 Promise.all 查询表达。解析层保留不同 provider ID，�
 
 照片只用于装饰卡片、照片环和标题左侧缩略图，不代表地点现状，没有照片是正常情况而不是错误。
 
-**来源：**[AmapPlacePhotoProvider](../src/platform/place-photos/amap-place-photo-provider.ts)调用高德 v5 地点搜索并加 `show_fields=photos`。高德返回的图片地址多为 http，页面是 https 会被浏览器拦截；同一主机支持 https（2026-10-03 实测），所以直接把协议换成 https，不做代理。只接受 [placePhotoHosts](../src/platform/place-photos/place-photo-provider.ts) 列出的两个主机（`store.is.autonavi.com`、`aos-comment.amap.com`），[next.config.ts](../next.config.ts) 也只允许 next/image 从这两个主机取图。图片最宽约 500px，部分来自用户评论。
+**来源（1.0702 起只有本地图集和运行时补图）：**下面这段是高德时期的做法，代码已在 1.0702 删除，只留作记录；高德照片主机仍在 [placePhotoHosts](../src/platform/place-photos/place-photo-provider.ts) 里，好让旧卡片的照片还能显示。原来由 AmapPlacePhotoProvider 调用高德 v5 地点搜索并加 `show_fields=photos`。高德返回的图片地址多为 http，页面是 https 会被浏览器拦截；同一主机支持 https（2026-10-03 实测），所以直接把协议换成 https，不做代理。只接受 [placePhotoHosts](../src/platform/place-photos/place-photo-provider.ts) 列出的两个主机（`store.is.autonavi.com`、`aos-comment.amap.com`），[next.config.ts](../next.config.ts) 也只允许 next/image 从这两个主机取图。图片最宽约 500px，部分来自用户评论。
 
 **天地图模式的来源：本地图集。**天地图本身没有照片 API；[CatalogPhotoProvider](../src/platform/place-photos/catalog-photo-provider.ts) 从 [photos.json](../public/photos/photos.json) 读取索引，文件随应用部署在 `public/photos/`。`named` 查询必须同时匹配目录中明确登记的地区和完整地点名称或显式别名；不做子串扩展，也不删除括号里的地区信息。缺少地区、地区不在名单内或存在多个匹配时返回 null。`scenic` 只取该行政区在 `scenicFor` 中显式指定的代表图，不把行政地名当作景点同义名，不从同省其他市借图。图集之后再查运行时已下载的照片（见下面"推荐卡的运行时补图"）。只有推荐卡的照片接口会在两者都没有时去请求 Pixabay；页面服务端渲染、旅程封面、聊天里的地点候选卡、已选地点照片都只读本地，不请求 Pixabay、天地图或其他图片 API；浏览器仍下载本站图片。
 
@@ -768,7 +768,9 @@ add/set 使用 Promise.all 查询表达。解析层保留不同 provider ID，�
 | `POST /api/trips/[id]/destination-recommendation-photos` | `{messageId}`（只此一个字段），guest cookie 决定 owner | 200 流式 `application/x-ndjson`：每张还没照片的卡一行 `{id, image\|null}`，查完并保存后结束；没有待查的卡时为空响应。带 `X-Accel-Buffering: no`（nginx 反向代理默认缓冲，会把所有行攒到最后），`Cache-Control: private, no-store, no-transform`。body 不合法 400；无 owner、旅程不存在或该消息不是推荐卡 404；读取消息失败 500。保存失败不影响已发出的行 |
 | `GET /photo-credits/source/[file]` | 精确图片文件名；弹窗加 `?format=json` | JSON 模式 200 `{url, artist, source}`，只解析本地已知来源，不访问外部网站；其他请求 307 跳转到同一来源。图集／媒体目录没有记录、媒体尚未发布、文件名或外部目标不合法均 404；所有结果 `Cache-Control: no-store`。弹窗失败时提供重试，确认访问前不导航，不修改目的地、消息或来源记录 |
 
-### 5.7 地图提供方：高德（默认）或天地图
+### 5.7 地图提供方：天地图
+
+**1.0702 起只用天地图，高德的适配器、`MAP_PROVIDER` 开关和 `AMAP_API_KEY` 都已删除。**原因是高德对个人开发者只免费一年，公开部署需要购买商用授权；天地图是国家平台，接口免费。旧旅程里保存的 `provider: "amap"` 坐标和高德照片链接仍然能读取、显示。本节下面描述的"两套提供方"是 1.0500–1.0701 的情况，保留作记录；天地图的核验规则和实测结论仍然有效。
 
 `MAP_PROVIDER` 决定地点核验和输入提示用哪一整套提供方（[map-providers](../src/platform/map-providers.ts)）：不设或 `amap` 是高德；`tianditu` 是天地图，照片使用本地图集（见 5.6）；其他值启动请求时报配置错误。两套提供方都交给同一套判定规则（[destination-resolution-policy](../src/domain/location/destination-resolution-policy.ts)），保存进 TripState 的目的地只是省、市、景点的名字，所以换提供方不影响已保存的目的地。
 

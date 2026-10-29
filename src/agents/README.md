@@ -40,7 +40,7 @@ src/agents/          Mastra instance, agents, and their tools          ← this 
   tools/             Thin wrappers over src/platform ports, one tool per file
   planner/           Planned: planner agent, plan workflow, prompts
 src/domain/plan/     Planned: Plan types, validation, staleness — pure, no Mastra
-src/platform/        Ports and adapters the tools call (Amap, Bocha, Kimi, Postgres)
+src/platform/        Ports and adapters the tools call (Tianditu, Bocha, Kimi, Postgres)
 ```
 
 The usual layer rules hold. `src/domain/` stays free of IO and of Mastra. A tool
@@ -57,7 +57,7 @@ through Mastra, calling Meri's existing providers.
 | --- | --- | --- |
 | Mastra instance | [index.ts](index.ts) | Registers the agents. Turns off Mastra's default usage telemetry to PostHog (`MASTRA_TELEMETRY_DISABLED`). No storage or trace exporter yet: run records live in memory. |
 | Trial agent | [scout-agent.ts](scout-agent.ts) | Answers one question about places in China with the two tools. The model is built on first use, so importing never needs the API key. |
-| `resolve-place` | [tools/resolve-place.ts](tools/resolve-place.ts) | The Workspace's own Amap identity check for one Chinese name: a match with province, city and GCJ-02 coordinates, up to five candidates, or a whole province. Says nothing about access. |
+| `resolve-place` | [tools/resolve-place.ts](tools/resolve-place.ts) | The Workspace's own place check (Tianditu since 1.0702) for one Chinese name: a match with province, city and coordinates (CGCS2000), up to five candidates, or a whole province. Says nothing about access. |
 | `web-search` | [tools/web-search.ts](tools/web-search.ts) | Bocha search for recent notices, five results at most, each with its source and publish date. A provider failure is `unavailable`, never an error carrying a keyed URL. |
 | Kimi model | [../platform/llm/moonshot-chat-model.ts](../platform/llm/moonshot-chat-model.ts) | The one place a Kimi model is built, shared with the structured-output client. Thinking is disabled. |
 
@@ -67,7 +67,7 @@ Run it against the real model and providers:
 NODE_TLS_REJECT_UNAUTHORIZED=1 node --env-file=.env.local --import tsx scripts/verify-agent-tools.ts all
 ```
 
-It needs `MOONSHOT_API_KEY`, `AMAP_API_KEY` and `BOCHA_API_KEY`, and prints each step's
+It needs `MOONSHOT_API_KEY`, `TIANDITU_API_KEY` and `BOCHA_API_KEY`, and prints each step's
 tool calls and results, step time, token usage and the reply.
 
 ### What the trial found
@@ -145,14 +145,13 @@ offers to regenerate. A plan never writes TripState.
 
 | Tool | Source | Status |
 | --- | --- | --- |
-| `resolve-place` | Amap place search | Implemented |
+| `resolve-place` | Tianditu place search (Amap until 1.0702) | Implemented |
 | `web-search` | Bocha Web Search | Implemented |
-| `get-route` | Amap directions: driving or transit, distance and time | Planned |
-| `get-weather` | Amap weather: a few days of forecast only; beyond that, season only | Planned |
+| `get-route` | Tianditu directions: driving or transit, distance and time | Planned |
+| `get-weather` | QWeather: hourly forecast up to 10 days, sunrise and sunset | Planned |
 
-All Amap calls share one rate-limited queue ([../platform/amap/amap-fetch.ts](../platform/amap/amap-fetch.ts)),
-about three requests per second for the current key, so parallel tool calls queue
-rather than fail.
+All Tianditu calls share one paced queue ([../platform/tianditu/tianditu-fetch.ts](../platform/tianditu/tianditu-fetch.ts),
+one start every 0.3 s), so parallel tool calls queue rather than fail.
 
 ### Budgets
 
@@ -170,7 +169,7 @@ listed).
 ## 6. Running and deploying
 
 Development runs locally under `next dev`, where a long run has no time limit. The
-target host is a VPS in Japan: Kimi (`api.moonshot.cn`) and Amap are in China and the
+target host is a VPS in Japan: Kimi (`api.moonshot.cn`) and Tianditu are in China and the
 Neon database is in Singapore, so Japan is near all three. The trial times above
 come from a development machine and are not a measurement of the deployed app.
 

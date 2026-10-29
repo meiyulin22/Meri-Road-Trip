@@ -87,12 +87,12 @@ The implemented destination flow includes:
   suggestions to China and mention the scope only when a place outside China comes
   up; recommendation output and destination additions check a shared province-level
   coverage list. City/spot
-  identity still requires Amap verification. Old records remain readable and removable.
+  identity still requires map-provider (Tianditu) verification. Old records remain readable and removable.
 - LLM interpretation into explicit destination edits: set, add, remove, or none.
 - Both set and add produce additive choices, preserving saved provinces, cities
   and spots. Only explicit removal of named existing places deletes them; new
   conversation turns no longer create whole-destination replacement offers.
-- Amap verification of every place expression. A name the user typed that Amap
+- Tianditu verification of every place expression (Amap until 1.0702). A name the user typed that the provider
   matches exactly — one place, and the provider's name is the user's words plus only
   an administrative or scenic-area suffix (大连 → 大连市), or with only the place's own
   city in front (西湖 → 杭州西湖风景名胜区) — is added at once. Beside a sight, a district
@@ -113,7 +113,7 @@ The implemented destination flow includes:
 - Discovery Search, structured recommendation generation, and filtering to the
   user’s settled provinces — or, when the user asks for somewhere else, to provinces
   not yet saved. Up to 12 suggested places may be shown; selection rechecks identity
-  with Amap before saving. An explicit request is enough to get cards. Meri's reply
+  with the map provider before saving. An explicit request is enough to get cards. Meri's reply
   is shown first and the cards follow as their own message once chosen.
 - Persisted assistant offers restored when the Journey reopens. Add offers can
   extend existing destinations; replacement offers reject changes to their base state.
@@ -128,13 +128,13 @@ The implemented destination flow includes:
 Location identity does not establish access, safety, or travel feasibility.
 The active recommendation workflow does not run access checks or ranking. Cards,
 the photo ring around the Journey globe and the title thumbnail use representative photos.
-Amap mode queries Amap; Tianditu mode uses a bundled local photo catalog. Catalog lookups
+Photos come from a bundled local catalog, then from photos fetched at run time for recommendation cards. Catalog lookups
 require an explicit region and a matching place name or registered alias; administrative
 representatives are configured separately. Missing coverage produces no photo. Photos
 decorate a place and are not evidence about its identity or current conditions.
 The Planner agent, generated Plan, live weather intelligence, and route
 research remain planned. What exists of the agent stack is a trial (1.0300): Mastra with Kimi
-calling the Amap place check and web search; see [the agents README](../src/agents/README.md).
+calling the place check and web search; see [the agents README](../src/agents/README.md).
 
 ## 5. Product principles
 

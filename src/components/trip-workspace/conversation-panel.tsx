@@ -150,7 +150,7 @@ export function ConversationPanel({
 
   // Cards arrive before their photos. Any card message still waiting for photos — just
   // delivered, or reopened before they were saved — asks for them, one message at a
-  // time because every lookup shares Amap's queue anyway.
+  // time because every lookup shares the map provider's queue anyway.
   useEffect(() => {
     if (photosInFlight.current !== null) return;
     const waiting = messages.find((item) => !photosSettledIds.includes(item.id) &&

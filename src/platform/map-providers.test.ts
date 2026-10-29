@@ -3,36 +3,21 @@ import { readdirSync, readFileSync } from "node:fs";
 import { join, relative } from "node:path";
 import test from "node:test";
 
-import { AmapPlacePhotoProvider } from "@/platform/place-photos/amap-place-photo-provider";
 import { CatalogPhotoProvider } from "@/platform/place-photos/catalog-photo-provider";
+import { TiandituLocationProvider } from "@/platform/tianditu/tianditu-location-provider";
 
-import { createPlacePhotoProvider, mapProviderName } from "./map-providers";
+import { createLocationProvider, createPlacePhotoProvider, mapProviderName } from "./map-providers";
 
-test("Amap is the default, Tianditu is chosen by name, and anything else is a configuration error", () => {
-  assert.equal(mapProviderName({}), "amap");
-  assert.equal(mapProviderName({ MAP_PROVIDER: " " }), "amap");
-  assert.equal(mapProviderName({ MAP_PROVIDER: "tianditu" }), "tianditu");
-  assert.throws(() => mapProviderName({ MAP_PROVIDER: "google" }), /MAP_PROVIDER must be "amap" or "tianditu"/u);
+test("Tianditu verifies places and the local catalog supplies photos, with no switch left to Amap", () => {
+  assert.equal(mapProviderName, "tianditu");
+  assert.ok(createLocationProvider() instanceof TiandituLocationProvider);
+  assert.ok(createPlacePhotoProvider() instanceof CatalogPhotoProvider);
 });
 
-test("Tianditu mode reads photos from the local catalog; Amap mode still has Amap's", () => {
-  const original = process.env.MAP_PROVIDER;
-  try {
-    process.env.MAP_PROVIDER = "tianditu";
-    assert.ok(createPlacePhotoProvider() instanceof CatalogPhotoProvider);
-    process.env.MAP_PROVIDER = "amap";
-    assert.ok(createPlacePhotoProvider() instanceof AmapPlacePhotoProvider);
-  } finally {
-    if (original === undefined) delete process.env.MAP_PROVIDER;
-    else process.env.MAP_PROVIDER = original;
-  }
-});
-
-test("in Tianditu mode, the photos every page, cover and chat reply use never reach the network", async () => {
-  const original = { provider: process.env.MAP_PROVIDER, fetch: globalThis.fetch };
+test("the photos every page, cover and chat reply use never reach the network", async () => {
+  const original = { fetch: globalThis.fetch };
   let fetched = 0;
   try {
-    process.env.MAP_PROVIDER = "tianditu";
     globalThis.fetch = (async () => { fetched += 1; throw new Error("no network here"); }) as typeof fetch;
     const photos = createPlacePhotoProvider();
     assert.equal(await photos.findPhoto({ kind: "named", keywords: "一个图集里没有的景点", region: "丽江市" }), null);
@@ -41,8 +26,6 @@ test("in Tianditu mode, the photos every page, cover and chat reply use never re
     assert.equal(fetched, 0);
   } finally {
     globalThis.fetch = original.fetch;
-    if (original.provider === undefined) delete process.env.MAP_PROVIDER;
-    else process.env.MAP_PROVIDER = original.provider;
   }
 });
 

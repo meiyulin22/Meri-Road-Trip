@@ -25,7 +25,7 @@ export async function handleLocationSuggestionsGet(
     logger.info({
       event: logEvents.locationSuggestionsCompleted,
       requestId,
-      provider: mapProviderName(),
+      provider: mapProviderName,
       resultCount: suggestions.length,
       durationMs: Math.round(performance.now() - startedAt),
     }, "Location suggestions completed");
@@ -40,7 +40,7 @@ export async function handleLocationSuggestionsGet(
     logger.warn({
       event: logEvents.locationSuggestionsFailed,
       requestId,
-      provider: mapProviderName(),
+      provider: mapProviderName,
       reason,
       statusCode: status,
       durationMs: Math.round(performance.now() - startedAt),

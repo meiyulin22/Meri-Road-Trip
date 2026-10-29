@@ -11,7 +11,7 @@ function redactErrorText(value: string): string {
     .replace(/([?&]key=)[^&\s)]+/gi, "$1[REDACTED]")
     .replace(/(Bearer\s+)[^\s]+/gi, "$1[REDACTED]");
 
-  for (const key of [process.env.MOONSHOT_API_KEY, process.env.AMAP_API_KEY]) {
+  for (const key of [process.env.MOONSHOT_API_KEY, process.env.TIANDITU_API_KEY]) {
     if (key && key.length >= 4) {
       redacted = redacted.replaceAll(key, "[REDACTED]");
     }

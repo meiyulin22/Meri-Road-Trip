@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import type { Gate } from "@/platform/amap/amap-fetch";
+import type { Gate } from "@/platform/http/request-pacer";
 
 import { createTiandituClient } from "./tianditu-fetch";
 

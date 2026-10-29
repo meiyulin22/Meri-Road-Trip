@@ -25,7 +25,6 @@
 | `docs/agent-planner/` | Planner Agent 的规划讨论与 Agent 课程笔记 | 规划资料，定稿并实现后写入 `src/agents/README.md` |
 | `public/` | 通过网站 URL 直接访问的背景、品牌、角色图片等静态文件 | 展示资源 |
 | `assets/` | 设计参考、品牌预览、角色原图和素材处理脚本 | 设计与素材制作，不是业务层 |
-| `prototypes/meri-motion/` | 可复制到另一台机器的独立动效交接包：说明、演示数据和素材副本，目前没有动画实现 | 设计原型资料，不接正式应用 |
 | `drizzle/` | 按顺序执行的数据库迁移 SQL 及生成元数据 | 基础设施：数据库演进 |
 | `drizzle/meta/` | 迁移 journal 与历史 schema snapshot | Drizzle 工具元数据 |
 | `scripts/` | 人工运行的真实提供方/模型验证工具 | 开发工具，不是 Web API |
@@ -55,16 +54,15 @@
 | `src/capabilities/` | 围绕具体能力组织服务、用例、prompt 和流程编排 | 应用层（application layer），回答“完成一个操作需要哪些步骤” |
 | `src/capabilities/journey/` | 创建、加载、更新、删除 Journey 和草稿提取 | Journey 应用用例 |
 | `src/capabilities/conversation/` | 模型解释、开场、历史上下文和消息保存 | 对话应用用例 |
-| `src/capabilities/destination/` | 高德查询协调、层级映射、候选准备、提交复核 | 目的地应用用例 |
+| `src/capabilities/destination/` | 地点查询协调、层级映射、候选准备、提交复核 | 目的地应用用例 |
 | `src/capabilities/recommendation/` | 搜索启发、结构化推荐、省份过滤和消息编排 | 推荐应用用例；确定性 workflow |
 | `src/agents/` | Mastra 入口、Agent 和它们的工具（工具是对 platform 端口的一层薄包装） | Agent 层；1.0300 只有验证技术栈用的试验 Agent，规划 Agent 尚未实现 |
 | `src/agents/tools/` | Agent 可调用的工具：地点核验、网页搜索 | Agent 工具 |
 | `src/platform/` | 提供外部调用接口和具体实现 | 基础设施/集成层（infrastructure layer），端口与适配器 |
 | `src/platform/llm/` | 模型客户端契约、Kimi 调用、SDK 错误与超时适配 | 模型提供方适配 |
-| `src/platform/location-provider/` | 地点搜索/输入建议接口和高德 HTTP 实现 | 地图提供方适配 |
+| `src/platform/location-provider/` | 地点搜索/输入建议接口（实现在 `src/platform/tianditu/`） | 地图提供方适配 |
 | `src/platform/search/` | Discovery Search 接口及 Bocha 请求/响应适配 | 搜索提供方适配 |
-| `src/platform/place-photos/` | 地点照片接口、高德照片适配（https 升级、主机白名单、7 天缓存）、天地图模式的本地图集（地区与名称匹配），以及推荐卡的 Pixabay 运行时补图（客户端、按 tags 判断、媒体目录存储） | 照片提供方适配 |
-| `src/platform/amap/` | 所有高德请求共用的节流与限流重试 | 高德提供方共用基础设施 |
+| `src/platform/place-photos/` | 地点照片接口、本地图集（地区与名称匹配），以及推荐卡的运行时补图（Wikimedia 先、Pixabay 后：客户端、身份判断、媒体目录存储） | 照片提供方适配 |
 | `src/platform/persistence/` | repository 接口，隔离应用层与数据库实现 | 持久化端口；这里的接口不等于 SQL 实现 |
 | `src/platform/persistence/postgres/` | PostgreSQL repository，读取校验、错误包装、CAS 更新 | 持久化适配器 |
 | `src/platform/persistence/in-memory/` | 内存 repository，用于测试替身 | 持久化测试适配器 |
@@ -90,7 +88,7 @@ Next.js route：输入/身份检查 + 响应转换 + 部分流程编排
     ├─ 领域规则：校验、合并、删除、准备度（纯函数，无 IO）
     └─ 外部端口：Repository / LocationProvider / 模型客户端 / Search
            ↓ 具体适配器
-       Neon PostgreSQL / 高德 / Kimi / Bocha
+       Neon PostgreSQL / 天地图 / Kimi / Bocha
     ↓ 返回保存的状态和消息
 UI 同步状态；刷新从数据库恢复
 ```
@@ -112,7 +110,7 @@ UI 同步状态；刷新从数据库恢复
 
 ### 3.3 AI 和应用各自决定什么
 
-LLM 解释自然语言并提出受限 JSON；应用校验、决定是否执行、核验地点并保存。助手建议即使经过高德核验，仍需要用户显式确认才成为目的地。Gen UI 是受限数据驱动的预写 React 组件，不是模型生成 JSX。
+LLM 解释自然语言并提出受限 JSON；应用校验、决定是否执行、核验地点并保存。助手建议即使经过天地图核验，仍需要用户显式确认才成为目的地。Gen UI 是受限数据驱动的预写 React 组件，不是模型生成 JSX。
 
 推荐是确定性流程：Discovery Search → Kimi 结构化推荐（含配图用的代表地标）→ 校验/去重 → 省份过滤 → 保存建议（卡片带地标、无照片）→ 浏览器另行请求照片，服务器按地标和地区查询当前照片提供方、逐张流式返回并写回卡片消息 → 显式选中时复核地点。代码没有接通访问检查、排序或开放式 Research Agent；照片只是装饰。Generate plan 当前只检查准备度；PWA 有 manifest 和图标，没有离线 service worker。
 
@@ -127,13 +125,13 @@ LLM 解释自然语言并提出受限 JSON；应用校验、决定是否执行�
 ## 4. 必须保留的业务边界与实现局限
 
 1. 同省/市/spot 的多个 POI 可在聊天卡中合并成一个偏好选择；不同省市或不同 spot 仍独立。合并偏好不等于精确 POI 消歧。
-2. add/set 只追加，不删除已保存项。用户原话里、被高德精确匹配的地点直接写入；错别字、多个可能、宽泛区域、模型改写的名称生成追加待选卡。用户明确不去某个地点才通过 remove 删除对应项。历史 replace 卡仍按原基底和过期规则处理，新聊天不再生成整体替换卡。
+2. add/set 只追加，不删除已保存项。用户原话里、被天地图精确匹配的地点直接写入；错别字、多个可能、宽泛区域、模型改写的名称生成追加待选卡。用户明确不去某个地点才通过 remove 删除对应项。历史 replace 卡仍按原基底和过期规则处理，新聊天不再生成整体替换卡。
 3. 删除 city 同时删除其 spots，并保留 province；删除 spot 保留 city；删除 province 删除全部子项。聊天删除用当前状态的精确名称或唯一前缀，手动删除传完整省/市/spot 元组。
 4. 已确认卡片和后续对话之前的旧卡只读。服务端也检查过期，安全的同组选项重试复用确认消息；不能让旧卡恢复后来删除的地点。
 5. CAS（比较并交换）以读取的状态为前提更新。生产 PostgreSQL 用原始 JSONB 作为条件；JourneyService 最多重试 3 次。目的地操作带 expectedDestination，冲突拒绝套用旧目的地；普通字段重试重算，保留并发变更。
 6. 状态更新与会话保存仍是分开的步骤，不是跨全部流程的一笔事务。选卡状态成功而确认消息失败时，返回实际 TripState 和 `follow_up_unavailable`；普通聊天失败则需刷新核对。
 7. 旧自由文本保留 `legacyText`，不伪造行政身份。准备度只要求已有目的地且无待确认旧记录；只有省、没有市也可以开始规划。未来研究应从当前 TripState 取偏好，不能从旧聊天恢复删除项。
-8. 通用 state PATCH 当前接受领域校验后的 patch，仍能包含 destination；它并非所有目的地请求都统一高德核验的入口。专用目的地接口有更明确的核验/并发边界。state route 的错误映射当前也未将 TripStateConflictError 单独映射成 409。这些是实现边界，本文没有顺带修改代码。
+8. 通用 state PATCH 当前接受领域校验后的 patch，仍能包含 destination；它并非所有目的地请求都统一地点核验的入口。专用目的地接口有更明确的核验/并发边界。state route 的错误映射当前也未将 TripStateConflictError 单独映射成 409。这些是实现边界，本文没有顺带修改代码。
 9. `workspace-turn-branch.ts` 和旧 `destination-recommendation-picker.tsx` 仍在仓库并有测试，但当前主聊天链路不使用它们；实际聊天分支在 messages route，当前卡片在 `destination-choices-card.tsx`。
 
 旧 `destination-refactor-plan.md` 已完成历史使命。其有效决定在本节及当前业务文档中保留；旧设计中稳定地理 ID、spot 坐标、撤销提示、省内限定搜索等建议没有实现，也不因此成为待执行任务。历史审查和具体旧方案可从 Git 历史查看。
@@ -161,13 +159,13 @@ LLM 解释自然语言并提出受限 JSON；应用校验、决定是否执行�
 
 下表按目录分类，每个路径都有独立一行。测试不是运行时业务层；同目录测试主要验证对应层的规则或适配边界，多数使用 mock/内存替身，不据此宣称真实提供方已验证。
 
-本次索引按路径去重共 424 个文件，其中 107 个测试文件。
+本次索引按路径去重共 391 个文件，其中 103 个测试文件。
 
 ### 6.1 根目录配置与入口
 
 | 文件地址 | 层/类别 | 做什么 |
 | --- | --- | --- |
-| [.env.example](../.env.example) | 工程配置 | 服务端环境变量模板，提供数据库、Kimi、高德、Bocha、时区和日志配置示例；末尾一组是 Generate plan 提供方试验的变量名（高德 JS 地图、和风天气、RollingGo、途牛、TypeSafe、AnySearch、天地图、阿里云百炼、华为位置服务），目前只有验证脚本读取；不放真实密钥。 |
+| [.env.example](../.env.example) | 工程配置 | 服务端环境变量模板，提供数据库、Kimi、天地图、Bocha、时区和日志配置示例；末尾一组是 Generate plan 提供方试验的变量名（高德 JS 地图、和风天气、RollingGo、途牛、TypeSafe、AnySearch、天地图、阿里云百炼、华为位置服务），目前只有验证脚本读取；不放真实密钥。 |
 | [.gitignore](../.gitignore) | 工程配置 | 忽略依赖、构建结果、环境密钥、日志和 TypeScript 生成文件。 |
 | [AGENTS.md](../AGENTS.md) | 文档/开发约定 | 所有 AI 的共同入口：必读文档（Agent 工作另读 `src/agents/README.md`）、Git 修改保护、当前业务边界及 Next.js 本地指南要求。 |
 | [.claude/launch.json](../.claude/launch.json) | 开发工具配置 | Claude 浏览器预览面板启动 `npm run dev`（端口 3000）的配置，不影响应用运行。 |
@@ -293,7 +291,6 @@ LLM 解释自然语言并提出受限 JSON；应用校验、决定是否执行�
 | [src/components/trip-workspace/destination-photos-model.ts](../src/components/trip-workspace/destination-photos-model.ts) | 表现层 | 请求已选地点照片并丢弃不合法项；封面取第一个地点的照片。 |
 | [src/components/trip-workspace/destination-photos-model.test.ts](../src/components/trip-workspace/destination-photos-model.test.ts) | 测试（对应模块边界） | 验证照片请求解析与封面选择。 |
 | [src/components/trip-workspace/destination-recommendation-picker.module.css](../src/components/trip-workspace/destination-recommendation-picker.module.css) | 表现层 | 目的地候选/推荐多选列表的分组、checkbox、确认及状态样式。 |
-| [src/components/trip-workspace/destination-recommendation-picker.tsx](../src/components/trip-workspace/destination-recommendation-picker.tsx) | 表现层 | 保留的旧推荐多选组件及测试入口；当前 ConversationPanel 使用 DestinationChoicesCard。 |
 | [src/components/trip-workspace/expedition-brief-panel.tsx](../src/components/trip-workspace/expedition-brief-panel.tsx) | 表现层 | Journey overview 字段面板，按出发地、目的地、何时、交通偏好、旅程名称排列；交通一键点选，名称文本编辑。 |
 | [src/components/trip-workspace/field-certainty.tsx](../src/components/trip-workspace/field-certainty.tsx) | 表现层 | 字段把握程度的共享展示：统一 18px 圆形状态（known 实心绿勾、missing 空圈、approximate 琥珀点、ambiguous “!”）、屏幕阅读器文字、把握程度文字（CertaintyLabel）和“大致/待确认”标签，文字取自字典。 |
 | [src/components/trip-workspace/generate-plan-action.tsx](../src/components/trip-workspace/generate-plan-action.tsx) | 表现层 | 唯一的 Generate plan，Halo 式旋转渐变边框按钮，位于聊天下方并始终可见；不可用时保持可聚焦并在悬停/聚焦时说明添加目的地的途径（可打开右侧搜索），规划尚未开放。 |
@@ -435,8 +432,6 @@ LLM 解释自然语言并提出受限 JSON；应用校验、决定是否执行�
 | [src/capabilities/conversation/workspace-conversation-context.ts](../src/capabilities/conversation/workspace-conversation-context.ts) | 应用层/用例装配 | 选最近 5 轮/6000 字符真实历史，合并连续助手消息，保留选卡确认上下文。 |
 | [src/capabilities/conversation/workspace-conversation-interpreter.test.ts](../src/capabilities/conversation/workspace-conversation-interpreter.test.ts) | 测试（对应模块边界） | 验证修改提案、当前状态/历史输入、非法 JSON/输出及 opening 限制（不能改状态，可以要推荐卡）。 |
 | [src/capabilities/conversation/workspace-conversation-interpreter.ts](../src/capabilities/conversation/workspace-conversation-interpreter.ts) | 应用层/用例装配 | Workspace/opening 的结构化调用与四项 JSON Schema，挽救模型输出并记录丢弃项，opening 禁止修改。 |
-| [src/capabilities/conversation/workspace-turn-branch.test.ts](../src/capabilities/conversation/workspace-turn-branch.test.ts) | 测试（对应模块边界） | 验证 helper 的候选/推荐/修改/普通对话分类，不证明当前入口调用该 helper。 |
-| [src/capabilities/conversation/workspace-turn-branch.ts](../src/capabilities/conversation/workspace-turn-branch.ts) | 应用层/用例装配 | 分支分类纯 helper；仍有测试，但实际 messages route 没调用它。 |
 
 ### 6.10 Destination 应用用例
 
@@ -490,7 +485,7 @@ LLM 解释自然语言并提出受限 JSON；应用校验、决定是否执行�
 | [src/agents/README.md](../src/agents/README.md) | 文档（Agent 设计约定） | Agent 的主文档（英文）：已实现与计划分开写；试验结果与四条发现、Planner 的输入/运行/输出/代码校验/版本与过期、工具、预算、追踪与评估计划、部署与决策记录。docs 只链接到这里。 |
 | [src/agents/index.ts](../src/agents/index.ts) | Agent 层 | 唯一的 Mastra 实例，注册全部 Agent；默认关闭 Mastra 发往 PostHog 的使用统计（`MASTRA_TELEMETRY_DISABLED`）。未配置存储与追踪导出，运行记录只在内存。 |
 | [src/agents/scout-agent.ts](../src/agents/scout-agent.ts) | Agent 层 | 1.0300 试验 Agent：用两个现有工具回答一个关于中国地点的问题，只为验证 Kimi 经 Mastra 调用工具；将被规划 Agent 取代，不在其上扩建。模型首次使用时才读取环境变量。 |
-| [src/agents/tools/resolve-place.ts](../src/agents/tools/resolve-place.ts) | Agent 工具 | 用工作区同一套高德核验查一个中文地名，返回匹配地点（省/市/区、GCJ-02 坐标、是否景点）、最多 5 个候选或整省；不代表开放或可达。 |
+| [src/agents/tools/resolve-place.ts](../src/agents/tools/resolve-place.ts) | Agent 工具 | 用工作区同一套地点核验（天地图）查一个中文地名，返回匹配地点（省/市/区、GCJ-02 坐标、是否景点）、最多 5 个候选或整省；不代表开放或可达。 |
 | [src/agents/tools/web-search.ts](../src/agents/tools/web-search.ts) | Agent 工具 | 经 Bocha 搜索近期公告（封闭、预约、季节通行），最多 5 条，每条带来源和发布日期；结果只是线索，提供方失败只返回 unavailable，不暴露带密钥的 URL。 |
 | [src/agents/tools/tools.test.ts](../src/agents/tools/tools.test.ts) | 测试（对应模块边界） | 验证地点结果的映射与 5 条上限、整省与失败状态，以及搜索 5 条上限、日期透传和失败降级。 |
 
@@ -507,10 +502,6 @@ LLM 解释自然语言并提出受限 JSON；应用校验、决定是否执行�
 | [src/platform/llm/ai-sdk-kimi-client.ts](../src/platform/llm/ai-sdk-kimi-client.ts) | 基础设施端口/适配器 | Kimi 的 Vercel AI SDK 适配器，结构化输出、finish reason/usage 归一化、60 秒超时、零自动重试和日志。 |
 | [src/platform/llm/moonshot-chat-model.ts](../src/platform/llm/moonshot-chat-model.ts) | 基础设施端口/适配器 | 唯一构造 Kimi 模型的地方（关闭 thinking、默认 kimi-k2.6 与 api.moonshot.cn），结构化输出客户端和 Agent 共用；可从环境变量构造。 |
 | [src/platform/llm/kimi-client.ts](../src/platform/llm/kimi-client.ts) | 基础设施端口/适配器 | StructuredOutputModelClient 端口及通用模型错误，同时保留旧 OpenAI SDK Kimi 实现；当前应用入口默认 AI SDK 客户端。 |
-| [src/platform/location-provider/amap-input-tips-provider.test.ts](../src/platform/location-provider/amap-input-tips-provider.test.ts) | 测试（对应模块边界） | mock 验证 query 编码、完整 tips、空/畸形响应及错误安全边界。 |
-| [src/platform/location-provider/amap-input-tips-provider.ts](../src/platform/location-provider/amap-input-tips-provider.ts) | 基础设施端口/适配器 | 高德 InputTips HTTP 适配（经共用节流器），规范化输入建议并区分空结果和故障。 |
-| [src/platform/location-provider/amap-location-provider.test.ts](../src/platform/location-provider/amap-location-provider.test.ts) | 测试（对应模块边界） | mock 验证中文 query 编码、POI/行政层级、坐标和提供方错误归一化。 |
-| [src/platform/location-provider/amap-location-provider.ts](../src/platform/location-provider/amap-location-provider.ts) | 基础设施端口/适配器 | 高德关键词 POI HTTP 适配（经共用节流器），编码 query、行政信息/坐标规范化、按高德类别码标出景点（风景名胜除城市广场、博物馆）及错误控制；不取照片（照片在 place-photos）。 |
 | [src/platform/location-provider/location-provider.ts](../src/platform/location-provider/location-provider.ts) | 基础设施端口/适配器 | 地点搜索端口与 success/failure 规范化结果，隔离高德响应格式。 |
 | [src/platform/location-provider/location-suggestion-provider.ts](../src/platform/location-provider/location-suggestion-provider.ts) | 基础设施端口/适配器 | 输入建议端口及规范化错误类型。 |
 | [src/platform/observability/logger.ts](../src/platform/observability/logger.ts) | 基础设施端口/适配器 | 共享 Pino logger 和事件名称，按环境配置日志级别/开发格式。 |
@@ -518,11 +509,7 @@ LLM 解释自然语言并提出受限 JSON；应用校验、决定是否执行�
 | [src/platform/observability/serialize-error.ts](../src/platform/observability/serialize-error.ts) | 基础设施端口/适配器 | 序列化 message/stack/cause 等错误信息并移除提供方凭据。 |
 | [src/platform/search/bocha-discovery-search.test.ts](../src/platform/search/bocha-discovery-search.test.ts) | 测试（对应模块边界） | mock 验证搜索请求、结果字段/数量、摘要回退、故障转换及缺密钥。 |
 | [src/platform/search/bocha-discovery-search.ts](../src/platform/search/bocha-discovery-search.ts) | 基础设施端口/适配器 | 将 Bocha 网页规范化为最多 8 条 DiscoverySearchResult，构造环境适配器。 |
-| [src/platform/amap/amap-fetch.ts](../src/platform/amap/amap-fetch.ts) | 基础设施/适配器 | 高德请求排队：进程内共用一个队列，请求开始时间相隔 ≥350ms；超时从请求真正发出时计算（排队不占超时）；识别 HTTP 200 里的限流 infocode 后整个队列暂停 1 秒，被拒请求排到队首重试，最多 3 次。 |
-| [src/platform/amap/amap-fetch.test.ts](../src/platform/amap/amap-fetch.test.ts) | 测试（对应模块边界） | 验证排队顺序与间隔、暂停挡住已在排队的请求、重试排队首且最多 3 次、超时从发出时起算、普通失败不重试。 |
 | [src/platform/place-photos/place-photo-provider.ts](../src/platform/place-photos/place-photo-provider.ts) | 基础设施/端口 | 照片查询（按名称或按区域国家级景点）接口与允许的照片主机列表。 |
-| [src/platform/place-photos/amap-place-photo-provider.ts](../src/platform/place-photos/amap-place-photo-provider.ts) | 基础设施/适配器 | 高德 v5 搜索取照片：经共用节流器请求、http 升级 https、主机白名单、只缓存真实答案的进程内 7 天缓存（PlacePhotoMemory）、失败返回 null 并记 infocode。 |
-| [src/platform/place-photos/amap-place-photo-provider.test.ts](../src/platform/place-photos/amap-place-photo-provider.test.ts) | 测试（对应模块边界） | 验证查询参数、https 升级、主机过滤、各种失败，以及只缓存真实答案、过期重查。 |
 | [src/platform/place-photos/photo-catalog.ts](../src/platform/place-photos/photo-catalog.ts) | 基础设施/索引 | 本地图集校验和匹配（条目可来自 Pixabay 或 Wikimedia Commons；Commons 条目必须有许可证、许可证链接和 Commons 文件页，署名带许可证名称，`catalogCredit` 控制在 120 字内）：明确地区与完整名称／显式别名同时命中；保留括号地区，不猜子串或后缀；`scenicFor` 单独登记行政区代表图且必须属于允许地区；未命中、配置不合法或歧义返回 null；返回同域路径、真实主题和作者署名。 |
 | [src/platform/place-photos/catalog-photo-provider.ts](../src/platform/place-photos/catalog-photo-provider.ts) | 基础设施/适配器 | 天地图模式的照片适配器：读取并缓存本地索引，未命中时再读运行时已下载的照片（MediaPhotoStore：景点按地区 + 地标，市按同市已下载照片）；保留查询类型和地区；不请求外部 API；文件缺失或损坏按空目录处理。服务端渲染、封面、地点候选卡和已选地点照片都用它；`loadPhotoCatalog` 供署名页列出全部条目。 |
 | [src/platform/place-photos/image-file.ts](../src/platform/place-photos/image-file.ts) | 基础设施/工具 | 从文件字节读出真实格式（JPEG／PNG／WebP）和宽高，不信 Content-Type；不合法返回 null。 |
@@ -556,6 +543,8 @@ LLM 解释自然语言并提出受限 JSON；应用校验、决定是否执行�
 | [public/photos/qinghai-lake-2631421.jpg](../public/photos/qinghai-lake-2631421.jpg) | 静态资源 | 本轮查看来源与画面后选用的青海湖畔油菜花照片，Pixabay 2631421，作者 Ponyo-；替代旧茶卡盐湖错图。 |
 | [public/photos/tianchi-xinjiang-2077003.jpg](../public/photos/tianchi-xinjiang-2077003.jpg) | 静态资源 | 本轮查看来源与画面后选用的新疆天山天池照片，Pixabay 2077003，作者 ccp877；与长白山天池使用不同照片。 |
 | [public/photos/songzanlin-4424995.jpg](../public/photos/songzanlin-4424995.jpg) | 静态资源 | 松赞林寺照片，Pixabay 4424995，作者 samyo；作为香格里拉市／迪庆州明确登记的代表图，旧香格里拉丽江雪山文件已撤下。 |
+| [src/platform/http/request-pacer.ts](../src/platform/http/request-pacer.ts) | 基础设施/工具 | 给外部请求排队、按最小间隔放行（可暂停、可插队），天地图用它避开限流；原本写给高德，1.0702 移除高德时搬到这里。 |
+| [src/platform/http/request-pacer.test.ts](../src/platform/http/request-pacer.test.ts) | 测试（对应模块边界） | 验证按间隔依次放行、暂停会拦住已在排队的请求、插队的请求排第一。 |
 | [src/platform/tianditu/tianditu-fetch.ts](../src/platform/tianditu/tianditu-fetch.ts) | 基础设施/适配器 | 天地图请求客户端：独立排队（开始间隔 ≥300ms，复用 amap-fetch 的通用 pacer）、超时、key 只拼进天地图地址；418 或防火墙 HTML 页视为拒绝、不重试；**429 视为限流**，整队暂停 1 秒、被拒请求排队首、最多重试 3 次；失败只返回固定原因，不含 URL 和 key。 |
 | [src/platform/tianditu/classification-memory.ts](../src/platform/tianditu/classification-memory.ts) | 基础设施/缓存 | 分类搜索缓存：按「行政区 + 类别」把 `queryType 13` 的一页存到 `.cache/tianditu-classification.json`，7 天、上限 50 页、只存真实答案（拒绝和空结果不存）；文件损坏按空缓存处理；写入用临时文件 + 改名，写失败不影响本次查询。 |
 | [src/platform/tianditu/classification-memory.test.ts](../src/platform/tianditu/classification-memory.test.ts) | 测试（对应模块边界） | 验证只存真实答案、重启后仍在、7 天过期、超 50 页淘汰最旧、文件损坏当空缓存、统计顺序。 |
@@ -564,8 +553,8 @@ LLM 解释自然语言并提出受限 JSON；应用校验、决定是否执行�
 | [src/platform/tianditu/tianditu-location-provider.test.ts](../src/platform/tianditu/tianditu-location-provider.test.ts) | 测试（对应模块边界） | 验证类别映射、POI / 行政区规范化、一次搜索只发一个请求、市/省答案的逆地理编码取舍、逆地理编码失败算故障、整个景区排前、两类合成一次请求且按分组解析、缓存命中不再请求、分类被拒绝算失败、无数据 / 拒绝 / 空查询、key 只发给天地图。 |
 | [src/platform/tianditu/tianditu-input-tips-provider.ts](../src/platform/tianditu/tianditu-input-tips-provider.ts) | 基础设施端口/适配器 | 天地图建议词搜索（queryType 4）做输入提示：gbCode 去掉 156 变成六位 adcode，行政区文字放 region，坐标 CGCS2000。 |
 | [src/platform/tianditu/tianditu-input-tips-provider.test.ts](../src/platform/tianditu/tianditu-input-tips-provider.test.ts) | 测试（对应模块边界） | 验证建议规范化、空结果、超时、拒绝与畸形响应。 |
-| [src/platform/map-providers.ts](../src/platform/map-providers.ts) | 基础设施装配 | 按 MAP_PROVIDER（默认 amap，可选 tianditu，其他值报配置错误）创建整套地点核验、输入提示和照片提供方；天地图使用 CatalogPhotoProvider（本地图集 + 已下载照片）；各 route 和页面都从这里取。createRemotePhotoFinders 只在天地图模式、有媒体目录时返回进程内唯一的远程补图器列表：先 Wikimedia（不需要 key），有 PIXABAY_API_KEY 时再加 Pixabay；只有推荐卡照片接口使用。 |
-| [src/platform/map-providers.test.ts](../src/platform/map-providers.test.ts) | 测试（对应模块边界） | 验证默认值、选择天地图、非法值报错，以及天地图使用本地图集适配器、高德仍用高德照片；天地图模式的通用照片提供方不连网络；只有推荐卡照片接口调用 createRemotePhotoFinder。 |
+| [src/platform/map-providers.ts](../src/platform/map-providers.ts) | 基础设施装配 | 创建地点核验、输入提示和照片提供方：1.0702 起只有天地图（`TiandituLocationProvider`、`TiandituInputTipsProvider`），照片用 CatalogPhotoProvider（本地图集 + 已下载照片）；createRemotePhotoFinders 在有媒体目录时返回进程内唯一的远程补图器（先 Wikimedia，有 PIXABAY_API_KEY 再加 Pixabay），只有推荐卡照片接口使用。 |
+| [src/platform/map-providers.test.ts](../src/platform/map-providers.test.ts) | 测试（对应模块边界） | 验证只用天地图和本地图集、页面照片不联网、只有推荐卡照片接口能调用远程补图。 |
 | [src/platform/search/bocha-web-search.test.ts](../src/platform/search/bocha-web-search.test.ts) | 测试（对应模块边界） | mock 验证 POST/envelope、webPages/images 区段、缺密钥不请求及错误脱敏。 |
 | [src/platform/search/bocha-web-search.ts](../src/platform/search/bocha-web-search.ts) | 基础设施端口/适配器 | 共享 Bocha Web Search HTTP 请求、响应 envelope 检查、日期转换、超时/网络/API 错误脱敏。 |
 | [src/platform/search/discovery-search.ts](../src/platform/search/discovery-search.ts) | 基础设施端口/适配器 | DiscoverySearch 端口、旅程搜索 query、失败降级空上下文和规范化错误。 |
@@ -630,13 +619,6 @@ LLM 解释自然语言并提出受限 JSON；应用校验、决定是否执行�
 | --- | --- | --- |
 | [scripts/verify-destination-conversation-turns.ts](../scripts/verify-destination-conversation-turns.ts) | 开发验证工具 | 用多轮样例人工检查真实模型的地点/偏好解释、推荐意图、中国范围、错别字保留、天气/准备度/单问题规则、已有状态保护及回复语言和英文地名翻译（20–27 为英文界面或跨语言输入），需要模型配置。 |
 | [scripts/verify-agent-tools.ts](../scripts/verify-agent-tools.ts) | 开发验证工具 | 用真模型和真提供方跑试验 Agent 的 4 个问题，打印每一步的工具调用与结果、耗时、token 用量和回复；第 4 个验证"工具 + 结构化输出"必须用单独的结构化步骤，需要模型、高德和 Bocha 配置。 |
-| [scripts/verify-tianditu.ts](../scripts/verify-tianditu.ts) | 开发验证工具 | 天地图能否替代高德的实测：连续 20 次搜索看拦截和延迟、15 个云南地点（全国搜索和云南行政区内搜索）反查省市、英文地名、驾车和 `style=3` 路线的距离和速度；需要 `TIANDITU_API_KEY`，不接入产品代码。 |
-| [scripts/verify-amap-baseline.ts](../scripts/verify-amap-baseline.ts) | 开发验证工具 | 天地图实测的高德对照：同一组地点、英文名和路线问高德，另外统计营业时间、电话、评分、照片的覆盖；约 40 次调用，需要 `AMAP_API_KEY`。 |
-| [scripts/verify-tianditu-workspace.ts](../scripts/verify-tianditu-workspace.ts) | 开发验证工具 | Workspace 地点核实：24 个说法（或命令行给的几个，间隔 10 秒）分别经高德和产品的天地图提供方，走真实的 `LocationService` + `resolveDestinationPlace`，对比结果和耗时。 |
-| [scripts/verify-amap-mcp.ts](../scripts/verify-amap-mcp.ts) | 开发验证工具 | 百炼托管的高德 MCP 实测：列出工具，用共用测试集跑关键字搜索 + 详情（营业时间、电话、评分、照片）和路线；脚本内一个最小的 MCP 客户端（JSON-RPC over HTTP），需要 `DASHSCOPE_API_KEY`。 |
-| [scripts/verify-huawei-site.ts](../scripts/verify-huawei-site.ts) | 开发验证工具 | 华为位置服务（Site Kit）实测：共用测试集的中文搜索 + 详情（营业时间、电话、评分、照片）、英文名英文结果、自动补齐；对三个地点实时取高德和天地图的坐标并排打印，判断华为在大陆用哪种坐标系；需要 `HUAWEI_SITE_API_KEY`。 |
-| [scripts/map-trial-cases.ts](../scripts/map-trial-cases.ts) | 开发验证工具 | 两个地图实测脚本共用的测试集：15 个云南地点（预期省市）、英文地名、4 条路线。 |
-| [scripts/verify-location-resolve.ts](../scripts/verify-location-resolve.ts) | 开发验证工具 | 人工验证真实高德查询及 LocationService/层级解析结果，不是自动单元测试。 |
 | [scripts/verify-workspace-location-tool.ts](../scripts/verify-workspace-location-tool.ts) | 开发验证工具 | 人工调用真实 Workspace 解释器，检查地点意图结构；文件名保留旧 tool 命名，当前不是开放式工具 Agent。 |
 
 ### 6.16 网站静态资源
@@ -645,8 +627,6 @@ LLM 解释自然语言并提出受限 JSON；应用校验、决定是否执行�
 | --- | --- | --- |
 | [public/backgrounds/home-v2-landscape.png](../public/backgrounds/home-v2-landscape.png) | 展示资源 | 当前首页 landscape 背景，由 meri-app-shell.module.css 引用。 |
 | [public/backgrounds/meri-world-desktop.png](../public/backgrounds/meri-world-desktop.png) | 展示资源 | 当前 Journey 列表背景，由 trips.module.css 引用。 |
-| [public/backgrounds/meri-world-mobile.png](../public/backgrounds/meri-world-mobile.png) | 展示资源 | 保留的移动场景背景素材，当前源码没有直接引用。 |
-| [public/backgrounds/trip-workspace-desktop.png](../public/backgrounds/trip-workspace-desktop.png) | 展示资源 | 保留的旧 Workspace 桌面背景，当前主样式采用 workspace-alpine-day。 |
 | [public/backgrounds/workspace-alpine-day.png](../public/backgrounds/workspace-alpine-day.png) | 展示资源 | 当前 Workspace 背景、旅程缩略图和右侧封面共用的山景图。 |
 | [public/brand/meri-app-icon-1024.png](../public/brand/meri-app-icon-1024.png) | 展示资源 | layout/manifest 使用的应用安装图标。 |
 | [public/brand/meri-favicon.svg](../public/brand/meri-favicon.svg) | 展示资源 | layout 使用的网站 favicon。 |
@@ -657,16 +637,11 @@ LLM 解释自然语言并提出受限 JSON；应用校验、决定是否执行�
 | [public/companion/bear/bear-sprites.json](../public/companion/bear/bear-sprites.json) | 展示资源 | 小熊精灵图帧清单：帧尺寸、每个动画所在行、帧数和每帧毫秒；由生成脚本写出。 |
 | [public/companion/bear/bear-sprites.png](../public/companion/bear/bear-sprites.png) | 展示资源 | 小熊营地小桌精灵图：9 个动画、42 帧，1 倍尺寸透明背景；由生成脚本写出。 |
 | [public/companion/home-v2-companion.png](../public/companion/home-v2-companion.png) | 展示资源 | 首页、聊天头像和 Workspace Companion 使用的角色图。 |
-| [public/metadata.json](../public/metadata.json) | 展示资源 | 素材导出的角色信息、方向和原始路径元数据，不是当前业务配置或用户数据。 |
 
 ### 6.17 设计和素材制作
 
 | 文件地址 | 层/类别 | 做什么 |
 | --- | --- | --- |
-| [assets/brand/meri-favicon-preview.png](../assets/brand/meri-favicon-preview.png) | 设计/素材制作 | favicon 设计预览，区别于 public 中上线 SVG。 |
-| [assets/brand/meri-lockup-preview.png](../assets/brand/meri-lockup-preview.png) | 设计/素材制作 | 组合品牌标识的设计预览。 |
-| [assets/brand/meri-mark-preview.png](../assets/brand/meri-mark-preview.png) | 设计/素材制作 | 独立品牌图形的设计预览。 |
-| [assets/brand/meri-wordmark-preview.png](../assets/brand/meri-wordmark-preview.png) | 设计/素材制作 | 品牌文字标识的设计预览。 |
 | [assets/companion/red-panda/red-panda-body-no-paws-v2.png](../assets/companion/red-panda/red-panda-body-no-paws-v2.png) | 设计/角色素材 | 基于睁眼原图编辑的去前爪版 PNG（1254×1254，真实 Alpha），用于胸毛补丁；头部毛发仍有细节重绘，不保证像素级一致，尚未接入界面。 |
 | [assets/companion/red-panda/build_red_panda_layers.py](../assets/companion/red-panda/build_red_panda_layers.py) | 设计/素材脚本 | 用两张原图做出小熊猫的网页图层：爪子按"无爪版在这里明显更亮"从原图抠出（颜色分不开爪子和阴影里的毛），每边只留最大的一块并补洞、柔化边缘；输出身体、左右爪三张 WebP（384 宽，共约 46 KB）和眼睛位置 JSON。人工运行，不属于应用运行时。 |
 | [public/companion/red-panda/body.webp](../public/companion/red-panda/body.webp) | 静态资源 | 小熊猫无爪身体层（含头），转头时单独旋转。 |
@@ -681,16 +656,6 @@ LLM 解释自然语言并提出受限 JSON；应用校验、决定是否执行�
 | [assets/3Ddesign/home-visual-media-v2.png](../assets/3Ddesign/home-visual-media-v2.png) | 设计/素材制作 | 当前首页截图引导的局部营地设计稿；保留最新背景和布局，非像素级实现。 |
 | [assets/3Ddesign/workspace-visual-media-v2.png](../assets/3Ddesign/workspace-visual-media-v2.png) | 设计/素材制作 | 当前 Workspace 截图引导的纸上营地设计稿；保留实际页面状态，未接入 3D。 |
 | [assets/3Ddesign/visual-media-v2-prompts.json](../assets/3Ddesign/visual-media-v2-prompts.json) | 设计/素材制作 | 第二轮截图引导生成的完整提示词、参考素材与未批准状态。 |
-| [prototypes/meri-motion/README.md](../prototypes/meri-motion/README.md) | 独立设计原型/交接 | 给另一台机器上的 Claude 制作首页入场、规划过渡和聊天框趴熊的需求、素材说明、隔离边界和交付要求；目前没有动画实现，不接正式应用。 |
-| [prototypes/meri-motion/demo-scenarios.json](../prototypes/meri-motion/demo-scenarios.json) | 原型演示数据 | 正常完成、并行、重试失败、等待后继续和含未知项的演示步骤及最小计划预览；不是 Mastra 或后端协议。 |
-| [prototypes/meri-motion/previews/animation-storyboard-v1.png](../prototypes/meri-motion/previews/animation-storyboard-v1.png) | 原型效果图 | 内置图像生成的六格连续分镜：从首页入场、工作区点击规划到山路进度和示例计划展开；不是运行截图。 |
-| [prototypes/meri-motion/previews/composer-bear-v1.png](../prototypes/meri-motion/previews/composer-bear-v1.png) | 原型效果图 | 内置图像生成的趴框小熊效果图，确认上沿偏右的位置、双爪搭边及看向鼠标的姿势；不是已实现动作。 |
-| [prototypes/meri-motion/reference-assets/backgrounds/home-v2-landscape.png](../prototypes/meri-motion/reference-assets/backgrounds/home-v2-landscape.png) | 原型参考素材 | 从当前 public 复制的首页山景快照，供独立制作，不与源素材自动同步。 |
-| [prototypes/meri-motion/reference-assets/backgrounds/workspace-alpine-day.png](../prototypes/meri-motion/reference-assets/backgrounds/workspace-alpine-day.png) | 原型参考素材 | 从当前 public 复制的 Workspace 山景快照。 |
-| [prototypes/meri-motion/reference-assets/brand/meri-home-mountain.png](../prototypes/meri-motion/reference-assets/brand/meri-home-mountain.png) | 原型参考素材 | 从当前 public 复制的山形品牌图快照。 |
-| [prototypes/meri-motion/reference-assets/companion/home-v2-companion.png](../prototypes/meri-motion/reference-assets/companion/home-v2-companion.png) | 原型参考素材 | 从当前 public 复制的小熊角色图快照。 |
-| [prototypes/meri-motion/reference-assets/companion/bear/bear-sprites.png](../prototypes/meri-motion/reference-assets/companion/bear/bear-sprites.png) | 原型参考素材 | 从当前 public 复制的小熊营地动作精灵图快照，没有走路帧。 |
-| [prototypes/meri-motion/reference-assets/companion/bear/bear-sprites.json](../prototypes/meri-motion/reference-assets/companion/bear/bear-sprites.json) | 原型参考素材 | 精灵图帧清单副本，与原型内 bear-sprites.png 配套。 |
 
 ### 6.18 历史目录占位文件
 
