@@ -4,10 +4,11 @@ import { ArrowUp, LoaderCircle, Mic, Paperclip } from "lucide-react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { useEffect, useLayoutEffect, useRef, useState, type KeyboardEventHandler } from "react";
 
+import { RedPandaPeek } from "../companion/red-panda-peek";
 import styles from "./chat-composer.module.css";
 
 /** Presentation only: the parent owns submission, request state and errors. */
-export function ChatComposer({ id, value, onChange, onKeyDown, disabled, canSubmit, pending, labels, prompts }: {
+export function ChatComposer({ id, value, onChange, onKeyDown, disabled, canSubmit, pending, labels, prompts, companion = false }: {
   readonly id: string;
   readonly value: string;
   readonly onChange: (value: string) => void;
@@ -17,6 +18,8 @@ export function ChatComposer({ id, value, onChange, onKeyDown, disabled, canSubm
   readonly pending: boolean;
   readonly labels: { readonly input: string; readonly send: string; readonly attachment: string; readonly voice: string };
   readonly prompts: readonly string[];
+  /** The red panda that climbs onto the box while it has focus. */
+  readonly companion?: boolean;
 }) {
   const input = useRef<HTMLTextAreaElement>(null);
   const reduceMotion = useReducedMotion();
@@ -40,6 +43,7 @@ export function ChatComposer({ id, value, onChange, onKeyDown, disabled, canSubm
   }, [showPrompt, focused, reduceMotion, prompts.length]);
 
   return <div className={styles.composer}>
+    {companion ? <RedPandaPeek active={focused} input={input} /> : null}
     <div className={styles.editor}>
       <textarea ref={input} id={id} aria-label={labels.input} autoComplete="off" rows={2}
         disabled={disabled} value={value} onChange={(event) => onChange(event.target.value)}

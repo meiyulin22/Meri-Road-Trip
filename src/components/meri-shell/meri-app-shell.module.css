@@ -212,8 +212,9 @@
     padding-bottom: clamp(13rem, 34dvh, 22rem);
   }
 
+  /* On a phone the headline spans the width, so the red panda needs this room above the box. */
   .entry > [data-home-entrance-item="headline"] {
-    margin: 1.5rem 0 1.25rem;
+    margin: 1.5rem 0 3.4rem;
   }
 
   .headlineName {

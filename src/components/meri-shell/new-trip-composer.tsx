@@ -89,6 +89,7 @@ export function NewTripComposer() {
           labels={{ input: text.composerPlaceholder, send: text.sendIdea,
             attachment: text.documentUnavailable, voice: text.voiceUnavailable }}
           prompts={text.composerPrompts}
+          companion
         />
 
         {isSubmitting ? (

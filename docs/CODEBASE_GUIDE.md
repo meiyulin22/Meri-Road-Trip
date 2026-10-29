@@ -161,7 +161,7 @@ LLM 解释自然语言并提出受限 JSON；应用校验、决定是否执行�
 
 下表按目录分类，每个路径都有独立一行。测试不是运行时业务层；同目录测试主要验证对应层的规则或适配边界，多数使用 mock/内存替身，不据此宣称真实提供方已验证。
 
-本次索引按路径去重共 415 个文件，其中 106 个测试文件。
+本次索引按路径去重共 425 个文件，其中 107 个测试文件。
 
 ### 6.1 根目录配置与入口
 
@@ -270,6 +270,10 @@ LLM 解释自然语言并提出受限 JSON；应用校验、决定是否执行�
 | [src/components/companion/bear-behavior.test.ts](../src/components/companion/bear-behavior.test.ts) | 测试（对应模块边界） | 用固定随机数模拟数百次计划：验证不瞬移、同一活动不连续三次、饭后 60 秒冷却、坐着偏好、反应优先及每次旅程变化只欢呼一次，并校验帧清单。 |
 | [src/components/companion/bear-behavior.ts](../src/components/companion/bear-behavior.ts) | 表现层 | 小熊行为纯规则：反应（出错/思考/可生成）优先，自由时间按权重随机选看地图/站着/吃饭团/放空，并补上坐下、放下地图等过渡步骤。 |
 | [src/components/companion/bear-sprite-sheet.ts](../src/components/companion/bear-sprite-sheet.ts) | 表现层 | 读取并用 Zod 校验生成的 bear-sprites.json，导出帧尺寸、每个动画的行号/帧数/时长和精灵图地址。 |
+| [src/components/companion/red-panda-peek.tsx](../src/components/companion/red-panda-peek.tsx) | 表现层 | 首页输入框的小熊猫（1.0700）：输入框获得焦点时右爪、左爪、身子依次从输入框右上角后面爬上来，弹一下趴稳，然后换成完整原图；瞳孔是代码画的，跟着鼠标或正在输入的文字转，每 2.5–6 秒眨一次眼；失去焦点时身子先缩回、爪子最后松开；系统要求减少动态效果时只淡入淡出。装饰：对辅助技术隐藏、不接收鼠标。 |
+| [src/components/companion/red-panda-peek.module.css](../src/components/companion/red-panda-peek.module.css) | 样式 | 小熊猫的裁切窗口：下沿在输入框上边缘略往里，所以它像从框后面爬出来、爪子搭在边上；手机上缩小。 |
+| [src/components/companion/red-panda-peek-model.ts](../src/components/companion/red-panda-peek-model.ts) | 表现层纯函数 | 瞳孔朝向（360 度指向目标，越远越靠边）、下次眨眼的间隔、打字时看向的位置。 |
+| [src/components/companion/red-panda-peek-model.test.ts](../src/components/companion/red-panda-peek-model.test.ts) | 测试（对应模块边界） | 验证瞳孔八个方向都指对、远近决定偏多少、目标在眼上时居中，眨眼间隔范围，打字时视线跟着文字走但不超过末尾。 |
 | [src/components/companion/companion-bear.tsx](../src/components/companion/companion-bear.tsx) | 表现层 | 精灵图播放器：按计划逐帧播放，计划结束或反应变化时向行为规则要下一步（过渡中不打断），标签页隐藏时暂停，减少动态效果时只显示一帧。 |
 | [src/components/companion/companion-status-model.test.ts](../src/components/companion/companion-status-model.test.ts) | 测试（对应模块边界） | 验证小熊一句话的优先级（出错 > 思考 > 可生成 > 缺目的地）、可选缺项列举和旧目的地提示。 |
 | [src/components/companion/companion-status-model.ts](../src/components/companion/companion-status-model.ts) | 表现层 | 小熊一句话的纯规则：由 TripState 与聊天活动决定情绪和文案（文案取自传入的字典），不调用模型。 |
@@ -322,7 +326,7 @@ LLM 解释自然语言并提出受限 JSON；应用校验、决定是否执行�
 
 | 文件地址 | 层/类别 | 做什么 |
 | --- | --- | --- |
-| [src/components/ui/chat-composer.tsx](../src/components/ui/chat-composer.tsx) | 表现层 | 受控多行输入、自动增高、滚动示例提示、发送/加载状态及禁用的文档和语音占位按钮；不调用 API，父组件提供文案与事件。 |
+| [src/components/ui/chat-composer.tsx](../src/components/ui/chat-composer.tsx) | 表现层 | 受控多行输入、自动增高、滚动示例提示、发送/加载状态及禁用的文档和语音占位按钮；`companion` 打开时挂上爬上输入框的小熊猫（首页用）；不调用 API，父组件提供文案与事件。 |
 | [src/components/ui/chat-composer.module.css](../src/components/ui/chat-composer.module.css) | 表现层 | 输入框与工具栏样式，移动端和减少动态效果适配。 |
 | [src/components/ui/animated-popover.tsx](../src/components/ui/animated-popover.tsx) | 表现层 | Radix Popover + Motion 封装，提供受控开关、浮层入退场及减少动态效果支持。 |
 | [src/components/ui/animated-checkbox.module.css](../src/components/ui/animated-checkbox.module.css) | 表现层 | 动画复选框的方框、选中、聚焦、禁用与减少动态效果样式。 |
@@ -664,6 +668,12 @@ LLM 解释自然语言并提出受限 JSON；应用校验、决定是否执行�
 | [assets/brand/meri-mark-preview.png](../assets/brand/meri-mark-preview.png) | 设计/素材制作 | 独立品牌图形的设计预览。 |
 | [assets/brand/meri-wordmark-preview.png](../assets/brand/meri-wordmark-preview.png) | 设计/素材制作 | 品牌文字标识的设计预览。 |
 | [assets/companion/red-panda/red-panda-body-no-paws-v2.png](../assets/companion/red-panda/red-panda-body-no-paws-v2.png) | 设计/角色素材 | 基于睁眼原图编辑的去前爪版 PNG（1254×1254，真实 Alpha），用于胸毛补丁；头部毛发仍有细节重绘，不保证像素级一致，尚未接入界面。 |
+| [assets/companion/red-panda/build_red_panda_layers.py](../assets/companion/red-panda/build_red_panda_layers.py) | 设计/素材脚本 | 用两张原图做出小熊猫的网页图层：爪子按"无爪版在这里明显更亮"从原图抠出（颜色分不开爪子和阴影里的毛），每边只留最大的一块并补洞、柔化边缘；输出完整原图、身体、左右爪四张 WebP（384 宽，共约 95 KB）和眼睛位置 JSON。人工运行，不属于应用运行时。 |
+| [public/companion/red-panda/whole.webp](../public/companion/red-panda/whole.webp) | 静态资源 | 小熊猫完整原图（含爪子），趴稳后显示。 |
+| [public/companion/red-panda/body.webp](../public/companion/red-panda/body.webp) | 静态资源 | 小熊猫无爪身体层，爬上来的过程中显示。 |
+| [public/companion/red-panda/paw-left.webp](../public/companion/red-panda/paw-left.webp) | 静态资源 | 小熊猫左爪层，与身体同一画布，无需偏移。 |
+| [public/companion/red-panda/paw-right.webp](../public/companion/red-panda/paw-right.webp) | 静态资源 | 小熊猫右爪层，与身体同一画布，无需偏移。 |
+| [public/companion/red-panda/red-panda.json](../public/companion/red-panda/red-panda.json) | 静态资源 | 图层尺寸和两只眼睛的中心、半径（按画布比例），组件据此画瞳孔和眼皮。 |
 | [assets/companion/red-panda/red-panda-open-eyes-v1.png](../assets/companion/red-panda/red-panda-open-eyes-v1.png) | 设计/角色素材 | 用户确认的小熊猫睁眼原始 PNG（1254×1254，真实 Alpha、纯白无瞳孔眼睛），供后续闭眼编辑及聊天框角色制作；尚未接入界面。 |
 | [assets/companion/bear/generate_bear_sprites.py](../assets/companion/bear/generate_bear_sprites.py) | 设计/素材制作 | 用 Pillow 从 home-v2-companion.png 生成 64px 底图并合成全部小熊帧，写出 public/companion/bear 下的精灵图和帧清单；可加 --preview 输出预览。不是运行时代码。 |
 | [assets/logo/Logo.png](../assets/logo/Logo.png) | 设计/素材制作 | 角色/品牌制作参考图片，不是业务逻辑。 |
