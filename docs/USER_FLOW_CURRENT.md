@@ -535,17 +535,18 @@ add/set 使用 Promise.all 查询表达。解析层保留不同 provider ID，�
 
 [准备度 UI 模型](../src/components/trip-workspace/planning-readiness-model.ts)将结果关联 destination 快照。目的地改变后旧准备度不再展示，避免新决定沿用旧检查结果。
 
-### 首页输入框的小熊猫（1.0700）
+### 首页输入框的小熊猫（oil-motion 转头）
 
-点进首页"你想去哪里？"下面的输入框，一只小熊猫从输入框右上角后面爬上来：右爪先搭上边缘，左爪跟上，然后头和身子升起来，带一点回弹趴稳，全程约 0.8 秒。趴着时它的头转向鼠标（1.0704 起是真的转头，不只是瞳孔动）：任何方向都能转，斜方向也是真画出来的；鼠标绕着它转一圈，头也跟着一路转过去；离得越远转得越多，带弹簧缓动；在手机上或打字时看向正在输入的文字。爪子始终搭在边上不动。点到输入框外面，它倒着缩回去：身子先下去，爪子最后松手，约 0.4 秒。
+首页 [NewTripComposer](../src/components/meri-shell/new-trip-composer.tsx) 为共享 [ChatComposer](../src/components/ui/chat-composer.tsx) 启用可选 `redPanda`；Workspace 不传该属性，不加载角色图集。1.0700–1.0704 的旧选帧/交叉淡化、爪子图层、处理脚本和即梦视频方案已移除，原始白眼/去爪 PNG 仍保留。
 
-- **素材：**两张 ChatGPT 生成并确认的原图在 `assets/companion/red-panda/`（完整版、去掉前爪的版本）。[build_red_panda_layers.py](../assets/companion/red-panda/build_red_panda_layers.py) 从中切出左右两只爪子。转头来自五段即梦视频，都以画好瞳孔的绿幕参考图为首尾帧：一段头绕一整圈（左上、上、右上、右、右下、下、左下、左），四段分别向左、右、上、下转头再回来。[build_red_panda_turns.py](../assets/companion/red-panda/build_red_panda_turns.py) 按眼睛和鼻子的位移给每一帧定朝向，跳过眨眼，挑出分布均匀的 42 帧，抠掉绿幕，做成一张精灵图（约 409 KB）。做法参照 oil-motion（MIT）。视频首帧和原图对齐到 1–2 像素，所以爪子层直接盖在上面。
-- **怎么选帧：**[red-panda-peek-model.ts](../src/components/companion/red-panda-peek-model.ts) 把鼠标相对脸的位置换成朝向（横竖各 -1…1，水平 420 像素、竖直 260 像素以外算转满），取朝向最近的一帧。视频里下半圈转得比上半圈小（左下、右下只是轻轻低头），所以先按这个方向上帧实际能转多远缩放，否则看左下会直接跳成完全低头。换帧时上一帧在 0.12 秒里淡出；正在显示的帧只有在别的帧明显更近时才换，避免来回闪。1.0704 最初只有四段直线视频，斜方向是两张脸半透明叠在一起，有重影，从左到下也不连续，改成绕圈视频后去掉了。
-- **加载：**先显示正脸单帧（约 17 KB）；浏览器空闲时才加载精灵图，加载完才开始转头。
-- **署名：**[照片来源页](../src/app/photo-credits/page.tsx)写明小熊猫是 AI 生成的：图片用 ChatGPT 图像生成，转头用即梦视频生成。1.0701 的代码画瞳孔、眨眼和 7° 歪头在 1.0704 里换成了这套转头帧，不再眨眼。
-- **不打扰：**纯装饰，对屏幕阅读器隐藏、不接收鼠标点击，不挡输入的文字；手机上标题和输入框之间多留了一些空间，让它不盖住"你想去哪里？"。系统要求减少动态效果时只淡入淡出、头不转。
-- 2026-10-29 在生产构建里实测 1.0704：点进输入框后爬上来，精灵图已加载；鼠标放在左、左下、下、右下、右、右上、上、左上八个方向时，显示的都是朝那个方向的帧（读出的帧朝向和截图都对）。
-- 首页右下角原来的背包小熊已在 1.0703 撤掉，首页的角色只剩小熊猫。同一张小熊图仍是聊天里 Meri 的头像，旅程页底部的像素小熊也还在。
+1. **触发与范围：**输入框获得焦点时，[RedPandaLook](../src/components/companion/red-panda-look.tsx) 在右上沿淡入；失焦淡出，保留当前朝向避免淡出时突然转正。整块角色 `aria-hidden`、`pointer-events: none`，不接收点击、不抢焦点、不改变旅行输入、提交、API、TripState 或数据库。慢慢爬上/缩回的分层动作按用户要求留待下一步，本版只有转头与透明度显隐。
+2. **二维朝向：**[look-model](../src/components/companion/red-panda-look-model.ts) 用当前角色眼部锚点与鼠标的相对位置投影到 yaw/pitch 网格，支持左、右、上、下及斜向。窗口尺寸/滚动/角色尺寸变化后重新读取位置；输入事件只记录坐标，在 RAF 内计算目标。投影边界是交互控制参数，不代表测量过真实头部角度。各方向由 17×17 的有序姿态表表示，不用暗像素重心估角度，不做运行时最近姿态搜索。
+3. **控制与渲染：**[oil-motion-frame-animator](../src/components/companion/oil-motion-frame-animator.ts) 保留原版 MIT 控制器及 CSS 渲染器；横、纵两个控制器分别缓动，合并成每 RAF 最多一次背景位置更新。使用同一张 [look.webp](../public/companion/red-panda/look.webp)，没有两张角色图交叉淡化。静止、失焦、离屏或切到后台时停止连续计算，恢复后以最新指针位置重定向。
+4. **素材与加载：**[look.json](../public/companion/red-panda/look.json) 保存 289 帧的行列、240px 单元和脸部锚点。七条新 MiniMax-H3 纵向母版提供 119 张原生姿态，另外 170 张用离线 RIFE 补齐，仍由 oil-motion 抠色/检查/打包。默认 FFmpeg 补帧曾有双轮廓，已拒收并保留证据；最终图集约 6.8 MiB，解码约 63.5 MiB，桌面最多 120 CSS px、窄屏 96px。前端等待 `Image.decode()`，期间显示同一中立姿态 [front.webp](../public/companion/red-panda/front.webp)；加载失败保留静态图，不阻塞输入。
+5. **减少动态与触屏：**粗指针或 `prefers-reduced-motion` 使用静态中立帧，只随焦点淡入淡出，不自动转头，也不加载尚未请求的动画图集。已加载后偏好改变同样立即切回静态。组件卸载清理监听器、Observer 和 RAF。手机为角色留出标题间距，中英标题均不被遮挡。
+6. **制作与校验：**[素材说明](../assets/companion/red-panda/oil-motion/README.md) 和 [manifest](../assets/companion/red-panda/oil-motion/manifest.json) 记录原图、11 段新视频（含已批准 pilot）、合同/brief、实际帧索引、预算、任务用量、验收限制及可离线重建的压缩包。凭据和临时下载 URL 不入库。[相邻测试](../src/components/companion/red-panda-look-model.test.ts) 覆盖方向、连续投影、边界与暂停条件；生产预览实测了焦点、快速反向、375px 中英布局及图集 404 降级。没有做真实低端手机性能测量；完整转头版本已获用户视觉验收通过（2026-10-30）。
+
+首页右下角背包小熊继续保持撤下状态，聊天头像与 Workspace 底部像素小熊不受影响。素材页中英字典明确说明图片由 ChatGPT、视频由 MiniMax 生成。
 
 ### 5.5 旅程列底部：地球装饰、照片环与小熊
 

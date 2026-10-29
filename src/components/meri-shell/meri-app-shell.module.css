@@ -202,9 +202,9 @@
     padding-bottom: clamp(13rem, 34dvh, 22rem);
   }
 
-  /* On a phone the headline spans the width, so the red panda needs this room above the box. */
   .entry > [data-home-entrance-item="headline"] {
-    margin: 1.5rem 0 3.4rem;
+    /* Reserve the companion silhouette above the input, including a full English heading. */
+    margin: 1.5rem 0 4.75rem;
   }
 
   .headlineName {
@@ -249,6 +249,8 @@
 }
 
 @media (max-width: 600px) and (max-height: 720px) {
+  .entry > [data-home-entrance-item="headline"] { margin-bottom: 4.75rem; }
+
   .brandMark {
     width: min(10rem, 48vw);
   }

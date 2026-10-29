@@ -79,6 +79,7 @@ export function NewTripComposer() {
     <section className={styles.composer} id="new-trip" aria-label={text.startJourney}>
       <form autoComplete="off" aria-busy={isSubmitting} onSubmit={handleSubmit}>
         <ChatComposer
+          redPanda
           id="trip-idea"
           value={state.message}
           onChange={(message) => dispatch({ type: "message.changed", message })}
@@ -89,7 +90,6 @@ export function NewTripComposer() {
           labels={{ input: text.composerPlaceholder, send: text.sendIdea,
             attachment: text.documentUnavailable, voice: text.voiceUnavailable }}
           prompts={text.composerPrompts}
-          companion
         />
 
         {isSubmitting ? (

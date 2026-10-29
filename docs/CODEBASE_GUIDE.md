@@ -159,7 +159,7 @@ LLM 解释自然语言并提出受限 JSON；应用校验、决定是否执行�
 
 下表按目录分类，每个路径都有独立一行。测试不是运行时业务层；同目录测试主要验证对应层的规则或适配边界，多数使用 mock/内存替身，不据此宣称真实提供方已验证。
 
-本次索引按路径去重共 391 个文件，其中 103 个测试文件。
+本次索引按路径去重共 392 个文件，其中 103 个测试文件。
 
 ### 6.1 根目录配置与入口
 
@@ -268,10 +268,6 @@ LLM 解释自然语言并提出受限 JSON；应用校验、决定是否执行�
 | [src/components/companion/bear-behavior.test.ts](../src/components/companion/bear-behavior.test.ts) | 测试（对应模块边界） | 用固定随机数模拟数百次计划：验证不瞬移、同一活动不连续三次、饭后 60 秒冷却、坐着偏好、反应优先及每次旅程变化只欢呼一次，并校验帧清单。 |
 | [src/components/companion/bear-behavior.ts](../src/components/companion/bear-behavior.ts) | 表现层 | 小熊行为纯规则：反应（出错/思考/可生成）优先，自由时间按权重随机选看地图/站着/吃饭团/放空，并补上坐下、放下地图等过渡步骤。 |
 | [src/components/companion/bear-sprite-sheet.ts](../src/components/companion/bear-sprite-sheet.ts) | 表现层 | 读取并用 Zod 校验生成的 bear-sprites.json，导出帧尺寸、每个动画的行号/帧数/时长和精灵图地址。 |
-| [src/components/companion/red-panda-peek.tsx](../src/components/companion/red-panda-peek.tsx) | 表现层 | 首页输入框的小熊猫（1.0700）：输入框获得焦点时右爪、左爪、身子依次从输入框右上角后面爬上来，弹一下趴稳；1.0704 起头真的转向鼠标或正在输入的文字（任意方向，包括斜方向；取朝向最接近的那一帧，带弹簧缓动，换帧时上一帧 0.12 秒淡出），爪子不动；先显示正脸小图，浏览器空闲时再加载精灵图；失去焦点时身子先缩回、爪子最后松开；系统要求减少动态效果时只淡入淡出、头不转。装饰：对辅助技术隐藏、不接收鼠标。 |
-| [src/components/companion/red-panda-peek.module.css](../src/components/companion/red-panda-peek.module.css) | 样式 | 小熊猫的裁切窗口：下沿在输入框上边缘略往里，所以它像从框后面爬出来、爪子搭在边上；两侧和上方留出转头时伸出去的余量；精灵图帧窗口和换帧时的淡出；手机上缩小。 |
-| [src/components/companion/red-panda-peek-model.ts](../src/components/companion/red-panda-peek-model.ts) | 表现层纯函数 | 朝向（指向目标，越远转得越多，-1…1）、朝向对应精灵图哪一帧（先按这个方向上帧实际能转多远缩放，再取最近的一帧；正在显示的帧明显更远才换）、打字时看向的位置。 |
-| [src/components/companion/red-panda-peek-model.test.ts](../src/components/companion/red-panda-peek-model.test.ts) | 测试（对应模块边界） | 验证远近决定转多少、各方向取朝向对应的帧、正前方是正脸，左下取左下帧而不是跳到正下，正在显示的帧不来回闪，用真实帧绕一圈每一步都只换到相近的朝向且左下确实画得到，打字时视线跟着文字走但不超过末尾。 |
 | [src/components/companion/companion-bear.tsx](../src/components/companion/companion-bear.tsx) | 表现层 | 精灵图播放器：按计划逐帧播放，计划结束或反应变化时向行为规则要下一步（过渡中不打断），标签页隐藏时暂停，减少动态效果时只显示一帧。 |
 | [src/components/companion/companion-status-model.test.ts](../src/components/companion/companion-status-model.test.ts) | 测试（对应模块边界） | 验证小熊一句话的优先级（出错 > 思考 > 可生成 > 缺目的地）、可选缺项列举和旧目的地提示。 |
 | [src/components/companion/companion-status-model.ts](../src/components/companion/companion-status-model.ts) | 表现层 | 小熊一句话的纯规则：由 TripState 与聊天活动决定情绪和文案（文案取自传入的字典），不调用模型。 |
@@ -318,12 +314,17 @@ LLM 解释自然语言并提出受限 JSON；应用校验、决定是否执行�
 | [src/components/trip-workspace/workspace-header.tsx](../src/components/trip-workspace/workspace-header.tsx) | 表现层 | 品牌/返回首页、旅程标题（左侧缩略图为第一个地点的照片，没有时为默认图）、日期/出发地/交通摘要；日期与“何时”同一写法；保存标签为当前 UI 展示。 |
 | [src/components/trip-workspace/workspace-presentation.ts](../src/components/trip-workspace/workspace-presentation.ts) | 表现层 | 页头使用的字段和日期（复用 tripDatesSummary，按传入的字典）显示转换。 |
 | [src/components/trip-workspace/workspace-title.ts](../src/components/trip-workspace/workspace-title.ts) | 表现层 | 从当前 name 字段派生 Workspace 标题，缺失时显示调用方传入的默认标题。 |
+| [src/components/companion/oil-motion-frame-animator.ts](../src/components/companion/oil-motion-frame-animator.ts) | 表现层 | oil-motion 原版帧控制器与 CSS 图集渲染器，保留 MIT；处理阻尼、反向和稳定停帧。 |
+| [src/components/companion/red-panda-look-model.ts](../src/components/companion/red-panda-look-model.ts) | 表现层 | 鼠标相对眼部位置到二维 yaw/pitch 网格的纯投影、行列取帧与暂停条件。 |
+| [src/components/companion/red-panda-look-model.test.ts](../src/components/companion/red-panda-look-model.test.ts) | 测试 | 覆盖各方向和斜向、连续映射、非方形行距、异常坐标与暂停条件。 |
+| [src/components/companion/red-panda-look.module.css](../src/components/companion/red-panda-look.module.css) | 表现层 | 首页小熊猫显隐、120/96px 尺寸、静态降级和纯装饰交互边界。 |
+| [src/components/companion/red-panda-look.tsx](../src/components/companion/red-panda-look.tsx) | 表现层 | 首页焦点装饰；预加载、二维原版控制器、RAF 合并、可见性暂停和静态回退。 |
 
 ### 6.6 基础 UI 组件
 
 | 文件地址 | 层/类别 | 做什么 |
 | --- | --- | --- |
-| [src/components/ui/chat-composer.tsx](../src/components/ui/chat-composer.tsx) | 表现层 | 受控多行输入、自动增高、滚动示例提示、发送/加载状态及禁用的文档和语音占位按钮；`companion` 打开时挂上爬上输入框的小熊猫（首页用）；不调用 API，父组件提供文案与事件。 |
+| [src/components/ui/chat-composer.tsx](../src/components/ui/chat-composer.tsx) | 表现层 | 受控多行输入、自动增高、滚动示例提示、发送/加载状态及禁用的文档和语音占位按钮；可选 redPanda 仅由首页启用；不调用 API，父组件提供文案与事件。 |
 | [src/components/ui/chat-composer.module.css](../src/components/ui/chat-composer.module.css) | 表现层 | 输入框与工具栏样式，移动端和减少动态效果适配。 |
 | [src/components/ui/animated-popover.tsx](../src/components/ui/animated-popover.tsx) | 表现层 | Radix Popover + Motion 封装，提供受控开关、浮层入退场及减少动态效果支持。 |
 | [src/components/ui/animated-checkbox.module.css](../src/components/ui/animated-checkbox.module.css) | 表现层 | 动画复选框的方框、选中、聚焦、禁用与减少动态效果样式。 |
@@ -637,25 +638,25 @@ LLM 解释自然语言并提出受限 JSON；应用校验、决定是否执行�
 | [public/companion/bear/bear-sprites.json](../public/companion/bear/bear-sprites.json) | 展示资源 | 小熊精灵图帧清单：帧尺寸、每个动画所在行、帧数和每帧毫秒；由生成脚本写出。 |
 | [public/companion/bear/bear-sprites.png](../public/companion/bear/bear-sprites.png) | 展示资源 | 小熊营地小桌精灵图：9 个动画、42 帧，1 倍尺寸透明背景；由生成脚本写出。 |
 | [public/companion/home-v2-companion.png](../public/companion/home-v2-companion.png) | 展示资源 | 聊天头像和 Workspace Companion 使用的角色图。 |
+| [public/companion/red-panda/front.webp](../public/companion/red-panda/front.webp) | 展示资源 | 中立朝向静态降级图，与最终二维网格中心格一致。 |
+| [public/companion/red-panda/look.json](../public/companion/red-panda/look.json) | 展示资源 | 17×17 姿态图集的编译清单、240px 单元和眼部锚点。 |
+| [public/companion/red-panda/look.webp](../public/companion/red-panda/look.webp) | 展示资源 | 289 格透明小熊猫转头图集，4080×4080，119 原生格与170离线补帧格。 |
 
 ### 6.17 设计和素材制作
 
 | 文件地址 | 层/类别 | 做什么 |
 | --- | --- | --- |
 | [assets/companion/red-panda/red-panda-body-no-paws-v2.png](../assets/companion/red-panda/red-panda-body-no-paws-v2.png) | 设计/角色素材 | 基于睁眼原图编辑的去前爪版 PNG（1254×1254，真实 Alpha），用于胸毛补丁；头部毛发仍有细节重绘，不保证像素级一致，尚未接入界面。 |
-| [assets/companion/red-panda/build_red_panda_layers.py](../assets/companion/red-panda/build_red_panda_layers.py) | 设计/素材脚本 | 用两张原图做出小熊猫的爪子图层：爪子按"无爪版在这里明显更亮"从原图抠出（颜色分不开爪子和阴影里的毛），每边只留最大的一块并补洞、柔化边缘；输出左右爪两张 WebP（384 宽，共约 9 KB）。人工运行，不属于应用运行时。 |
-| [assets/companion/red-panda/build_red_panda_turns.py](../assets/companion/red-panda/build_red_panda_turns.py) | 设计/素材脚本 | 1.0704：把五段即梦绿幕转头视频（绕一整圈的一段，加左、右、上、下各一段）做成精灵图：用 extract_frames.swift 取帧，按眼睛和鼻子离正面的位移给每帧定朝向，跳过眨眼，从所有帧里挑分布均匀的 42 帧（每次取离已选最远的）；抠绿幕并去掉绿色溢边（同时去掉平台的"AI生成"角标），裁成与爪子层同一画布；输出 turns.webp、front.webp 和 turns.json，加 --preview 时另出朝向分布图。参照 oil-motion（MIT）。视频不在仓库里，运行时传入视频目录。人工运行，需要 macOS。 |
-| [assets/companion/red-panda/extract_frames.swift](../assets/companion/red-panda/extract_frames.swift) | 设计/素材脚本 | 用 AVFoundation 把视频逐帧导出成 PNG（不依赖 ffmpeg），解不出的帧跳过；由 build_red_panda_turns.py 调用。 |
-| [assets/companion/red-panda/red-panda-body-green-ref.png](../assets/companion/red-panda/red-panda-body-green-ref.png) | 设计/角色素材 | 画上瞳孔、放在绿幕上的小熊猫参考图，作为五段转头视频的首帧和尾帧。 |
-| [public/companion/red-panda/front.webp](../public/companion/red-panda/front.webp) | 静态资源 | 小熊猫正脸单帧（约 13 KB），精灵图加载完之前显示。 |
-| [public/companion/red-panda/turns.webp](../public/companion/red-panda/turns.webp) | 静态资源 | 小熊猫转头精灵图：42 帧，每帧 240×205，7 列（约 409 KB）。 |
-| [public/companion/red-panda/turns.json](../public/companion/red-panda/turns.json) | 静态资源 | 精灵图的帧尺寸、列数，以及每一帧的朝向（横竖各 -1…1）。 |
-| [public/companion/red-panda/paw-left.webp](../public/companion/red-panda/paw-left.webp) | 静态资源 | 小熊猫左爪层，与转头帧同一画布，无需偏移。 |
-| [public/companion/red-panda/paw-right.webp](../public/companion/red-panda/paw-right.webp) | 静态资源 | 小熊猫右爪层，与转头帧同一画布，无需偏移。 |
 | [assets/companion/red-panda/red-panda-open-eyes-v1.png](../assets/companion/red-panda/red-panda-open-eyes-v1.png) | 设计/角色素材 | 用户确认的小熊猫睁眼原始 PNG（1254×1254，真实 Alpha、纯白无瞳孔眼睛），供后续闭眼编辑及聊天框角色制作；尚未接入界面。 |
 | [assets/companion/bear/generate_bear_sprites.py](../assets/companion/bear/generate_bear_sprites.py) | 设计/素材制作 | 用 Pillow 从 home-v2-companion.png 生成 64px 底图并合成全部小熊帧，写出 public/companion/bear 下的精灵图和帧清单；可加 --preview 输出预览。不是运行时代码。 |
 | [assets/logo/Logo.png](../assets/logo/Logo.png) | 设计/素材制作 | 角色/品牌制作参考图片，不是业务逻辑。 |
 | [assets/logo/LogoSVG-framework.png](../assets/logo/LogoSVG-framework.png) | 设计/素材制作 | 品牌图形制作参考，不是运行时组件。 |
+| [assets/companion/red-panda/oil-motion/README.md](../assets/companion/red-panda/oil-motion/README.md) | 设计/素材制作 | oil-motion / RIFE 制作路线、验收取舍、素材来源、限制与离线重建说明。 |
+| [assets/companion/red-panda/oil-motion/build_pose_grid.py](../assets/companion/red-panda/oil-motion/build_pose_grid.py) | 设计/素材制作 | 调用 oil-motion 清理、抽样、抠色和打包的共享素材编译工具，保留帧来源。 |
+| [assets/companion/red-panda/oil-motion/build_rife_grid.py](../assets/companion/red-panda/oil-motion/build_rife_grid.py) | 设计/素材制作 | 选定的离线网格编译入口：官方 RIFE 补帧后用 oil-motion 抠色、检查和打包。 |
+| [assets/companion/red-panda/oil-motion/prepare_row.py](../assets/companion/red-panda/oil-motion/prepare_row.py) | 设计/素材制作 | 用原版 oil-motion 从新母版抽取原生帧，输出分析和接触表。 |
+| [assets/companion/red-panda/oil-motion/manifest.json](../assets/companion/red-panda/oil-motion/manifest.json) | 设计/素材制作 | 归档文件哈希、官方任务用量、预算与验收结果；不含凭据和临时URL。 |
+| [assets/companion/red-panda/oil-motion/sources.zip](../assets/companion/red-panda/oil-motion/sources.zip) | 设计/素材制作 | 17张透明关键帧、11段新母版、四个事实源、帧映射与验收证据；内部清单逐文件记录哈希。 |
 
 ### 6.18 历史目录占位文件
 
