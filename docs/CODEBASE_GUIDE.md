@@ -159,7 +159,7 @@ LLM 解释自然语言并提出受限 JSON；应用校验、决定是否执行�
 
 下表按目录分类，每个路径都有独立一行。测试不是运行时业务层；同目录测试主要验证对应层的规则或适配边界，多数使用 mock/内存替身，不据此宣称真实提供方已验证。
 
-本次索引按路径去重共 392 个文件，其中 103 个测试文件。
+本次索引按路径去重共 404 个文件，其中 105 个测试文件。
 
 ### 6.1 根目录配置与入口
 
@@ -314,11 +314,11 @@ LLM 解释自然语言并提出受限 JSON；应用校验、决定是否执行�
 | [src/components/trip-workspace/workspace-header.tsx](../src/components/trip-workspace/workspace-header.tsx) | 表现层 | 品牌/返回首页、旅程标题（左侧缩略图为第一个地点的照片，没有时为默认图）、日期/出发地/交通摘要；日期与“何时”同一写法；保存标签为当前 UI 展示。 |
 | [src/components/trip-workspace/workspace-presentation.ts](../src/components/trip-workspace/workspace-presentation.ts) | 表现层 | 页头使用的字段和日期（复用 tripDatesSummary，按传入的字典）显示转换。 |
 | [src/components/trip-workspace/workspace-title.ts](../src/components/trip-workspace/workspace-title.ts) | 表现层 | 从当前 name 字段派生 Workspace 标题，缺失时显示调用方传入的默认标题。 |
-| [src/components/companion/oil-motion-frame-animator.ts](../src/components/companion/oil-motion-frame-animator.ts) | 表现层 | oil-motion 原版帧控制器与 CSS 图集渲染器，保留 MIT；处理阻尼、反向和稳定停帧。 |
+| [src/components/companion/oil-motion-frame-animator.ts](../src/components/companion/oil-motion-frame-animator.ts) | 表现层 | oil-motion 原版帧控制器、片段播放器与 CSS 图集渲染器，保留 MIT；处理阻尼、媒体反向、取消和稳定停帧。 |
 | [src/components/companion/red-panda-look-model.ts](../src/components/companion/red-panda-look-model.ts) | 表现层 | 鼠标相对眼部位置到二维 yaw/pitch 网格的纯投影、行列取帧与暂停条件。 |
 | [src/components/companion/red-panda-look-model.test.ts](../src/components/companion/red-panda-look-model.test.ts) | 测试 | 覆盖各方向和斜向、连续映射、非方形行距、异常坐标与暂停条件。 |
-| [src/components/companion/red-panda-look.module.css](../src/components/companion/red-panda-look.module.css) | 表现层 | 首页小熊猫显隐、120/96px 尺寸、静态降级和纯装饰交互边界。 |
-| [src/components/companion/red-panda-look.tsx](../src/components/companion/red-panda-look.tsx) | 表现层 | 首页焦点装饰；预加载、二维原版控制器、RAF 合并、可见性暂停和静态回退。 |
+| [src/components/companion/red-panda-look.module.css](../src/components/companion/red-panda-look.module.css) | 表现层 | 首页小熊猫的输入边缘遮罩、120/96px 尺寸、互斥媒体表面与静态降级。 |
+| [src/components/companion/red-panda-look.tsx](../src/components/companion/red-panda-look.tsx) | 表现层 | 首页焦点装饰与持久媒体节点，挂载/清理探头和转头运行时。 |
 
 ### 6.6 基础 UI 组件
 
@@ -671,3 +671,20 @@ LLM 解释自然语言并提出受限 JSON；应用校验、决定是否执行�
 更新时用 `git ls-files` 和 `rg --files --hidden -g '!node_modules' -g '!.git' -g '!.next'` 核对受维护文件与非忽略新文件。新增文件应有准确职责，删除后同时修复索引和 Markdown 链接。迁移只记录 SQL 意图；执行状态应单独检查，不靠文件名称判断。
 
 向用户讲解时先讲第 2–4 节，再选一条第 5 节的业务链路深入源码。逐文件索引用来回答“这段规则在哪里、由谁调用、谁负责保存”，不需要逐条背诵文件名。业务和错误细节继续以 USER_FLOW_CURRENT 的完整章节展开。
+
+### 6.19 首页小熊猫探头接入（1.0706）
+
+| 文件地址 | 层/类别 | 做什么 |
+| --- | --- | --- |
+| [src/components/companion/red-panda-companion.ts](../src/components/companion/red-panda-companion.ts) | 表现层 | 探头→二维跟随→回正→收回的实际接入；媒体预加载、最新焦点反向、生命周期暂停和静态降级。 |
+| [src/components/companion/red-panda-companion.test.ts](../src/components/companion/red-panda-companion.test.ts) | 测试 | 使用真实 oil-motion 控制器，验证衔接、回正、途中反向、暂停/恢复、动效偏好、冷加载与资源失败。 |
+| [src/components/companion/red-panda-peek-model.ts](../src/components/companion/red-panda-peek-model.ts) | 表现层 | 依据真实时钟、播放状态及 settled ID 判断安全停帧，拒绝取消后的中间帧交接。 |
+| [src/components/companion/red-panda-peek-model.test.ts](../src/components/companion/red-panda-peek-model.test.ts) | 测试 | 覆盖中间帧/终点判断与编译时钟帧数、hold 和 1 秒速率的一致性。 |
+| [public/companion/red-panda/peek.webp](../public/companion/red-panda/peek.webp) | 展示资源 | 已审核探头/收回的透明原生帧图集，103 格，2640×2400，爪子接触边整帧校正。 |
+| [public/companion/red-panda/peek.json](../public/companion/red-panda/peek.json) | 展示资源 | 探头图集编译尺寸、帧数与行列清单。 |
+| [public/companion/red-panda/peek-clock.mp4](../public/companion/red-panda/peek-clock.mp4) | 展示资源 | 与探头图集同帧数的隐形全关键帧视频时钟，原版播放器负责正放和反向。 |
+| [public/companion/red-panda/peek-timeline.json](../public/companion/red-panda/peek-timeline.json) | 展示资源 | 探头唯一运行时时间轴：实际 24fps/103 帧、状态 hold、约 1 秒播放速率与母版索引。 |
+| [assets/companion/red-panda/oil-motion/peek/README.md](../assets/companion/red-panda/oil-motion/peek/README.md) | 设计/素材制作 | 探头接入、原版播放器使用、已知首帧差异、内存和离线重建步骤。 |
+| [assets/companion/red-panda/oil-motion/peek/build_peek.py](../assets/companion/red-panda/oil-motion/peek/build_peek.py) | 设计/素材制作 | 不调用 API 的 oil-motion 原生帧提取、接触边校正、透明图集与实测时间轴编译。 |
+| [assets/companion/red-panda/oil-motion/peek/manifest.json](../assets/companion/red-panda/oil-motion/peek/manifest.json) | 设计/素材制作 | 探头归档/运行时哈希、官方任务用量、检查结果与验收边界，不含凭据或临时 URL。 |
+| [assets/companion/red-panda/oil-motion/peek/sources.zip](../assets/companion/red-panda/oil-motion/peek/sources.zip) | 设计/素材制作 | 探头四个事实源、真实 Alpha/视频关键帧、一条母版、提示词、pilot 审核和集成证据，逐文件哈希。 |

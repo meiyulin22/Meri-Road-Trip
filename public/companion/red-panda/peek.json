@@ -1,0 +1,14 @@
+{
+  "version": 1,
+  "type": "sprite-atlas",
+  "asset": "peek.webp",
+  "frameCount": 103,
+  "columns": 11,
+  "rows": 10,
+  "cellWidth": 240,
+  "cellHeight": 240,
+  "atlasWidth": 2640,
+  "atlasHeight": 2400,
+  "quality": 90,
+  "lossless": false
+}

@@ -1,0 +1,273 @@
+{
+  "version": "1.0706",
+  "provider": "MiniMax official China",
+  "model": "MiniMax-H3",
+  "taskId": "457835833667796",
+  "usage": {
+    "outputSeconds": 4
+  },
+  "estimatedCny": 2,
+  "newPaidJobsDuringIntegration": 0,
+  "archive": {
+    "path": "sources.zip",
+    "bytes": 2670016,
+    "sha256": "784a651a3e9c5675587e416f04293a7b9a1b34f2dbf196ed752b81e8ceb52c8b"
+  },
+  "files": [
+    {
+      "path": "build/motion-budget.json",
+      "bytes": 1318,
+      "sha256": "36fad7ef0184ae4d5e49f0206c719788a3149be4286b84b123893044b9f25d65"
+    },
+    {
+      "path": "build/timeline.json",
+      "bytes": 1855,
+      "sha256": "a45769595adabf8058eb33c7ddf8e4dbdef90774cb2b0e2cb0a6d46828c3c0ef"
+    },
+    {
+      "path": "pilot/approval.json",
+      "bytes": 2427,
+      "sha256": "cbe37b27ab1f89e2b814e70a80fc57366d92fc3ebd5838b23ecef587a57c9903"
+    },
+    {
+      "path": "pilot/reviewed-concept-contract.yaml",
+      "bytes": 1612,
+      "sha256": "b346798b525aa53cb9689d43ef5fd555021333b693cb17f334188cb489ed9dc6"
+    },
+    {
+      "path": "pilot/withdraw.mp4",
+      "bytes": 348375,
+      "sha256": "d76aa40d6697976191a58b1ebee7dc1d040cecf5612816a8ad255532a3d0a07d"
+    },
+    {
+      "path": "qa/compiled-summary.json",
+      "bytes": 420,
+      "sha256": "4c89bbd3258d5663c2a4ff233a84c59cc1f67ecc7d151cce46a1639df419cadf"
+    },
+    {
+      "path": "qa/contact-aligned-contact.jpg",
+      "bytes": 368983,
+      "sha256": "2adb695193cd46367ae7a2586b187ae1614128809df8dad0c5df7d169d0f8657"
+    },
+    {
+      "path": "qa/contact-alignment.json",
+      "bytes": 14484,
+      "sha256": "d933213efd7a157a6e9cf384559bbc0de73fc5466c987dfe13593d4d77e999ef"
+    },
+    {
+      "path": "qa/desktop-pilot-review.png",
+      "bytes": 55349,
+      "sha256": "793bcc0b493a986b2b0e6471f13126600b80de6fe1f77bf99e60e68955f58029"
+    },
+    {
+      "path": "qa/extraction.json",
+      "bytes": 456,
+      "sha256": "1ee970be77d1e96c4c63ec65575945ea069e801eaea2198f0e4f9186ced3f1bf"
+    },
+    {
+      "path": "qa/integrated-1s.png",
+      "bytes": 56166,
+      "sha256": "fe254313ed34f193e4c3f136ebd6381e413f52322a00a469ad89fd131a5f1de2"
+    },
+    {
+      "path": "qa/integrated-desktop.png",
+      "bytes": 72561,
+      "sha256": "f413acf82e8c585bd57c6f93cb08f310dac12d9954842d48498e4a3899161361"
+    },
+    {
+      "path": "qa/integrated-mobile-en.png",
+      "bytes": 31260,
+      "sha256": "022c8e6330f73b1ac074759b60d3edc301e104fac015a51659f4dda3041d87a3"
+    },
+    {
+      "path": "qa/integrated-mobile.png",
+      "bytes": 30003,
+      "sha256": "6288905e1f386bf665c6e4900ac165a0c1999afe5460994011f8acfe43e94823"
+    },
+    {
+      "path": "qa/integrated-review.json",
+      "bytes": 2802,
+      "sha256": "233a516cdae372663e4cae8bceab1415454bc516203f9fb6b9c35fb7ba667ae1"
+    },
+    {
+      "path": "qa/keyframe-provenance.json",
+      "bytes": 527,
+      "sha256": "a0f17f0e22668053c5ef1f67c1ee0e87a4f10d6fafb7e47e6bb97dd32368f617"
+    },
+    {
+      "path": "qa/mobile-pilot-review.png",
+      "bytes": 31242,
+      "sha256": "added90ca67abdaec0b04c7f51ec86d9be877fe69e0acf3fbac81638f421942e"
+    },
+    {
+      "path": "qa/native-analysis.json",
+      "bytes": 52461,
+      "sha256": "d1acfe75890d73faa5b6af65351848098cd44fcd1de9adc09ea1162f01523f3b"
+    },
+    {
+      "path": "qa/native-contact.jpg",
+      "bytes": 270070,
+      "sha256": "b6dae28ade831ffd6a966e57bd544a7bc6da0f46470ceaca7323c484571ec156"
+    },
+    {
+      "path": "qa/pilot-review.json",
+      "bytes": 1453,
+      "sha256": "e8140215b0b401fa49aaadcda5a4724950014cf550a709aa32751ed3f5550350"
+    },
+    {
+      "path": "source/K0-neutral-alpha.png",
+      "bytes": 603422,
+      "sha256": "ca9bea953fa406b26b5ac4fe98595def04c87bc8a3f3ba95958c10b99678b4d5"
+    },
+    {
+      "path": "source/K0-neutral-native-green.png",
+      "bytes": 484487,
+      "sha256": "c7d0a2e5f6a39545d652b7bd41b79d437c1047ad6caf80ec671249d50129c86c"
+    },
+    {
+      "path": "source/K0-neutral-video.png",
+      "bytes": 522416,
+      "sha256": "010ec62366c9780429fdec9e95ca7b7eed3da902f3de14add41bfa841d7f1b39"
+    },
+    {
+      "path": "source/K1-hidden-alpha.png",
+      "bytes": 2367,
+      "sha256": "b978218354b7e56382c542dfd08fd72658743721f0f59c29722ff163ee998c68"
+    },
+    {
+      "path": "source/K1-hidden-video.png",
+      "bytes": 3446,
+      "sha256": "f6609c2a74fa94dc67613783541ecc0c6f9079198a034288a053bd9f56ebd554"
+    },
+    {
+      "path": "source/concept-contract.yaml",
+      "bytes": 1542,
+      "sha256": "2698377a2a3409f300f2dc3c8e84afee1b4b5fa7a67d8e2912407d4e511716f5"
+    },
+    {
+      "path": "source/identity-bible.md",
+      "bytes": 522,
+      "sha256": "68c9bd73a0530071e0bd2383c258c398cef739af684a992224830c301a34350f"
+    },
+    {
+      "path": "source/motion-brief.yaml",
+      "bytes": 1318,
+      "sha256": "5c86f01d15defb607781d6ebb0a156cb57213d75d40ddbfa2cf0740fdf92e650"
+    },
+    {
+      "path": "source/withdraw.txt",
+      "bytes": 2495,
+      "sha256": "98ff4eb60f3a8c964fd2de22ae20186c2bacfe8766af372384dab48ce3128df4"
+    }
+  ],
+  "runtime": [
+    {
+      "path": "public/companion/red-panda/peek.webp",
+      "bytes": 1287084,
+      "sha256": "fa6f8aac95657c1f0b6c0734edb53c568cdcc8045fe385818f7d8264d09d4736"
+    },
+    {
+      "path": "public/companion/red-panda/peek.json",
+      "bytes": 245,
+      "sha256": "a3abb17e112e9564e481547f260285fcdd99c335937d59177d76578e33634419"
+    },
+    {
+      "path": "public/companion/red-panda/peek-clock.mp4",
+      "bytes": 444322,
+      "sha256": "3b1ae0e12ff72ae41e230a2e5eb91e277012d19d01b9adf7e6785d9a40e4f44f"
+    },
+    {
+      "path": "public/companion/red-panda/peek-timeline.json",
+      "bytes": 1855,
+      "sha256": "a45769595adabf8058eb33c7ddf8e4dbdef90774cb2b0e2cb0a6d46828c3c0ef"
+    }
+  ],
+  "review": {
+    "date": "2026-10-30",
+    "pilotApproval": "merlin liked the slower pilot and then authorized speed adjustment and integration",
+    "finalIntegratedApproval": "Accepted by merlin on 2026-10-30: ok 非常好 传到main把; integrated 1-second version approved for main push.",
+    "paidGenerationDuringIntegration": false,
+    "checks": {
+      "lint": "passed",
+      "typecheck": "passed",
+      "npmTest": {
+        "passed": 662,
+        "failed": 0
+      },
+      "latestCompanionRegression": {
+        "passed": 8,
+        "failed": 0
+      },
+      "build": "passed"
+    },
+    "environmentNotes": [
+      "Stale .next/types cache removed and regenerated with current next typegen before successful typecheck.",
+      "Full suite first sandbox run could not persist test temp cache; normal-permission rerun passed 662/662.",
+      "Production localhost preview restored by starting installed Docker Desktop and existing PostgreSQL container; no migrations or data edits."
+    ],
+    "browser": {
+      "productionUrl": "http://localhost:3002/",
+      "desktop": {
+        "viewport": [
+          1280,
+          720
+        ],
+        "scrollWidth": 1280,
+        "perchedMode": "look",
+        "clockTime": 0
+      },
+      "mobile": {
+        "viewport": [
+          375,
+          812
+        ],
+        "scrollWidth": 375,
+        "languages": [
+          "zh",
+          "en"
+        ]
+      },
+      "entranceTimingObservation": "Current constant curve: 4.25 encoded seconds / 4.25 rate = 1s; warm browser observed remaining 3.145557 encoded seconds reach look in 784ms after first sample.",
+      "rapidReversalObservedTimes": [
+        2.371821,
+        3.5857
+      ],
+      "persistentVideoNodes": 1,
+      "seekable": [
+        0,
+        4.291667
+      ]
+    },
+    "offlineRebuild": {
+      "atlasBytesIdentical": true,
+      "clockBytesIdentical": true,
+      "atlasManifestSemanticallyIdentical": true,
+      "timelineSemanticallyIdentical": "Original rebuild verified at 1.5s; current rate recalculated from the same encoded holds",
+      "originalOilMotionControllerUnmodified": true
+    },
+    "limitations": [
+      "No real low-end mobile benchmark",
+      "No actual OS preference switching measurement; automated preference/lifecycle cases passed",
+      "No live browser resource 404 in this integration pass; automated atlas/video failure cases passed",
+      "Minor provider re-render of neutral source; integrated handoff visually accepted by merlin"
+    ],
+    "retiming": {
+      "requestedSeconds": 1,
+      "status": "8 regression tests and production build passed; warm browser peek handed off normally",
+      "mediaChanged": false,
+      "historicalPilotContract": "pilot/reviewed-concept-contract.yaml",
+      "observedSamples": [
+        {
+          "ms": 0,
+          "mode": "peek",
+          "time": 3.145557
+        },
+        {
+          "ms": 784,
+          "mode": "look",
+          "time": 0
+        }
+      ]
+    }
+  }
+}

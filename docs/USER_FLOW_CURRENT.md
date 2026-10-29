@@ -535,16 +535,16 @@ add/set 使用 Promise.all 查询表达。解析层保留不同 provider ID，�
 
 [准备度 UI 模型](../src/components/trip-workspace/planning-readiness-model.ts)将结果关联 destination 快照。目的地改变后旧准备度不再展示，避免新决定沿用旧检查结果。
 
-### 首页输入框的小熊猫（oil-motion 转头）
+### 首页输入框的小熊猫（oil-motion 探头与转头）
 
 首页 [NewTripComposer](../src/components/meri-shell/new-trip-composer.tsx) 为共享 [ChatComposer](../src/components/ui/chat-composer.tsx) 启用可选 `redPanda`；Workspace 不传该属性，不加载角色图集。1.0700–1.0704 的旧选帧/交叉淡化、爪子图层、处理脚本和即梦视频方案已移除，原始白眼/去爪 PNG 仍保留。
 
-1. **触发与范围：**输入框获得焦点时，[RedPandaLook](../src/components/companion/red-panda-look.tsx) 在右上沿淡入；失焦淡出，保留当前朝向避免淡出时突然转正。整块角色 `aria-hidden`、`pointer-events: none`，不接收点击、不抢焦点、不改变旅行输入、提交、API、TripState 或数据库。慢慢爬上/缩回的分层动作按用户要求留待下一步，本版只有转头与透明度显隐。
-2. **二维朝向：**[look-model](../src/components/companion/red-panda-look-model.ts) 用当前角色眼部锚点与鼠标的相对位置投影到 yaw/pitch 网格，支持左、右、上、下及斜向。窗口尺寸/滚动/角色尺寸变化后重新读取位置；输入事件只记录坐标，在 RAF 内计算目标。投影边界是交互控制参数，不代表测量过真实头部角度。各方向由 17×17 的有序姿态表表示，不用暗像素重心估角度，不做运行时最近姿态搜索。
-3. **控制与渲染：**[oil-motion-frame-animator](../src/components/companion/oil-motion-frame-animator.ts) 保留原版 MIT 控制器及 CSS 渲染器；横、纵两个控制器分别缓动，合并成每 RAF 最多一次背景位置更新。使用同一张 [look.webp](../public/companion/red-panda/look.webp)，没有两张角色图交叉淡化。静止、失焦、离屏或切到后台时停止连续计算，恢复后以最新指针位置重定向。
-4. **素材与加载：**[look.json](../public/companion/red-panda/look.json) 保存 289 帧的行列、240px 单元和脸部锚点。七条新 MiniMax-H3 纵向母版提供 119 张原生姿态，另外 170 张用离线 RIFE 补齐，仍由 oil-motion 抠色/检查/打包。默认 FFmpeg 补帧曾有双轮廓，已拒收并保留证据；最终图集约 6.8 MiB，解码约 63.5 MiB，桌面最多 120 CSS px、窄屏 96px。前端等待 `Image.decode()`，期间显示同一中立姿态 [front.webp](../public/companion/red-panda/front.webp)；加载失败保留静态图，不阻塞输入。
-5. **减少动态与触屏：**粗指针或 `prefers-reduced-motion` 使用静态中立帧，只随焦点淡入淡出，不自动转头，也不加载尚未请求的动画图集。已加载后偏好改变同样立即切回静态。组件卸载清理监听器、Observer 和 RAF。手机为角色留出标题间距，中英标题均不被遮挡。
-6. **制作与校验：**[素材说明](../assets/companion/red-panda/oil-motion/README.md) 和 [manifest](../assets/companion/red-panda/oil-motion/manifest.json) 记录原图、11 段新视频（含已批准 pilot）、合同/brief、实际帧索引、预算、任务用量、验收限制及可离线重建的压缩包。凭据和临时下载 URL 不入库。[相邻测试](../src/components/companion/red-panda-look-model.test.ts) 覆盖方向、连续投影、边界与暂停条件；生产预览实测了焦点、快速反向、375px 中英布局及图集 404 降级。没有做真实低端手机性能测量；完整转头版本已获用户视觉验收通过（2026-10-30）。
+1. **触发与顺序：**输入框获得焦点后，[RedPandaLook](../src/components/companion/red-panda-look.tsx) 的装饰角色从右上沿探出，先搭爪、再抬头，约 1 秒趴稳后接到已验收的鼠标转头；失焦时先顺滑回到中立格，再缩回。探头/收回途中重新聚焦或失焦，从同一时钟的当前时间反向，最新焦点意图生效，不重新开始。回正途中重新聚焦则直接恢复跟随。整块 `aria-hidden`、`pointer-events: none`，不接收点击、不抢焦点，不改变旅行输入、提交、API、TripState 或数据库。
+2. **二维朝向：**[look-model](../src/components/companion/red-panda-look-model.ts) 用当前角色眼部锚点与鼠标的相对位置投影到 yaw/pitch 网格，支持左、右、上、下及斜向。窗口尺寸/滚动/角色尺寸变化后重新读取位置；输入事件只记录坐标，在 RAF 内计算目标。投影边界是交互控制参数，不代表测量过真实头部角度，也不是头部转满 360°。17×17 有序姿态表不使用暗像素重心估角度或运行时最近姿态搜索。
+3. **控制与衔接：**[companion 运行时](../src/components/companion/red-panda-companion.ts) 连接原版 [oil-motion 控制器](../src/components/companion/oil-motion-frame-animator.ts)：探头用 `createSegmentPlayer` 控制一个持续存在的隐形全关键帧视频时钟，CSS 图集按时间取帧；转头由横、纵两个 `createFrameAnimator` 缓动，合并背景位置写入。只显示当前媒体表面，不用两张角色图交叉淡化。[peek-model](../src/components/companion/red-panda-peek-model.ts) 同时检查播放已停、真实时间在 hold 附近和 settled ID，防止 `cancel()` 后把中间帧当成终点。只有中立停帧才交接转头，只有回正格才开始收回；播放边界/速率只读编译后的 [peek-timeline.json](../public/companion/red-panda/peek-timeline.json)。离屏和后台暂停，恢复后沿当前帧执行最新意图；稳定状态停止 RAF。
+4. **素材与加载：**原有 [look.json](../public/companion/red-panda/look.json)/[look.webp](../public/companion/red-panda/look.webp) 保持不变，289 格中 119 格来自七条 MiniMax-H3 原生纵向母版、170 格由离线 RIFE 补齐。新增探头使用同一条已审核的原生收回视频倒放，保留到首张完全隐藏帧的全部 103 帧，只裁掉之后 4 张空白停帧；[peek.webp](../public/companion/red-panda/peek.webp) 为 2640×2400，240px 单元，整帧 Y 校正最多 12 像素稳定爪子接触边，不改单独肢体。转头约 63.5 MiB、探头约 24.17 MiB 解码内存，合计约 87.7 MiB；桌面 120 CSS px、窄屏 96px。等待两个 `Image.decode()` 和视频数据就绪前使用同一中立静态图；焦点早于加载完成时保留已显示姿态，不迟到重播探头。资源出错或 20 秒未就绪退回静态，不阻塞输入。
+5. **减少动态与触屏：**粗指针或 `prefers-reduced-motion` 使用静态中立帧，仅随焦点淡入淡出，不播探头、不连续转头，也不请求尚未加载的动画图集/视频。偏好改变立即暂停并切回静态，恢复允许动画时从当前焦点对应的稳定状态开始。组件卸载清理监听器、Observer、RAF、解码等待和视频。手机为角色留出标题间距，中英标题均不被遮挡。
+6. **制作、费用与校验：**原有 [转头素材记录](../assets/companion/red-panda/oil-motion/README.md) 不变；新增 [探头记录](../assets/companion/red-panda/oil-motion/peek/README.md)、离线编译脚本、哈希清单与源码压缩包，保留四个事实源、透明关键帧、母版、审核证据及原生帧映射。探头只生成过一条 H3 768P、计费 4 秒视频，估计 2 元；本次加速与接入没有再次调用付费生成，平台账单为准。凭据和临时 URL 不入库。母版首帧有轻微重绘，较慢 pilot 的中立衔接已获用户认可（2026-10-30），1 秒完整集成已获用户视觉审核通过并授权推送 main（2026-10-30）。[运行时测试](../src/components/companion/red-panda-companion.test.ts) 用实际 oil-motion 控制器覆盖中断、反向、回正、后台/离屏、偏好改变、冷加载和资源失败；[停帧测试](../src/components/companion/red-panda-peek-model.test.ts) 覆盖中间帧与实际编码边界。浏览器实测桌面、375px 中英布局、真实时钟 seek 与探头衔接；未做真实低端手机性能或 OS 动效切换测量。
 
 首页右下角背包小熊继续保持撤下状态，聊天头像与 Workspace 底部像素小熊不受影响。素材页中英字典明确说明图片由 ChatGPT、视频由 MiniMax 生成。
 

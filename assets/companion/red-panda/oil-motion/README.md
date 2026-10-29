@@ -3,7 +3,7 @@
 The home input reveals this decorative character on focus and hides it on blur.
 Head yaw and pitch use a 17 × 17 Cartesian atlas, controlled by the original
 oil-motion `createFrameAnimator` and CSS sprite renderer. There is no nearest-pose
-search or image crossfade at runtime. The separate climbing entrance is deferred.
+search or image crossfade at runtime. The separately approved climbing entrance is integrated in 1.0706; see [peek/README.md](peek/README.md).
 
 ## Provenance and production
 
