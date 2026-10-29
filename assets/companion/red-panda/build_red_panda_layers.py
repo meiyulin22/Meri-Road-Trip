@@ -1,20 +1,19 @@
 #!/usr/bin/env python3
-"""Cuts the red panda into the three layers the chat-box companion animates.
+"""Cuts the red panda's two front paws out as layers of their own.
 
 Sources (both from GPT, same pose and canvas, checked to line up within 1–2px):
   red-panda-open-eyes-v1.png     the whole panda, front paws resting on the edge
   red-panda-body-no-paws-v2.png  the same panda with the paws removed and the chest fur filled in
 
 The paws are exactly where the two differ, so they are cut from v1 by that difference;
-the body is v2 as it is. All three layers keep one shared canvas (cropped to the panda),
-so the page can stack them with no offsets. Also measures the two plain white eyes,
-which the page fills with code-drawn pupils and eyelids.
+they rest on the chat box's edge while the head turns above them (build_red_panda_turns.py).
+Both keep the canvas the head frames use (cropped to the panda), so the page stacks them
+with no offsets.
 
-Writes public/companion/red-panda/{body,paw-left,paw-right}.webp and red-panda.json.
+Writes public/companion/red-panda/{paw-left,paw-right}.webp.
 Run from anywhere:  python3 assets/companion/red-panda/build_red_panda_layers.py [--preview DIR]
 Needs Pillow with WebP (present on the development Mac). Not part of the app runtime.
 """
-import json
 import sys
 from pathlib import Path
 
@@ -124,24 +123,6 @@ def split_paws(whole: Image.Image, mask: Image.Image) -> tuple[Image.Image, Imag
     return layers[0], layers[1]
 
 
-def eyes(body: Image.Image) -> list[dict]:
-    """The two plain white eye shapes: centre and radii, by the near-white pixels in the face band."""
-    w, h = body.size
-    px = body.load()
-    found = []
-    for x0, x1 in ((0, w // 2), (w // 2, w)):
-        pts = [(x, y) for y in range(int(h * 0.3), int(h * 0.7)) for x in range(x0, x1)
-               if px[x, y][3] > 250 and min(px[x, y][:3]) > 245]
-        xs = sorted(p[0] for p in pts)
-        ys = sorted(p[1] for p in pts)
-        mx, my = xs[len(xs) // 2], ys[len(ys) // 2]
-        core = [p for p in pts if abs(p[0] - mx) < 120 and abs(p[1] - my) < 120]
-        left, right = min(p[0] for p in core), max(p[0] for p in core)
-        top, bottom = min(p[1] for p in core), max(p[1] for p in core)
-        found.append({"cx": (left + right) / 2, "cy": (top + bottom) / 2, "rx": (right - left) / 2, "ry": (bottom - top) / 2})
-    return found
-
-
 def main() -> None:
     whole = load("red-panda-open-eyes-v1.png")
     body = load("red-panda-body-no-paws-v2.png")
@@ -157,34 +138,20 @@ def main() -> None:
         return layer.crop(box).resize(size, Image.LANCZOS)
 
     OUT_DIR.mkdir(parents=True, exist_ok=True)
-    outputs = {"body": export(body), "paw-left": export(left_paw), "paw-right": export(right_paw)}
+    outputs = {"paw-left": export(left_paw), "paw-right": export(right_paw)}
     for name, image in outputs.items():
         image.save(OUT_DIR / f"{name}.webp", "WEBP", quality=88, method=6)
 
-    # Eye geometry as fractions of the exported canvas, so the page can scale it freely.
-    measured = eyes(body)
-    data = {
-        "width": size[0],
-        "height": size[1],
-        "eyes": [{
-            "cx": round((e["cx"] - box[0]) / (box[2] - box[0]), 4),
-            "cy": round((e["cy"] - box[1]) / (box[3] - box[1]), 4),
-            "rx": round(e["rx"] / (box[2] - box[0]), 4),
-            "ry": round(e["ry"] / (box[3] - box[1]), 4),
-        } for e in measured],
-    }
-    (OUT_DIR / "red-panda.json").write_text(json.dumps(data, indent=1) + "\n")
-    print(json.dumps(data))
     for name in outputs:
         print(name, (OUT_DIR / f"{name}.webp").stat().st_size, "bytes")
 
     if PREVIEW_DIR:
         PREVIEW_DIR.mkdir(parents=True, exist_ok=True)
         sheet = Image.new("RGBA", (size[0] * 4, size[1]), (250, 248, 240, 255))
-        stacked = outputs["body"].copy()
+        stacked = export(body)
         stacked.alpha_composite(outputs["paw-left"])
         stacked.alpha_composite(outputs["paw-right"])
-        for i, image in enumerate((outputs["body"], outputs["paw-left"], outputs["paw-right"], stacked)):
+        for i, image in enumerate((export(body), outputs["paw-left"], outputs["paw-right"], stacked)):
             sheet.alpha_composite(image, (i * size[0], 0))
         sheet.save(PREVIEW_DIR / "red-panda-layers.png")
 

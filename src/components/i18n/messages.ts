@@ -34,6 +34,7 @@ const en = {
     footerTitle: "Where will your next idea take you?",
     photoCreditsTitle: "Photo credits",
     photoCreditsDescription: "The representative city photos shown on the introduction page, with their original sources and authors.",
+    aiCompanionNote: "The red panda on the home page chat box is AI-generated: its pictures were made with ChatGPT image generation and its head turns with 即梦 (Jimeng) video generation.",
     backToIntro: "Back to the introduction",
   },
 
@@ -336,6 +337,7 @@ const zh: Messages = {
     footerTitle: "下一个念头，会带你去哪里？",
     photoCreditsTitle: "照片署名",
     photoCreditsDescription: "介绍页使用的城市代表照片，以及它们的原始来源和作者。",
+    aiCompanionNote: "首页输入框上的小熊猫形象由 AI 生成：图片用 ChatGPT 图像生成，转头动作用即梦视频生成。",
     backToIntro: "返回介绍页",
   },
 

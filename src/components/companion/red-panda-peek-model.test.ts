@@ -1,32 +1,61 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import test from "node:test";
 
-import { nextBlinkDelay, pupilOffset, typingTarget } from "./red-panda-peek-model";
+import { frameFor, poseToward, typingTarget, type TurnFrames } from "./red-panda-peek-model";
 
-const eye = { x: 100, y: 100 };
+// Shaped like the real frames: full turns on the four axes, a circle round them, and
+// lower corners that only turn a little.
+const frames: TurnFrames = { front: 0, looks: [
+  [0, 0], [-1, 0], [1, 0], [0, -1], [0, 1],
+  [-0.5, 0], [0, 0.5], [-0.7, -0.7], [0.7, -0.7], [0.3, 0.25], [-0.3, 0.25], [-0.2, 0.15] ] };
 
-test("the pupil points at the target in every direction, all the way round", () => {
-  for (let degrees = 0; degrees < 360; degrees += 45) {
+test("a pointer far off turns the head fully that way, one on the face leaves it straight ahead", () => {
+  const face = { x: 500, y: 300 };
+  const reach = { x: 400, y: 250 };
+  assert.deepEqual(poseToward(face, { x: 0, y: 300 }, reach), { x: -1, y: 0 });
+  assert.deepEqual(poseToward(face, { x: 2000, y: 1000 }, reach), { x: 1, y: 1 });
+  assert.deepEqual(poseToward(face, { x: 700, y: 175 }, reach), { x: 0.5, y: -0.5 });
+  assert.deepEqual(poseToward(face, face, reach), { x: 0, y: 0 });
+});
+
+test("each way shows the frame that looks that way, and ahead is the front", () => {
+  assert.equal(frameFor({ x: 0, y: 0 }, frames), 0);
+  assert.equal(frameFor({ x: -1, y: 0 }, frames), 1);
+  assert.equal(frameFor({ x: 1, y: 0 }, frames), 2);
+  assert.equal(frameFor({ x: 0, y: -1 }, frames), 3);
+  assert.equal(frameFor({ x: 0, y: 1 }, frames), 4);
+  assert.equal(frameFor({ x: -0.5, y: 0 }, frames), 5);
+  assert.equal(frameFor({ x: -1, y: -1 }, frames), 7);
+});
+
+test("a look down-left shows the down-left frame, not the full look down, though it turns less", () => {
+  assert.equal(frameFor({ x: -1, y: 1 }, frames), 10);
+  assert.equal(frameFor({ x: 1, y: 1 }, frames), 9);
+});
+
+test("the frame showing stays until another is clearly nearer", () => {
+  const between = { x: -0.75, y: 0 };
+  assert.equal(frameFor(between, frames, 1), 1);
+  assert.equal(frameFor(between, frames, 5), 5);
+  assert.equal(frameFor({ x: -1, y: 0 }, frames, 5), 1);
+});
+
+test("with the real frames, sweeping round the panda steps between nearby looks, never across the face", () => {
+  const real = JSON.parse(readFileSync(new URL("../../../public/companion/red-panda/turns.json", import.meta.url), "utf8")) as TurnFrames;
+  let previous = frameFor({ x: 1, y: 0 }, real);
+  const seen = new Set<number>();
+  for (let degrees = 1; degrees <= 360; degrees += 1) {
     const angle = (degrees * Math.PI) / 180;
-    const target = { x: eye.x + Math.cos(angle) * 500, y: eye.y + Math.sin(angle) * 500 };
-    const offset = pupilOffset(eye, target, 6, 300);
-    assert.ok(Math.abs(Math.atan2(offset.y, offset.x) - Math.atan2(target.y - eye.y, target.x - eye.x)) < 1e-9 ||
-      Math.abs(Math.abs(Math.atan2(offset.y, offset.x) - Math.atan2(target.y - eye.y, target.x - eye.x)) - 2 * Math.PI) < 1e-9, `${degrees}°`);
-    assert.ok(Math.abs(Math.hypot(offset.x, offset.y) - 6) < 1e-9, `${degrees}° reaches the edge`);
+    const index = frameFor({ x: Math.cos(angle), y: Math.sin(angle) }, real, previous);
+    const [x0, y0] = real.looks[previous];
+    const [x1, y1] = real.looks[index];
+    assert.ok(Math.hypot(x1 - x0, y1 - y0) < 0.6, `${degrees}°: frame ${previous} → ${index}`);
+    previous = index;
+    seen.add(index);
   }
-});
-
-test("a near target leans the pupil only part way, and one on the eye leaves it centred", () => {
-  const near = pupilOffset(eye, { x: 250, y: 100 }, 6, 300);
-  assert.equal(near.y, 0);
-  assert.ok(Math.abs(near.x - 3) < 1e-9);
-  assert.deepEqual(pupilOffset(eye, { x: 100.5, y: 100 }, 6, 300), { x: 0, y: 0 });
-  assert.deepEqual(pupilOffset(eye, { x: 400, y: 100 }, 0, 300), { x: 0, y: 0 });
-});
-
-test("blinks come every 2.5 to 6 seconds", () => {
-  assert.equal(nextBlinkDelay(() => 0), 2500);
-  assert.equal(nextBlinkDelay(() => 0.999999), 5999);
+  // Down-left really is drawn: some frame looks both left and down.
+  assert.ok([...seen].some((index) => real.looks[index][0] < -0.2 && real.looks[index][1] > 0.1));
 });
 
 test("while typing, the panda reads along the text and never past its end", () => {

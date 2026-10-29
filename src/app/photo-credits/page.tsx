@@ -23,6 +23,7 @@ export default async function PhotoCreditsPage() {
           <div className={styles.introduction}>
             <h1 id="credits-title">{text.photoCreditsTitle}</h1>
             <p>{text.photoCreditsDescription}</p>
+            <p>{text.aiCompanionNote}</p>
           </div>
           <div className={styles.photos}>
             {photos.map(({ region, image }) => (
