@@ -287,7 +287,71 @@
   }
 }
 
-.aboutLink { align-self: center; color: var(--home-muted); font-size: .78rem; padding: .5rem .25rem; text-underline-offset: 4px; }
-.aboutLink:hover { text-decoration: underline; }
-.aboutLink:focus-visible { outline: 2px solid var(--home-ink); outline-offset: 3px; }
-@media (max-width: 480px) { .topBar { gap: .25rem; flex-wrap: wrap; } .profileButton { padding-inline: .5rem; } .aboutLink { font-size: .72rem; } }
+/* Meet Meri: the Intro's night sky in a pill, with its sun about to rise. */
+.meetButton {
+  min-height: 2.5rem;
+  margin-right: auto;
+  padding: 0.35rem 0.95rem 0.35rem 0.8rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55rem;
+  border-radius: 999px;
+  color: #f1f0e6;
+  background: linear-gradient(135deg, #091326 0%, #17284a 100%);
+  box-shadow: 0 6px 18px rgba(9, 19, 38, 0.18), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  font-size: 0.85rem;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  text-decoration: none;
+  transition: transform 180ms ease, box-shadow 180ms ease;
+}
+
+.meetSun {
+  width: 0.6rem;
+  height: 0.6rem;
+  flex: none;
+  border-radius: 50%;
+  background: #f2c46d;
+  box-shadow: 0 0 0 3px rgba(242, 196, 109, 0.18), 0 0 10px rgba(242, 196, 109, 0.55);
+  transition: box-shadow 180ms ease;
+}
+
+.meetArrow {
+  flex: none;
+  opacity: 0.75;
+  transition: transform 180ms ease, opacity 180ms ease;
+}
+
+.meetButton:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 10px 24px rgba(9, 19, 38, 0.24), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+}
+
+.meetButton:hover .meetSun {
+  box-shadow: 0 0 0 4px rgba(242, 196, 109, 0.24), 0 0 16px rgba(242, 196, 109, 0.8);
+}
+
+.meetButton:hover .meetArrow {
+  opacity: 1;
+  transform: translateX(2px);
+}
+
+.meetButton:focus-visible {
+  outline: 2px solid var(--home-ink);
+  outline-offset: 3px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .meetButton,
+  .meetButton:hover,
+  .meetButton:hover .meetArrow {
+    transform: none;
+    transition: none;
+  }
+}
+
+@media (max-width: 480px) {
+  .topBar { gap: 0.25rem; }
+  .profileButton { padding-inline: 0.5rem; }
+  .meetButton { padding-inline: 0.7rem 0.8rem; font-size: 0.8rem; }
+}

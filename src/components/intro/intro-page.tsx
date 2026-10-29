@@ -11,7 +11,6 @@ import { PhotoSourceCredit } from "@/components/trip-workspace/photo-source-dial
 import { LanguageToggle } from "@/components/ui/language-toggle";
 import type { PlaceImage } from "@/domain/location/place-image";
 
-import { rememberIntroVisit } from "./intro-visit";
 import styles from "./intro-page.module.css";
 
 const TUTORIAL_INTERVAL_MS = 3_000;
@@ -23,8 +22,6 @@ export function IntroPage({ photos }: {
   const reduceMotion = useReducedMotion();
   const [step, setStep] = useState(0);
   const [paused, setPaused] = useState(false);
-
-  useEffect(() => { rememberIntroVisit(); }, []);
 
   useEffect(() => {
     if (reduceMotion || paused) return;
@@ -43,7 +40,7 @@ export function IntroPage({ photos }: {
   }, [paused, reduceMotion, text.steps.length]);
 
   const start = (className: string) => (
-    <form action="/" method="get" className={styles.startForm} onSubmit={() => rememberIntroVisit()}>
+    <form action="/" method="get" className={styles.startForm}>
       <button className={className} type="submit">
         {text.startJourney}<ArrowRight aria-hidden="true" size={19} />
       </button>

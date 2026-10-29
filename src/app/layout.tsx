@@ -10,7 +10,6 @@ import {
 import "./globals.css";
 
 import { LocaleProvider } from "@/components/i18n/locale-context";
-import { INTRO_VISIT_BOOTSTRAP } from "@/components/intro/intro-visit";
 import { htmlLang } from "@/domain/locale/locale";
 import { requestLocale } from "@/platform/locale/request-locale";
 
@@ -62,7 +61,6 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
       lang={htmlLang(locale)}
       className={`${geistSans.variable} ${GeistPixelSquare.variable} ${GeistPixelGrid.variable} ${GeistPixelCircle.variable} ${GeistPixelTriangle.variable} ${GeistPixelLine.variable}`}
     >
-      <head><script dangerouslySetInnerHTML={{ __html: INTRO_VISIT_BOOTSTRAP }} /></head>
       <body>
         <LocaleProvider locale={locale}>{children}</LocaleProvider>
       </body>

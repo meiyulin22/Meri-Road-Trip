@@ -40,7 +40,7 @@
 | `src/app/trips/` | Journey 列表、Workspace 页面和删除入口 | 页面层，含服务端读取与客户端操作组件 |
 | `src/components/` | React UI 和前端请求/展示模型 | 表现层（presentation layer） |
 | `src/components/meri-shell/` | 首页外壳、创建输入、最近旅程 | 首页表现层 |
-| `src/components/intro/` | 品牌介绍、教程轮播、首访导航与本地示例照片 | 介绍页表现层；不执行规划或改写旅程状态 |
+| `src/components/intro/` | 品牌介绍、教程轮播与本地示例照片 | 介绍页表现层；不执行规划或改写旅程状态 |
 | `src/components/i18n/` | 界面文字的中英字典和把当前语言交给客户端组件的 Provider | 表现层 |
 | `src/components/companion/` | 小熊：一句话规则、行为规则、精灵图播放器和帧清单 | Companion 表现层 |
 | `src/components/trip-workspace/` | 聊天、右侧字段编辑、目的地卡、状态同步、准备度按钮 | Workspace 表现层 |
@@ -161,7 +161,7 @@ LLM 解释自然语言并提出受限 JSON；应用校验、决定是否执行�
 
 下表按目录分类，每个路径都有独立一行。测试不是运行时业务层；同目录测试主要验证对应层的规则或适配边界，多数使用 mock/内存替身，不据此宣称真实提供方已验证。
 
-本次索引按路径去重共 416 个文件，其中 107 个测试文件。
+本次索引按路径去重共 413 个文件，其中 106 个测试文件。
 
 ### 6.1 根目录配置与入口
 
@@ -221,9 +221,9 @@ LLM 解释自然语言并提出受限 JSON；应用校验、决定是否执行�
 | [src/app/api/trips/[id]/state/route.ts](../src/app/api/trips/%5Bid%5D/state/route.ts) | HTTP 接口层 | GET 状态/PATCH 领域校验后的 patch；调用 JourneyService，不自行做高德核验，冲突错误当前未单独映射 409。 |
 | [src/app/intro/page.tsx](../src/app/intro/page.tsx) | 页面/框架入口 | /intro 服务端入口，按访客语言生成标题/描述，用本地图集的三座城市代表图渲染 IntroPage，不调用业务或远程接口。 |
 | [src/app/globals.css](../src/app/globals.css) | 页面/框架入口 | 全站基础样式与通用视觉变量。 |
-| [src/app/layout.tsx](../src/app/layout.tsx) | 页面/框架入口 | 根布局、字体、全局样式及站点 metadata/图标；按访客语言设置 `<html lang>`、标题/描述，包上 LocaleProvider，并在 head 同步运行首页首访介绍页导航脚本。 |
+| [src/app/layout.tsx](../src/app/layout.tsx) | 页面/框架入口 | 根布局、字体、全局样式及站点 metadata/图标；按访客语言设置 `<html lang>`、标题/描述，包上 LocaleProvider。 |
 | [src/app/manifest.ts](../src/app/manifest.ts) | 页面/框架入口 | PWA Web App Manifest，声明名称、启动地址、显示方式和图标；不提供离线缓存。 |
-| [src/app/page.tsx](../src/app/page.tsx) | 页面/框架入口 | 首页 / 的服务端页面入口，挂载 IntroEntryGate 处理软导航的首次入口，再渲染原有 MeriAppShell。 |
+| [src/app/page.tsx](../src/app/page.tsx) | 页面/框架入口 | 首页 / 的服务端页面入口，渲染 MeriAppShell。 |
 | [src/app/photo-credits/page.tsx](../src/app/photo-credits/page.tsx) | 页面/框架入口 | 只列介绍页使用的三张本地示例照片及署名，语言跟随现有 cookie，署名复用 PhotoSourceCredit 外链确认，返回链接指向 /intro。 |
 | [src/app/photo-credits/photo-credits.module.css](../src/app/photo-credits/photo-credits.module.css) | 页面/框架入口 | 介绍页示例照片署名页的排版、可聚焦链接及窄屏单列样式。 |
 | [src/app/trips/[id]/error.tsx](../src/app/trips/%5Bid%5D/error.tsx) | 页面/框架入口 | Workspace 页面错误边界，按访客语言提供失败提示和重试入口。 |
@@ -239,7 +239,7 @@ LLM 解释自然语言并提出受限 JSON；应用校验、决定是否执行�
 | --- | --- | --- |
 | [src/components/meri-shell/home-entrance.tsx](../src/components/meri-shell/home-entrance.tsx) | 表现层 | Motion 首页分区入场动画，支持减少动态效果偏好；不是背景水彩显露动画。 |
 | [src/components/meri-shell/meri-app-shell.module.css](../src/components/meri-shell/meri-app-shell.module.css) | 表现层 | 首页背景、品牌、输入区、角色、布局及响应式样式。 |
-| [src/components/meri-shell/meri-app-shell.tsx](../src/components/meri-shell/meri-app-shell.tsx) | 表现层 | 首页服务端外壳，读取最近旅程、它们的封面照片（最多等 1.5 秒）和访客语言，组合 Profile、「认识 Meri」链接、语言切换、品牌、标题（英文像素字体，中文用系统字体的普通 h1）、输入、角色和 HomeEntrance。 |
+| [src/components/meri-shell/meri-app-shell.tsx](../src/components/meri-shell/meri-app-shell.tsx) | 表现层 | 首页服务端外壳，读取最近旅程、它们的封面照片（最多等 1.5 秒）和访客语言，组合「认识 Meri」按钮（深蓝胶囊加发光小太阳，进入 /intro 的唯一入口）、Profile、语言切换、品牌、标题（英文像素字体，中文用系统字体的普通 h1）、输入、角色和 HomeEntrance。 |
 | [src/components/meri-shell/new-trip-composer-model.test.ts](../src/components/meri-shell/new-trip-composer-model.test.ts) | 测试（对应模块边界） | 验证空输入、提取/创建失败、保留输入、真实 Trip ID 导航及重试不重复创建。 |
 | [src/components/meri-shell/new-trip-composer-model.ts](../src/components/meri-shell/new-trip-composer-model.ts) | 表现层 | 首页 reducer 与请求模型：提取草稿、创建 Journey、处理 opening_failed 和导航。 |
 | [src/components/meri-shell/new-trip-composer.tsx](../src/components/meri-shell/new-trip-composer.tsx) | 表现层 | 首页客户端业务容器，组合 ChatComposer 展示组件，绑定阶段、错误、创建导航和 opening 重试操作。 |
@@ -258,13 +258,10 @@ LLM 解释自然语言并提出受限 JSON；应用校验、决定是否执行�
 
 | 文件地址 | 层/类别 | 做什么 |
 | --- | --- | --- |
-| [src/components/intro/intro-entry-gate.tsx](../src/components/intro/intro-entry-gate.tsx) | 表现层 | 首页软导航的首访入口守卫，成功写入已访标记后 router.replace 到 /intro；存储不可用则保留首页。 |
 | [src/components/intro/intro-page.module.css](../src/components/intro/intro-page.module.css) | 表现层 | 介绍页营地山景、品牌字标、首屏入场、教程、功能和示例照片布局；适配窄屏与减少动态效果，不使用小熊。 |
-| [src/components/intro/intro-page.test.tsx](../src/components/intro/intro-page.test.tsx) | 测试（对应模块边界） | 验证介绍页当前能力与规划能力的标记、教程控件、开始旅程表单导航及本地示例照片署名。 |
+| [src/components/intro/intro-page.test.tsx](../src/components/intro/intro-page.test.tsx) | 测试（对应模块边界） | 验证介绍页当前能力与规划能力的标记、教程控件、开始旅程表单导航及本地示例照片署名；并扫描源码确认介绍页只能经首页「认识 Meri」等点击链接进入，没有任何自动跳转。 |
 | [src/components/intro/intro-page.tsx](../src/components/intro/intro-page.tsx) | 表现层 | 介绍页客户端界面：教程定时轮播/手动选择/暂停、当前与 Coming soon 能力说明、示例照片与署名、语言切换；进入和返回首页时安全记下已访。 |
 | [src/components/intro/intro-photos.ts](../src/components/intro/intro-photos.ts) | 表现层 | 介绍页与其署名页共用的服务端本地照片读取：按 scenic 明确取大理白族自治州、丽江市和拉萨市代表图，缺图跳过，不查远程。 |
-| [src/components/intro/intro-visit.test.ts](../src/components/intro/intro-visit.test.ts) | 测试（对应模块边界） | 验证首访先记载再导航、任意已有值跳过、非首页不跳、localStorage 访问/读/写失败、直接介绍页记访及返回首页不循环。 |
-| [src/components/intro/intro-visit.ts](../src/components/intro/intro-visit.ts) | 表现层 | localStorage 已访判断与安全记载，导出根布局首绘导航脚本；仅首页成功首次写入后 location.replace 到 /intro，存储失败不导航。 |
 
 ### 6.5 Workspace 表现层
 

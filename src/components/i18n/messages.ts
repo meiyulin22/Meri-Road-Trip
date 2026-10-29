@@ -40,7 +40,7 @@ const en = {
   home: {
     profile: "Profile",
     profileUnavailable: "Profile is not available yet",
-    about: "What is Meri?",
+    about: "Meet Meri",
     headline: "Where do you want to go?",
     startJourney: "Start a Journey",
     composerPlaceholder: "Tell Meri anything about your trip...",
@@ -341,7 +341,7 @@ const zh: Messages = {
   home: {
     profile: "个人资料",
     profileUnavailable: "个人资料暂未开放",
-    about: "Meri 是什么？",
+    about: "认识 Meri",
     headline: "你想去哪里？",
     startJourney: "开始一个旅程",
     composerPlaceholder: "跟 Meri 说说你的旅行想法…",

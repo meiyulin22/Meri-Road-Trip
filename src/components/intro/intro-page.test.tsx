@@ -1,5 +1,7 @@
 import assert from "node:assert/strict";
+import { readdirSync, readFileSync } from "node:fs";
 import { createRequire } from "node:module";
+import { join, relative } from "node:path";
 import test from "node:test";
 import { renderToStaticMarkup } from "react-dom/server";
 
@@ -100,3 +102,27 @@ for (const locale of ["en", "zh"] as const) {
     assert.doesNotMatch(markup, /\/companion\/|home-v2-companion|companion-bear/);
   });
 }
+
+test("Intro opens only by choice: the home page's Meet Meri button is the only way in, with no redirect", () => {
+  const root = join(process.cwd(), "src");
+  const pointsAtIntro: string[] = [];
+  const visit = (directory: string) => {
+    for (const entry of readdirSync(directory, { withFileTypes: true })) {
+      const path = join(directory, entry.name);
+      if (entry.isDirectory()) visit(path);
+      else if (/\.tsx?$/u.test(entry.name) && !/\.test\.tsx?$/u.test(entry.name) &&
+        /["'`]\/intro["'`]/u.test(readFileSync(path, "utf8"))) {
+        // relative() yields backslashes on Windows, so compare in one separator.
+        pointsAtIntro.push(relative(root, path).split("\\").join("/"));
+      }
+    }
+  };
+  visit(root);
+  // Links a visitor clicks: Intro's own, its credits page's way back, and Meet Meri on the home page.
+  assert.deepEqual(pointsAtIntro.sort(),
+    ["app/photo-credits/page.tsx", "components/intro/intro-page.tsx", "components/meri-shell/meri-app-shell.tsx"]);
+  const shell = readFileSync(join(root, "components/meri-shell/meri-app-shell.tsx"), "utf8");
+  assert.match(shell, /<Link className=\{styles\.meetButton\} href="\/intro">/u);
+  assert.doesNotMatch(shell + readFileSync(join(root, "app/page.tsx"), "utf8") + readFileSync(join(root, "app/layout.tsx"), "utf8"),
+    /router\.replace|location\.replace|redirect\(/u);
+});

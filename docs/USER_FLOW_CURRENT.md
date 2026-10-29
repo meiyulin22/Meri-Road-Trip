@@ -51,9 +51,8 @@ flowchart TD
 
 | 入口与操作 | 页面/组件 | 到达结果 |
 | --- | --- | --- |
-| 首次访问首页 / | [根布局首访脚本](../src/app/layout.tsx) / [IntroEntryGate](../src/components/intro/intro-entry-gate.tsx) | localStorage 成功记下首次访问后转到 /intro；已访问或存储不可用时保留首页 |
 | /intro 介绍页 | [IntroPage](../src/components/intro/intro-page.tsx) | 了解当前能力与标为 Coming soon 的规划能力；「开始旅程」返回首页输入入口 |
-| 首页「认识 Meri」 | [MeriAppShell](../src/components/meri-shell/meri-app-shell.tsx) | 随时重新打开 /intro，不清除已访问标记 |
+| 首页左上角「认识 Meri」按钮 | [MeriAppShell](../src/components/meri-shell/meri-app-shell.tsx) | 打开 /intro；这是进入介绍页的唯一入口，首页不会自动跳转 |
 | /photo-credits | [介绍页照片署名](../src/app/photo-credits/page.tsx) | 查看介绍页使用的三座城市代表图；点击署名沿用来源确认弹窗 |
 | 首页输入一句旅行想法 | [`/`](../src/app/page.tsx) → [NewTripComposer](../src/components/meri-shell/new-trip-composer.tsx) | 提取草稿，创建 Journey，开场成功后跳转 Workspace |
 | 首页点最近旅程 | [RecentJourneys](../src/components/meri-shell/recent-journeys.tsx) | 打开既有 Journey，不重新提取草稿 |
@@ -88,17 +87,17 @@ flowchart TD
 
 中文标题「你想去哪里？」不走像素标题组件，而是普通 `<h1>`，字体按系统依次取苹方 → 思源黑体 → 微软雅黑（`--font-cjk-sans`，字重 500）：像素字体（Geist Pixel）没有中文字形，它自带的后备字体又以 monospace 结尾，Windows 上可能落到等宽中文字体。英文标题仍是像素字体。
 
-### 1.3 介绍页与首次入口（1.0642）
+### 1.3 介绍页（1.0642；1.0643 起只能自己点开）
 
-`/intro` 是独立的品牌介绍页。首页仍提供原有输入和最近旅程；「认识 Meri」可随时重新打开介绍页。介绍页不展示小熊，使用现有 Meri 图形与字标、营地山景以及示例目的地照片。
+`/intro` 是独立的品牌介绍页。首页仍提供原有输入和最近旅程，左上角有一个「认识 Meri / Meet Meri」按钮：深蓝夜空色的胶囊，左边一个发光的小太阳，右边箭头，悬停时轻微上浮、太阳变亮，暗示点开是破晓的介绍页。介绍页不展示小熊，使用现有 Meri 图形与字标、营地山景以及示例目的地照片。
 
-1. **首次访问判断：**[根布局](../src/app/layout.tsx) 的同步 head 脚本执行 [INTRO_VISIT_BOOTSTRAP](../src/components/intro/intro-visit.ts)，只在当前路径为 `/` 时读取 `localStorage` 的 `meri:intro-visited`。有任何已有值（包括旧值或空字符串）都保留首页；没有值时，先成功写入 `seen`，再 `location.replace("/intro")`，不额外保留一条首次首页历史。Storage 的获取、读取或写入任一步失败都跳过自动导航，首页仍能使用；导航失败也不抛出到页面，已写入的标记防止重复跳转。
-2. **客户端返回首页：**[首页入口](../src/app/page.tsx) 同时挂载 [IntroEntryGate](../src/components/intro/intro-entry-gate.tsx)，为软导航复用相同的首次访问判断，再用 `router.replace("/intro")` 导航。直接打开 `/intro` 时，[IntroPage](../src/components/intro/intro-page.tsx) 挂载后调用 `rememberIntroVisit()`；介绍页页首和页尾的「开始旅程」都用原生 `<form action="/" method="get">` 与提交按钮返回首页，提交时尝试记下已访，再执行文档导航，避免复用首次首页预取缓存。表单不携带任何输入数据、不调用业务 API，因此返回首页不会循环进入介绍页；存储不可用也不阻止表单导航。该标记属于当前浏览器源的 localStorage，不是会话 cookie，也不与访客 Journey 归属或数据库同步。
+1. **只能自己点开（1.0643）：**1.0642 曾在第一次访问首页时自动跳到介绍页（根布局 head 脚本加首页入口守卫，用 localStorage 记已访）。merlin 认为介绍页应该由用户自己点开，所以 1.0643 删掉了自动跳转和已访记录（`intro-visit`、`IntroEntryGate` 及其测试），首页总是直接显示。[intro-page 测试](../src/components/intro/intro-page.test.tsx) 扫描源码，确认指向 `/intro` 的只有首页按钮、介绍页自己和署名页的返回链接，首页、根布局里没有任何重定向。
+2. **返回首页：**介绍页页首和页尾的「开始旅程」都用原生 `<form action="/" method="get">` 与提交按钮返回首页，表单不携带任何输入数据、不调用业务 API。
 3. **介绍内容：**顶部教程有五步，首屏约 2 秒入场结束后，普通模式下开始每 3 秒切到下一步，标签页隐藏时不推进。用户可暂停/继续，也可点击定位按钮选择某步；手动选择后暂停自动轮播。系统要求减少动态效果时停用自动切换和位移动画，仍可手动查看。最后两步以及下面的可行性核验、逐日计划功能区明确标为 `Coming soon / 即将推出`；目的地建议卡属于当前能力。介绍页不实际请求推荐、执行核验、生成或编辑计划，不把这些规划能力描述成已经上线。
 4. **照片与署名：**[loadIntroPhotos](../src/components/intro/intro-photos.ts) 只从现有本地图集按 `scenic` 明确读取大理白族自治州、丽江市和拉萨市的代表图，没有图的地区跳过，不进行远程搜索。介绍页和恢复的 [`/photo-credits` 页面](../src/app/photo-credits/page.tsx) 共用这三张图；该署名页只列介绍页示例，不恢复旧的全量图集/运行时下载列表。每张照片保留作者、平台、Commons 许可名称及缩小尺寸说明，点击署名复用 [PhotoSourceCredit](../src/components/trip-workspace/photo-source-dialog.tsx)，经 `/photo-credits/source/[file]?format=json` 读取安全外部目标，确认后才打开来源。照片不证明当前开放或旅行条件。
 5. **语言与状态边界：**介绍页及照片署名页取自原有 `messages[locale].intro` 字典；页首/页尾语言切换沿用 `meri_locale`、`requestLocale()` 和 `LocaleProvider`，不新增语言路由。介绍页标题与描述按同一语言生成；城市名与照片说明仍是数据，保持原样。「开始旅程」只返回首页，不创建 Journey，不调用模型、地点或搜索服务，也不修改 TripState、消息、数据库 schema 或访客身份。
 
-首访逻辑与失败边界由 [intro-visit 测试](../src/components/intro/intro-visit.test.ts) 覆盖，介绍页能力标记、教程控件与导航入口由 [intro-page 测试](../src/components/intro/intro-page.test.tsx) 覆盖。介绍页的演示与标为即将推出的能力不改变后续第 2–7 节的现有创建、聊天、选择、准备度和持久化流程。
+介绍页能力标记、教程控件、导航入口和"只能自己点开"由 [intro-page 测试](../src/components/intro/intro-page.test.tsx) 覆盖。介绍页的演示与标为即将推出的能力不改变后续第 2–7 节的现有创建、聊天、选择、准备度和持久化流程。
 
 ## 2. Home 新建 Journey：输入一句话之后
 
