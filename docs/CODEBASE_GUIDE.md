@@ -161,7 +161,7 @@ LLM 解释自然语言并提出受限 JSON；应用校验、决定是否执行�
 
 下表按目录分类，每个路径都有独立一行。测试不是运行时业务层；同目录测试主要验证对应层的规则或适配边界，多数使用 mock/内存替身，不据此宣称真实提供方已验证。
 
-本次索引按路径去重共 413 个文件，其中 106 个测试文件。
+本次索引按路径去重共 414 个文件，其中 106 个测试文件。
 
 ### 6.1 根目录配置与入口
 
@@ -663,6 +663,7 @@ LLM 解释自然语言并提出受限 JSON；应用校验、决定是否执行�
 | [assets/brand/meri-lockup-preview.png](../assets/brand/meri-lockup-preview.png) | 设计/素材制作 | 组合品牌标识的设计预览。 |
 | [assets/brand/meri-mark-preview.png](../assets/brand/meri-mark-preview.png) | 设计/素材制作 | 独立品牌图形的设计预览。 |
 | [assets/brand/meri-wordmark-preview.png](../assets/brand/meri-wordmark-preview.png) | 设计/素材制作 | 品牌文字标识的设计预览。 |
+| [assets/companion/red-panda/red-panda-open-eyes-v1.png](../assets/companion/red-panda/red-panda-open-eyes-v1.png) | 设计/角色素材 | 用户确认的小熊猫睁眼原始 PNG（1254×1254，真实 Alpha、纯白无瞳孔眼睛），供后续闭眼编辑及聊天框角色制作；尚未接入界面。 |
 | [assets/companion/bear/generate_bear_sprites.py](../assets/companion/bear/generate_bear_sprites.py) | 设计/素材制作 | 用 Pillow 从 home-v2-companion.png 生成 64px 底图并合成全部小熊帧，写出 public/companion/bear 下的精灵图和帧清单；可加 --preview 输出预览。不是运行时代码。 |
 | [assets/logo/Logo.png](../assets/logo/Logo.png) | 设计/素材制作 | 角色/品牌制作参考图片，不是业务逻辑。 |
 | [assets/logo/LogoSVG-framework.png](../assets/logo/LogoSVG-framework.png) | 设计/素材制作 | 品牌图形制作参考，不是运行时组件。 |
