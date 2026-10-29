@@ -1,5 +1,6 @@
 import { UserRound } from "lucide-react";
 import Image from "next/image";
+import Link from "next/link";
 import { cookies } from "next/headers";
 
 import { journeySummaryRepository } from "@/capabilities/journey/journey-summary-repository-instance";
@@ -46,6 +47,7 @@ export async function MeriAppShell() {
           <UserRound aria-hidden="true" size={19} strokeWidth={1.7} />
           <span>{text.profile}</span>
         </button>
+        <Link className={styles.aboutLink} href="/intro">{text.about}</Link>
         <LanguageToggle />
       </header>
 

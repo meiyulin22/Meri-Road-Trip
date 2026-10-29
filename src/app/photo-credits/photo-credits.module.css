@@ -1,0 +1,135 @@
+.page {
+  min-height: 100dvh;
+  color: var(--foreground);
+  background: var(--background);
+}
+
+.shell {
+  width: min(100% - 2.5rem, 64rem);
+  margin-inline: auto;
+  padding-top: calc(1rem + env(safe-area-inset-top, 0px));
+  padding-bottom: calc(4rem + env(safe-area-inset-bottom, 0px));
+}
+
+.header {
+  display: flex;
+  min-height: 3.5rem;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  border-bottom: 1px solid var(--line);
+}
+
+.brand {
+  padding-block: 0.5rem;
+  font-size: 1.3rem;
+  font-weight: 650;
+  letter-spacing: -0.06em;
+}
+
+.back {
+  display: inline-flex;
+  min-height: 2.75rem;
+  align-items: center;
+  padding-inline: 0.25rem;
+  color: var(--muted);
+  font-size: 0.85rem;
+  text-align: right;
+}
+
+.back:hover,
+.credit:hover {
+  color: var(--foreground);
+  text-decoration: underline;
+  text-underline-offset: 0.2em;
+}
+
+.brand:focus-visible,
+.back:focus-visible,
+.credit:focus-visible {
+  outline: 2px solid var(--foreground);
+  outline-offset: 5px;
+}
+
+.content {
+  margin-top: clamp(3rem, 9vw, 6rem);
+}
+
+.introduction {
+  max-width: 40rem;
+}
+
+.introduction h1 {
+  font-size: clamp(2.1rem, 6vw, 3.5rem);
+  font-weight: 550;
+  line-height: 1.12;
+  letter-spacing: -0.055em;
+  text-wrap: balance;
+}
+
+.introduction p {
+  max-width: 36rem;
+  margin-top: 1.25rem;
+  color: var(--muted);
+  font-size: 0.95rem;
+  line-height: 1.8;
+}
+
+.photos {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1.5rem;
+  margin-top: clamp(2.5rem, 6vw, 4rem);
+}
+
+.photo {
+  min-width: 0;
+}
+
+.image {
+  display: block;
+  width: 100%;
+  height: auto;
+  aspect-ratio: 4 / 3;
+  object-fit: cover;
+}
+
+.caption {
+  padding-top: 1rem;
+}
+
+.caption h2 {
+  font-size: 1rem;
+  font-weight: 550;
+  line-height: 1.5;
+}
+
+.caption > p {
+  margin-top: 0.2rem;
+  color: var(--muted);
+  font-size: 0.8rem;
+  line-height: 1.6;
+}
+
+.credit {
+  max-width: 100%;
+  margin-top: 0.75rem;
+  color: var(--muted);
+  font-size: 0.72rem;
+  line-height: 1.7;
+  overflow-wrap: anywhere;
+  text-align: left;
+}
+
+@media (max-width: 1040px) {
+  .photos {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 700px) {
+  .photos {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 2.5rem;
+  }
+}

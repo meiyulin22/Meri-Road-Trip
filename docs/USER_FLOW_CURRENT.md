@@ -6,7 +6,8 @@
 
 ```mermaid
 flowchart TD
-  A[首页 /] -->|输入旅行想法| B[Kimi 提取 TripDraft]
+  Intro[介绍页 /intro] -->|开始旅程| A[首页 /]
+  A -->|输入旅行想法| B[Kimi 提取 TripDraft]
   B --> C[校验普通字段及 destinationEdit]
   C --> D{有地点提案？}
   D -->|有| E[高德核验：精确地点写入，其余准备候选]
@@ -50,6 +51,10 @@ flowchart TD
 
 | 入口与操作 | 页面/组件 | 到达结果 |
 | --- | --- | --- |
+| 首次访问首页 / | [根布局首访脚本](../src/app/layout.tsx) / [IntroEntryGate](../src/components/intro/intro-entry-gate.tsx) | localStorage 成功记下首次访问后转到 /intro；已访问或存储不可用时保留首页 |
+| /intro 介绍页 | [IntroPage](../src/components/intro/intro-page.tsx) | 了解当前能力与标为 Coming soon 的规划能力；「开始旅程」返回首页输入入口 |
+| 首页「认识 Meri」 | [MeriAppShell](../src/components/meri-shell/meri-app-shell.tsx) | 随时重新打开 /intro，不清除已访问标记 |
+| /photo-credits | [介绍页照片署名](../src/app/photo-credits/page.tsx) | 查看介绍页使用的三座城市代表图；点击署名沿用来源确认弹窗 |
 | 首页输入一句旅行想法 | [`/`](../src/app/page.tsx) → [NewTripComposer](../src/components/meri-shell/new-trip-composer.tsx) | 提取草稿，创建 Journey，开场成功后跳转 Workspace |
 | 首页点最近旅程 | [RecentJourneys](../src/components/meri-shell/recent-journeys.tsx) | 打开既有 Journey，不重新提取草稿 |
 | `/trips` 点旅程卡 | [旅程列表](../src/app/trips/page.tsx) | 打开已有 Workspace |
@@ -72,16 +77,28 @@ flowchart TD
 
 ### 1.2 界面语言（中 / EN）
 
-首页右上角、Profile 右边有「中 | EN」切换（[LanguageToggle](../src/components/ui/language-toggle.tsx)）。
+首页右上角以及介绍页页首、页尾都有「中 | EN」切换（[LanguageToggle](../src/components/ui/language-toggle.tsx)），共用原有语言 cookie。
 
 1. 点击后浏览器写入 cookie `meri_locale`（`zh` 或 `en`，一年，全站，非 httpOnly——只存语言，不含私密信息），再 `router.refresh()`：服务端用新语言重画当前页面，网址不变（没有 `/en/...` 路由）。
 2. 服务端每次渲染读 [requestLocale](../src/platform/locale/request-locale.ts)：有合法 cookie 用它；没有时按浏览器 `Accept-Language`，中文排在英文前面就用中文，其他情况（包括法语、德语、没有该请求头）用英文，因为 Meri 的用户来自各国。
 3. 根布局据此设置 `<html lang>`（`zh-CN` / `en`）、页面标题与描述，并用 [LocaleProvider](../src/components/i18n/locale-context.tsx) 把语言交给客户端组件；界面文字都取自 [messages](../src/components/i18n/messages.ts) 的同一份中英字典，英文定结构、中文必须一一对应（缺一句类型检查就失败）。
 4. 旅程名、地名、目的地等数据不翻译，按保存时的样子显示。
 
-**当前范围：**按钮只在首页，但所有界面文字都跟随同一个 cookie：首页（1.0029）、旅程页面和「我的旅程」列表（1.0032）——页头、导航、对话框里的提示/状态/错误、旅程概览各字段与编辑器、目的地搜索、地点卡、日历（react-day-picker 的中/英 locale）、Generate plan 说明、小熊的话、聊天时间（昨天/Yesterday）、错误页和页面标题。纯函数（小熊、准备度、日期概括、时间）由调用方传入字典，不自己判断语言。精确天数按语言显示（7天 / 7 days），其余写法（7天6晚、大概一周）原样保留。品牌标语（Explore Further With Meri、Small steps. A wider world.）两种语言都保持英文。旧的 `destination-recommendation-picker.tsx` 不在主链路上，未翻译。**Meri 在代码里写的句子（1.0033）也跟按钮走**：「已加入…」「找到…相关的地点了」「暂时没找到…」、搜索提示、准备度句子、选卡确认（「好，已加入…」）、推荐卡上方的固定句和没推荐出来时的说明，都由 [meri-replies](../src/capabilities/conversation/meri-replies.ts) 按 cookie 取中文或英文，句子之间的连接（中文直接相连、英文加空格）、列表分隔（、/ , ）和引号（「」/ “”）也在那里。代码**不判断**用户写的是什么语言。**模型写的文字（1.0034）也以按钮为准**：聊天回复和开场回复（[workspace-conversation-prompt](../src/capabilities/conversation/prompts/workspace-conversation-prompt.ts)）、推荐卡理由（[destination-recommendation-prompt](../src/capabilities/recommendation/prompts/destination-recommendation-prompt.ts)，中文 ≤30 字、英文 ≤15 词）、首页第一句话提取出的旅程名（[trip-draft-prompt](../src/capabilities/journey/prompts/trip-draft-prompt.ts)）和聊天里改的旅程名，都由路由用 `requestLocale()` 读 cookie 后传进提示词（[reply-language-guidance](../src/capabilities/conversation/prompts/reply-language-guidance.ts) 一处写定措辞）。只有聊天/开场回复跟随用户：提示词让模型只看用户这条消息——是英文句子就用英文回，是中文句子就用中文回；分不清时（只有地名、数字、表情，或中英各半）才用按钮选的语言；句子里夹一个地名或外来词不算换语言，判断全由模型做。推荐理由和旅程名始终用按钮选的语言，因为它们显示在界面里。实测（kimi-k2.6）：旧写法「默认按钮语言，明显另一种语言时才跟随」6 次一次都没跟随，按钮语言把模型锚住了；1.0101 改成先看消息、分不清再用按钮语言后，跨语言用例 4 次跟随 3 次，所以英文固定句后接中文模型回复（或反过来）是可能出现的。英文界面下，大概的日期和时长保持用户的英文原话（a week、early November），精确天数仍存成「7天」并显示为 7 days。**中英提示词分开（1.0100）：**规则只写一份，两种语言共用（一次只问一个问题、不说能否生成计划、天气不给数字、不重复已有字段等）；按语言各写一份的只有示例、地名怎么交给高德和回复语言（[workspace-conversation-locale-rules](../src/capabilities/conversation/prompts/workspace-conversation-locale-rules.ts)，首页草稿的地名规则在 trip-draft-prompt 里）。中文提示词就是调好的原文，[chinese-prompts-lock.test](../src/capabilities/conversation/prompts/chinese-prompts-lock.test.ts) 把中文的聊天、开场、草稿提示词和两份 JSON schema 与快照逐字比较，变一个字测试就失败；返回格式两种语言共用，没有新增字段。地名：中文界面下 `destinationEdit` 里仍是用户打的原样（错别字也不改）。英文界面下模型把英文/拼音地名换成标准中文名再交给高德（Lijiang → 丽江、Jade Dragon Snow Mountain → 玉龙雪山、Yunnan → 云南），因为高德查不到拉丁地名（2026-10-04 实测：Yunnan、Sichuan、Hainan、Lijiang、Sanya、Shangri-La、Dali、Chengdu、Guilin、Jade Dragon Snow Mountain 都是 unresolved，Hong Kong 返回 ambiguous）；用户原样打的中文仍原样保留。翻译出的中文名不在用户原话里，按「原话里出现才自动加入」的既有规则，它总是出卡让用户确认（「I found places for “丽江” — …」），模型翻错时用户不点即可，不会悄悄写进旅程。英文句子里模型可能写 Hainan、Sanya 这类通用英文名；推荐卡的省、市和配图地标仍是中文（schema 和高德要求）。**不翻译的：**已保存的消息、已保存的旅程名和地名是数据，切换语言后按保存时的样子显示。**已知未覆盖：**目的地变化时代码自动重命名的旅程名（[trip-state](../src/domain/trip-state/trip-state.ts) 的「…之旅」）仍只有中文，英文界面下选卡后 "Lijiang Trip" 会变成「丽江市之旅」（要把语言传进 6 个保存旅程状态的接口，而地名仍是中文，最好也只能得到「丽江市 Trip」，决定不做）。
+**当前范围：**按钮在首页和介绍页，所有界面文字都跟随同一个 cookie：首页（1.0029）、旅程页面和「我的旅程」列表（1.0032）、介绍页和它的照片署名页（1.0642）——页头、导航、对话框里的提示/状态/错误、旅程概览各字段与编辑器、目的地搜索、地点卡、日历（react-day-picker 的中/英 locale）、Generate plan 说明、小熊的话、聊天时间（昨天/Yesterday）、错误页和页面标题。纯函数（小熊、准备度、日期概括、时间）由调用方传入字典，不自己判断语言。精确天数按语言显示（7天 / 7 days），其余写法（7天6晚、大概一周）原样保留。品牌标语（Explore Further With Meri、Small steps. A wider world.）两种语言都保持英文。旧的 `destination-recommendation-picker.tsx` 不在主链路上，未翻译。**Meri 在代码里写的句子（1.0033）也跟按钮走**：「已加入…」「找到…相关的地点了」「暂时没找到…」、搜索提示、准备度句子、选卡确认（「好，已加入…」）、推荐卡上方的固定句和没推荐出来时的说明，都由 [meri-replies](../src/capabilities/conversation/meri-replies.ts) 按 cookie 取中文或英文，句子之间的连接（中文直接相连、英文加空格）、列表分隔（、/ , ）和引号（「」/ “”）也在那里。代码**不判断**用户写的是什么语言。**模型写的文字（1.0034）也以按钮为准**：聊天回复和开场回复（[workspace-conversation-prompt](../src/capabilities/conversation/prompts/workspace-conversation-prompt.ts)）、推荐卡理由（[destination-recommendation-prompt](../src/capabilities/recommendation/prompts/destination-recommendation-prompt.ts)，中文 ≤30 字、英文 ≤15 词）、首页第一句话提取出的旅程名（[trip-draft-prompt](../src/capabilities/journey/prompts/trip-draft-prompt.ts)）和聊天里改的旅程名，都由路由用 `requestLocale()` 读 cookie 后传进提示词（[reply-language-guidance](../src/capabilities/conversation/prompts/reply-language-guidance.ts) 一处写定措辞）。只有聊天/开场回复跟随用户：提示词让模型只看用户这条消息——是英文句子就用英文回，是中文句子就用中文回；分不清时（只有地名、数字、表情，或中英各半）才用按钮选的语言；句子里夹一个地名或外来词不算换语言，判断全由模型做。推荐理由和旅程名始终用按钮选的语言，因为它们显示在界面里。实测（kimi-k2.6）：旧写法「默认按钮语言，明显另一种语言时才跟随」6 次一次都没跟随，按钮语言把模型锚住了；1.0101 改成先看消息、分不清再用按钮语言后，跨语言用例 4 次跟随 3 次，所以英文固定句后接中文模型回复（或反过来）是可能出现的。英文界面下，大概的日期和时长保持用户的英文原话（a week、early November），精确天数仍存成「7天」并显示为 7 days。**中英提示词分开（1.0100）：**规则只写一份，两种语言共用（一次只问一个问题、不说能否生成计划、天气不给数字、不重复已有字段等）；按语言各写一份的只有示例、地名怎么交给高德和回复语言（[workspace-conversation-locale-rules](../src/capabilities/conversation/prompts/workspace-conversation-locale-rules.ts)，首页草稿的地名规则在 trip-draft-prompt 里）。中文提示词就是调好的原文，[chinese-prompts-lock.test](../src/capabilities/conversation/prompts/chinese-prompts-lock.test.ts) 把中文的聊天、开场、草稿提示词和两份 JSON schema 与快照逐字比较，变一个字测试就失败；返回格式两种语言共用，没有新增字段。地名：中文界面下 `destinationEdit` 里仍是用户打的原样（错别字也不改）。英文界面下模型把英文/拼音地名换成标准中文名再交给高德（Lijiang → 丽江、Jade Dragon Snow Mountain → 玉龙雪山、Yunnan → 云南），因为高德查不到拉丁地名（2026-10-04 实测：Yunnan、Sichuan、Hainan、Lijiang、Sanya、Shangri-La、Dali、Chengdu、Guilin、Jade Dragon Snow Mountain 都是 unresolved，Hong Kong 返回 ambiguous）；用户原样打的中文仍原样保留。翻译出的中文名不在用户原话里，按「原话里出现才自动加入」的既有规则，它总是出卡让用户确认（「I found places for “丽江” — …」），模型翻错时用户不点即可，不会悄悄写进旅程。英文句子里模型可能写 Hainan、Sanya 这类通用英文名；推荐卡的省、市和配图地标仍是中文（schema 和高德要求）。**不翻译的：**已保存的消息、已保存的旅程名和地名是数据，切换语言后按保存时的样子显示。**已知未覆盖：**目的地变化时代码自动重命名的旅程名（[trip-state](../src/domain/trip-state/trip-state.ts) 的「…之旅」）仍只有中文，英文界面下选卡后 "Lijiang Trip" 会变成「丽江市之旅」（要把语言传进 6 个保存旅程状态的接口，而地名仍是中文，最好也只能得到「丽江市 Trip」，决定不做）。
 
 中文标题「你想去哪里？」不走像素标题组件，而是普通 `<h1>`，字体按系统依次取苹方 → 思源黑体 → 微软雅黑（`--font-cjk-sans`，字重 500）：像素字体（Geist Pixel）没有中文字形，它自带的后备字体又以 monospace 结尾，Windows 上可能落到等宽中文字体。英文标题仍是像素字体。
+
+### 1.3 介绍页与首次入口（1.0642）
+
+`/intro` 是独立的品牌介绍页。首页仍提供原有输入和最近旅程；「认识 Meri」可随时重新打开介绍页。介绍页不展示小熊，使用现有 Meri 图形与字标、营地山景以及示例目的地照片。
+
+1. **首次访问判断：**[根布局](../src/app/layout.tsx) 的同步 head 脚本执行 [INTRO_VISIT_BOOTSTRAP](../src/components/intro/intro-visit.ts)，只在当前路径为 `/` 时读取 `localStorage` 的 `meri:intro-visited`。有任何已有值（包括旧值或空字符串）都保留首页；没有值时，先成功写入 `seen`，再 `location.replace("/intro")`，不额外保留一条首次首页历史。Storage 的获取、读取或写入任一步失败都跳过自动导航，首页仍能使用；导航失败也不抛出到页面，已写入的标记防止重复跳转。
+2. **客户端返回首页：**[首页入口](../src/app/page.tsx) 同时挂载 [IntroEntryGate](../src/components/intro/intro-entry-gate.tsx)，为软导航复用相同的首次访问判断，再用 `router.replace("/intro")` 导航。直接打开 `/intro` 时，[IntroPage](../src/components/intro/intro-page.tsx) 挂载后调用 `rememberIntroVisit()`；介绍页页首和页尾的「开始旅程」都用原生 `<form action="/" method="get">` 与提交按钮返回首页，提交时尝试记下已访，再执行文档导航，避免复用首次首页预取缓存。表单不携带任何输入数据、不调用业务 API，因此返回首页不会循环进入介绍页；存储不可用也不阻止表单导航。该标记属于当前浏览器源的 localStorage，不是会话 cookie，也不与访客 Journey 归属或数据库同步。
+3. **介绍内容：**顶部教程有五步，首屏约 2 秒入场结束后，普通模式下开始每 3 秒切到下一步，标签页隐藏时不推进。用户可暂停/继续，也可点击定位按钮选择某步；手动选择后暂停自动轮播。系统要求减少动态效果时停用自动切换和位移动画，仍可手动查看。最后两步以及下面的可行性核验、逐日计划功能区明确标为 `Coming soon / 即将推出`；目的地建议卡属于当前能力。介绍页不实际请求推荐、执行核验、生成或编辑计划，不把这些规划能力描述成已经上线。
+4. **照片与署名：**[loadIntroPhotos](../src/components/intro/intro-photos.ts) 只从现有本地图集按 `scenic` 明确读取大理白族自治州、丽江市和拉萨市的代表图，没有图的地区跳过，不进行远程搜索。介绍页和恢复的 [`/photo-credits` 页面](../src/app/photo-credits/page.tsx) 共用这三张图；该署名页只列介绍页示例，不恢复旧的全量图集/运行时下载列表。每张照片保留作者、平台、Commons 许可名称及缩小尺寸说明，点击署名复用 [PhotoSourceCredit](../src/components/trip-workspace/photo-source-dialog.tsx)，经 `/photo-credits/source/[file]?format=json` 读取安全外部目标，确认后才打开来源。照片不证明当前开放或旅行条件。
+5. **语言与状态边界：**介绍页及照片署名页取自原有 `messages[locale].intro` 字典；页首/页尾语言切换沿用 `meri_locale`、`requestLocale()` 和 `LocaleProvider`，不新增语言路由。介绍页标题与描述按同一语言生成；城市名与照片说明仍是数据，保持原样。「开始旅程」只返回首页，不创建 Journey，不调用模型、地点或搜索服务，也不修改 TripState、消息、数据库 schema 或访客身份。
+
+首访逻辑与失败边界由 [intro-visit 测试](../src/components/intro/intro-visit.test.ts) 覆盖，介绍页能力标记、教程控件与导航入口由 [intro-page 测试](../src/components/intro/intro-page.test.tsx) 覆盖。介绍页的演示与标为即将推出的能力不改变后续第 2–7 节的现有创建、聊天、选择、准备度和持久化流程。
 
 ## 2. Home 新建 Journey：输入一句话之后
 
@@ -564,7 +581,7 @@ add/set 使用 Promise.all 查询表达。解析层保留不同 provider ID，�
 
 **第二图源：Wikimedia Commons（1.0632）：**江浙沪和西南两批里 Pixabay 找不到合适图的 27 个城市，改从维基的代表图里找。Wikidata 是维基的事实库，每个城市条目有一个"图片"字段（P18），只存维基编辑选定的那张图的文件名；图片文件本身、作者和许可证在 Wikimedia Commons（维基的图库）上。所以先问 Wikidata 这个城市的代表图是哪张（一批 1 次查询，按城市全称或简称加所属省份匹配，免得简称落到外地的同名地方），再从 Commons 取作者、许可证和 500px 副本（每 50 个文件 1 次查询，再逐张下载）。Commons 只在几个标准宽度出缩略图，640 会被放大成 960（约 180 KB），500 是标准宽度，约 55 KB，仍是卡片显示宽度 200px 的两倍多。
 
-图集照片只在这台机器上抓取、审核后随应用发布，服务器运行时不访问维基，所以大陆服务器连不上维基不影响这些照片（运行时补图从 1.0633 起也先问维基，见下面"推荐卡的运行时补图：先 Wikimedia"）。Commons 的照片是知识共享许可（这一批 CC BY-SA 3.0/4.0、CC BY 3.0、CC0）：可以下载、存到自己服务器上展示，条件是写明作者、许可证名称并附许可证链接、注明原图出处、说明改动（缩小了尺寸）；CC BY-SA 的照片我们保存的这一份仍按 CC BY-SA，不加更严的限制。这些只约束照片本身，不影响 Meri 的代码。为此：图集条目新增 `source: "wikimedia"`、`license`、`licenseUrl`（Commons 条目三者缺一不收，原图页必须是 Commons 的文件页）；卡片署名写成"Photo: 作者 / Wikimedia Commons, CC BY-SA 4.0"（Pixabay 照片不变）。当时的站内 `/photo-credits` 列表页现已移除：卡片保留作者、许可名称和缩小尺寸说明，点击署名先显示来源确认弹窗，确认后打开 Commons 原图页；来源字段与存储位置见下方维护记录。
+图集照片只在这台机器上抓取、审核后随应用发布，服务器运行时不访问维基，所以大陆服务器连不上维基不影响这些照片（运行时补图从 1.0633 起也先问维基，见下面"推荐卡的运行时补图：先 Wikimedia"）。Commons 的照片是知识共享许可（这一批 CC BY-SA 3.0/4.0、CC BY 3.0、CC0）：可以下载、存到自己服务器上展示，条件是写明作者、许可证名称并附许可证链接、注明原图出处、说明改动（缩小了尺寸）；CC BY-SA 的照片我们保存的这一份仍按 CC BY-SA，不加更严的限制。这些只约束照片本身，不影响 Meri 的代码。为此：图集条目新增 `source: "wikimedia"`、`license`、`licenseUrl`（Commons 条目三者缺一不收，原图页必须是 Commons 的文件页）；卡片署名写成"Photo: 作者 / Wikimedia Commons, CC BY-SA 4.0"（Pixabay 照片不变）。旧的全量 `/photo-credits` 列表页已移除；1.0642 仅为介绍页恢复同路径的三张示例照片署名页（见第 1.3 节）。卡片仍保留作者、许可名称和缩小尺寸说明，点击署名先显示来源确认弹窗，确认后打开 Commons 原图页；来源字段与存储位置见下方维护记录。
 
 27 个城市里 Wikidata 有代表图的 26 个（镇江的中文名没对上条目），人工看图后选定 20 张，图集 64 → 84 条：江浙沪 连云港、淮安 清江浦、泰州（靖江城区）、宿迁（沭阳）、衢州 南湖公园；西南 曲靖、玉溪、保山、昭通（威信县城）、普洱 思茅文庙、临沧、楚雄 三潭瀑布、德宏 芒市、怒江 碧罗雪山、攀枝花、泸州、遂宁、内江、眉山、巴中。照片拍的是下辖县城时，说明写县城名。没选的 6 张：自贡（医院门口路口）、绵阳（四格拼图）、广元（三分之一是施工脚手架）、广安、达州（县城街景，带日期水印）、资阳（广告满屏的路口）。这次共 2 次 Wikidata 查询、2 次 Commons 查询、26 次下载（又重下 26 次，换成 500px）。江浙沪 25 城有图 24 个，西南 34 城有图 28 个。
 
@@ -656,7 +673,7 @@ add/set 使用 Promise.all 查询表达。解析层保留不同 provider ID，�
 7. **连不上维基（大陆服务器）：**网络错误、超时、5xx 都算"查不了"，不缓存；同时整个进程暂停问维基 10 分钟（429 暂停 1 分钟并遵守 `Retry-After`，403 暂停 15 分钟），所以大陆服务器每 10 分钟最多花一次超时请求，其余时间卡片直接去 Pixabay。**维基查不了、Pixabay 又没有合适的图时，这张卡不回答**（不存成没图），下次打开再查；因为 Pixabay 的"没有"缓存 24 小时、维基暂停期间不发请求，重查几乎不花请求。代价：在连不上维基的服务器上，这类卡会一直保持"没查过"。
 8. **日志：**沿用 `place_photo.remote.completed` / `place_photo.remote.unavailable`，带 `source: "wikimedia"`、被跳过的条目和原因（如 `Q83628:licence`）。
 
-**1.0633 实测（2026-10-24，本机经公司代理，真实维基，临时媒体目录）：**6 个地标一次跑完共 15 次请求，没有请求 Pixabay 和天地图。玉龙雪山（Q1465660，公有领域）、宽窄巷子（Q10951691，CC BY-SA 3.0）、黄果树瀑布（Q38432，CC BY-SA 4.0）、鼓浪屿（Q1025339，CC BY 3.0）都配上了，人工看过图，地点都对；洱海（Q83628）唯一的图许可证和构图都不合格，没有配；洪崖洞排在最后，脚本逐个查、超过了每批 25 秒，按设计记"这次查不了"（实际接口里卡片并行查，会去 Pixabay）。单个地标 2–8 秒，多数时间花在 Wikidata 查询上。第一次实测发现缩略图地址已改成 `thumb.wikimedia.org`，下载被主机白名单挡掉，已加入白名单后重测。当时另用生产构建打开 /photo-credits，4 张维基照片都按文件名锚点列出，缩略图经 `/_next/image` 正常加载；这是旧列表页的历史验证，该页现已移除。
+**1.0633 实测（2026-10-24，本机经公司代理，真实维基，临时媒体目录）：**6 个地标一次跑完共 15 次请求，没有请求 Pixabay 和天地图。玉龙雪山（Q1465660，公有领域）、宽窄巷子（Q10951691，CC BY-SA 3.0）、黄果树瀑布（Q38432，CC BY-SA 4.0）、鼓浪屿（Q1025339，CC BY 3.0）都配上了，人工看过图，地点都对；洱海（Q83628）唯一的图许可证和构图都不合格，没有配；洪崖洞排在最后，脚本逐个查、超过了每批 25 秒，按设计记"这次查不了"（实际接口里卡片并行查，会去 Pixabay）。单个地标 2–8 秒，多数时间花在 Wikidata 查询上。第一次实测发现缩略图地址已改成 `thumb.wikimedia.org`，下载被主机白名单挡掉，已加入白名单后重测。当时另用生产构建打开 /photo-credits，4 张维基照片都按文件名锚点列出，缩略图经 `/_next/image` 正常加载；这是已移除的旧全量列表页的历史验证，不代表 1.0642 恢复的介绍页示例署名页覆盖运行时照片。
 
 **运行时照片存在哪：**[MediaPhotoStore](../src/platform/place-photos/media-photo-store.ts) 把文件放在 `MERI_MEDIA_DIR/place-photos/` 下，不放 `public/`：生产模式的 Next 在启动时就确定了 `public/` 里有哪些文件，之后写进去的不会被访问到。
 

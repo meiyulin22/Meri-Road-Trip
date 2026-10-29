@@ -286,3 +286,8 @@
     transform: none !important;
   }
 }
+
+.aboutLink { align-self: center; color: var(--home-muted); font-size: .78rem; padding: .5rem .25rem; text-underline-offset: 4px; }
+.aboutLink:hover { text-decoration: underline; }
+.aboutLink:focus-visible { outline: 2px solid var(--home-ink); outline-offset: 3px; }
+@media (max-width: 480px) { .topBar { gap: .25rem; flex-wrap: wrap; } .profileButton { padding-inline: .5rem; } .aboutLink { font-size: .72rem; } }
