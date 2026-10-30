@@ -159,7 +159,7 @@ LLM 解释自然语言并提出受限 JSON；应用校验、决定是否执行�
 
 下表按目录分类，每个路径都有独立一行。测试不是运行时业务层；同目录测试主要验证对应层的规则或适配边界，多数使用 mock/内存替身，不据此宣称真实提供方已验证。
 
-本次索引按路径去重共 404 个文件，其中 105 个测试文件。
+本次索引按路径去重共 416 个文件，其中 107 个测试文件。
 
 ### 6.1 根目录配置与入口
 
@@ -218,6 +218,7 @@ LLM 解释自然语言并提出受限 JSON；应用校验、决定是否执行�
 | [src/app/api/trips/[id]/route.ts](../src/app/api/trips/%5Bid%5D/route.ts) | HTTP 接口层 | DELETE /api/trips/[id] 只删除当前访客拥有的 Trip，数据库级联清理状态和消息。 |
 | [src/app/api/trips/[id]/state/route.ts](../src/app/api/trips/%5Bid%5D/state/route.ts) | HTTP 接口层 | GET 状态/PATCH 领域校验后的 patch；调用 JourneyService，不自行做高德核验，冲突错误当前未单独映射 409。 |
 | [src/app/intro/page.tsx](../src/app/intro/page.tsx) | 页面/框架入口 | /intro 服务端入口，按访客语言生成标题/描述，用本地图集的三座城市代表图渲染 IntroPage，不调用业务或远程接口。 |
+| [src/app/plan-preview/page.tsx](../src/app/plan-preview/page.tsx) | 页面/框架入口 | /plan-preview：计划页的设计预览（1.1000），按访客语言生成标题，渲染 PlanPreview；示例数据，不读数据库、不调用任何远程接口，不对搜索引擎开放，也没有从旅程链接进来。 |
 | [src/app/globals.css](../src/app/globals.css) | 页面/框架入口 | 全站基础样式与通用视觉变量。 |
 | [src/app/layout.tsx](../src/app/layout.tsx) | 页面/框架入口 | 根布局、字体、全局样式及站点 metadata/图标；按访客语言设置 `<html lang>`、标题/描述，包上 LocaleProvider。 |
 | [src/app/manifest.ts](../src/app/manifest.ts) | 页面/框架入口 | PWA Web App Manifest，声明名称、启动地址、显示方式和图标；不提供离线缓存。 |
@@ -319,6 +320,24 @@ LLM 解释自然语言并提出受限 JSON；应用校验、决定是否执行�
 | [src/components/companion/red-panda-look-model.test.ts](../src/components/companion/red-panda-look-model.test.ts) | 测试 | 覆盖各方向和斜向、连续映射、非方形行距、异常坐标与暂停条件。 |
 | [src/components/companion/red-panda-look.module.css](../src/components/companion/red-panda-look.module.css) | 表现层 | 首页小熊猫的输入边缘遮罩、120/96px 尺寸、互斥媒体表面与静态降级。 |
 | [src/components/companion/red-panda-look.tsx](../src/components/companion/red-panda-look.tsx) | 表现层 | 首页焦点装饰与持久媒体节点，挂载/清理探头和转头运行时。 |
+
+### 6.5a 计划页表现层（设计预览，1.1000）
+
+Generate plan 背后的计划页先用示例数据做出完整页面（设计决定见 [docs/agent-planner/README.md](agent-planner/README.md) 4.7）。字段按以后 Planner 要返回的形状定；Planner 做好后由保存的计划填充。
+
+| 文件地址 | 层/类别 | 做什么 |
+| --- | --- | --- |
+| [src/components/trip-plan/plan-preview.tsx](../src/components/trip-plan/plan-preview.tsx) | 表现层 | 预览页的编排：右下角预览开关切换三种状态（生成中：按定时的假事件逐步点亮进度、区块从骨架填进内容；只有目的地：第 1 天排好、其余锁住；全部填好）；在页面上点选天数、日期、出发地、交通方式后，只让依赖它的区块"重新规划"一下；顶部事实点"修改"会重新锁住对应区块；修改对话框带小熊猫，提交后显示"修改还没接上"的示例回复。 |
+| [src/components/trip-plan/plan-view.ts](../src/components/trip-plan/plan-view.ts) | 表现层纯函数 | 计划页的数据形状（日程、景点、路程、核实来源、天气、住宿、交通选项、记忆、运行统计），以及规则：每个区块需要哪些事实、某个事实影响哪些区块、一次运行有哪些步骤（第 1 天先排）、某步完成后哪个区块就绪、时长文字、核实计数、日期推算。 |
+| [src/components/trip-plan/plan-view.test.ts](../src/components/trip-plan/plan-view.test.ts) | 测试（对应模块边界） | 验证只有目的地时只有第 1 天可排、改一个事实只重排用到它的区块、运行步骤顺序和跳过锁住的区块、中英文时长、示例数据自洽（每两个景点间一段路）、日期跨月推算。 |
+| [src/components/trip-plan/plan-sample.ts](../src/components/trip-plan/plan-sample.ts) | 示例数据 | 云南 5 天（丽江 → 大理、带父母）的示例计划：景点用真实经纬度和本地图集照片；时间、价格、来源、航班和酒店都是编的（酒店名虚构），来源不带链接。 |
+| [src/components/trip-plan/plan-header.tsx](../src/components/trip-plan/plan-header.tsx) | 表现层 | 顶栏（Meri 标志、回到旅程、"示例数据"标记、语言切换）；标题和一句话总览、一眼概览（天数、城市、路上时长、核实数）、事实条（没填的虚线标出，点一下跳到对应区块；填了的可修改）、记忆标签（悬停看原话，可删）。 |
+| [src/components/trip-plan/plan-sections.tsx](../src/components/trip-plan/plan-sections.tsx) | 表现层 | 生成进度（当前步骤、进度条、步骤列表，完成后收成一行运行统计）、规划中的骨架区块、锁住的区块（天数、出发日期、出发地 + 交通方式，各自写明要什么、就地点选）、怎么去（只展开推荐的一班，其余折叠；自驾时只给说明）、核实情况卡。 |
+| [src/components/trip-plan/day-card.tsx](../src/components/trip-plan/day-card.tsx) | 表现层 | 一天的卡片：收起时一行（第几天、日期、城市、标题、天气）；展开时照片、上午/下午天气、时间线（时间、景点、开放时间和核实标记及来源、提示、"我选了 X"的替换候选、两点之间的车程或步行）、可行性一句话、还不知道的事、住哪里和每晚价格；没日期时天气和价格显示锁住的说明；悬停景点会在地图上标亮。 |
+| [src/components/trip-plan/plan-map.tsx](../src/components/trip-plan/plan-map.tsx) | 表现层 | 示意地图（SVG）：湖、山脊、道路、城镇，当天景点按顺序编号并连线（步行虚线），其他天的点淡显；按天/全程切换，镜头平滑移过去；地名统一中文；正式版换成天地图。 |
+| [src/components/trip-plan/plan-map-model.ts](../src/components/trip-plan/plan-map-model.ts) | 表现层纯函数 | 丽江—大理一带的平面投影、把一组点放进方框的取景、镜头插值，以及粗略画的湖泊、山脊和道路坐标。 |
+| [src/components/trip-plan/plan-map-model.test.ts](../src/components/trip-plan/plan-map-model.test.ts) | 测试（对应模块边界） | 验证北在上东在右、取景后所有点落在留白之内且单个点不会无限放大、镜头插值。 |
+| [src/components/trip-plan/trip-plan.module.css](../src/components/trip-plan/trip-plan.module.css) | 样式 | 和 Workspace 同一张纸张卡片和阿尔卑斯背景；桌面两栏（日程 + 固定的地图），手机单栏（进度、地图、日程）；页面自己滚动，地图才能固定；减少动态效果时不做过渡。 |
 
 ### 6.6 基础 UI 组件
 
