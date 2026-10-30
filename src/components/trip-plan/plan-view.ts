@@ -53,6 +53,13 @@ export interface PlanWeather {
   readonly afternoon: Sky;
   readonly low: number;
   readonly high: number;
+  /** A few points through the day, for the forecast strip. */
+  readonly hours: readonly { readonly time: string; readonly sky: Sky; readonly temp: number }[];
+  /** Beaufort scale. */
+  readonly wind: number;
+  readonly sunrise: string;
+  /** Why the day is arranged as it is because of the weather, when it is. */
+  readonly reason?: Localized;
 }
 
 export interface PlanHotel {
@@ -94,8 +101,11 @@ export interface PlanJourneyOption {
 export interface PlanMemory {
   readonly id: string;
   readonly label: Localized;
-  /** The user's own words it came from, checked against the conversation. */
-  readonly quote: string;
+  /**
+   * Where it came from: the traveller's own words in the conversation (checked against
+   * it), or typed in on the plan page, where the words are the label itself.
+   */
+  readonly from: { readonly quote: string } | "added";
 }
 
 export interface PlanRun {
@@ -105,6 +115,8 @@ export interface PlanRun {
 }
 
 export interface SamplePlan {
+  /** When the plan was made: forecasts reach about 16 days from here. */
+  readonly asOf: string;
   readonly province: string;
   readonly cities: readonly { readonly name: string; readonly nameEn: string }[];
   readonly days: readonly PlanDay[];

@@ -1,12 +1,14 @@
 "use client";
 
-import { BedDouble, Car, Check, ChevronDown, Cloud, CloudRain, CloudSun, Footprints, Lock, Sun, Utensils } from "lucide-react";
+import { BedDouble, Car, Check, ChevronDown, Cloud, CloudRain, CloudSun, Footprints, Lock, Navigation, Sun, Sunrise, Sunset, Utensils, Wind } from "lucide-react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import Image from "next/image";
+import { useEffect, useRef, useState } from "react";
 
 import { useLocale, useMessages } from "@/components/i18n/locale-context";
 
-import { duration, type PlanDay, type Sky } from "./plan-view";
+import { navigationLinks } from "./plan-actions";
+import { duration, type PlanDay, type PlanStop, type Sky } from "./plan-view";
 import styles from "./trip-plan.module.css";
 
 const skyIcon: Record<Sky, typeof Sun> = { sunny: Sun, cloudy: CloudSun, overcast: Cloud, rain: CloudRain };
@@ -17,13 +19,14 @@ const skyIcon: Record<Sky, typeof Sun> = { sunny: Sun, cloudy: CloudSun, overcas
  * day is doable before sunset, what is still unknown, and where to sleep. Closed, it is
  * one line, and opening it also moves the map to that day.
  */
-export function DayCard({ day, date, open, onOpen, weatherKnown, pricesKnown, onHighlight }: {
+export function DayCard({ day, date, open, onOpen, weather, pricesKnown, onHighlight }: {
   readonly day: PlanDay;
   /** Null until the start date is known. */
   readonly date: string | null;
   readonly open: boolean;
   readonly onOpen: () => void;
-  readonly weatherKnown: boolean;
+  /** A forecast, the usual weather for the season when the day is too far ahead, or nothing before the date is known. */
+  readonly weather: "forecast" | "climate" | null;
   readonly pricesKnown: boolean;
   readonly onHighlight: (stop: string | null) => void;
 }) {
@@ -45,7 +48,7 @@ export function DayCard({ day, date, open, onOpen, weatherKnown, pricesKnown, on
           <span className={styles.dayTitle} id={headingId}>{day.title[locale]}</span>
         </span>
         <span className={styles.dayAside}>
-          {weatherKnown ? (
+          {weather ? (
             <span className={styles.weatherBadge}>
               <SkyIcon aria-hidden="true" size={15} />
               {day.weather.low}°–{day.weather.high}°
@@ -69,17 +72,7 @@ export function DayCard({ day, date, open, onOpen, weatherKnown, pricesKnown, on
               <Image src={`/photos/${day.photo.file}`} alt="" fill sizes="(max-width: 900px) 100vw, 640px" />
               <span>{text.photoBy(day.photo.artist)}</span>
             </div>
-            <div className={styles.dayWeatherRow}>
-              {weatherKnown ? (
-                <>
-                  <WeatherHalf label={text.morning} sky={day.weather.morning} />
-                  <WeatherHalf label={text.afternoon} sky={day.weather.afternoon} />
-                  <span className={styles.weatherRange}>{day.weather.low}° / {day.weather.high}°</span>
-                </>
-              ) : (
-                <span className={styles.lockedLine}><Lock aria-hidden="true" size={13} />{text.weatherLocked}</span>
-              )}
-            </div>
+            <DayWeather day={day} kind={weather} />
             <ol className={styles.timeline}>
               {day.stops.map((stop, index) => {
                 const leg = day.legs[index];
@@ -94,9 +87,10 @@ export function DayCard({ day, date, open, onOpen, weatherKnown, pricesKnown, on
                       </span>
                       <div className={styles.stopContent}>
                         <h3>
-                          {stop.name}
+                          <span className={styles.stopName}>{stop.name}</span>
                           {locale === "en" ? <span className={styles.stopNameEn}>{stop.nameEn}</span> : null}
                           {stop.kind === "sight" ? null : <span className={styles.stopKind}>{text.kinds[stop.kind]}</span>}
+                          <NavigateMenu stop={stop} />
                         </h3>
                         {stop.hours ? (
                           <p className={styles.stopHours}>
@@ -167,6 +161,89 @@ export function DayCard({ day, date, open, onOpen, weatherKnown, pricesKnown, on
         ) : null}
       </AnimatePresence>
     </article>
+  );
+}
+
+/**
+ * The day's weather. A forecast shows morning and afternoon, a few hours through the day,
+ * wind, sunrise and sunset, and why the day is arranged as it is when the weather decided
+ * it. Too far ahead it shows the usual weather for the season and says so.
+ */
+function DayWeather({ day, kind }: { readonly day: PlanDay; readonly kind: "forecast" | "climate" | null }) {
+  const locale = useLocale();
+  const text = useMessages().plan;
+  if (kind === null) {
+    return <div className={styles.dayWeather}><span className={styles.lockedLine}><Lock aria-hidden="true" size={13} />{text.weatherLocked}</span></div>;
+  }
+  const weather = day.weather;
+  return (
+    <div className={styles.dayWeather} data-kind={kind}>
+      <div className={styles.weatherTop}>
+        <span className={styles.weatherKind}>{kind === "forecast" ? text.forecast : text.climate}</span>
+        <WeatherHalf label={text.morning} sky={weather.morning} />
+        <WeatherHalf label={text.afternoon} sky={weather.afternoon} />
+        <span className={styles.weatherRange}>{weather.low}° / {weather.high}°</span>
+      </div>
+      {kind === "forecast" ? (
+        <>
+          <ol className={styles.hourly}>
+            {weather.hours.map((hour) => {
+              const Icon = skyIcon[hour.sky];
+              return (
+                <li key={hour.time}>
+                  <span>{hour.time}</span>
+                  <Icon aria-label={text.sky[hour.sky]} size={16} />
+                  <strong>{hour.temp}°</strong>
+                </li>
+              );
+            })}
+          </ol>
+          <p className={styles.weatherFacts}>
+            <span><Wind aria-hidden="true" size={13} />{text.wind(weather.wind)}</span>
+            <span><Sunrise aria-hidden="true" size={13} />{text.sunrise(weather.sunrise)}</span>
+            <span><Sunset aria-hidden="true" size={13} />{text.sunset(day.feasibility.sunset)}</span>
+          </p>
+          {weather.reason ? <p className={styles.weatherReason}><CloudSun aria-hidden="true" size={15} />{weather.reason[locale]}</p> : null}
+        </>
+      ) : (
+        <p className={styles.weatherClimate}>{text.climateNote}</p>
+      )}
+    </div>
+  );
+}
+
+/** Open a stop in the traveller's own map app: links only, nothing is called from Meri. */
+function NavigateMenu({ stop }: { readonly stop: PlanStop }) {
+  const locale = useLocale();
+  const text = useMessages().plan;
+  const [open, setOpen] = useState(false);
+  const box = useRef<HTMLSpanElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const close = (event: PointerEvent) => { if (!box.current?.contains(event.target as Node)) setOpen(false); };
+    const escape = (event: KeyboardEvent) => { if (event.key === "Escape") setOpen(false); };
+    document.addEventListener("pointerdown", close);
+    document.addEventListener("keydown", escape);
+    return () => { document.removeEventListener("pointerdown", close); document.removeEventListener("keydown", escape); };
+  }, [open]);
+
+  return (
+    <span className={styles.navigate} ref={box}>
+      <button type="button" aria-label={text.navigateTo(stop.name)} title={text.navigate} aria-expanded={open}
+        onClick={() => setOpen(!open)}>
+        <Navigation aria-hidden="true" size={13} />
+      </button>
+      {open ? (
+        <span className={styles.navigateMenu} role="menu">
+          {navigationLinks(stop, locale).map((link) => (
+            <a key={link.app} role="menuitem" href={link.url} target="_blank" rel="noopener noreferrer" onClick={() => setOpen(false)}>
+              {text.mapApps[link.app]}
+            </a>
+          ))}
+        </span>
+      ) : null}
+    </span>
   );
 }
 

@@ -159,7 +159,7 @@ LLM 解释自然语言并提出受限 JSON；应用校验、决定是否执行�
 
 下表按目录分类，每个路径都有独立一行。测试不是运行时业务层；同目录测试主要验证对应层的规则或适配边界，多数使用 mock/内存替身，不据此宣称真实提供方已验证。
 
-本次索引按路径去重共 416 个文件，其中 107 个测试文件。
+本次索引按路径去重共 419 个文件，其中 108 个测试文件。
 
 ### 6.1 根目录配置与入口
 
@@ -321,23 +321,26 @@ LLM 解释自然语言并提出受限 JSON；应用校验、决定是否执行�
 | [src/components/companion/red-panda-look.module.css](../src/components/companion/red-panda-look.module.css) | 表现层 | 首页小熊猫的输入边缘遮罩、120/96px 尺寸、互斥媒体表面与静态降级。 |
 | [src/components/companion/red-panda-look.tsx](../src/components/companion/red-panda-look.tsx) | 表现层 | 首页焦点装饰与持久媒体节点，挂载/清理探头和转头运行时。 |
 
-### 6.5a 计划页表现层（设计预览，1.1000）
+### 6.5a 计划页表现层（设计预览，1.1000 起）
 
 Generate plan 背后的计划页先用示例数据做出完整页面（设计决定见 [docs/agent-planner/README.md](agent-planner/README.md) 4.7）。字段按以后 Planner 要返回的形状定；Planner 做好后由保存的计划填充。
 
 | 文件地址 | 层/类别 | 做什么 |
 | --- | --- | --- |
-| [src/components/trip-plan/plan-preview.tsx](../src/components/trip-plan/plan-preview.tsx) | 表现层 | 预览页的编排：右下角预览开关切换三种状态（生成中：按定时的假事件逐步点亮进度、区块从骨架填进内容；只有目的地：第 1 天排好、其余锁住；全部填好）；在页面上点选天数、日期、出发地、交通方式后，只让依赖它的区块"重新规划"一下；顶部事实点"修改"会重新锁住对应区块；修改对话框带小熊猫，提交后显示"修改还没接上"的示例回复。 |
+| [src/components/trip-plan/plan-preview.tsx](../src/components/trip-plan/plan-preview.tsx) | 表现层 | 预览页的编排：右下角预览开关切换三种状态（生成中：按定时的假事件逐步点亮进度、区块从骨架填进内容；只有目的地：第 1 天排好、其余锁住；全部填好）；在页面上点选天数、日期、出发地、交通方式后，只让依赖它的区块"重新规划"一下；顶部事实点"修改"会重新锁住对应区块；修改对话框带小熊猫，提交后显示"修改还没接上"的示例回复。1.1001 起：天气按出发日期分预报 / 往年同期；手动添加偏好后出现"按新偏好重新规划"，点了只重排各天；导出菜单下载日历、打印时所有天展开。 |
 | [src/components/trip-plan/plan-view.ts](../src/components/trip-plan/plan-view.ts) | 表现层纯函数 | 计划页的数据形状（日程、景点、路程、核实来源、天气、住宿、交通选项、记忆、运行统计），以及规则：每个区块需要哪些事实、某个事实影响哪些区块、一次运行有哪些步骤（第 1 天先排）、某步完成后哪个区块就绪、时长文字、核实计数、日期推算。 |
 | [src/components/trip-plan/plan-view.test.ts](../src/components/trip-plan/plan-view.test.ts) | 测试（对应模块边界） | 验证只有目的地时只有第 1 天可排、改一个事实只重排用到它的区块、运行步骤顺序和跳过锁住的区块、中英文时长、示例数据自洽（每两个景点间一段路）、日期跨月推算。 |
-| [src/components/trip-plan/plan-sample.ts](../src/components/trip-plan/plan-sample.ts) | 示例数据 | 云南 5 天（丽江 → 大理、带父母）的示例计划：景点用真实经纬度和本地图集照片；时间、价格、来源、航班和酒店都是编的（酒店名虚构），来源不带链接。 |
-| [src/components/trip-plan/plan-header.tsx](../src/components/trip-plan/plan-header.tsx) | 表现层 | 顶栏（Meri 标志、回到旅程、"示例数据"标记、语言切换）；标题和一句话总览、一眼概览（天数、城市、路上时长、核实数）、事实条（没填的虚线标出，点一下跳到对应区块；填了的可修改）、记忆标签（悬停看原话，可删）。 |
+| [src/components/trip-plan/plan-actions.ts](../src/components/trip-plan/plan-actions.ts) | 表现层纯函数 | 1.1001：景点在高德 / Apple 地图 / Google 地图打开的外链（只是链接，不要 key；坐标原样发出，高德用 `coordinate=wgs84` 自己换算；中文界面高德在前、英文 Google 在前；Apple 的参数尚未对照官方页面复核）；某天是预报还是往年同期（16 天）；把计划写成 .ics 日历（每个非住宿景点一个日程，东八区时间、地点坐标、开放时间和提示）。 |
+| [src/components/trip-plan/plan-actions.test.ts](../src/components/trip-plan/plan-actions.test.ts) | 测试（对应模块边界） | 验证三种地图链接和中英排序、16 天预报界线、日历的事件数、开始结束时间、坐标和首尾格式。 |
+| [src/components/trip-plan/plan-preferences.tsx](../src/components/trip-plan/plan-preferences.tsx) | 表现层 | 1.1001：手动添加偏好的面板，手机上从底部弹出、电脑上是小窗；可输入一句话或点常用标签；保存只加进"Meri 记得"，不自动重排。 |
+| [src/components/trip-plan/plan-sample.ts](../src/components/trip-plan/plan-sample.ts) | 示例数据 | 云南 5 天（丽江 → 大理、带父母）的示例计划：景点用真实经纬度和本地图集照片；时间、价格、来源、天气（逐几小时、风、日出、因天气调整的理由）、航班和酒店都是编的（酒店名虚构），来源不带链接。 |
+| [src/components/trip-plan/plan-header.tsx](../src/components/trip-plan/plan-header.tsx) | 表现层 | 顶栏（Meri 标志、回到旅程、"示例数据"标记、语言切换）；标题和一句话总览、一眼概览（天数、城市、路上时长、核实数）、事实条（没填的虚线标出，点一下跳到对应区块；填了的可修改）、记忆标签（自动记下的悬停看原话，手动加的标"你添加的"，可删，末尾"＋ 添加"）、导出菜单（添加到日历、打印 / 存为 PDF，长图分享和离线保存标"即将推出"）。 |
 | [src/components/trip-plan/plan-sections.tsx](../src/components/trip-plan/plan-sections.tsx) | 表现层 | 生成进度（当前步骤、进度条、步骤列表，完成后收成一行运行统计）、规划中的骨架区块、锁住的区块（天数、出发日期、出发地 + 交通方式，各自写明要什么、就地点选）、怎么去（只展开推荐的一班，其余折叠；自驾时只给说明）、核实情况卡。 |
-| [src/components/trip-plan/day-card.tsx](../src/components/trip-plan/day-card.tsx) | 表现层 | 一天的卡片：收起时一行（第几天、日期、城市、标题、天气）；展开时照片、上午/下午天气、时间线（时间、景点、开放时间和核实标记及来源、提示、"我选了 X"的替换候选、两点之间的车程或步行）、可行性一句话、还不知道的事、住哪里和每晚价格；没日期时天气和价格显示锁住的说明；悬停景点会在地图上标亮。 |
+| [src/components/trip-plan/day-card.tsx](../src/components/trip-plan/day-card.tsx) | 表现层 | 一天的卡片：收起时一行（第几天、日期、城市、标题、天气）；展开时照片、上午/下午天气、时间线（时间、景点、开放时间和核实标记及来源、提示、"我选了 X"的替换候选、两点之间的车程或步行）、可行性一句话、还不知道的事、住哪里和每晚价格；没日期时天气和价格显示锁住的说明；悬停景点会在地图上标亮。1.1001：天气块（预报：上午/下午、逐几小时温度、风、日出日落、因天气这样安排的理由；太远：往年同期加说明），每个景点名旁的导航按钮（选地图 App）。 |
 | [src/components/trip-plan/plan-map.tsx](../src/components/trip-plan/plan-map.tsx) | 表现层 | 示意地图（SVG）：湖、山脊、道路、城镇，当天景点按顺序编号并连线（步行虚线），其他天的点淡显；按天/全程切换，镜头平滑移过去；地名统一中文；正式版换成天地图。 |
 | [src/components/trip-plan/plan-map-model.ts](../src/components/trip-plan/plan-map-model.ts) | 表现层纯函数 | 丽江—大理一带的平面投影、把一组点放进方框的取景、镜头插值，以及粗略画的湖泊、山脊和道路坐标。 |
 | [src/components/trip-plan/plan-map-model.test.ts](../src/components/trip-plan/plan-map-model.test.ts) | 测试（对应模块边界） | 验证北在上东在右、取景后所有点落在留白之内且单个点不会无限放大、镜头插值。 |
-| [src/components/trip-plan/trip-plan.module.css](../src/components/trip-plan/trip-plan.module.css) | 样式 | 和 Workspace 同一张纸张卡片和阿尔卑斯背景；桌面两栏（日程 + 固定的地图），手机单栏（进度、地图、日程）；页面自己滚动，地图才能固定；减少动态效果时不做过渡。 |
+| [src/components/trip-plan/trip-plan.module.css](../src/components/trip-plan/trip-plan.module.css) | 样式 | 和 Workspace 同一张纸张卡片和阿尔卑斯背景；桌面两栏（日程 + 固定的地图），手机单栏（进度、地图、日程）；页面自己滚动，地图才能固定；减少动态效果时不做过渡；偏好面板手机上从底部弹出；打印时去掉背景、地图和工具，所有天展开。 |
 
 ### 6.6 基础 UI 组件
 

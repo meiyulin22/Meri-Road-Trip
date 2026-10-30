@@ -8,8 +8,10 @@ import { useLocale, useMessages } from "@/components/i18n/locale-context";
 import { ChatComposer } from "@/components/ui/chat-composer";
 
 import { DayCard } from "./day-card";
+import { planCalendar, weatherKind } from "./plan-actions";
 import { PlanHeading, PlanTopBar } from "./plan-header";
 import { PlanMap } from "./plan-map";
+import { PreferenceSheet } from "./plan-preferences";
 import { samplePlan } from "./plan-sample";
 import { GettingThere, LockedDates, LockedDays, LockedGettingThere, PlanningSection, PlanProgress, SourcesCard } from "./plan-sections";
 import {
@@ -32,7 +34,7 @@ const factSection: Record<FactKey, string> = {
 };
 
 /**
- * The plan page as designed for 1.1000, on sample data. A preview switch shows its three
+ * The plan page as designed from 1.1000, on sample data. A preview switch shows its three
  * states: a run filling the page in step by step, a plan made from the destination alone
  * (the first day, the rest locked behind the facts they need), and a full plan. Facts given
  * on the page re-plan only the sections that use them, as the real page will.
@@ -52,6 +54,18 @@ export function PlanPreview() {
   const [memories, setMemories] = useState(samplePlan.memories);
   const [draft, setDraft] = useState("");
   const [replied, setReplied] = useState(false);
+  const [sheetOpen, setSheetOpen] = useState(false);
+  const [replanOffered, setReplanOffered] = useState(false);
+  // Printing opens every day, so the paper copy has the whole trip.
+  const [printing, setPrinting] = useState(false);
+
+  useEffect(() => {
+    const before = () => setPrinting(true);
+    const after = () => setPrinting(false);
+    window.addEventListener("beforeprint", before);
+    window.addEventListener("afterprint", after);
+    return () => { window.removeEventListener("beforeprint", before); window.removeEventListener("afterprint", after); };
+  }, []);
 
   const steps = runSteps(stage === "generating" ? allFacts : facts);
   const running = stage === "generating" && done < steps.length;
@@ -78,6 +92,32 @@ export function PlanPreview() {
     setMapDay(1);
     setMemories(samplePlan.memories);
     setReplied(false);
+    setReplanOffered(false);
+  }
+
+  function addPreferences(labels: readonly string[]) {
+    const added = labels.map((label, index) => ({ id: `added-${Date.now()}-${index}`, label: { zh: label, en: label }, from: "added" as const }));
+    setMemories([...memories, ...added]);
+    setSheetOpen(false);
+    setReplanOffered(true);
+  }
+
+  /** Preferences touch every day, so a re-plan for them covers all the days, and only them. */
+  function replanForPreferences() {
+    setReplanOffered(false);
+    setReplanning(["firstDay", "otherDays"]);
+  }
+
+  function downloadCalendar() {
+    if (!facts.startDate) return;
+    const title = samplePlan.cities.map((city) => locale === "zh" ? city.name : city.nameEn).join(" → ");
+    const blob = new Blob([planCalendar(shownDays, facts.startDate, locale, title)], { type: "text/calendar;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = "meri-trip.ics";
+    link.click();
+    URL.revokeObjectURL(url);
   }
 
   /** Give a fact: the sections it unlocks are planned now, and nothing else is touched. */
@@ -118,7 +158,8 @@ export function PlanPreview() {
     <div className={styles.page}>
       <div className={styles.background} aria-hidden="true" />
       <div className={styles.sheet}>
-        <PlanTopBar />
+        <PlanTopBar calendarReady={facts.startDate !== null && shownDays.length > 0} onCalendar={downloadCalendar}
+          onPrint={() => window.print()} />
         <PlanHeading plan={samplePlan} facts={facts} memories={memories}
           overview={text.overview(facts.days, missing, ready("firstDay"))}
           glance={shownDays.length === 0 ? null : {
@@ -127,7 +168,8 @@ export function PlanPreview() {
             roadMinutes: shownDays.reduce((sum, day) => sum + day.feasibility.roadMinutes, 0),
             checked: verificationCount(shownDays).verified,
           }}
-          onFact={onFact} onForget={(id) => setMemories(memories.filter((memory) => memory.id !== id))} />
+          onFact={onFact} onForget={(id) => setMemories(memories.filter((memory) => memory.id !== id))}
+          onAddPreference={() => setSheetOpen(true)} replanOffered={replanOffered} onReplan={replanForPreferences} />
         <div className={styles.columns}>
           <div className={styles.planColumn}>
             {stage === "generating" ? <PlanProgress steps={steps} done={done} run={samplePlan.run} /> : (
@@ -151,9 +193,9 @@ export function PlanPreview() {
             {shownDays.map((day) => (
               <Appear key={day.day}>
                 <DayCard day={day} date={start ? addDays(start, day.day - 1) : null}
-                  open={openDay === day.day}
+                  open={printing || openDay === day.day}
                   onOpen={() => { setOpenDay(openDay === day.day ? null : day.day); setMapDay(day.day); }}
-                  weatherKnown={ready("weather")} pricesKnown={ready("stays")} onHighlight={setHighlighted} />
+                  weather={ready("weather") && start ? weatherKind(addDays(start, day.day - 1), samplePlan.asOf) : null} pricesKnown={ready("stays")} onHighlight={setHighlighted} />
               </Appear>
             ))}
             <div id="plan-other-days">
@@ -189,6 +231,8 @@ export function PlanPreview() {
         </div>
         <p className={styles.footNote}>{text.sampleNote}</p>
       </div>
+
+      <PreferenceSheet open={sheetOpen} onClose={() => setSheetOpen(false)} onSave={addPreferences} />
 
       <div className={styles.previewSwitch} role="group" aria-label={text.previewLabel} lang={locale === "zh" ? "zh-CN" : "en"}>
         <span>{text.previewLabel}</span>

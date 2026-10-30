@@ -2,7 +2,7 @@ import type { PlanDay, SamplePlan, Verification } from "./plan-view";
 
 /**
  * Sample data for the plan page design (1.1000): five days, Lijiang then Dali, for a
- * traveller with their parents. Every number, time, price and source here is made up to
+ * traveller with their parents. Every number, time, price, forecast and source here is made up to
  * look like what the Planner will return; the page says so. Coordinates are the real
  * places', so the sketch map is laid out right. Sources have no links ("#").
  */
@@ -20,7 +20,9 @@ const days: readonly PlanDay[] = [
     cityEn: "Lijiang",
     title: { zh: "玉龙雪山和蓝月谷", en: "Jade Dragon Snow Mountain and Blue Moon Valley" },
     photo: { file: "jade-dragon-snow-mountain.jpg", artist: "we-o_rd35vacfthjzxteky" },
-    weather: { morning: "sunny", afternoon: "cloudy", low: 3, high: 15 },
+    weather: { morning: "sunny", afternoon: "cloudy", low: 3, high: 15, wind: 3, sunrise: "07:31",
+      hours: [{ time: "08:00", sky: "sunny", temp: 4 }, { time: "11:00", sky: "sunny", temp: 11 }, { time: "14:00", sky: "cloudy", temp: 15 }, { time: "17:00", sky: "cloudy", temp: 10 }],
+      reason: { zh: "上午晴、能见度好，先上雪山；午后云多起来，再去低处的白沙。", en: "Clear in the morning, so the snow mountain comes first; clouds build after noon, so lower Baisha follows." } },
     stops: [
       {
         id: "yulong",
@@ -107,7 +109,8 @@ const days: readonly PlanDay[] = [
     cityEn: "Lijiang",
     title: { zh: "黑龙潭、束河和古城慢逛", en: "Black Dragon Pool, Shuhe and the old town" },
     photo: { file: "lijiang-old-town.jpg", artist: "Charlottees" },
-    weather: { morning: "sunny", afternoon: "sunny", low: 4, high: 17 },
+    weather: { morning: "sunny", afternoon: "sunny", low: 4, high: 17, wind: 2, sunrise: "07:32",
+      hours: [{ time: "08:00", sky: "sunny", temp: 5 }, { time: "11:00", sky: "sunny", temp: 13 }, { time: "14:00", sky: "sunny", temp: 17 }, { time: "17:00", sky: "sunny", temp: 12 }] },
     stops: [
       {
         id: "heilongtan", kind: "sight", name: "黑龙潭公园", nameEn: "Black Dragon Pool Park", time: "09:00", minutes: 90,
@@ -145,7 +148,8 @@ const days: readonly PlanDay[] = [
     cityEn: "Dali",
     title: { zh: "去大理，下午在喜洲和洱海边", en: "To Dali: Xizhou and the Erhai shore" },
     photo: { file: "erhai-lake.jpg", artist: "4537668" },
-    weather: { morning: "cloudy", afternoon: "sunny", low: 7, high: 19 },
+    weather: { morning: "cloudy", afternoon: "sunny", low: 7, high: 19, wind: 3, sunrise: "07:33",
+      hours: [{ time: "08:00", sky: "cloudy", temp: 8 }, { time: "11:00", sky: "cloudy", temp: 14 }, { time: "14:00", sky: "sunny", temp: 19 }, { time: "17:00", sky: "sunny", temp: 15 }] },
     stops: [
       { id: "leave-lijiang", kind: "stay", name: "丽江古城", nameEn: "Lijiang Old Town", time: "09:00", minutes: 0, point: [100.233, 26.874] },
       {
@@ -182,7 +186,9 @@ const days: readonly PlanDay[] = [
     cityEn: "Dali",
     title: { zh: "苍山索道和崇圣寺三塔", en: "Cangshan by cable car and the Three Pagodas" },
     photo: { file: "cangshan-dali.jpg", artist: "pony96" },
-    weather: { morning: "sunny", afternoon: "overcast", low: 8, high: 18 },
+    weather: { morning: "sunny", afternoon: "overcast", low: 8, high: 18, wind: 5, sunrise: "07:33",
+      hours: [{ time: "08:00", sky: "sunny", temp: 9 }, { time: "11:00", sky: "sunny", temp: 15 }, { time: "14:00", sky: "overcast", temp: 18 }, { time: "17:00", sky: "rain", temp: 13 }],
+      reason: { zh: "下午转阴、风大到 5 级，索道可能停运，所以苍山放上午、三塔放下午；带件外套。", en: "Overcast and windy (force 5) in the afternoon, when the cable car may stop: Cangshan goes in the morning, the pagodas after lunch. Bring a jacket." } },
     stops: [
       {
         id: "cangshan", kind: "sight", name: "苍山", nameEn: "Cangshan", time: "09:00", minutes: 180, point: [100.118, 25.662],
@@ -211,7 +217,8 @@ const days: readonly PlanDay[] = [
     cityEn: "Dali",
     title: { zh: "双廊看洱海，下午回上海", en: "Erhai at Shuanglang, then home" },
     photo: { file: "erhai-lake.jpg", artist: "4537668" },
-    weather: { morning: "sunny", afternoon: "sunny", low: 8, high: 20 },
+    weather: { morning: "sunny", afternoon: "sunny", low: 8, high: 20, wind: 2, sunrise: "07:34",
+      hours: [{ time: "08:00", sky: "sunny", temp: 9 }, { time: "11:00", sky: "sunny", temp: 16 }, { time: "14:00", sky: "sunny", temp: 20 }, { time: "17:00", sky: "sunny", temp: 15 }] },
     stops: [
       {
         id: "shuanglang", kind: "sight", name: "双廊古镇", nameEn: "Shuanglang Old Town", time: "09:30", minutes: 150, point: [100.203, 25.915],
@@ -227,6 +234,7 @@ const days: readonly PlanDay[] = [
 ];
 
 export const samplePlan: SamplePlan = {
+  asOf: "2026-10-30",
   province: "云南",
   cities: [{ name: "丽江", nameEn: "Lijiang" }, { name: "大理", nameEn: "Dali" }],
   days,
@@ -245,9 +253,9 @@ export const samplePlan: SamplePlan = {
       price: 790, provider: "RollingGo", checkedAt: "10:20", recommended: true },
   ],
   memories: [
-    { id: "parents", label: { zh: "带父母出行", en: "Travelling with parents" }, quote: "这次带我爸妈一起去" },
-    { id: "knee", label: { zh: "爸爸膝盖不好，少爬台阶", en: "Dad's knee: few stairs" }, quote: "我爸膝盖不太好，别安排爬山" },
-    { id: "spicy", label: { zh: "不吃辣", en: "No spicy food" }, quote: "我们都不吃辣" },
+    { id: "parents", label: { zh: "带父母出行", en: "Travelling with parents" }, from: { quote: "这次带我爸妈一起去" } },
+    { id: "knee", label: { zh: "爸爸膝盖不好，少爬台阶", en: "Dad's knee: few stairs" }, from: { quote: "我爸膝盖不太好，别安排爬山" } },
+    { id: "spicy", label: { zh: "不吃辣", en: "No spicy food" }, from: { quote: "我们都不吃辣" } },
   ],
   run: { seconds: 38, toolCalls: 41, costYuan: 0.21 },
 };
