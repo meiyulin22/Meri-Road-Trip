@@ -159,7 +159,7 @@ LLM 解释自然语言并提出受限 JSON；应用校验、决定是否执行�
 
 下表按目录分类，每个路径都有独立一行。测试不是运行时业务层；同目录测试主要验证对应层的规则或适配边界，多数使用 mock/内存替身，不据此宣称真实提供方已验证。
 
-本次索引按路径去重共 419 个文件，其中 108 个测试文件。
+本次索引按路径去重共 428 个文件，其中 108 个测试文件。
 
 ### 6.1 根目录配置与入口
 
@@ -195,6 +195,7 @@ LLM 解释自然语言并提出受限 JSON；应用校验、决定是否执行�
 | [docs/agent-planner/agent-lessons.md](../docs/agent-planner/agent-lessons.md) | 文档/规划 | 规划时讲过的 Agent 概念笔记：Agent 循环、生成者与验证者、MCP、记忆，用 Meri 的试验举例。 |
 | [docs/product/adaptive-workspace.md](../docs/product/adaptive-workspace.md) | 文档/开发约定 | 精简的未来界面方向：按用户决定调整信息重点，保留状态和受控组件边界，不预选框架。 |
 | [docs/product/companion-bear.md](../docs/product/companion-bear.md) | 文档/开发约定 | 小熊设计说明：营地小桌精灵图方案、动作清单和“反应优先、自由时间随机”的行为逻辑；素材与行为已实现，文中列出仍待定的部分。 |
+| [docs/product/workspace-red-panda.md](../docs/product/workspace-red-panda.md) | 文档/交接 | 工作区小熊猫 V1 的素材路径、试样记录、实现和验收点。 |
 | [docs/product/visual-media-direction.md](../docs/product/visual-media-direction.md) | 文档/设计探索 | 保存页面评审与图像、视频、Web3D、分享产物讨论，区分已认可方向、待讨论细节和灵感；记录高德照片的当前展示位置，未在本次实施功能。 |
 
 ### 6.3 App Router 页面与 HTTP 接口
@@ -273,7 +274,8 @@ LLM 解释自然语言并提出受限 JSON；应用校验、决定是否执行�
 | [src/components/companion/companion-status-model.test.ts](../src/components/companion/companion-status-model.test.ts) | 测试（对应模块边界） | 验证小熊一句话的优先级（出错 > 思考 > 可生成 > 缺目的地）、可选缺项列举和旧目的地提示。 |
 | [src/components/companion/companion-status-model.ts](../src/components/companion/companion-status-model.ts) | 表现层 | 小熊一句话的纯规则：由 TripState 与聊天活动决定情绪和文案（文案取自传入的字典），不调用模型。 |
 | [src/components/companion/companion.module.css](../src/components/companion/companion.module.css) | 表现层 | 小熊区域在旅程列底部的固定位置、对话气泡和像素化精灵图样式。 |
-| [src/components/companion/meri-world.tsx](../src/components/companion/meri-world.tsx) | 表现层 | 旅程列底部的小熊与对话气泡：一句话来自 companionStatus，并把同样的状态作为反应交给 CompanionBear。 |
+| [src/components/companion/meri-world.tsx](../src/components/companion/meri-world.tsx) | 表现层 | 旅程列底部的小熊猫和独立状态气泡，气泡文案来自 companionStatus。 |
+| [src/components/companion/workspace-red-panda.tsx](../src/components/companion/workspace-red-panda.tsx) | 表现层 | 工作区透明视频动作队列、海报衔接、离屏暂停与静态降级。 |
 | [src/components/trip-workspace/conversation-panel.tsx](../src/components/trip-workspace/conversation-panel.tsx) | 表现层 | 聊天主组件：useChat、已保存消息、候选卡、卡片关闭/只读、确认及消息逐字显示；最后一条为 pending 时请求推荐卡片并显示加载/重试；推荐卡还有未查照片时逐条消息请求照片流，收到一张补一张；向外上报 idle/thinking/error 活动供小熊使用。 |
 | [src/components/trip-workspace/conversation-reveal.test.ts](../src/components/trip-workspace/conversation-reveal.test.ts) | 测试（对应模块边界） | 验证只对已提交文本按字符步进显示，不越界或改写正文。 |
 | [src/components/trip-workspace/conversation-reveal.ts](../src/components/trip-workspace/conversation-reveal.ts) | 表现层 | 已提交助手正文的客户端可见字符数/显示节奏纯函数；不是服务端 token 流。 |
@@ -659,6 +661,13 @@ Generate plan 背后的计划页先用示例数据做出完整页面（设计决
 | [public/brand/meri-wordmark.svg](../public/brand/meri-wordmark.svg) | 展示资源 | Journey 列表/缺状态页面使用的文字标识。 |
 | [public/companion/bear/bear-sprites.json](../public/companion/bear/bear-sprites.json) | 展示资源 | 小熊精灵图帧清单：帧尺寸、每个动画所在行、帧数和每帧毫秒；由生成脚本写出。 |
 | [public/companion/bear/bear-sprites.png](../public/companion/bear/bear-sprites.png) | 展示资源 | 小熊营地小桌精灵图：9 个动画、42 帧，1 倍尺寸透明背景；由生成脚本写出。 |
+| [public/companion/workspace-red-panda/idle.webp](../public/companion/workspace-red-panda/idle.webp) | 展示资源 | 工作区小熊猫，空手静态海报。 |
+| [public/companion/workspace-red-panda/map.webp](../public/companion/workspace-red-panda/map.webp) | 展示资源 | 工作区小熊猫，持图静态海报。 |
+| [public/companion/workspace-red-panda/take-out.webm](../public/companion/workspace-red-panda/take-out.webm) | 展示资源 | 工作区小熊猫，拿出地图。 |
+| [public/companion/workspace-red-panda/look.webm](../public/companion/workspace-red-panda/look.webm) | 展示资源 | 工作区小熊猫，低头看地图。 |
+| [public/companion/workspace-red-panda/stow.webm](../public/companion/workspace-red-panda/stow.webm) | 展示资源 | 工作区小熊猫，折好并收回地图。 |
+| [public/companion/workspace-red-panda/walk.webm](../public/companion/workspace-red-panda/walk.webm) | 展示资源 | 工作区小熊猫，悠闲折返。 |
+| [public/companion/workspace-red-panda/drink.webm](../public/companion/workspace-red-panda/drink.webm) | 展示资源 | 工作区小熊猫，单杯喝水并放回。 |
 | [public/companion/home-v2-companion.png](../public/companion/home-v2-companion.png) | 展示资源 | 聊天头像和 Workspace Companion 使用的角色图。 |
 | [public/companion/red-panda/front.webp](../public/companion/red-panda/front.webp) | 展示资源 | 中立朝向静态降级图，与最终二维网格中心格一致。 |
 | [public/companion/red-panda/look.json](../public/companion/red-panda/look.json) | 展示资源 | 17×17 姿态图集的编译清单、240px 单元和眼部锚点。 |

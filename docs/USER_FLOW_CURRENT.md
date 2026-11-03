@@ -561,18 +561,16 @@ add/set 使用 Promise.all 查询表达。解析层保留不同 provider ID，�
 
 首页右下角背包小熊继续保持撤下状态，聊天头像与 Workspace 底部像素小熊不受影响。素材页中英字典明确说明图片由 ChatGPT、视频由 MiniMax 生成。
 
-### 5.5 旅程列底部：地球装饰、照片环与小熊
+### 5.5 旅程列底部：地球装饰、照片环与小熊猫
 
-右侧列在 Journey overview 下方依次是装饰地球（外加照片环）和小熊：
+右侧列在 Journey overview 下方依次是装饰地球（外加照片环）和小熊猫：
 
 - [JourneyOrbit](../src/components/trip-workspace/journey-orbit.tsx)把已选地点的照片排成绕地球旋转的椭圆环（土星环）：每个地点一张，最多 8 张；转到后方的照片变小、变淡，压在地球线框下面，转到前方的变大、变清晰，盖在地球上面；约 48 秒转一圈，鼠标悬停时暂停，点击某张会沿最短方向转到正前方；系统要求减少动态效果时静止不转；图片加载失败的那张不显示。没有已选地点时只有地球。动画只用免费的 `motion` 包（useAnimationFrame / useTransform），没有使用付费的 Motion+ 组件。
 
 - [JourneyGlobe](../src/components/trip-workspace/journey-globe.tsx)改写自 cult-ui 的 Illustration Globe（MIT），纯 SVG 线框半球，光点沿经线流向节点。节点数等于已选地点数（有市的按市计，只有省的按 1 计，最多 6 个），只为“看着好看”，不表示真实地理位置，没有坐标、没有地图功能。系统要求减少动态效果时只显示静止节点。
-- [MeriWorld](../src/components/companion/meri-world.tsx)的小熊在桌面端固定在列底部（滚动时保持可见），旁边气泡显示一句话（见第 6 节速查表），`aria-live=polite` 让读屏软件播报变化。聊天面板把当前活动（idle / thinking / error：发送中、选卡保存中或推荐卡片生成中为 thinking，发送结果未确认或选卡保存失败为 error）上报给 [TripWorkspace](../src/components/trip-workspace/trip-workspace.tsx)，再传给小熊。
-- 小熊是坐在营地小桌（格子桌布）后的像素精灵图：[bear-sprites.png](../public/companion/bear/bear-sprites.png) 含站着、坐下、看地图、放下/拿起地图、吃饭团、站起来、欢呼、担心 9 个动画共 42 帧，由 [生成脚本](../assets/companion/bear/generate_bear_sprites.py)从同一张插画合成，以 2 倍整数缩放显示。
-- 做什么由 [bear-behavior](../src/components/companion/bear-behavior.ts)决定：气泡的状态同时作为“反应”——出错时站起来担心，Meri 回复时坐着认真看地图（站着则原地等），可以生成计划时站起来欢呼一次（旅程内容再变化才会再欢呼）。其余时间按权重随机：看地图 45、站着 25、吃饭团 20、放空 10，同一活动最多连续两次，吃完 60 秒内不再吃，坐着时更愿意继续坐着。姿势变化总是播放过渡（坐下、放下地图等），不瞬移；新反应在下一帧接管，但不打断正在进行的过渡。
-- [CompanionBear](../src/components/companion/companion-bear.tsx)负责计时播放；标签页隐藏时暂停、回来接着播；系统要求减少动态效果时只显示坐着看地图的一帧。
-- 宽度 ≤800px 时小熊不固定，随内容排在列尾。
+- [MeriWorld](../src/components/companion/meri-world.tsx) 将全身小熊猫叠放在地球下沿前方，气泡独立显示由旅程状态和聊天活动计算的一句话，继续用 `aria-live=polite` 播报。
+- [WorkspaceRedPanda](../src/components/companion/workspace-red-panda.tsx) 从空手站姿开始，按「取图 → 看图 → 收图」、折返走动、喝水循环，每组之间留出静止间隔。只有喝水时保温杯才出现，喝完回到空手站姿。角色装饰不接收指针事件。
+- 使用同画布的本地透明 WebM 与 WebP。持图海报衔接地图片段，页面隐藏或角色离屏时暂停，系统减少动态效果、媒体加载失败或解码不保留透明通道时显示静态站姿。素材和制作记录见 [工作区小熊猫 V1](product/workspace-red-panda.md)。
 
 ### 5.6 地点照片：从哪来、存在哪、怎么缓存
 
