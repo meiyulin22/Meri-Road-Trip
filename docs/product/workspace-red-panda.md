@@ -1,10 +1,10 @@
 # 工作区小熊猫 V1 交接
 
-截至 2026-11-03，用户已认可单杯喝水和无杯地图试样。V1 已接入实际工作区，用户在本地手动验收并确认效果不错。当前行为见 [USER_FLOW_CURRENT.md](../USER_FLOW_CURRENT.md)。
+截至 2026-11-03，用户已认可单杯喝水和无杯地图试样。V1 已接入实际工作区，用户在本地手动验收并确认效果不错。坐下吃饼干的独立预览于 2026-11-07 获得用户认可。当前行为见 [USER_FLOW_CURRENT.md](../USER_FLOW_CURRENT.md)。
 
 ## 已确认的方向
 
-首页与工作区共用同一只橙红色软绒小熊猫。工作区使用无帽全身站姿，背橄榄色小背包，站在地球网格下沿前方。约 150 CSS px 高可作为首轮摆位起点，实际以工作区尺寸为准。平时安静站着，偶尔看地图、走几步折返或喝水。保温杯只在喝水时从背包取出，喝完放回，地面留空。转头配合动作，伸懒腰和吃饼干留待后续。
+首页与工作区共用同一只橙红色软绒小熊猫。工作区使用无帽全身站姿，背橄榄色小背包，站在地球网格下沿前方。约 150 CSS px 高可作为首轮摆位起点，实际以工作区尺寸为准。平时安静站着，偶尔看地图、走几步折返、喝水或坐下吃饼干。保温杯只在喝水时从背包取出，喝完放回，地面留空。转头配合动作，伸懒腰留待后续。
 
 ## 素材和生成记录
 
@@ -30,6 +30,12 @@
 
 ## V1 本地验收记录
 
-透明交付物位于 `public/companion/workspace-red-panda/`，包括 5 条 VP9 WebM 和 2 张 WebP。画布统一为 272×284，总大小约 1.84 MB。视频无音轨，按 24 fps 播放，逐帧解码确认四角透明。原始输入、透明抽帧表 `workspace-v1-transparent-review.jpg` 和重建脚本 `tools/workspace_v1_media.py` 保存在上述本机工作目录。重建时以该目录为工作目录，执行 `python tools/workspace_v1_media.py --output <交付目录>`，脚本使用现有 FFmpeg 路径记录和 oil-motion 色键实现。
+首版透明交付物位于 `public/companion/workspace-red-panda/`，包括 5 条 VP9 WebM 和 2 张 WebP。画布统一为 272×284，总大小约 1.84 MB。视频无音轨，按 24 fps 播放，逐帧解码确认四角透明。原始输入、透明抽帧表 `workspace-v1-transparent-review.jpg` 和重建脚本 `tools/workspace_v1_media.py` 保存在上述本机工作目录。重建时以该目录为工作目录，执行 `python tools/workspace_v1_media.py --output <交付目录>`，脚本使用现有 FFmpeg 路径记录和 oil-motion 色键实现。
 
 本地验收在真实旅程工作区进行，用户认可视觉效果。首轮等待约 2.5 秒，之后每组动作间隔约 6.5 秒。喝水母版仍有短暂的背包视角变化。浏览器无法保留 VP9 alpha 时使用静态空手姿势。
+
+## 坐下吃饼干
+
+轮播在喝水之后播放 [cookie.webm](../../public/companion/workspace-red-panda/cookie.webm)。小熊猫坐下，从背包拿一块饼干，吃完起身回到原站姿。透明 VP9 无音轨，24 fps，共 243 帧。编码沿用 V1 的色键和裁切锚点，左侧与脚底位置保持一致，画布右边多出 24 像素（296×284），给坐姿时伸开的尾巴留出空间。
+
+本机 `cookie-pilot/README.md` 记录提示词、首尾参考图和验收素材。`cookie-pilot/pilot/cookie-sit.mp4` 是用户认可的预览对应的绿幕原片，`cookie-pilot/qa/review_cookie_pilot.py` 用来重建浅底预览和抽帧表。从 `cookie-pilot/` 运行 `python -B encode_cookie.py --output <输出目录>/cookie.webm`，会复用 V1 的 oil-motion 色键处理和 FFmpeg，并逐帧验证透明四角、角色轮廓和尾巴裁切。接入直接使用已有试片，只有最初的一次 MiniMax 生成调用。

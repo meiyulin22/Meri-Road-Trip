@@ -30,6 +30,8 @@
 .workspacePanda[data-playing="true"] { background-image: none; }
 .workspacePanda video { display: block; width: 100%; height: 100%; visibility: hidden; }
 .workspacePanda[data-playing="true"] video { visibility: visible; }
+/* The cookie clip has extra room on the right for the seated tail. */
+.workspacePanda[data-clip="cookie"] video { width: calc(100% * 296 / 272); }
 @keyframes bubbleIn { from { opacity: 0; transform: translateY(6px) scale(.96); } to { opacity: 1; transform: none; } }
 
 @media (max-width: 800px) {

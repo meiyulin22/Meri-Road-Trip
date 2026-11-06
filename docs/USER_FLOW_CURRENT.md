@@ -569,8 +569,8 @@ add/set 使用 Promise.all 查询表达。解析层保留不同 provider ID，�
 
 - [JourneyGlobe](../src/components/trip-workspace/journey-globe.tsx)改写自 cult-ui 的 Illustration Globe（MIT），纯 SVG 线框半球，光点沿经线流向节点。节点数等于已选地点数（有市的按市计，只有省的按 1 计，最多 6 个），只为“看着好看”，不表示真实地理位置，没有坐标、没有地图功能。系统要求减少动态效果时只显示静止节点。
 - [MeriWorld](../src/components/companion/meri-world.tsx) 将全身小熊猫叠放在地球下沿前方，气泡独立显示由旅程状态和聊天活动计算的一句话，继续用 `aria-live=polite` 播报。
-- [WorkspaceRedPanda](../src/components/companion/workspace-red-panda.tsx) 从空手站姿开始，按「取图 → 看图 → 收图」、折返走动、喝水循环，每组之间留出静止间隔。只有喝水时保温杯才出现，喝完回到空手站姿。角色装饰不接收指针事件。
-- 使用同画布的本地透明 WebM 与 WebP。持图海报衔接地图片段，页面隐藏或角色离屏时暂停，系统减少动态效果、媒体加载失败或解码不保留透明通道时显示静态站姿。素材和制作记录见 [工作区小熊猫 V1](product/workspace-red-panda.md)。
+- [WorkspaceRedPanda](../src/components/companion/workspace-red-panda.tsx) 从空手站姿开始，依次播放「取图 → 看图 → 收图」、折返走动、喝水、坐下吃饼干，然后循环。每组之间留出静止间隔。保温杯只在喝水时出现。小熊猫坐下后从背包拿一块饼干，吃完起身回到空手站姿。角色装饰不接收指针事件。
+- 动画使用本地透明 WebM，静态海报使用 WebP。持图海报衔接地图片段。吃饼干片段在右侧多留空间，坐下时能完整显示尾巴。页面隐藏或角色离屏时暂停，系统减少动态效果、媒体加载失败或解码不保留透明通道时显示静态站姿。素材和制作记录见 [工作区小熊猫 V1](product/workspace-red-panda.md)。
 
 ### 5.6 地点照片：从哪来、存在哪、怎么缓存
 

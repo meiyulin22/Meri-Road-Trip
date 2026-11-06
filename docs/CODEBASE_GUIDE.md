@@ -159,7 +159,7 @@ LLM 解释自然语言并提出受限 JSON；应用校验、决定是否执行�
 
 下表按目录分类，每个路径都有独立一行。测试不是运行时业务层；同目录测试主要验证对应层的规则或适配边界，多数使用 mock/内存替身，不据此宣称真实提供方已验证。
 
-本次索引按路径去重共 428 个文件，其中 108 个测试文件。
+本次索引按路径去重共 429 个文件，其中 108 个测试文件。
 
 ### 6.1 根目录配置与入口
 
@@ -668,6 +668,7 @@ Generate plan 背后的计划页先用示例数据做出完整页面（设计决
 | [public/companion/workspace-red-panda/stow.webm](../public/companion/workspace-red-panda/stow.webm) | 展示资源 | 工作区小熊猫，折好并收回地图。 |
 | [public/companion/workspace-red-panda/walk.webm](../public/companion/workspace-red-panda/walk.webm) | 展示资源 | 工作区小熊猫，悠闲折返。 |
 | [public/companion/workspace-red-panda/drink.webm](../public/companion/workspace-red-panda/drink.webm) | 展示资源 | 工作区小熊猫，单杯喝水并放回。 |
+| [public/companion/workspace-red-panda/cookie.webm](../public/companion/workspace-red-panda/cookie.webm) | 展示资源 | 工作区小熊猫，坐下吃一块饼干并起身。 |
 | [public/companion/home-v2-companion.png](../public/companion/home-v2-companion.png) | 展示资源 | 聊天头像和 Workspace Companion 使用的角色图。 |
 | [public/companion/red-panda/front.webp](../public/companion/red-panda/front.webp) | 展示资源 | 中立朝向静态降级图，与最终二维网格中心格一致。 |
 | [public/companion/red-panda/look.json](../public/companion/red-panda/look.json) | 展示资源 | 17×17 姿态图集的编译清单、240px 单元和眼部锚点。 |

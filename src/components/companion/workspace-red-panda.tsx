@@ -8,6 +8,7 @@ const actions = [
   ["take-out", "look", "stow"],
   ["walk"],
   ["drink"],
+  ["cookie"],
 ] as const;
 
 /** The character is decorative. The separate status bubble owns announcements. */
