@@ -1,14 +1,16 @@
 "use client";
 
 import { LoaderCircle, Route } from "lucide-react";
-import { useId, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
+import { useId, useRef, useState, useTransition } from "react";
 
 import { evaluateGeneratePlanReadiness, type GeneratePlanReadiness } from "@/domain/trip-state/planning-readiness";
 import type { TripState } from "@/domain/trip-state/trip-state";
 
 import { useMessages } from "@/components/i18n/locale-context";
 
-import { planningReadinessMessage, requestPlanningReadiness } from "./planning-readiness-model";
+import { requestPlanningHandoff, savePlanHandoff } from "./planning-handoff-model";
+import { planningReadinessMessage } from "./planning-readiness-model";
 import styles from "./trip-workspace.module.css";
 
 /**
@@ -21,13 +23,17 @@ export function GeneratePlanAction({
   tripState,
   onChooseDestination,
   onRequest,
+  waitingForSave,
 }: {
   readonly onChooseDestination: () => void;
   readonly onRequest?: () => void;
   readonly tripId: string;
   readonly tripState: TripState;
+  readonly waitingForSave: boolean;
 }) {
   const text = useMessages().generatePlan;
+  const router = useRouter();
+  const [isOpening, startOpening] = useTransition();
   // The answer belongs to the destination it was asked about, so a destination that
   // changes afterwards drops it instead of describing the old one.
   const [answer, setAnswer] = useState<{
@@ -41,14 +47,22 @@ export function GeneratePlanAction({
   const current = answer?.destinationKey === destinationKey ? answer : null;
   const blocked = evaluateGeneratePlanReadiness(tripState);
 
-  async function checkReadiness(): Promise<void> {
-    if (requestInFlight.current || !blocked.canProceed) return;
+  const isPreparing = isChecking || isOpening;
+
+  async function openPlan(): Promise<void> {
+    if (requestInFlight.current || isOpening || waitingForSave || !blocked.canProceed) return;
     requestInFlight.current = true;
-    onRequest?.();
     setIsChecking(true);
     setAnswer(null);
     try {
-      setAnswer({ destinationKey, readiness: await requestPlanningReadiness(tripId) });
+      onRequest?.();
+      const result = await requestPlanningHandoff(tripId);
+      if (!result.canProceed) {
+        setAnswer({ destinationKey, readiness: result });
+        return;
+      }
+      savePlanHandoff(tripId, result.handoff);
+      startOpening(() => router.push(`/trips/${encodeURIComponent(tripId)}/plan`));
     } catch {
       setAnswer({ destinationKey, readiness: null });
     } finally {
@@ -63,20 +77,20 @@ export function GeneratePlanAction({
         {/* aria-disabled rather than disabled keeps the button focusable, so keyboard
             users reach the explanation too. */}
         <button
-          aria-busy={isChecking}
+          aria-busy={isPreparing}
           aria-describedby={blocked.canProceed ? undefined : hintId}
-          aria-disabled={!blocked.canProceed || isChecking}
-          aria-label={isChecking ? text.checking : text.label}
+          aria-disabled={!blocked.canProceed || isPreparing || waitingForSave}
+          aria-label={isPreparing ? text.checking : text.label}
           className={styles.haloButton}
-          onClick={() => void checkReadiness()}
+          onClick={() => void openPlan()}
           type="button"
         >
-          {isChecking ? (
+          {isPreparing ? (
             <LoaderCircle aria-hidden="true" className={styles.loadingIcon} size={17} />
           ) : (
             <Route aria-hidden="true" size={17} />
           )}
-          <HaloLabel text={isChecking ? text.checkingShort : text.label} />
+          <HaloLabel text={isPreparing ? text.checkingShort : text.label} />
         </button>
         {blocked.canProceed ? null : (
           <div className={styles.generatePlanHint} id={hintId} role="note">

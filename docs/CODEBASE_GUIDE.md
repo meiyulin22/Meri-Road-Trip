@@ -112,7 +112,7 @@ UI 同步状态；刷新从数据库恢复
 
 LLM 解释自然语言并提出受限 JSON；应用校验、决定是否执行、核验地点并保存。助手建议即使经过天地图核验，仍需要用户显式确认才成为目的地。Gen UI 是受限数据驱动的预写 React 组件，不是模型生成 JSX。
 
-推荐是确定性流程：Discovery Search → Kimi 结构化推荐（含配图用的代表地标）→ 校验/去重 → 省份过滤 → 保存建议（卡片带地标、无照片）→ 浏览器另行请求照片，服务器按地标和地区查询当前照片提供方、逐张流式返回并写回卡片消息 → 显式选中时复核地点。代码没有接通访问检查、排序或开放式 Research Agent；照片只是装饰。Generate plan 当前只检查准备度；PWA 有 manifest 和图标，没有离线 service worker。
+推荐是确定性流程：Discovery Search → Kimi 结构化推荐（含配图用的代表地标）→ 校验/去重 → 省份过滤 → 保存建议（卡片带地标、无照片）→ 浏览器另行请求照片，服务器按地标和地区查询当前照片提供方、逐张流式返回并写回卡片消息 → 显式选中时复核地点。代码没有接通访问检查、排序或开放式 Research Agent；照片只是装饰。Generate plan 检查准备度后将保存的状态和偏好交给真实计划页；PWA 有 manifest 和图标，没有离线 service worker。
 
 ### 3.4 两条实际操作链
 
@@ -146,7 +146,7 @@ LLM 解释自然语言并提出受限 JSON；应用校验、决定是否执行�
 | 卡片合并、过期或安全重试 | choice identity、verified choice、selection route、selection message ID、UI adapter、choices card、conversation panel | 第 4 节及第 7.2–7.3 节 |
 | 推荐生成与搜索降级 | recommendation context/generator/prompt/workflow/use case、Discovery Search/Bocha | 第 4.1 节 |
 | 日期/交通/出发地直接编辑 | brief panel、location editor/model、trip-state persistence model、state/suggestions routes | 第 5.1 节 |
-| Generate plan 准备度 | planning-readiness、readiness route/model、generate-plan action | 第 5.4 节 |
+| Generate plan 交接 | planning-readiness、planning-handoff route/model、generate-plan action、真实计划页 | 第 5.4 节 |
 | Agent、工具、Planner | `src/agents/README.md`（先读）、`docs/agent-planner/README.md`（已定未实现的决定）、`src/agents/` 源码与工具测试、`scripts/verify-agent-tools.ts`、`platform/llm/moonshot-chat-model.ts` | 尚无（Planner 未接入用户流程） |
 | 保存、并发、列表或删除 | Journey/Trip services、repository 接口、Postgres 实现、schema、my-journeys 和相关页面 | 第 1.1、2.3、7 节 |
 | 视觉或动画 | 对应 TSX/CSS、现有 UI 组件及引用的 public 资源 | 涉及操作变化时同步相应业务章节 |
@@ -191,6 +191,7 @@ LLM 解释自然语言并提出受限 JSON；应用校验、决定是否执行�
 | [docs/USER_FLOW_CURRENT.md](../docs/USER_FLOW_CURRENT.md) | 文档/开发约定 | 向用户讲解的详细业务材料：入口、模型 JSON、每个操作的 API/代码、状态变化、错误、并发与兼容。 |
 | [docs/TODO.md](../docs/TODO.md) | 文档/开发约定 | 待办清单（T1–T7）：天地图 429 重试、输入联想 infocode、建议词过滤、上下文搜索回退、别名归一、© 天地图署名、向人工客服索取商用与审图号书面答复；以及明确不做的三件事（照片、全国景点索引、LLM 排序）。 |
 | [docs/agent-planner/README.md](../docs/agent-planner/README.md) | 文档/规划 | Planner Agent 的规划工作区（中文，边讨论边改）：背景与用户思考、业务、记忆、页面、运行、工具、数据草案、远期方向和决策记录，每节标明已定/草案/待讨论；不是已实现行为。 |
+| [docs/agent-planner/implementation-plan.md](../docs/agent-planner/implementation-plan.md) | 文档/交接 | Generate Plan 的最新流程、数据交接、分阶段待办和首轮验收。 |
 | [docs/agent-planner/page-mockup-brief.md](../docs/agent-planner/page-mockup-brief.md) | 文档/规划 | 计划页效果图说明：过渡页、只有目的地时、信息填全后三张图的内容、共同视觉风格和可直接复制的英文生成提示；讨论稿，不是实现要求。 |
 | [docs/agent-planner/agent-lessons.md](../docs/agent-planner/agent-lessons.md) | 文档/规划 | 规划时讲过的 Agent 概念笔记：Agent 循环、生成者与验证者、MCP、记忆，用 Meri 的试验举例。 |
 | [docs/product/adaptive-workspace.md](../docs/product/adaptive-workspace.md) | 文档/开发约定 | 精简的未来界面方向：按用户决定调整信息重点，保留状态和受控组件边界，不预选框架。 |
@@ -215,6 +216,7 @@ LLM 解释自然语言并提出受限 JSON；应用校验、决定是否执行�
 | [src/app/media/place-photos/[file]/route.ts](../src/app/media/place-photos/%5Bfile%5D/route.ts) | HTTP 接口层 | GET 运行时下载的照片：只接受 `pixabay-<数字>.<jpg|png|webp>` 且来源记录已写完的文件，从 `MERI_MEDIA_DIR` 读出，带 Content-Type、nosniff 和一年 immutable 缓存；其他一律 404。生产模式下新下载的文件不重启即可访问。 |
 | [src/app/api/trips/[id]/destination-photos/route.ts](../src/app/api/trips/%5Bid%5D/destination-photos/route.ts) | HTTP 接口层 | GET 已选地点照片：owner 检查，按当前目的地和对话里卡片展示过的照片返回每个地点一张，private/no-store，不写入任何数据。 |
 | [src/app/api/trips/[id]/destinations/route.ts](../src/app/api/trips/%5Bid%5D/destinations/route.ts) | HTTP 接口层 | GET 手动搜索、POST 按 query/id 或建议完整名称/地区重查并添加、DELETE 完整元组/旧记录；搜索词是几个整省的合称（江浙沪）时由模型的地点解读（兜底表）直接给出这几个省，不查地图，POST 用同一份结果核对；归属检查、唯一目标核验及目的地并发控制。 |
+| [src/app/api/trips/[id]/planning-handoff/route.ts](../src/app/api/trips/%5Bid%5D/planning-handoff/route.ts) | HTTP 接口层 | POST 校验访客归属与准备度，返回保存的 TripState、偏好、语言、时区和参考日期。 |
 | [src/app/api/trips/[id]/planning-readiness/route.ts](../src/app/api/trips/%5Bid%5D/planning-readiness/route.ts) | HTTP 接口层 | GET 读取新鲜 TripState，返回 missing/unverified/selected 准备度；不生成计划。 |
 | [src/app/api/trips/[id]/route.ts](../src/app/api/trips/%5Bid%5D/route.ts) | HTTP 接口层 | DELETE /api/trips/[id] 只删除当前访客拥有的 Trip，数据库级联清理状态和消息。 |
 | [src/app/api/trips/[id]/state/route.ts](../src/app/api/trips/%5Bid%5D/state/route.ts) | HTTP 接口层 | GET 状态/PATCH 领域校验后的 patch；调用 JourneyService，不自行做高德核验，冲突错误当前未单独映射 409。 |
@@ -227,6 +229,7 @@ LLM 解释自然语言并提出受限 JSON；应用校验、决定是否执行�
 | [src/app/photo-credits/page.tsx](../src/app/photo-credits/page.tsx) | 页面/框架入口 | 只列介绍页使用的三张本地示例照片及署名，语言跟随现有 cookie，署名复用 PhotoSourceCredit 外链确认，返回链接指向 /intro。 |
 | [src/app/photo-credits/photo-credits.module.css](../src/app/photo-credits/photo-credits.module.css) | 页面/框架入口 | 介绍页示例照片署名页的排版、可聚焦链接及窄屏单列样式。 |
 | [src/app/trips/[id]/error.tsx](../src/app/trips/%5Bid%5D/error.tsx) | 页面/框架入口 | Workspace 页面错误边界，按访客语言提供失败提示和重试入口。 |
+| [src/app/trips/[id]/plan/page.tsx](../src/app/trips/%5Bid%5D/plan/page.tsx) | 页面/框架入口 | 真实计划页，服务端先核对旅程归属，再挂载交接页面。 |
 | [src/app/trips/[id]/page.tsx](../src/app/trips/%5Bid%5D/page.tsx) | 页面/框架入口 | Workspace 服务端加载入口，检查归属、读取状态/消息，区分 404 与缺失状态；最多等 1.5 秒带上已选地点照片；页面标题与缺失状态提示按访客语言。 |
 | [src/app/trips/journey-delete-action.tsx](../src/app/trips/journey-delete-action.tsx) | 页面/框架入口 | 列表页客户端删除控件，调用 owner-scoped DELETE 并更新页面，文字按访客语言。 |
 | [src/app/trips/new/page.tsx](../src/app/trips/new/page.tsx) | 页面/框架入口 | 旧 /trips/new 入口重定向至首页，统一新建入口。 |
@@ -292,13 +295,14 @@ LLM 解释自然语言并提出受限 JSON；应用校验、决定是否执行�
 | [src/components/trip-workspace/destination-recommendation-picker.module.css](../src/components/trip-workspace/destination-recommendation-picker.module.css) | 表现层 | 目的地候选/推荐多选列表的分组、checkbox、确认及状态样式。 |
 | [src/components/trip-workspace/expedition-brief-panel.tsx](../src/components/trip-workspace/expedition-brief-panel.tsx) | 表现层 | Journey overview 字段面板，按出发地、目的地、何时、交通偏好、旅程名称排列；交通一键点选，名称文本编辑。 |
 | [src/components/trip-workspace/field-certainty.tsx](../src/components/trip-workspace/field-certainty.tsx) | 表现层 | 字段把握程度的共享展示：统一 18px 圆形状态（known 实心绿勾、missing 空圈、approximate 琥珀点、ambiguous “!”）、屏幕阅读器文字、把握程度文字（CertaintyLabel）和“大致/待确认”标签，文字取自字典。 |
-| [src/components/trip-workspace/generate-plan-action.tsx](../src/components/trip-workspace/generate-plan-action.tsx) | 表现层 | 唯一的 Generate plan，Halo 式旋转渐变边框按钮，位于聊天下方并始终可见；不可用时保持可聚焦并在悬停/聚焦时说明添加目的地的途径（可打开右侧搜索），规划尚未开放。 |
+| [src/components/trip-workspace/generate-plan-action.tsx](../src/components/trip-workspace/generate-plan-action.tsx) | 表现层 | 唯一的 Generate plan，Halo 式旋转渐变边框按钮，位于聊天下方并始终可见；不可用时保持可聚焦并在悬停/聚焦时说明添加目的地的途径（可打开右侧搜索），准备度通过时交接到真实计划页。 |
 | [src/components/trip-workspace/journey-globe.tsx](../src/components/trip-workspace/journey-globe.tsx) | 表现层 | 装饰地球：改写自 cult-ui Illustration Globe（MIT）的 SVG 线框半球，节点数随已选地点数变化，无地理含义；减少动态效果时静止；由 journey-orbit 包裹。 |
 | [src/components/trip-workspace/journey-orbit.tsx](../src/components/trip-workspace/journey-orbit.tsx) | 表现层 | 照片环：已选地点照片绕地球旋转，前大后小、前后遮挡，悬停暂停、点击转到正前方、减少动态效果时静止。 |
 | [src/components/trip-workspace/location-editor-model.test.ts](../src/components/trip-workspace/location-editor-model.test.ts) | 测试（对应模块边界） | 验证 query 长度、完整建议解析及已选地点 patch 身份/坐标。 |
 | [src/components/trip-workspace/location-editor-model.ts](../src/components/trip-workspace/location-editor-model.ts) | 表现层 | 输入 query 标准化、建议响应校验和出发地 selection patch 构造。 |
 | [src/components/trip-workspace/location-editor.tsx](../src/components/trip-workspace/location-editor.tsx) | 表现层 | 当前用于 origin 的输入建议编辑控件，防抖查询、显式选中并保存普通字段；状态图标/标签来自 field-certainty。 |
 | [src/components/trip-workspace/message-timestamp.ts](../src/components/trip-workspace/message-timestamp.ts) | 表现层 | 按本地今天/昨天/更早日期格式化聊天时间标签，文字由传入的字典决定（昨天/Yesterday）。 |
+| [src/components/trip-workspace/planning-handoff-model.ts](../src/components/trip-workspace/planning-handoff-model.ts) | 表现层 | 请求并校验交接结果，在当前标签页存取按旅程区分的快照。 |
 | [src/components/trip-workspace/planning-readiness-model.test.ts](../src/components/trip-workspace/planning-readiness-model.test.ts) | 测试（对应模块边界） | 验证只读 readiness 请求、响应校验及缺失/旧文本说明文案。 |
 | [src/components/trip-workspace/planning-readiness-model.ts](../src/components/trip-workspace/planning-readiness-model.ts) | 表现层 | 准备度请求、响应校验和说明文案（取自传入的字典）。 |
 | [src/components/trip-workspace/trip-dates-editor.tsx](../src/components/trip-workspace/trip-dates-editor.tsx) | 表现层 | “何时”行：一行概括日期与时长，点开为 react-day-picker 范围日历（宽屏两月，中/英 locale 随界面语言）和天数步进器；两次点击定起止后保存，支持清除。 |
@@ -329,6 +333,8 @@ Generate plan 背后的计划页先用示例数据做出完整页面（设计决
 
 | 文件地址 | 层/类别 | 做什么 |
 | --- | --- | --- |
+| [src/components/trip-plan/plan-handoff-page.tsx](../src/components/trip-plan/plan-handoff-page.tsx) | 表现层 | 真实计划页，展示快照里的旅程事实和偏好摘录，区分无交接、提取失败与待排程。 |
+| [src/components/trip-plan/plan-handoff-page.module.css](../src/components/trip-plan/plan-handoff-page.module.css) | 样式 | 真实计划页的事实、偏好和待生成区块布局。 |
 | [src/components/trip-plan/plan-preview.tsx](../src/components/trip-plan/plan-preview.tsx) | 表现层 | 预览页的编排：右下角预览开关切换三种状态（生成中：按定时的假事件逐步点亮进度、区块从骨架填进内容；只有目的地：第 1 天排好、其余锁住；全部填好）；在页面上点选天数、日期、出发地、交通方式后，只让依赖它的区块"重新规划"一下；顶部事实点"修改"会重新锁住对应区块；修改对话框带小熊猫，提交后显示"修改还没接上"的示例回复。1.1001 起：天气按出发日期分预报 / 往年同期；手动添加偏好后出现"按新偏好重新规划"，点了只重排各天；导出菜单下载日历、打印时所有天展开。 |
 | [src/components/trip-plan/plan-view.ts](../src/components/trip-plan/plan-view.ts) | 表现层纯函数 | 计划页的数据形状（日程、景点、路程、核实来源、天气、住宿、交通选项、记忆、运行统计），以及规则：每个区块需要哪些事实、某个事实影响哪些区块、一次运行有哪些步骤（第 1 天先排）、某步完成后哪个区块就绪、时长文字、核实计数、日期推算。 |
 | [src/components/trip-plan/plan-view.test.ts](../src/components/trip-plan/plan-view.test.ts) | 测试（对应模块边界） | 验证只有目的地时只有第 1 天可排、改一个事实只重排用到它的区块、运行步骤顺序和跳过锁住的区块、中英文时长、示例数据自洽（每两个景点间一段路）、日期跨月推算。 |
@@ -391,6 +397,7 @@ Generate plan 背后的计划页先用示例数据做出完整页面（设计决
 | [src/domain/trip-state/destination-areas.ts](../src/domain/trip-state/destination-areas.ts) | 领域层 | 省市/spot 类型和纯函数：格式化（直辖市的景点紧跟市名：北京市（故宫））、标题（超过两省缩写为“…等N省”）、计数、包含、去重添加、新增部分（destinationAdditions）、级联删除、唯一匹配及结构读取。 |
 | [src/domain/trip-state/destination-edit.ts](../src/domain/trip-state/destination-edit.ts) | 领域层 | none/add/set/remove 契约、严格模型 JSON Schema、表达数量/长度/去重校验。 |
 | [src/domain/trip-state/destination-legacy-read.test.ts](../src/domain/trip-state/destination-legacy-read.test.ts) | 测试（对应模块边界） | 验证旧自由文本保留为 legacyText，不把未核验名称假装成市。 |
+| [src/domain/plan/plan-handoff.ts](../src/domain/plan/plan-handoff.ts) | 领域层 | 交接快照与响应契约，校验 TripState、参考日期、语言和偏好摘录。 |
 | [src/domain/trip-state/planning-readiness.test.ts](../src/domain/trip-state/planning-readiness.test.ts) | 测试（对应模块边界） | 验证缺目的地、只有省、省市混合、旧文本和已选城市的准备度；其他字段不是硬门槛。 |
 | [src/domain/trip-state/planning-readiness.ts](../src/domain/trip-state/planning-readiness.ts) | 领域层 | 纯准备度规则：missing、unverified 或 selected（只有省也算 selected）；仅检查状态，不研究可行性。 |
 | [src/domain/trip-state/trip-dates.test.ts](../src/domain/trip-state/trip-dates.test.ts) | 测试（对应模块边界） | 验证含首尾计数、任意两项补算第三项、修改哪项决定补算哪项、跨月跨年/闰日，以及近似/非法值不参与。 |
@@ -503,7 +510,16 @@ Generate plan 背后的计划页先用示例数据做出完整页面（设计决
 | [src/capabilities/recommendation/destination-recommendation-workflow.ts](../src/capabilities/recommendation/destination-recommendation-workflow.ts) | 应用层/用例装配 | Discovery Search→模型生成→省份过滤（within 限已定省，elsewhere 排除已保存省）→卡项 ID（带配图用的地标，不查照片）的确定性流程；搜索故障降级，无排序/访问检查。 |
 | [src/capabilities/recommendation/prompts/destination-recommendation-prompt.ts](../src/capabilities/recommendation/prompts/destination-recommendation-prompt.ts) | 应用层/用例装配 | 受限省市推荐 prompt，含聊天触发说明、真实上下文和未核验搜索启发；理由用首页语言写，省/市/地标名保持中文；未定目的地且用户只说想出去玩时只给 3–4 个、各在不同省份的不同类型地方。 |
 
-### 6.11a Agent（Mastra）
+### 6.11a Planning 交接
+
+| 文件地址 | 层/类别 | 做什么 |
+| --- | --- | --- |
+| [src/capabilities/planning/extract-plan-preferences.ts](../src/capabilities/planning/extract-plan-preferences.ts) | 应用层 | 从有上限的已保存用户消息提取偏好，以消息 ID 核对原话，区分空结果和不可用。 |
+| [src/capabilities/planning/extract-plan-preferences.test.ts](../src/capabilities/planning/extract-plan-preferences.test.ts) | 测试 | 验证原话来源、上下文上限和不可用降级。 |
+| [src/capabilities/planning/planning-handoff-handler.ts](../src/capabilities/planning/planning-handoff-handler.ts) | 应用层 | 组织归属检查后的状态读取、准备度和偏好提取，返回禁止缓存的交接结果。 |
+| [src/capabilities/planning/planning-handoff-route.test.ts](../src/capabilities/planning/planning-handoff-route.test.ts) | 测试 | 验证归属、准备度、快照传递和客户端响应解析。 |
+
+### 6.11b Agent（Mastra）
 
 | 文件地址 | 层/类别 | 做什么 |
 | --- | --- | --- |

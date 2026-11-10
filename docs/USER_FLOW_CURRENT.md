@@ -35,10 +35,11 @@ flowchart TD
   M --> W
   W -->|勾选后统一提交| V[取保存的卡片 ID，复核高德，保存目的地]
   W -->|编辑字段、搜索、删除| Q[独立确定性 API]
-  W -->|Generate plan| H[只检查准备度]
+  W -->|Generate plan| H[检查准备度]
   V --> W
   Q --> W
-  H --> W
+  H -->|通过| Plan[交接 TripState 与偏好，打开计划页]
+  H -->|未通过或请求失败| W
 ```
 
 **数据权威：**TripState 是当前决定，模型输出是提案，助手卡片是待选项，聊天记录是历史。核验成功不代表用户已经选择；显式提交后的地点才进入正式 destination。删除后不能因为历史里提过就自动恢复。
@@ -321,7 +322,7 @@ add/set 使用 Promise.all 查询表达。解析层保留不同 provider ID，�
 | “不去梅里雪山了” | remove 当前 spot | 删除 spot，保留城市和省 |
 | “时间改到十一月底左右” | startDate approximate | 普通字段变化，Kimi reply |
 | “梅里雪山现在开放吗” | 应识别为问题 | 地点核验不能当成开放证据 |
-| “可以生成计划了吗” | 普通 reply | 聊天无计划执行分支，按钮只检查准备度 |
+| “可以生成计划了吗” | 普通 reply | 聊天无计划执行分支，按钮通过准备度后交接给计划页 |
 
 ## 4. 推荐卡、候选卡和点击后的动作
 
@@ -438,7 +439,7 @@ add/set 使用 Promise.all 查询表达。解析层保留不同 provider ID，�
 | 添加搜索结果或单字建议 | POST destinations：搜索结果 `{query,id}`；建议 `{query:完整名称,region}` | 重查身份后保存，无助手消息 |
 | 删除省、市、spot | DELETE 同路径 `{province,place,spot}` | 确定性级联，同步状态 |
 | 清除旧文本 | DELETE `{legacy:true}` | 删除 legacyText，保留已添加 areas |
-| Generate plan（唯一，位于聊天下方） | [GeneratePlanAction](../src/components/trip-workspace/generate-plan-action.tsx) 调用 [planning-readiness API](../src/app/api/trips/[id]/planning-readiness/route.ts) | 只检查，不执行规划；右侧面板不再有 Generate plan |
+| Generate plan（唯一，位于聊天下方） | [GeneratePlanAction](../src/components/trip-workspace/generate-plan-action.tsx) 调用 [planning-handoff API](../src/app/api/trips/%5Bid%5D/planning-handoff/route.ts) | 检查准备度后把旅程状态和偏好交给计划页，详见第 5.4 节 |
 | 返回、重开、刷新 | 读持久化状态与消息 | 不调用模型 |
 | 删除 Journey | [DELETE /api/trips/{id}](../src/app/api/trips/[id]/route.ts)，校验 owner | 列表反馈，不调用模型 |
 
@@ -519,23 +520,25 @@ add/set 使用 Promise.all 查询表达。解析层保留不同 provider ID，�
 
 城市删除连带删 spots；未来规划读取当前 TripState，不能从历史聊天恢复这些偏好。历史消息保留是对话记录，不是当前意图清单。
 
-### 5.4 Generate plan 当前只检查准备度
+### 5.4 Generate plan 检查准备度并交接到计划页
 
-[evaluateGeneratePlanReadiness](../src/domain/trip-state/planning-readiness.ts)是纯状态判断，没有高德调用：
+[evaluateGeneratePlanReadiness](../src/domain/trip-state/planning-readiness.ts)是纯状态判断，不访问地图服务。
 
 | 当前目的地 | 返回 | 下一步 |
 | --- | --- | --- |
 | missing | destination_missing | 按钮不可用；悬停/聚焦提示三种添加途径 |
 | 存在 legacyText | destination_unverified | 按钮不可用；提示重新搜索添加或清除旧记录 |
-| 已有省（无论是否选了市）且无旧文本 | canProceed=true，destination=selected | 可点击，提示规划功能尚未开放 |
+| 已有省（无论是否选了市）且无旧文本 | 准备度通过 | 可点击，交接到计划页 |
 
 出发地、日期、时长、交通不是当前硬门槛。只有省、没有市也算已有目的地，规划会以整省为范围；只有旧文本未确认时不能规划。
 
-按钮始终显示。不可用时使用 `aria-disabled` 而非 `disabled`，保持可聚焦，使键盘用户也能读到提示；提示卡位于按钮所在容器内，指针从按钮移到提示上不会关闭，可点击其中的“在旅程信息里搜索并添加目的地”。该链接通过 [TripWorkspace](../src/components/trip-workspace/trip-workspace.tsx) 递增编辑器打开请求，右侧 [DestinationEditor](../src/components/trip-workspace/destination-editor.tsx) 重新挂载为展开状态并自动聚焦搜索框。点击可用按钮时的检查结果仍只在按钮下方显示，并随目的地变化失效。
+按钮始终显示。不可用时使用 `aria-disabled` 而非 `disabled`，保持可聚焦，使键盘用户也能读到提示；提示卡位于按钮所在容器内，指针从按钮移到提示上不会关闭，可点击其中的“在旅程信息里搜索并添加目的地”。该链接通过 [TripWorkspace](../src/components/trip-workspace/trip-workspace.tsx) 递增编辑器打开请求，右侧 [DestinationEditor](../src/components/trip-workspace/destination-editor.tsx) 重新挂载为展开状态并自动聚焦搜索框。聊天发送或选卡保存中暂缓交接。重复点击由按钮的请求状态拦住；失败或准备度不通过时在按钮下方显示说明，目的地变化后旧说明失效。
 
-[准备度 UI 模型](../src/components/trip-workspace/planning-readiness-model.ts)将结果关联 destination 快照。目的地改变后旧准备度不再展示，避免新决定沿用旧检查结果。
+点击发出 `POST /api/trips/{id}/planning-handoff`。服务端确认访客归属后重新读取已保存的 TripState，再做一次准备度判断。通过后用本旅程最近保存的用户原话提取偏好。提取输入最多十条、6,000 字符，代码只接受能按消息 ID 匹配到原文的摘录。模型不可用时仍交接旅程状态，计划页提示偏好提取失败。响应带 TripState、偏好、参考日期、时区和语言。应用不写回旅程状态或消息。
 
-**计划页设计预览（1.1000）：**计划页先用示例数据做成 [/plan-preview](../src/app/plan-preview/page.tsx)（[PlanPreview](../src/components/trip-plan/plan-preview.tsx)），按钮仍只检查准备度，旅程里没有入口，也不保存、不调用任何接口。页面标"示例数据"，右下角的预览开关切换三种状态：
+[交接 UI 模型](../src/components/trip-workspace/planning-handoff-model.ts) 校验响应，将快照放在当前标签页的 sessionStorage，再打开 [真实计划页](../src/app/trips/%5Bid%5D/plan/page.tsx)。页面单独校验旅程归属，刷新只读快照。若当前标签页没有快照，返回 Workspace 再点 Generate plan。当前计划页展示已交接的输入，日程尚未生成。原 GET 准备度接口仍可单独查询。
+
+**计划页设计预览（1.1000）：** [/plan-preview](../src/app/plan-preview/page.tsx)（[PlanPreview](../src/components/trip-plan/plan-preview.tsx)）是独立展示页，使用示例数据，不保存、不调用规划接口。页面标"示例数据"，右下角的预览开关切换三种状态：
 - **生成中：**进度按步骤点亮（核实地点 → 找景点 → 核实开放时间 → 算车程 → 查天气 → 排好第 1 天 → 查机票高铁 → 找住处 → 排剩下几天），区块从骨架依次填进内容，完成后收成一行"用时 · 调用工具次数 · 花费"。
 - **只有目的地：**只有第 1 天排好；"怎么去""剩下的几天""天气和酒店价格"锁住，各自写明要什么，就地点选（天数 3–7、两个推荐日期或自选日期、出发城市加交通方式）。点选后只有依赖它的区块显示一下"正在规划"再出现，其他区块不动；顶部事实条点"修改"会把对应区块重新锁住。
 - **全部填好：**5 天都排好，怎么去（推荐的一班展开、其余折叠）、每天天气、每晚酒店价格都有。
@@ -863,7 +866,7 @@ add/set 使用 Promise.all 查询表达。解析层保留不同 provider ID，�
 | 聊天推荐无卡 | workflow 固定失败正文 | 无可展示建议 |
 | 聊天选卡提交成功 | destinationSelectionReply 固定确认（首次可规划时才附准备度） | 保存前后状态和准备度 |
 | 右侧直接编辑/搜索/删除 | 固定加载、按钮、错误提示 | 不新增聊天正文 |
-| Generate plan | planningReadinessMessage 固定句 | 状态检查，不生成行程 |
+| Generate plan | 准备度、交接状态与失败提示 | 读取 TripState，提取用户偏好并交给计划页 |
 | 右下角小熊的一句话 | [companionStatus](../src/components/companion/companion-status-model.ts) 固定句 | 由当前 TripState 与聊天活动决定，不调用模型：出错 > 思考中 > 可生成（并列出可选的缺项：出发地、出行时间、交通方式）> 缺目的地/旧目的地待确认 |
 
 [AI SDK 客户端](../src/platform/llm/ai-sdk-kimi-client.ts)默认 kimi-k2.6，LLM_MODEL 可覆盖；MOONSHOT_API_KEY 认证，MOONSHOT_BASE_URL 可覆盖地址。默认超时 60 秒，maxRetries=0。仓库默认配置不等于实时服务保证。
@@ -910,11 +913,13 @@ add/set 使用 Promise.all 查询表达。解析层保留不同 provider ID，�
 - 未实现删除撤销、省内限定搜索、Research Agent 或真正计划生成。
 - 通用 [state PATCH](../src/app/api/trips/[id]/state/route.ts) 仍接受领域校验通过的 destination patch，没有统一地点核验；前端普通字段模型拒绝直接编辑目的地，不等于服务端限制。该 route 当前也未将 TripStateConflictError 单独映射为 409；专用目的地 route 的并发响应不能泛化到它。
 
-### 7.4 下一版 Generate Plan 的交接边界（计划）
+### 7.4 Generate Plan 的交接与后续规划边界
 
-未来规划应从当前 TripState 取得省范围、已选城市、spots 偏好及日期/交通。只有省的目的地以整省为范围、旧文本需重新确认，均有明确处理规则；未提交候选不能当已选，已删除景点不能从历史恢复。
+当前交接从已保存 TripState 取得省范围、已选城市、spots 偏好和日期、交通。偏好摘录来自本旅程用户消息，不能把未提交候选当作已选，也不能恢复历史里已删除的景点。只有省时可交接省范围，首个城市的规划方式待定。
 
-生成前重新核验 POI，保存证据和新鲜度，再研究交通、天气、开放/访问与风险。准备度通过不代表这些事实已成立。执行、失败恢复、研究预算及持久化规划产物尚未接入；本轮只记录边界，不预先实现框架。
+生成前重新核验 POI，保存证据和新鲜度，再研究交通、天气、开放/访问与风险。准备度通过不代表这些事实已成立。执行、失败恢复、研究预算及持久化规划产物尚未接入。
+
+正式计划页的设计是，天数未知时只给示范第一天，「剩下的几天」锁住，等用户提供或确认总天数后才规划。调研按城市准备景点卡。多城市的天数先由 Plan Agent 分配，代码校验后由 Jev 按天打分，再由同一个 Plan Agent 排每日行程。细节见 [Planner 实施交接](agent-planner/implementation-plan.md)。
 
 ### 核心文件索引
 

@@ -14,7 +14,8 @@ shapes the Planner — business, page, run, tools, memory — is kept in Chinese
 | Status | What |
 | --- | --- |
 | Implemented (1.0300) | Mastra instance, a trial agent, two tools (`resolve-place`, `web-search`), a live verification script |
-| Planned | Planner agent, route and weather tools, durable plan workflow, plan storage and page, tracing storage, evaluation |
+| Implemented (Workspace) | The Generate plan action opens the real plan page with a saved TripState snapshot and source-checked preference quotes |
+| Planned | Planner agent, route and weather tools, durable plan workflow, itinerary storage and display, tracing storage, evaluation |
 
 ## 1. Why an agent here
 
@@ -104,18 +105,26 @@ Four findings shape the planner:
 
 A snapshot of the current TripState (destination provinces → cities → spots, dates,
 duration, origin, transport preference), the reference date, and the language chosen
-on the home page. Not the conversation history: deleted places and unselected cards
-must not return through it.
+on the home page. The handoff can extract preferences from the conversation. The
+snapshot defines destination scope and selected spots. Deleted places and unselected
+cards cannot return through conversation history.
 
 ### The run
 
 ```text
 snapshot TripState
-  → research loop      the agent calls tools within the budget
-  → structuring pass   a second call turns the findings into the Plan schema
-  → validation         code checks the plan against TripState and the tool results
-  → save               a new plan version, with the snapshot it was built from
+  → outline      assign days to cities, with one Kimi call for a confirmed multi-city trip
+  → research     discover and verify candidate spots by city within budget
+  → rank         score optional spots for each day with Jev, or Kimi initially
+  → plan         the daily agent selects spots and proposes times
+  → validate     code orders stops, checks evidence and feasibility, and records conflicts
+  → save         a new plan version with the snapshot it was built from
 ```
+
+Without a confirmed duration, code schedules one preview day in the first selected
+city and keeps later days locked until the user provides or confirms the duration.
+See [the Planner notes](../../docs/agent-planner/README.md) for the planned allocation
+and research rules. Use a separate call to structure the results of a tool loop.
 
 The run is a **durable workflow**: each stage's result is stored, so a server restart
 resumes instead of starting over, and a later version can pause to ask the user a
@@ -129,8 +138,10 @@ rather than guessed: ticket prices, opening hours, road conditions, availability
 
 ### Validation in code
 
-- Every place in the plan comes from the TripState snapshot.
-- A place counts as verified only if a `resolve-place` result in this run says so.
+- Keep the plan within the snapshot's selected destinations. Keep user-selected spots
+  or report a conflict. Additional candidates belong to the plan only.
+- A place counts as verified when it has valid place-lookup evidence, including
+  eligible cached results.
 - Distances and travel times come from route tool results, not from the model.
 - Weather numbers appear only from a forecast tool result for dates it covers.
 - A plan that fails validation is not saved; the run records why.
@@ -155,16 +166,18 @@ one start every 0.3 s), so parallel tool calls queue rather than fail.
 
 ### Budgets
 
-Each run caps steps, tool calls, wall time and tokens. The values are set when the
-planner is built and measured, not guessed here.
+Each run caps candidates, steps, tool calls, wall time and input and output tokens.
+Research reuses valid spot facts and stops when it has enough evidence and candidates
+for the days being planned. Pass compact evidence to the model. Tune the limits
+against measured coverage, feasibility and cost.
 
 ## 5. Planned: observability and evaluation
 
 Runs will be traced in the OpenTelemetry GenAI conventions and stored in Postgres, so
 an evaluation can read any run without depending on Mastra. The evaluation runs a set
 of sample Journeys and reports cost, latency (p50/p95), tool calls, completion rate
-and quality scores (places drawn from TripState, no invented numbers, unknowns
-listed).
+and quality scores (destination scope, coverage of selected spots, factual evidence,
+and reported unknowns).
 
 ## 6. Running and deploying
 

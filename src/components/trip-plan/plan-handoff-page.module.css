@@ -1,0 +1,52 @@
+.facts {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 12rem), 1fr));
+  gap: 8px;
+  margin-top: 18px;
+}
+
+.facts > div,
+.preferences {
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: #fffdf8;
+  overflow-wrap: anywhere;
+}
+
+.facts dt {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.facts dd {
+  margin-top: 3px;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.preferences,
+.itinerary {
+  margin-top: 16px;
+}
+
+.preferences h2 {
+  font-size: 15px;
+  font-weight: 650;
+}
+
+.preferences p,
+.preferences ul {
+  margin-top: 6px;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.preferences ul {
+  padding-left: 18px;
+}
+
+.itinerary {
+  display: grid;
+  gap: 10px;
+}

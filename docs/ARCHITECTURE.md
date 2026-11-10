@@ -242,7 +242,7 @@ flowchart LR
 
 最多 12 个建议地点；Discovery 失败降级为空搜索上下文，模型失败仍报错（卡片请求返回 502，界面可重试）。推荐分两个请求：聊天请求只保存模型的简短引导和 `destination_recommendations_pending` 标记，客户端再调用 `POST /api/trips/[id]/destination-recommendations`；该接口从保存的对话还原触发原话，只为仍是最新消息的 pending 生成卡片，卡片消息 ID 由 pending 消息派生，重复请求返回同一条。推荐只从聊天触发，使用真实原话；没有推荐按钮入口，不另存 action、不伪造 user 消息。未接通访问检查或排序，workflow 是普通确定性编排，不是 Vercel Workflow runtime 或 Agent 循环。卡片不等照片：每张卡带配图用的地标先保存返回，客户端再调用 `POST /api/trips/[id]/destination-recommendation-photos`，服务器每查到一张照片就以 NDJSON 流式推一行，全部查完后写回该卡片消息的 presentation（消息唯一的更新），卡片在照片到达前显示骨架块。
 
-Generate plan 只有一个，位于聊天下方：missing→按钮不可用并在悬停/聚焦时说明添加目的地的途径，有 legacyText→重新确认/清除，其余（包括只有省、没有市）→准备度通过但规划尚未开放。出发地、日期、时长和交通目前不是硬门槛，准备度通过不证明安全或可行。
+Generate plan 只有一个，位于聊天下方：missing→按钮不可用并在悬停/聚焦时说明添加目的地的途径，有 legacyText→重新确认/清除，其余（包括只有省、没有市）→服务端检查归属并读取已保存 TripState 与用户偏好，交给同一标签页的真实计划页。出发地、日期、时长和交通目前不是硬门槛，交接后仍待生成日程。
 
 ## 6. 一致性、错误与可恢复性
 

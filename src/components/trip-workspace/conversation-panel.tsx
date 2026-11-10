@@ -395,6 +395,7 @@ export function ConversationPanel({
         onRequest={closeCurrentOffer}
         tripId={tripId}
         tripState={tripState}
+        waitingForSave={isSubmitting || selectionPendingMessageId !== null}
       />
 
       <form

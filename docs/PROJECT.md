@@ -122,6 +122,8 @@ The implemented destination flow includes:
 - Planning readiness requires a saved destination (a whole province is enough) and
   no unverified legacy record. One Generate plan sits under the conversation; while
   it cannot proceed it stays disabled and explains how to add a destination.
+  On success it opens a plan page with the saved TripState snapshot and preferences
+  backed by the traveller's own messages. The page shows these inputs for planning.
 - Destination recommendations are requested in conversation; there is no separate
   recommendation button.
 
@@ -180,8 +182,8 @@ restricts them to settled provinces. Each place carries a representative landmar
 used only to pick its photo. Access checking and ranking are not connected to this
 workflow. Explicit selection and identity verification are required.
 
-**Generate Plan — the Planner agent:** Generate plan opens a new page
-and starts the Planner, an agent built on Mastra. It takes a snapshot of
+**Generate Plan — the Planner agent:** The plan page currently receives the
+handoff. The planned Mastra workflow takes a snapshot of
 the current TripState, researches with tools (place identity, routes,
 weather, web notices) within a budget, and returns a plan of days, places
 and legs in which every fact carries its source and date and anything not

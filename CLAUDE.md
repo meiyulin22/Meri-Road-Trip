@@ -46,7 +46,8 @@ Do not proactively implement future architecture.
   silently become saved destinations or restore removed places.
 - Preserve province → city/prefecture → spot preferences, explicit selection,
   cascading deletion that retains an empty province, and read-only consumed/expired
-  cards. Generate plan currently checks readiness only.
+  cards. Generate plan checks readiness and hands off saved facts and preferences.
+  Itinerary generation is planned.
 - Keep source, tests, and affected current documentation consistent. Update the file
   inventory when adding, moving, or removing project files; do not create speculative
   layers or directory-level instruction files before they are needed.
