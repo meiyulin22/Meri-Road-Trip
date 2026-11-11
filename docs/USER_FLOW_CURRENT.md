@@ -573,7 +573,7 @@ add/set 使用 Promise.all 查询表达。解析层保留不同 provider ID，�
 - [JourneyOrbit](../src/components/trip-workspace/journey-orbit.tsx)把已选地点的照片排成绕地球旋转的椭圆环（土星环）：每个地点一张，最多 8 张；转到后方的照片变小、变淡，压在地球线框下面，转到前方的变大、变清晰，盖在地球上面；约 48 秒转一圈，鼠标悬停时暂停，点击某张会沿最短方向转到正前方；系统要求减少动态效果时静止不转；图片加载失败的那张不显示。没有已选地点时只有地球。动画只用免费的 `motion` 包（useAnimationFrame / useTransform），没有使用付费的 Motion+ 组件。
 
 - [JourneyGlobe](../src/components/trip-workspace/journey-globe.tsx)改写自 cult-ui 的 Illustration Globe（MIT），纯 SVG 线框半球，光点沿经线流向节点。节点数等于已选地点数（有市的按市计，只有省的按 1 计，最多 6 个），只为“看着好看”，不表示真实地理位置，没有坐标、没有地图功能。系统要求减少动态效果时只显示静止节点。
-- [MeriWorld](../src/components/companion/meri-world.tsx) 将全身小熊猫叠放在地球下沿前方，气泡独立显示由旅程状态和聊天活动计算的一句话，继续用 `aria-live=polite` 播报。
+- [MeriWorld](../src/components/companion/meri-world.tsx) 将全身小熊猫叠放在地球下沿前方，照片转到前侧时也在小熊猫后面。气泡独立显示由旅程状态和聊天活动计算的一句话，继续用 `aria-live=polite` 播报。
 - [WorkspaceRedPanda](../src/components/companion/workspace-red-panda.tsx) 从空手站姿开始，依次播放「取图 → 看图 → 收图」、折返走动、喝水、坐下吃饼干，然后循环。每组之间留出静止间隔。保温杯只在喝水时出现。小熊猫坐下后从背包拿一块饼干，吃完起身回到空手站姿。角色装饰不接收指针事件。
 - 动画使用本地透明 WebM，静态海报使用 WebP。持图海报衔接地图片段。吃饼干片段在右侧多留空间，坐下时能完整显示尾巴。页面隐藏或角色离屏时暂停，系统减少动态效果、媒体加载失败或解码不保留透明通道时显示静态站姿。素材和制作记录见 [工作区小熊猫 V1](product/workspace-red-panda.md)。
 

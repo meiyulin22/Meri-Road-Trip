@@ -383,7 +383,8 @@
 /* Decorative globe under the Journey overview; it fades out at the bottom into the page. */
 .journeyGlobe { width: min(100%, 420px); margin: 4px auto 0; padding: 0 8px; -webkit-mask-image: linear-gradient(to bottom, #000 55%, transparent); mask-image: linear-gradient(to bottom, #000 55%, transparent); }
 .journeyGlobe svg { display: block; width: 100%; height: auto; overflow: visible; }
-.journeyOrbit { position: relative; width: min(100%, 420px); margin: 4px auto 0; padding-bottom: 34px; }
+/* Keep the orbit's depth layers behind the companion. */
+.journeyOrbit { position: relative; isolation: isolate; width: min(100%, 420px); margin: 4px auto 0; padding-bottom: 34px; }
 .journeyOrbitGlobe { position: relative; z-index: 2; pointer-events: none; }
 .journeyOrbitGlobe .journeyGlobe { width: 100%; margin: 0; }
 .orbitPhotos { position: absolute; inset: 0; margin: 0; padding: 0; list-style: none; }
