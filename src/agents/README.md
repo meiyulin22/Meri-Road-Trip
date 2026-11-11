@@ -15,7 +15,8 @@ shapes the Planner — business, page, run, tools, memory — is kept in Chinese
 | --- | --- |
 | Implemented (1.0300) | Mastra instance, a trial agent, two tools (`resolve-place`, `web-search`), a live verification script |
 | Implemented (Workspace) | The Generate plan action opens the real plan page with a saved TripState snapshot and source-checked preference quotes |
-| Planned | Planner agent, route and weather tools, durable plan workflow, itinerary storage and display, tracing storage, evaluation |
+| Implemented (standalone) | First-round Research Agent and Kimi Search Pro, runnable with a PlanHandoff JSON file |
+| Planned | City allocation, daily itinerary, second-round verification, route and weather tools, durable plan workflow, itinerary storage and display, tracing storage, evaluation |
 
 ## 1. Why an agent here
 
@@ -36,11 +37,11 @@ Two things keep it from becoming an open-ended loop:
 
 ```text
 src/agents/          Mastra instance, agents, and their tools          ← this directory
-  index.ts           The one Mastra instance; registers every agent
+  index.ts           Mastra instance for the Scout trial
   scout-agent.ts     1.0300 trial agent (to be removed when the planner lands)
   tools/             Thin wrappers over src/platform ports, one tool per file
-  planner/           Planned: planner agent, plan workflow, prompts
-src/domain/plan/     Planned: Plan types, validation, staleness — pure, no Mastra
+  planner/           First-round Research Agent and its tests
+src/domain/plan/     Handoff and spot cards — pure, no Mastra
 src/platform/        Ports and adapters the tools call (Tianditu, Bocha, Kimi, Postgres)
 ```
 
@@ -99,6 +100,32 @@ Four findings shape the planner:
    tool results and token usage, cached tokens included. `traceId` is empty until
    tracing storage is configured.
 
+### First-round Research Agent
+
+[research-agent.ts](planner/research-agent.ts) takes a PlanHandoff. It searches
+the selected cities. When a city has user-named attractions, code makes one
+search for those attractions and another for citywide candidates. For a city
+with no named attractions, a Mastra Agent reviews the citywide search results
+and can make one follow-up search. A separate structured model call extracts
+candidates. Code matches citation IDs and exact quotes against that city's
+search results before building spot cards. Unresolved user choices stay in
+the output, and unknown fields are null.
+
+The first round researches up to ten cities, two at a time, with a 45-second
+deadline and up to two search calls per city. A trip without a confirmed
+duration researches its first selected city. A province without selected cities
+is reported separately.
+
+Run the first round from the repository root:
+
+```bash
+node --env-file=.env.local --import tsx scripts/verify-plan-research.ts path/to/handoff.json
+```
+
+The script uses MOONSHOT_API_KEY for both the model and [Kimi Search
+Pro](../platform/search/kimi-search-pro.ts). The Generate plan button currently
+opens the handoff page. This script runs research independently of the page.
+
 ## 4. Planned: the Planner
 
 ### Input
@@ -112,11 +139,12 @@ cards cannot return through conversation history.
 ### The run
 
 ```text
-snapshot TripState
+PlanHandoff
+  → research     discover candidate spots and check user-named places by city within budget
   → outline      assign days to cities, with one Kimi call for a confirmed multi-city trip
-  → research     discover and verify candidate spots by city within budget
   → rank         score optional spots for each day with Jev, or Kimi initially
-  → plan         the daily agent selects spots and proposes times
+  → plan         the same Plan Agent selects spots across the days
+  → verify       check scheduled candidates and a few alternatives for the trip dates
   → validate     code orders stops, checks evidence and feasibility, and records conflicts
   → save         a new plan version with the snapshot it was built from
 ```

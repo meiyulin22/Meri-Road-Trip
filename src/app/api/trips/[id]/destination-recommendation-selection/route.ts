@@ -7,7 +7,7 @@ import type { TripState, TripStatePatch, DestinationField } from "@/domain/trip-
 import { TripNotFoundError } from "@/domain/trip/trip-errors";
 import { createLocationProvider } from "@/platform/map-providers";
 import { readGuestId } from "@/platform/identity/guest-identity";
-import { TripStateNotFoundError, TripStateConflictError } from "@/capabilities/journey/journey-errors";
+import { DestinationCityLimitError, TripStateNotFoundError, TripStateConflictError } from "@/capabilities/journey/journey-errors";
 import { LocationService } from "@/capabilities/destination/location-service";
 import { savedAreaNames } from "@/capabilities/destination/saved-area-names";
 import { picksFromSearch } from "@/capabilities/destination/resolve-destination-place";
@@ -135,6 +135,9 @@ export async function handleDestinationRecommendationSelectionPost(
         code: "follow_up_unavailable", tripState }, { status: 500 });
     }
   } catch (error) {
+    if (error instanceof DestinationCityLimitError) {
+      return Response.json({ error: error.message, code: "destination_city_limit" }, { status: 422 });
+    }
     if (error instanceof TripStateConflictError) {
       return Response.json({ error: "Destination changed while saving. Please retry." }, { status: 409 });
     }

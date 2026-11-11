@@ -9,15 +9,31 @@ import {
   type TripStatePatch,
   type DestinationField,
 } from "@/domain/trip-state/trip-state";
+import {
+  destinationContains,
+  destinationPlaceCount,
+  MAX_TRIP_DESTINATION_CITIES,
+} from "@/domain/trip-state/destination-areas";
 import type { Trip } from "@/domain/trip/trip";
 import type { TripStateRepository } from "@/platform/persistence/trip-state-repository";
 import type { TripService } from "./trip-service";
 
 import {
+  DestinationCityLimitError,
   JourneyCreationError,
   TripStateNotFoundError,
   TripStateConflictError,
 } from "./journey-errors";
+
+function enforceDestinationCityLimit(destination: DestinationField, previous?: DestinationField): void {
+  if (destination.state === "missing" || destinationPlaceCount(destination.areas) <= MAX_TRIP_DESTINATION_CITIES) return;
+
+  // Older journeys can keep or remove saved cities while they work back down to the limit.
+  const savedAreas = previous?.state === "known" ? previous.areas : [];
+  const addsCity = destination.areas.some(({ province, places }) =>
+    places.some(({ name }) => !destinationContains(savedAreas, { province, place: name, spot: null })));
+  if (addsCity) throw new DestinationCityLimitError();
+}
 
 export interface Journey {
   readonly trip: Trip;
@@ -71,6 +87,7 @@ export class JourneyService {
     const tripState = initialDestination === undefined
       ? initializeTripState(draft)
       : { ...initializeTripState(draft), destination: initialDestination };
+    enforceDestinationCityLimit(tripState.destination);
     const trip = await this.dependencies.tripService.createTrip({}, ownerGuestId);
 
     try {
@@ -154,6 +171,7 @@ export class JourneyService {
         throw new TripStateConflictError(tripId);
       }
       const nextState = applyTripStatePatch(tripState, patch);
+      enforceDestinationCityLimit(nextState.destination, tripState.destination);
       const repository = this.dependencies.createTripStateRepository(tripId);
       if (repository.compareAndUpdate) {
         if (await repository.compareAndUpdate(tripState, nextState)) return nextState;

@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { canSelectDestinationRecommendation, chosenDestinationPlaces, groupRecommendationsByProvince, selectDestinationRecommendation, streamRecommendationPhotos } from "./destination-recommendation-model";
-import { DestinationSelectionFollowUpError } from "./workspace-conversation-model";
+import { DestinationSelectionCityLimitError, DestinationSelectionFollowUpError } from "./workspace-conversation-model";
 import { getWorkspaceTitle } from "./workspace-title";
 import { journeyFieldLabel } from "./workspace-presentation";
 import type { TripState } from "@/domain/trip-state/trip-state";
@@ -137,6 +137,14 @@ test("an expired offer has a distinct error so the UI closes it instead of invit
  const { DestinationOfferExpiredError } = await import("./workspace-conversation-model");
  await assert.rejects(()=>selectDestinationRecommendation("trip", "old-offer", ["choice"],
   async()=>Response.json({code:"offer_expired"},{status:409})),DestinationOfferExpiredError);
+});
+
+test("a selection beyond the city limit has a distinct error so the offer can stay open", async () => {
+  await assert.rejects(
+    () => selectDestinationRecommendation("trip", "assistant-cards", ["choice"],
+      async () => Response.json({ error: "City limit", code: "destination_city_limit" }, { status: 422 })),
+    DestinationSelectionCityLimitError,
+  );
 });
 
 test("streamed photos reach the cards one by one, even when a line arrives in pieces", async () => {

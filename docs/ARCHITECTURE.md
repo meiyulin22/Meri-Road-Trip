@@ -44,7 +44,7 @@ flowchart TB
 | --- | --- |
 | 已实现 | 访客所属 Journey、自然语言创建、持久化会话、普通字段编辑、目的地省/市/spot、显式多选确认、推荐与准备度检查 |
 | 已实现但有范围限制 | PWA manifest/图标，无离线缓存；推荐使用搜索启发，无访问检查或排序；地点照片只作装饰 |
-| 试验阶段 | Agent 技术栈：Mastra + Kimi 经 Mastra 调用地点核验（天地图）和网页搜索（1.0300，只有试验 Agent）；设计见 [src/agents/README.md](../src/agents/README.md) |
+| 试验阶段 | Scout 验证 Mastra 工具调用。第一轮 Research Agent 可用 PlanHandoff JSON 独立运行，以 Kimi 搜索产出带来源的景点卡。见 [src/agents/README.md](../src/agents/README.md) |
 | 未实现 | 真正 Generate Plan（Planner Agent）、实时天气/路线研究、证据系统、Agent 运行追踪与评估、后台监控、Adaptive Workspace |
 
 ## 2. 技术栈与接入位置
@@ -86,7 +86,7 @@ flowchart TB
 | 表现层 | 渲染、编辑、暂选、pending/error、同步保存结果 | `src/components/` | 领域类型、展示纯函数、本应用 API | UI 提示不能替代服务端资格检查 |
 | 领域层 | Trip/State/Message 等契约，合法状态和纯规则 | `src/domain/` | 不调用网络或数据库；输出规范对象/状态变换 | 不解释未知提供方身份，不生成 UI 代码 |
 | 应用层 | 为一次用户操作编排校验、查询、保存及回复 | `src/capabilities/` | 领域规则和外部端口 | 固定流程，不是 Agent |
-| Agent 层 | 给定目标和工具，由模型决定下一步调用哪个工具 | `src/agents/` | 工具包装 platform 端口；输出交给代码校验后才保存 | 1.0300 只有试验 Agent；Planner、预算上限、可恢复工作流、追踪均未实现，设计见 `src/agents/README.md` |
+| Agent 层 | 给定目标和工具，由模型决定下一步调用哪个工具 | `src/agents/` | 工具包装 platform 端口；第一轮调研在预算内输出经引用核对的景点卡 | 排程、可恢复工作流及追踪待实现，见 `src/agents/README.md` |
 | 基础设施层 | 模型、地图、搜索、身份、日志、数据库适配 | `src/platform/` | provider SDK/HTTP、Neon/Drizzle；返回规范化结果 | 端口和实现目前同属 platform，并非完全强制隔离 |
 
 ### 3.1 应用能力模块

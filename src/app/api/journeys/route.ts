@@ -10,7 +10,7 @@ import {
   guestIdCookieName,
   guestIdCookieOptions,
 } from "@/platform/identity/guest-identity";
-import { JourneyCreationError } from "@/capabilities/journey/journey-errors";
+import { DestinationCityLimitError, JourneyCreationError } from "@/capabilities/journey/journey-errors";
 import { createLocationProvider, createPlacePhotoProvider } from "@/platform/map-providers";
 import { createJourneyWithOpening } from "@/capabilities/journey/create-journey-with-opening";
 import { journeyService } from "@/capabilities/journey/journey-service-instance";
@@ -106,6 +106,9 @@ export async function POST(request: Request) {
     }
     return response;
   } catch (error) {
+    if (error instanceof DestinationCityLimitError) {
+      return Response.json({ error: { code: "destination_city_limit", message: error.message } }, { status: 422 });
+    }
     const isInvalidInput =
       error instanceof SyntaxError || error instanceof InvalidTripDraftError ||
       error instanceof InvalidTripMessageError;

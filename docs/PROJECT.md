@@ -107,6 +107,7 @@ The implemented destination flow includes:
   under that city. Repeated POIs for the same province/city/preference show once;
   this does not resolve the exact POI for future planning.
 - Province → city/prefecture → spot display with continued additions and removals.
+  Each Journey can add up to ten cities or prefectures. Provinces and spots do not consume a city slot.
   Removing a city removes its spots and retains the province. Removing a spot keeps
   the city; removing a province removes all its children.
 - Manual destination search and explicit addition after provider verification.
@@ -135,8 +136,9 @@ require an explicit region and a matching place name or registered alias; admini
 representatives are configured separately. Missing coverage produces no photo. Photos
 decorate a place and are not evidence about its identity or current conditions.
 The Planner agent, generated Plan, live weather intelligence, and route
-research remain planned. What exists of the agent stack is a trial (1.0300): Mastra with Kimi
-calling the place check and web search; see [the agents README](../src/agents/README.md).
+research remain planned. The Scout trial exercises tool calls through Mastra. The first-round
+Research Agent runs from a PlanHandoff JSON file and returns candidate spot cards with search sources.
+See [the agents README](../src/agents/README.md).
 
 ## 5. Product principles
 
@@ -190,8 +192,8 @@ and legs in which every fact carries its source and date and anything not
 found is listed as unknown. Code validates the plan against the snapshot
 and the tool results before saving it as a version; a later change to the
 Journey marks it stale. The run is a durable workflow that survives a
-restart and can pause for the user. Only the trial exists; the design is
-in [the agents README](../src/agents/README.md).
+restart and can pause for the user. The first round of research runs independently of the page.
+The design is in [the agents README](../src/agents/README.md).
 
 The next planning input should come from current TripState, including city-level
 destination choices and their named spots. Deleted spots and unselected offers

@@ -8,6 +8,7 @@ import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 
 import type { ConversationActivity } from "@/components/companion/companion-status-model";
 import type { TripMessage } from "@/domain/trip-message/trip-message";
+import { MAX_TRIP_DESTINATION_CITIES } from "@/domain/trip-state/destination-areas";
 import type { TripState } from "@/domain/trip-state/trip-state";
 import { useMessages } from "@/components/i18n/locale-context";
 import type { Messages } from "@/components/i18n/messages";
@@ -18,7 +19,7 @@ import { DestinationChoicesCard } from "./destination-choices-card";
 import { GeneratePlanAction } from "./generate-plan-action";
 import { formatMessageTimestamp } from "./message-timestamp";
 import { appendPersistedMessageIfAbsent, destinationChoicePresentation, messageCreatedAt, pendingRecommendationPresentation, recommendationIdsAwaitingPhoto, toWorkspaceUIMessages, withRecommendationPhoto } from "./trip-message-ui-adapter";
-import { DestinationOfferExpiredError, DestinationSelectionFollowUpError, RecommendationsStaleError } from "./workspace-conversation-model";
+import { DestinationOfferExpiredError, DestinationSelectionCityLimitError, DestinationSelectionFollowUpError, RecommendationsStaleError } from "./workspace-conversation-model";
 import {
   reconcileCommittedUserId,
   WorkspaceChatTransport,
@@ -217,6 +218,8 @@ export function ConversationPanel({
       } else if (error instanceof DestinationOfferExpiredError) {
         setClosedOfferIds((current) => [...new Set([...current, messageId])]);
         setSelectionNotice(words.offerExpired);
+      } else if (error instanceof DestinationSelectionCityLimitError) {
+        setSelectionNotice(text.destinationEditor.cityLimit(MAX_TRIP_DESTINATION_CITIES));
       } else {
         setSelectionErrorMessageId(messageId);
       }

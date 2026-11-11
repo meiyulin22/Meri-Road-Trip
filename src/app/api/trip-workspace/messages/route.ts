@@ -27,7 +27,7 @@ import { destinationEditReply, recommendationLeadIn } from "@/capabilities/conve
 import { meriReplies } from "@/capabilities/conversation/meri-replies";
 import { requestLocale } from "@/platform/locale/request-locale";
 import { createLocationProvider, createPlacePhotoProvider } from "@/platform/map-providers";
-import { TripStateNotFoundError, TripStateConflictError } from "@/capabilities/journey/journey-errors";
+import { DestinationCityLimitError, TripStateNotFoundError, TripStateConflictError } from "@/capabilities/journey/journey-errors";
 import { journeyService } from "@/capabilities/journey/journey-service-instance";
 import { readGuestId } from "@/platform/identity/guest-identity";
 import { LocationService } from "@/capabilities/destination/location-service";
@@ -192,16 +192,24 @@ export async function POST(request: Request) {
       // A group of provinces (江浙沪) is read by the model, never searched on the map.
       (expression) => provincesOfPlace(expression),
     );
+    let destinationLimitReached = false;
     if (destinationResult.changed) {
-      persistedTripState = await journeyService.updateTripState(tripId, ownerGuestId,
-        { destination: destinationResult.destination }, persistedTripState.destination);
+      try {
+        persistedTripState = await journeyService.updateTripState(tripId, ownerGuestId,
+          { destination: destinationResult.destination }, persistedTripState.destination);
+      } catch (error) {
+        if (!(error instanceof DestinationCityLimitError)) throw error;
+        destinationLimitReached = true;
+      }
     }
-    const persistedPatch = patch || destinationResult.changed
-      ? { ...(patch ?? {}), ...(destinationResult.changed ? { destination: destinationResult.destination } : {}) }
+    const destinationSaved = destinationResult.changed && !destinationLimitReached;
+    const destinationChoices = destinationLimitReached ? null : destinationResult.choices;
+    const persistedPatch = patch || destinationSaved
+      ? { ...(patch ?? {}), ...(destinationSaved ? { destination: destinationResult.destination } : {}) }
       : null;
     // A card or an unplaced name is this turn's question for the user; cards of a
     // second kind beside it would ask two things at once.
-    const destinationNeedsUser = destinationResult.choices !== null ||
+    const destinationNeedsUser = destinationLimitReached || destinationChoices !== null ||
       destinationResult.unresolved.length > 0 || destinationResult.lookupFailed.length > 0;
     const recommendationScope = destinationNeedsUser
       ? null
@@ -219,11 +227,13 @@ export async function POST(request: Request) {
       }, "Destination recommendations were requested on a turn that cannot offer them");
     }
     const replies = meriReplies[locale];
-    const reply = destinationEditReply(destinationResult,
-      recommendationScope ? recommendationLeadIn(interpretation.reply, replies) : interpretation.reply,
-      tripState, persistedTripState, replies);
-    const assistantPresentation = destinationResult.choices
-      ? await withChoiceImages(destinationResult.choices.presentation, createPlacePhotoProvider())
+    const reply = destinationLimitReached
+      ? replies.destinationCityLimit
+      : destinationEditReply(destinationResult,
+        recommendationScope ? recommendationLeadIn(interpretation.reply, replies) : interpretation.reply,
+        tripState, persistedTripState, replies);
+    const assistantPresentation = destinationChoices
+      ? await withChoiceImages(destinationChoices.presentation, createPlacePhotoProvider())
       : recommendationScope
         ? { type: "destination_recommendations_pending" as const, scope: recommendationScope }
         : undefined;
@@ -253,7 +263,7 @@ export async function POST(request: Request) {
         event: logEvents.tripMessageTurnPersisted,
         ...context,
         tripId,
-        branch: destinationResult.choices ? "destination_choices"
+        branch: destinationChoices ? "destination_choices"
           : recommendationScope ? `destination_recommendations_${recommendationScope}` : "conversation",
         messageIds: messages.map((message) => message.id),
       },

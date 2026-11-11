@@ -195,7 +195,8 @@
 .destinationEditor button:disabled { opacity: .52; cursor: default; }
 /* 去哪: one row per province, its cities and spots as chips, every remove control in
    one column on the right. */
-.destinationAddCell { justify-self: end; }
+.destinationAddCell { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; justify-self: end; gap: 4px 8px; }
+.destinationCityCount { color: #687a6f; font-size: 11.5px; white-space: nowrap; }
 .stateField.destinationEditor .destinationAddToggle { display: inline-flex; width: 66px; height: 30px; align-items: center; justify-content: center; gap: 4px; min-height: 30px; padding: 0 10px; border: 1px solid #d8e2d2; border-radius: 8px; background: #eef3e9; color: #52745d; font-size: 12px; line-height: 1; white-space: nowrap; transition: background-color .18s ease, border-color .18s ease; }
 .stateField.destinationEditor .destinationAddToggle:hover, .stateField.destinationEditor .destinationAddToggle:focus-visible, .stateField.destinationEditor .destinationAddToggle[aria-expanded="true"] { background: #e1ecdb; border-color: #aec4a6; }
 .stateField.destinationEditor .destinationAddToggle svg { flex-basis: auto; color: inherit; opacity: 1; }
@@ -308,7 +309,7 @@
 .stateField .transportChoices button:disabled { cursor: wait; opacity: .7; }
 .fieldNote { margin: 6px 0 0; color: #7a887f; font-size: 12px; }
 .stateField input, .stateField select { width: 100%; min-width: 0; border: 1px solid #91a890; border-radius: 6px; padding: 6px; background: #fffdf8; color: var(--ink); font: inherit; }
-.stateField.destinationEditor { align-items: start; }
+.stateField.destinationEditor { align-items: start; grid-template-columns: auto minmax(0, 1fr); }
 .stateField.destinationEditor > dt { padding-top: 3px; }
 .stateField.destinationEditor dd button { width: auto; justify-content: center; }
 .stateField.destinationEditor .destinationEditorSearch input { border: 0; padding: 0; border-radius: 0; }

@@ -5,7 +5,7 @@ import { motion, useReducedMotion } from "motion/react";
 import { useEffect, useRef, useState } from "react";
 import { z } from "zod";
 
-import { destinationContains, type DestinationRemoval } from "@/domain/trip-state/destination-areas";
+import { destinationContains, destinationPlaceCount, MAX_TRIP_DESTINATION_CITIES, type DestinationRemoval } from "@/domain/trip-state/destination-areas";
 import { validateTripState, type TripState } from "@/domain/trip-state/trip-state";
 
 import { useMessages } from "@/components/i18n/locale-context";
@@ -90,6 +90,14 @@ export function DestinationEditor({ tripId, tripState, onTripStateChange, initia
         method, headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload),
       });
       if (!response.ok) {
+        if (response.status === 422) {
+          const failure: unknown = await response.json();
+          if (typeof failure === "object" && failure !== null && "code" in failure &&
+            failure.code === "destination_city_limit") {
+            setError(text.cityLimit(MAX_TRIP_DESTINATION_CITIES));
+            return;
+          }
+        }
         setError(response.status === 409 ? conflictMessage : text.saveFailed);
         return;
       }
@@ -115,6 +123,9 @@ export function DestinationEditor({ tripId, tripState, onTripStateChange, initia
       {text.label}
     </span></dt>
     <dd className={styles.destinationAddCell}>
+      <span className={styles.destinationCityCount} aria-live="polite">
+        {text.cityCount(destinationPlaceCount(areas), MAX_TRIP_DESTINATION_CITIES)}
+      </span>
       <motion.button className={styles.destinationAddToggle} type="button" aria-expanded={open}
         aria-label={open ? text.collapseSearch : text.add}
         whileTap={reduceMotion ? undefined : { scale: 0.97 }}

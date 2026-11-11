@@ -103,6 +103,13 @@ export class DestinationOfferExpiredError extends WorkspaceConversationRequestEr
   }
 }
 
+export class DestinationSelectionCityLimitError extends WorkspaceConversationRequestError {
+  constructor() {
+    super("The destination selection exceeds the journey city limit.");
+    this.name = "DestinationSelectionCityLimitError";
+  }
+}
+
 /** The conversation or the destination moved on before the promised cards were chosen. */
 export class RecommendationsStaleError extends WorkspaceConversationRequestError {
   constructor() {

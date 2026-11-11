@@ -8,7 +8,7 @@ import {
 } from "@/domain/trip-state/trip-state";
 import { TripNotFoundError } from "@/domain/trip/trip-errors";
 import { readGuestId } from "@/platform/identity/guest-identity";
-import { TripStateNotFoundError } from "@/capabilities/journey/journey-errors";
+import { DestinationCityLimitError, TripStateNotFoundError } from "@/capabilities/journey/journey-errors";
 import { journeyService } from "@/capabilities/journey/journey-service-instance";
 import { logger, logEvents } from "@/platform/observability/logger";
 import { serializeError } from "@/platform/observability/serialize-error";
@@ -80,6 +80,9 @@ function stateErrorResponse(
   tripId: string,
   requestId: string,
 ): Response {
+  if (error instanceof DestinationCityLimitError) {
+    return Response.json({ error: { code: "destination_city_limit", message: error.message } }, { status: 422 });
+  }
   const isMissing =
     error instanceof TripNotFoundError || error instanceof TripStateNotFoundError;
   const status = error instanceof InvalidTripStateError ? 400 : isMissing ? 404 : 500;

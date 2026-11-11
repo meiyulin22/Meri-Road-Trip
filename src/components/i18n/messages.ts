@@ -158,6 +158,8 @@ const en = {
   },
   destinationEditor: {
     label: "Destination",
+    cityCount: (count: number, limit: number) => `Cities or prefectures ${count}/${limit}`,
+    cityLimit: (limit: number) => `Choose up to ${limit} cities or prefectures per journey. Adjust your destinations and try again.`,
     saveFailed: "The destination couldn't be saved. Please try again.",
     collapseSearch: "Close destination search",
     add: "Add destination",
@@ -576,6 +578,8 @@ const zh: Messages = {
   },
   destinationEditor: {
     label: "目的地",
+    cityCount: (count, limit) => `城市／自治州 ${count}/${limit}`,
+    cityLimit: (limit) => `每个旅程最多可选 ${limit} 个城市或自治州，请调整所选目的地。`,
     saveFailed: "目的地暂时没能保存，请重试。",
     collapseSearch: "收起目的地搜索",
     add: "添加目的地",

@@ -6,6 +6,7 @@ import {initializeTripState,applyTripStatePatch} from "@/domain/trip-state/trip-
 import type {TripMessage} from "@/domain/trip-message/trip-message";
 import {TripNotFoundError} from "@/domain/trip/trip-errors";
 import { meriReplies } from "@/capabilities/conversation/meri-replies";
+import { DestinationCityLimitError } from "@/capabilities/journey/journey-errors";
 const tripId="trip-a";
 const initial=initializeTripState({name:{state:"missing"},origin:{state:"missing"},destinationEdit:{operation:"none"},startDate:{state:"missing"},endDate:{state:"missing"},duration:{state:"missing"},transportPreference:{state:"missing"}});
 const offer:TripMessage={id:"offer",tripId,role:"assistant",content:"选择",createdAt:"2026-09-29T00:00:00Z",presentation:{type:"destination_choices",mode:"add",choices:[{id:"a",name:"潮州市",province:"广东省",city:"潮州市"},{id:"b",name:"梅里雪山",province:"云南省",city:"迪庆藏族自治州",spot:"梅里雪山"}]}};
@@ -36,6 +37,19 @@ test("write failure has no follow-up; follow-up failure reports saved state",asy
  const f=fixture();const failed=await select(tripId,"owner",body,{...f.dependencies,updateTripState:async()=>{throw new Error("write");}});assert.equal(failed.status,500);assert.equal(f.messages.length,1);
  const partial=await select(tripId,"owner",body,{...f.dependencies,replies: meriReplies.zh, persistFollowUp:async()=>{throw new Error("reply");}});assert.equal(partial.status,500);const data=await partial.json();assert.equal(data.code,"follow_up_unavailable");assert.deepEqual(data.tripState,f.getState());
 });
+test("a city-limit rejection returns an actionable error without confirming the offer", async () => {
+  const f = fixture();
+  const error = new DestinationCityLimitError();
+  const response = await select(tripId, "owner", body, {
+    ...f.dependencies,
+    updateTripState: async () => { throw error; },
+  });
+
+  assert.equal(response.status, 422);
+  assert.deepEqual(await response.json(), { error: error.message, code: "destination_city_limit" });
+  assert.equal(f.messages.length, 1);
+});
+
 test("legacy recommendations still require successful provider verification",async()=>{
  const f=fixture();f.messages[0]={...offer,presentation:{type:"destination_recommendations",destinations:[{id:"a",name:"潮州市",province:"广东省"}]}};
  let verified=false;const response=await select(tripId,"owner",{messageId:offer.id,destinationIds:["a"]},{...f.dependencies,verifyChoice:async()=>{verified=true;return {status:"verified",pick:{province:"广东省",place:"潮州市",spot:null}};}});assert.equal(response.status,200);assert.equal(verified,true);

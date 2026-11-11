@@ -10,7 +10,7 @@ import { savedAreaNames } from "@/capabilities/destination/saved-area-names";
 import { picksFromSearch } from "@/capabilities/destination/resolve-destination-place";
 import { provincesOfPlace } from "@/capabilities/destination/region-hint";
 import { destinationSelectionSchema, pickFromSuggestion, withoutAreaNamesakes } from "@/capabilities/destination/search-picks";
-import { TripStateConflictError } from "@/capabilities/journey/journey-errors";
+import { DestinationCityLimitError, TripStateConflictError } from "@/capabilities/journey/journey-errors";
 import { TripNotFoundError } from "@/domain/trip/trip-errors";
 import { logger } from "@/platform/observability/logger";
 
@@ -149,6 +149,9 @@ async function deleteDestination(request: Request, context: Context): Promise<Re
 async function mutateDestination(action: () => Promise<Response>): Promise<Response> {
   try { return await action(); }
   catch (error) {
+    if (error instanceof DestinationCityLimitError) {
+      return Response.json({ error: error.message, code: "destination_city_limit" }, { status: 422 });
+    }
     if (error instanceof TripStateConflictError) {
       return Response.json({ error: "Destination changed. Please retry." }, { status: 409 });
     }

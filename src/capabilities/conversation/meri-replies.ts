@@ -1,3 +1,4 @@
+import { MAX_TRIP_DESTINATION_CITIES } from "@/domain/trip-state/destination-areas";
 import type { Locale } from "@/domain/locale/locale";
 
 /**
@@ -20,6 +21,7 @@ export interface MeriReplies {
   readonly missing: { readonly origin: string; readonly startDate: string; readonly days: string };
   readonly captured: { readonly both: string; readonly dates: string; readonly duration: string };
 
+  readonly destinationCityLimit: string;
   readonly added: (places: string) => string;
   readonly offered: (answering: string) => string;
   readonly removedConfirmable: string;
@@ -57,6 +59,7 @@ const zh: MeriReplies = {
   missing: { origin: "出发地", startDate: "出发时间", days: "行程天数" },
   captured: { both: "时间和行程时长也已经记下。", dates: "时间也已经有了。", duration: "行程时长也已经记下。" },
 
+  destinationCityLimit: "每趟旅程最多选 " + MAX_TRIP_DESTINATION_CITIES + " 个城市或自治州。请移除一个已选城市，或少选几个再试。",
   added: (places) => `已加入${places}。`,
   offered: (answering) => `找到「${answering}」相关的地点了，点击添加后才会记入旅程。`,
   removedConfirmable: "已移除能确认的地点。",
@@ -92,6 +95,7 @@ const en: MeriReplies = {
   captured: { both: "Your dates and trip length are noted too.", dates: "Your dates are noted too.",
     duration: "Your trip length is noted too." },
 
+  destinationCityLimit: "You can choose up to " + MAX_TRIP_DESTINATION_CITIES + " cities or prefectures. Remove a saved city or select fewer and try again.",
   added: (places) => `Added ${places}.`,
   offered: (answering) => `I found places for “${answering}” — they're only added to the journey once you tap Add.`,
   removedConfirmable: "I removed the places I could confirm.",

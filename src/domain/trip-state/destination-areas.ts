@@ -103,6 +103,8 @@ export function destinationAdditions(
   });
 }
 
+export const MAX_TRIP_DESTINATION_CITIES = 10;
+
 export function destinationPlaceCount(areas: readonly DestinationArea[]): number {
   return areas.reduce((total, area) => total + area.places.length, 0);
 }

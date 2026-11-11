@@ -3,7 +3,7 @@ import { validateTripMessage, type TripMessage } from "@/domain/trip-message/tri
 import type { RecommendationPhoto } from "@/capabilities/recommendation/recommendation-photos";
 import type { DestinationRecommendationPresentation } from "@/domain/trip-message/trip-message";
 import { validateTripState, type TripState } from "@/domain/trip-state/trip-state";
-import { DestinationOfferExpiredError, DestinationSelectionFollowUpError, RecommendationsStaleError, WorkspaceConversationRequestError } from "./workspace-conversation-model";
+import { DestinationOfferExpiredError, DestinationSelectionCityLimitError, DestinationSelectionFollowUpError, RecommendationsStaleError, WorkspaceConversationRequestError } from "./workspace-conversation-model";
 
 type Fetcher = (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>;
 
@@ -62,6 +62,8 @@ export async function selectDestinationRecommendation(
   if (!response.ok) {
     if (response.status === 409 && typeof body === "object" && body !== null &&
       "code" in body && body.code === "offer_expired") throw new DestinationOfferExpiredError();
+    if (response.status === 422 && typeof body === "object" && body !== null &&
+      "code" in body && body.code === "destination_city_limit") throw new DestinationSelectionCityLimitError();
     if (typeof body === "object" && body !== null && "code" in body &&
       body.code === "follow_up_unavailable" && "tripState" in body) {
       throw new DestinationSelectionFollowUpError(validateTripState(body.tripState));

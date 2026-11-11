@@ -56,12 +56,12 @@
 | `src/capabilities/conversation/` | 模型解释、开场、历史上下文和消息保存 | 对话应用用例 |
 | `src/capabilities/destination/` | 地点查询协调、层级映射、候选准备、提交复核 | 目的地应用用例 |
 | `src/capabilities/recommendation/` | 搜索启发、结构化推荐、省份过滤和消息编排 | 推荐应用用例；确定性 workflow |
-| `src/agents/` | Mastra 入口、Agent 和它们的工具（工具是对 platform 端口的一层薄包装） | Agent 层；1.0300 只有验证技术栈用的试验 Agent，规划 Agent 尚未实现 |
+| `src/agents/` | Mastra 入口、Agent 和它们的工具（工具是对 platform 端口的一层薄包装） | Agent 层；Scout 试验和由脚本独立调用的景点调研，完整规划尚未接入页面 |
 | `src/agents/tools/` | Agent 可调用的工具：地点核验、网页搜索 | Agent 工具 |
 | `src/platform/` | 提供外部调用接口和具体实现 | 基础设施/集成层（infrastructure layer），端口与适配器 |
 | `src/platform/llm/` | 模型客户端契约、Kimi 调用、SDK 错误与超时适配 | 模型提供方适配 |
 | `src/platform/location-provider/` | 地点搜索/输入建议接口（实现在 `src/platform/tianditu/`） | 地图提供方适配 |
-| `src/platform/search/` | Discovery Search 接口及 Bocha 请求/响应适配 | 搜索提供方适配 |
+| `src/platform/search/` | Discovery Search 接口及 Bocha、Kimi Search Pro 请求/响应适配 | 搜索提供方适配 |
 | `src/platform/place-photos/` | 地点照片接口、本地图集（地区与名称匹配），以及推荐卡的运行时补图（Wikimedia 先、Pixabay 后：客户端、身份判断、媒体目录存储） | 照片提供方适配 |
 | `src/platform/persistence/` | repository 接口，隔离应用层与数据库实现 | 持久化端口；这里的接口不等于 SQL 实现 |
 | `src/platform/persistence/postgres/` | PostgreSQL repository，读取校验、错误包装、CAS 更新 | 持久化适配器 |
@@ -112,7 +112,7 @@ UI 同步状态；刷新从数据库恢复
 
 LLM 解释自然语言并提出受限 JSON；应用校验、决定是否执行、核验地点并保存。助手建议即使经过天地图核验，仍需要用户显式确认才成为目的地。Gen UI 是受限数据驱动的预写 React 组件，不是模型生成 JSX。
 
-推荐是确定性流程：Discovery Search → Kimi 结构化推荐（含配图用的代表地标）→ 校验/去重 → 省份过滤 → 保存建议（卡片带地标、无照片）→ 浏览器另行请求照片，服务器按地标和地区查询当前照片提供方、逐张流式返回并写回卡片消息 → 显式选中时复核地点。代码没有接通访问检查、排序或开放式 Research Agent；照片只是装饰。Generate plan 检查准备度后将保存的状态和偏好交给真实计划页；PWA 有 manifest 和图标，没有离线 service worker。
+推荐是确定性流程：Discovery Search → Kimi 结构化推荐（含配图用的代表地标）→ 校验/去重 → 省份过滤 → 保存建议（卡片带地标、无照片）→ 浏览器另行请求照片，服务器按地标和地区查询当前照片提供方、逐张流式返回并写回卡片消息 → 显式选中时复核地点。推荐流程没有接入访问检查或排序，推荐卡照片只作装饰。Generate plan 检查准备度后将保存的状态和偏好交给真实计划页。独立调研脚本读取同一交接契约，调用 Research Agent 返回有来源的候选景点。PWA 有 manifest 和图标，没有离线 service worker。
 
 ### 3.4 两条实际操作链
 
@@ -147,7 +147,7 @@ LLM 解释自然语言并提出受限 JSON；应用校验、决定是否执行�
 | 推荐生成与搜索降级 | recommendation context/generator/prompt/workflow/use case、Discovery Search/Bocha | 第 4.1 节 |
 | 日期/交通/出发地直接编辑 | brief panel、location editor/model、trip-state persistence model、state/suggestions routes | 第 5.1 节 |
 | Generate plan 交接 | planning-readiness、planning-handoff route/model、generate-plan action、真实计划页 | 第 5.4 节 |
-| Agent、工具、Planner | `src/agents/README.md`（先读）、`docs/agent-planner/README.md`（已定未实现的决定）、`src/agents/` 源码与工具测试、`scripts/verify-agent-tools.ts`、`platform/llm/moonshot-chat-model.ts` | 尚无（Planner 未接入用户流程） |
+| Agent、工具、Planner | `src/agents/README.md`（先读）、`docs/agent-planner/README.md`（规划决定）、`src/agents/` 源码与工具测试、`scripts/verify-agent-tools.ts`、`scripts/verify-plan-research.ts` | 景点调研可用脚本独立验证；计划页交接见第 5.4 节 |
 | 保存、并发、列表或删除 | Journey/Trip services、repository 接口、Postgres 实现、schema、my-journeys 和相关页面 | 第 1.1、2.3、7 节 |
 | 视觉或动画 | 对应 TSX/CSS、现有 UI 组件及引用的 public 资源 | 涉及操作变化时同步相应业务章节 |
 
@@ -398,6 +398,7 @@ Generate plan 背后的计划页先用示例数据做出完整页面（设计决
 | [src/domain/trip-state/destination-edit.ts](../src/domain/trip-state/destination-edit.ts) | 领域层 | none/add/set/remove 契约、严格模型 JSON Schema、表达数量/长度/去重校验。 |
 | [src/domain/trip-state/destination-legacy-read.test.ts](../src/domain/trip-state/destination-legacy-read.test.ts) | 测试（对应模块边界） | 验证旧自由文本保留为 legacyText，不把未核验名称假装成市。 |
 | [src/domain/plan/plan-handoff.ts](../src/domain/plan/plan-handoff.ts) | 领域层 | 交接快照与响应契约，校验 TripState、参考日期、语言和偏好摘录。 |
+| [src/domain/plan/spot-card.ts](../src/domain/plan/spot-card.ts) | 领域层 | 景点卡与原文证据的类型，未知字段可以为空。 |
 | [src/domain/trip-state/planning-readiness.test.ts](../src/domain/trip-state/planning-readiness.test.ts) | 测试（对应模块边界） | 验证缺目的地、只有省、省市混合、旧文本和已选城市的准备度；其他字段不是硬门槛。 |
 | [src/domain/trip-state/planning-readiness.ts](../src/domain/trip-state/planning-readiness.ts) | 领域层 | 纯准备度规则：missing、unverified 或 selected（只有省也算 selected）；仅检查状态，不研究可行性。 |
 | [src/domain/trip-state/trip-dates.test.ts](../src/domain/trip-state/trip-dates.test.ts) | 测试（对应模块边界） | 验证含首尾计数、任意两项补算第三项、修改哪项决定补算哪项、跨月跨年/闰日，以及近似/非法值不参与。 |
@@ -524,8 +525,10 @@ Generate plan 背后的计划页先用示例数据做出完整页面（设计决
 | 文件地址 | 层/类别 | 做什么 |
 | --- | --- | --- |
 | [src/agents/README.md](../src/agents/README.md) | 文档（Agent 设计约定） | Agent 的主文档（英文）：已实现与计划分开写；试验结果与四条发现、Planner 的输入/运行/输出/代码校验/版本与过期、工具、预算、追踪与评估计划、部署与决策记录。docs 只链接到这里。 |
-| [src/agents/index.ts](../src/agents/index.ts) | Agent 层 | 唯一的 Mastra 实例，注册全部 Agent；默认关闭 Mastra 发往 PostHog 的使用统计（`MASTRA_TELEMETRY_DISABLED`）。未配置存储与追踪导出，运行记录只在内存。 |
+| [src/agents/index.ts](../src/agents/index.ts) | Agent 层 | 试验用的 Mastra 实例，注册 Scout Agent；默认关闭 Mastra 发往 PostHog 的使用统计（`MASTRA_TELEMETRY_DISABLED`）。未配置存储与追踪导出，运行记录只在内存。 |
 | [src/agents/scout-agent.ts](../src/agents/scout-agent.ts) | Agent 层 | 1.0300 试验 Agent：用两个现有工具回答一个关于中国地点的问题，只为验证 Kimi 经 Mastra 调用工具；将被规划 Agent 取代，不在其上扩建。模型首次使用时才读取环境变量。 |
+| [src/agents/planner/research-agent.ts](../src/agents/planner/research-agent.ts) | Agent 层 | 按已选城市进行首轮景点调研。有点名景点时分别查点名与城市候选。其余城市先做城市搜索，再按需由 Mastra 工具补查。单独结构化候选并核对来源和原文摘录。 |
+| [src/agents/planner/research-agent.test.ts](../src/agents/planner/research-agent.test.ts) | 测试（对应模块边界） | 用模拟模型和搜索结果验证 10 城范围、每城查询预算、证据校验和点名景点的保留。 |
 | [src/agents/tools/resolve-place.ts](../src/agents/tools/resolve-place.ts) | Agent 工具 | 用工作区同一套地点核验（天地图）查一个中文地名，返回匹配地点（省/市/区、GCJ-02 坐标、是否景点）、最多 5 个候选或整省；不代表开放或可达。 |
 | [src/agents/tools/web-search.ts](../src/agents/tools/web-search.ts) | Agent 工具 | 经 Bocha 搜索近期公告（封闭、预约、季节通行），最多 5 条，每条带来源和发布日期；结果只是线索，提供方失败只返回 unavailable，不暴露带密钥的 URL。 |
 | [src/agents/tools/tools.test.ts](../src/agents/tools/tools.test.ts) | 测试（对应模块边界） | 验证地点结果的映射与 5 条上限、整省与失败状态，以及搜索 5 条上限、日期透传和失败降级。 |
@@ -550,6 +553,8 @@ Generate plan 背后的计划页先用示例数据做出完整页面（设计决
 | [src/platform/observability/serialize-error.ts](../src/platform/observability/serialize-error.ts) | 基础设施端口/适配器 | 序列化 message/stack/cause 等错误信息并移除提供方凭据。 |
 | [src/platform/search/bocha-discovery-search.test.ts](../src/platform/search/bocha-discovery-search.test.ts) | 测试（对应模块边界） | mock 验证搜索请求、结果字段/数量、摘要回退、故障转换及缺密钥。 |
 | [src/platform/search/bocha-discovery-search.ts](../src/platform/search/bocha-discovery-search.ts) | 基础设施端口/适配器 | 将 Bocha 网页规范化为最多 8 条 DiscoverySearchResult，构造环境适配器。 |
+| [src/platform/search/kimi-search-pro.ts](../src/platform/search/kimi-search-pro.ts) | 基础设施端口/适配器 | 用现有 Moonshot 配置调用联网搜索 Pro，最多返回五条来源及短摘录，区分无结果和请求故障。 |
+| [src/platform/search/kimi-search-pro.test.ts](../src/platform/search/kimi-search-pro.test.ts) | 测试（对应模块边界） | 模拟请求，覆盖接口参数、来源去重、正文截断、空结果、缺密钥、取消和错误脱敏。 |
 | [src/platform/place-photos/place-photo-provider.ts](../src/platform/place-photos/place-photo-provider.ts) | 基础设施/端口 | 照片查询（按名称或按区域国家级景点）接口与允许的照片主机列表。 |
 | [src/platform/place-photos/photo-catalog.ts](../src/platform/place-photos/photo-catalog.ts) | 基础设施/索引 | 本地图集校验和匹配（条目可来自 Pixabay 或 Wikimedia Commons；Commons 条目必须有许可证、许可证链接和 Commons 文件页，署名带许可证名称，`catalogCredit` 控制在 120 字内）：明确地区与完整名称／显式别名同时命中；保留括号地区，不猜子串或后缀；`scenicFor` 单独登记行政区代表图且必须属于允许地区；未命中、配置不合法或歧义返回 null；返回同域路径、真实主题和作者署名。 |
 | [src/platform/place-photos/catalog-photo-provider.ts](../src/platform/place-photos/catalog-photo-provider.ts) | 基础设施/适配器 | 天地图模式的照片适配器：读取并缓存本地索引，未命中时再读运行时已下载的照片（MediaPhotoStore：景点按地区 + 地标，市按同市已下载照片）；保留查询类型和地区；不请求外部 API；文件缺失或损坏按空目录处理。服务端渲染、封面、地点候选卡和已选地点照片都用它；`loadPhotoCatalog` 供署名页列出全部条目。 |
@@ -660,6 +665,7 @@ Generate plan 背后的计划页先用示例数据做出完整页面（设计决
 | --- | --- | --- |
 | [scripts/verify-destination-conversation-turns.ts](../scripts/verify-destination-conversation-turns.ts) | 开发验证工具 | 用多轮样例人工检查真实模型的地点/偏好解释、推荐意图、中国范围、错别字保留、天气/准备度/单问题规则、已有状态保护及回复语言和英文地名翻译（20–27 为英文界面或跨语言输入），需要模型配置。 |
 | [scripts/verify-agent-tools.ts](../scripts/verify-agent-tools.ts) | 开发验证工具 | 用真模型和真提供方跑试验 Agent 的 4 个问题，打印每一步的工具调用与结果、耗时、token 用量和回复；第 4 个验证"工具 + 结构化输出"必须用单独的结构化步骤，需要模型、高德和 Bocha 配置。 |
+| [scripts/verify-plan-research.ts](../scripts/verify-plan-research.ts) | 开发验证工具 | 读入 PlanHandoff，用 Kimi 模型和联网搜索 Pro 跑首轮调研，输出各城市状态和景点卡 JSON。 |
 | [scripts/verify-workspace-location-tool.ts](../scripts/verify-workspace-location-tool.ts) | 开发验证工具 | 人工调用真实 Workspace 解释器，检查地点意图结构；文件名保留旧 tool 命名，当前不是开放式工具 Agent。 |
 
 ### 6.16 网站静态资源
