@@ -529,8 +529,8 @@ Generate plan 背后的计划页先用示例数据做出完整页面（设计决
 | [src/agents/README.md](../src/agents/README.md) | 文档（Agent 设计约定） | Agent 的主文档（英文）：已实现与计划分开写；试验结果与四条发现、Planner 的输入/运行/输出/代码校验/版本与过期、工具、预算、追踪与评估计划、部署与决策记录。docs 只链接到这里。 |
 | [src/agents/index.ts](../src/agents/index.ts) | Agent 层 | 试验用的 Mastra 实例，注册 Scout Agent；默认关闭 Mastra 发往 PostHog 的使用统计（`MASTRA_TELEMETRY_DISABLED`）。未配置存储与追踪导出，运行记录只在内存。 |
 | [src/agents/scout-agent.ts](../src/agents/scout-agent.ts) | Agent 层 | 1.0300 试验 Agent：用两个现有工具回答一个关于中国地点的问题，只为验证 Kimi 经 Mastra 调用工具；将被规划 Agent 取代，不在其上扩建。模型首次使用时才读取环境变量。 |
-| [src/agents/planner/research-agent.ts](../src/agents/planner/research-agent.ts) | Agent 层 | 按已选城市进行首轮景点调研。有点名景点时分别查点名与城市候选。其余城市先做城市搜索，再按需由 Mastra 工具补查。单独结构化候选并核对来源和原文摘录。 |
-| [src/agents/planner/research-agent.test.ts](../src/agents/planner/research-agent.test.ts) | 测试（对应模块边界） | 用模拟模型和搜索结果验证 10 城范围、每城查询预算、证据校验和点名景点的保留。 |
+| [src/agents/planner/research-agent.ts](../src/agents/planner/research-agent.ts) | Agent 层 | 按已选城市进行首轮景点调研。Kimi 先按天数提名城市代表景点（只是提案），与点名景点每 3 个一组并行搜索核实，再由 Mastra 工具补查一次。单独结构化候选并核对来源和原文摘录，没有出处的提名不成卡。 |
+| [src/agents/planner/research-agent.test.ts](../src/agents/planner/research-agent.test.ts) | 测试（对应模块边界） | 用模拟模型和搜索结果验证提名与点名景点分组搜索、无出处提名被丢弃、模型不可用时的退路、只补查一次、10 城范围和证据校验。 |
 | [src/agents/planner/plan-agent.ts](../src/agents/planner/plan-agent.ts) | Agent 层 | Plan Agent 的单城选点：代码分天后，一次 Kimi 结构化调用按短 ID 选每天的景点、时段和时间锚点；代码校验，不通过时带问题重试一次，其余记为冲突。 |
 | [src/agents/planner/plan-agent.test.ts](../src/agents/planner/plan-agent.test.ts) | 测试（对应模块边界） | 用模拟模型验证示范第一天、单城 7 天、带问题重试、重试失败保留首个提案、模型不可用和多城暂不支持。 |
 | [src/agents/tools/resolve-place.ts](../src/agents/tools/resolve-place.ts) | Agent 工具 | 用工作区同一套地点核验（天地图）查一个中文地名，返回匹配地点（省/市/区、GCJ-02 坐标、是否景点）、最多 5 个候选或整省；不代表开放或可达。 |

@@ -103,17 +103,27 @@ Four findings shape the planner:
 
 ### First-round Research Agent
 
-[research-agent.ts](planner/research-agent.ts) takes a PlanHandoff. It searches
-the selected cities. When a city has user-named attractions, code makes one
-search for those attractions and another for citywide candidates. For a city
-with no named attractions, a Mastra Agent reviews the citywide search results
-and can make one follow-up search. A separate structured model call extracts
-candidates. Code matches citation IDs and exact quotes against that city's
-search results before building spot cards. Unresolved user choices stay in
-the output, and unknown fields are null.
+[research-agent.ts](planner/research-agent.ts) takes a PlanHandoff and
+researches the selected cities. For each city, one structured Kimi call
+nominates the attractions the city is known for, about three per day of the
+city's even share of the trip (four to twelve). The nominations are only
+proposals. Code searches them together with the user-named attractions, three
+names per search and up to four searches in parallel. A Mastra Agent then
+reviews the results and can make one follow-up search. A separate structured
+model call extracts candidates. Code matches citation IDs and exact quotes
+against that city's search results before building spot cards, so a nominated
+name without a quoted source never becomes a card. Unresolved user choices stay
+in the output, and unknown fields are null. Without nominations, code searches
+the named attractions, or the city as a whole when there are none.
+
+Search-led discovery was replaced in 1.2004. In the live check of 1.2003 it found
+大理海洋世界 and remote counties for Dali but missed 洱海 and 苍山, and found only
+three candidates for a three-day Lijiang trip. With nominations the same cases
+gave 洱海, 崇圣寺三塔 and 蝴蝶泉 for Dali and seven candidates for Lijiang. A
+curated spot catalog is planned to replace the nomination call later.
 
 The first round researches up to ten cities, two at a time, with a 45-second
-deadline and up to two search calls per city. A trip without a confirmed
+deadline and up to five search calls per city. A trip without a confirmed
 duration researches its first selected city. A province without selected cities
 is reported separately.
 

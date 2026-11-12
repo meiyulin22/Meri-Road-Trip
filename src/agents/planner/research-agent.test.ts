@@ -35,7 +35,8 @@ const handoff: PlanHandoff = {
 
 type ChatRequest = {
   readonly stream?: boolean;
-  readonly response_format?: unknown;
+  readonly messages: readonly { readonly content: string }[];
+  readonly response_format?: { readonly json_schema?: { readonly name?: string } };
   readonly tools?: readonly { readonly function: { readonly name: string } }[];
 };
 
@@ -59,29 +60,33 @@ function chatResponse(
   });
 }
 
-test("reserves searches for named spots and citywide candidates, and grounds both", async () => {
+function schemaName(request: ChatRequest): string | undefined {
+  return request.response_format?.json_schema?.name;
+}
+
+test("nominates spots, searches them with the named ones, and keeps only what a source supports", async () => {
   const queries: string[] = [];
-  const calls: ChatRequest[] = [];
+  const schemas: (string | undefined)[] = [];
   const cite = (sourceId: number, quote: string) => ({ sourceId, quote });
   const unknown = { opening: null, reservation: null, setting: null, walking: null, suggestedDuration: null };
-  const location = { ...cite(1, "苍山位于云南省大理市"), cityName: "云南省大理市" };
   const model = createMoonshotChatModel({
     apiKey: "test",
     baseUrl: "https://model.test/v1",
     model: "test",
     fetch: async (_url, init) => {
       const request = JSON.parse(String(init?.body)) as ChatRequest;
-      calls.push(request);
-      assert.ok(request.response_format);
+      const prompt = request.messages.at(-1)?.content ?? "";
+      schemas.push(schemaName(request) ?? (request.tools ? "tools" : undefined));
+      if (request.tools) return chatResponse(request, { content: "enough" });
+      if (schemaName(request) === "spot_nominations") {
+        const spots = prompt.includes("大理") ? ["崇圣寺三塔", "喜洲古镇", "洱海"] : [];
+        return chatResponse(request, { content: JSON.stringify({ spots }) });
+      }
       return chatResponse(request, { content: JSON.stringify({ spots: [
-        { name: "苍山景区", location, ...unknown,
-          opening: cite(1, "每天开放"),
-          reservation: cite(1, "苍山游览需预约"),
-          walking: cite(4, "苍山步道有台阶"),
-          suggestedDuration: cite(99, "苍山游览需预约") },
-        { name: "苍山", location, ...unknown },
-        { name: "玉龙雪山", location: { ...cite(2, "玉龙雪山位于丽江市"), cityName: "丽江市" }, ...unknown },
-        { name: "崇圣寺三塔", location: { ...cite(5, "崇圣寺三塔位于大理市"), cityName: "大理市" }, ...unknown },
+        { name: "苍山", location: { ...cite(1, "苍山位于云南省大理市"), cityName: "云南省大理市" }, ...unknown,
+          reservation: cite(1, "苍山游览需预约"), suggestedDuration: cite(99, "苍山游览需预约") },
+        { name: "崇圣寺三塔", location: { ...cite(3, "崇圣寺三塔位于大理市"), cityName: "大理市" }, ...unknown },
+        { name: "喜洲古镇", location: { ...cite(3, "喜洲古镇位于大理市"), cityName: "大理市" }, ...unknown },
       ] }) });
     },
   });
@@ -90,32 +95,29 @@ test("reserves searches for named spots and citywide candidates, and grounds bot
     async search(query) {
       queries.push(query);
       if (query.includes("丽江市")) throw new Error("Search unavailable");
-      if (query.endsWith("旅游 景点 推荐")) {
-        return [
-          { source: "example", title: "苍山步道", snippet: "苍山步道有台阶", url: "https://example.com/walk" },
-          { source: "example", title: "崇圣寺三塔", snippet: "崇圣寺三塔位于大理市", url: "https://example.com/pagodas" },
-        ];
+      if (query.includes("崇圣寺三塔")) {
+        return [{ source: "example", title: "崇圣寺三塔", snippet: "崇圣寺三塔位于大理市", url: "https://example.com/pagodas" }];
       }
       return [
         { source: "example", title: "苍山", snippet: "苍山位于云南省大理市，苍山游览需预约",
           url: "https://example.com/cangshan", publishedAt: "2026-11-10" },
-        { source: "example", title: "玉龙雪山", snippet: "玉龙雪山位于丽江市", url: "https://example.com/yulong" },
         { source: "example", title: "洱海（云南省大理白族自治州境内的湖泊）", url: "https://example.com/erhai" },
       ];
     },
   });
 
+  // Five days across two cities: an even share is eight candidates each.
+  assert.deepEqual(queries.filter((query) => query.startsWith("云南省 大理白族自治州 ")), [
+    "云南省 大理白族自治州 景点 苍山 未查到的景点 洱海",
+    "云南省 大理白族自治州 景点 崇圣寺三塔 喜洲古镇",
+  ]);
+  assert.deepEqual(queries.filter((query) => query.startsWith("云南省 丽江市 ")), ["云南省 丽江市 景点 玉龙雪山"]);
   assert.deepEqual(result.pendingProvinces, ["四川省"]);
   assert.deepEqual(result.cities.map(({ city, status, searchCalls }) => [city, status, searchCalls]), [
     ["大理白族自治州", "partial", 2],
-    ["丽江市", "unavailable", 2],
+    ["丽江市", "unavailable", 1],
   ]);
-  assert.deepEqual(queries.filter((query) => query.startsWith("云南省 大理白族自治州 ")), [
-    "云南省 大理白族自治州 景点 游览 苍山 未查到的景点 洱海",
-    "云南省 大理白族自治州 旅游 景点 推荐",
-  ]);
-  assert.equal(calls.length, 1);
-  assert.ok(calls[0].response_format);
+  assert.deepEqual(schemas.filter((name) => name === "spot_cards"), ["spot_cards"]);
 
   const [dali, lijiang] = result.cities;
   assert.deepEqual(dali.spots.map(({ name, requested }) => [name, requested]), [
@@ -126,12 +128,9 @@ test("reserves searches for named spots and citywide candidates, and grounds bot
   assert.equal(cangshan.location?.publishedAt, "2026-11-10");
   assert.match(cangshan.location?.checkedAt ?? "", /^\d{4}-\d{2}-\d{2}T/);
   assert.equal(cangshan.reservation?.quote, "苍山游览需预约");
-  assert.equal(cangshan.walking?.url, "https://example.com/walk");
-  assert.equal(cangshan.opening, null);
   assert.equal(cangshan.suggestedDuration, null);
   assert.equal(unresolved.location, null);
   assert.equal(erhai.location?.url, "https://example.com/erhai");
-  assert.equal(erhai.opening, null);
   assert.equal(pagodas.location?.url, "https://example.com/pagodas");
   assert.deepEqual(lijiang.spots.map(({ name, requested, location }) => [name, requested, location]), [["玉龙雪山", true, null]]);
 });
@@ -153,17 +152,16 @@ test("with unconfirmed duration, researches only the first saved city", async ()
     },
   });
 
-  assert.equal(queries.length, 2);
-  assert.ok(queries.every((query) => query.startsWith("云南省 大理白族自治州 ")));
-  assert.equal(modelCalls, 0);
+  // Without nominations the named spots are still searched.
+  assert.deepEqual(queries, ["云南省 大理白族自治州 景点 苍山 未查到的景点 洱海"]);
+  assert.equal(modelCalls, 1);
   assert.equal(result.cities[1]?.status, "deferred");
   assert.equal(result.cities[1]?.searchCalls, 0);
   assert.equal(result.cities[1]?.spots[0]?.name, "玉龙雪山");
   assert.deepEqual(result.pendingProvinces, ["四川省"]);
 });
 
-
-test("allows only one agent follow-up for a city without named attractions", async () => {
+test("allows only one agent follow-up after the nominated spots are searched", async () => {
   const queries: string[] = [];
   const model = createMoonshotChatModel({
     apiKey: "test",
@@ -171,6 +169,9 @@ test("allows only one agent follow-up for a city without named attractions", asy
     model: "test",
     fetch: async (_url, init) => {
       const request = JSON.parse(String(init?.body)) as ChatRequest;
+      if (schemaName(request) === "spot_nominations") {
+        return chatResponse(request, { content: JSON.stringify({ spots: ["宽窄巷子", "武侯祠"] }) });
+      }
       const tool = request.tools?.[0]?.function.name;
       assert.ok(tool);
       return chatResponse(request, { content: null,
@@ -196,7 +197,7 @@ test("allows only one agent follow-up for a city without named attractions", asy
     },
   });
 
-  assert.deepEqual(queries, ["四川省 成都市 旅游 景点 推荐", "四川省 成都市 博物馆"]);
+  assert.deepEqual(queries, ["四川省 成都市 景点 宽窄巷子 武侯祠", "四川省 成都市 博物馆"]);
   assert.equal(result.cities[0].searchCalls, 2);
 });
 
@@ -213,9 +214,10 @@ test("researches ten cities with their own deadlines and defers cities beyond th
     },
   }, {
     model() {
-      assert.fail("A failed search should not start a model call");
+      throw new Error("Model unavailable");
     },
-    async search(_query, signal) {
+    async search(query, signal) {
+      assert.ok(query.endsWith("旅游 景点 推荐"));
       signals.add(signal);
       active += 1;
       peak = Math.max(peak, active);
