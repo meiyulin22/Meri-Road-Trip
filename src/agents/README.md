@@ -16,8 +16,8 @@ shapes the Planner — business, page, run, tools, memory — is kept in Chinese
 | Implemented (1.0300) | Mastra instance, a trial agent, two tools (`resolve-place`, `web-search`), a live verification script |
 | Implemented (Workspace) | The Generate plan action opens the real plan page with a saved TripState snapshot and source-checked preference quotes |
 | Implemented (standalone) | First-round Research Agent and Kimi Search Pro, runnable with a PlanHandoff JSON file |
-| Implemented (standalone) | Plan Agent draft for one city or a preview day, runnable with a PlanHandoff and research JSON |
-| Planned | Multi-city allocation, plan page display, second-round verification, route and weather tools, durable plan workflow, itinerary storage and display, tracing storage, evaluation |
+| Implemented (plan page) | Plan Agent draft for one city or a preview day: the plan page requests it after the handoff and shows the days, time anchors, sources and conflicts (1.2005); also runnable with a PlanHandoff and research JSON |
+| Planned | Multi-city allocation, second-round verification, route and weather tools, durable plan workflow with progress events, itinerary storage, tracing storage, evaluation |
 
 ## 1. Why an agent here
 
@@ -164,6 +164,16 @@ node --env-file=.env.local --import tsx scripts/verify-plan-draft.ts path/to/han
 Without a research file the script runs the first round first. It prints the draft,
 the attempts, token usage and timings.
 
+The plan page reaches the same code through `POST /api/trips/[id]/plan-draft`
+([plan-draft-handler.ts](../capabilities/planning/plan-draft-handler.ts)). The browser
+sends the handoff it holds; the handler checks the owner, refuses a handoff that no
+longer matches the saved TripState (409), answers several cities with a confirmed
+duration as unsupported before spending any search, and otherwise runs research and
+the draft in one request. The response carries the draft, only the cards it uses, and
+each city's research status. The page keeps it beside the handoff in sessionStorage,
+so a refresh does not research again. There are no progress events yet: the page
+shows an honest waiting state for the whole request.
+
 ## 4. Planned: the Planner
 
 ### Input
@@ -260,9 +270,9 @@ Development runs locally under `next dev`, where a long run has no time limit. T
 target host is a VPS in the United States (decided 2026-11-12, replacing Japan). Kimi
 (`api.moonshot.cn`) and Tianditu are in China and the Neon database is in Singapore, so
 reachability and latency from the US are measured before launch. Tianditu's firewall
-refuses this development machine (HTTP 418): its adapters are built against sample
-responses, and a one-request verification script is run by hand on a machine with a
-whitelisted IP. The trial times above come from a development machine and are not a
+once refused this development machine (HTTP 418); since 2026-11-12 it is whitelisted
+and answers. Tianditu checks still start with a single request and stop at the first
+failure. The trial times above come from a development machine and are not a
 measurement of the deployed app.
 
 ## 7. Decisions

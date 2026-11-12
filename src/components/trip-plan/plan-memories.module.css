@@ -1,0 +1,51 @@
+/* What Meri remembers on the real plan page; chips match the design preview's. */
+.memories {
+  margin-top: 16px;
+  padding: 14px 16px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: #fffdf8;
+}
+
+.header { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.header h2 { font-size: 15px; font-weight: 650; }
+
+.hint { margin-top: 8px; color: var(--muted); font-size: 13px; line-height: 1.6; }
+
+.chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; list-style: none; }
+.chips li {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 28px;
+  padding: 4px 10px;
+  border-radius: 9px;
+  color: #3d5a51;
+  background: var(--green-soft);
+  font-size: 12px;
+  cursor: help;
+}
+.chips li[data-added="true"] { padding-right: 4px; color: #5c4a2c; background: #f3ead6; }
+.chips li button {
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  border: 0;
+  border-radius: 6px;
+  color: #7d6a48;
+  background: transparent;
+  cursor: pointer;
+}
+.chips li button:hover { color: var(--ink); background: rgba(255, 255, 255, .6); }
+
+.pending {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  margin-top: 10px;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.6;
+}
+.pending svg { flex-shrink: 0; margin-top: 3px; color: var(--green); }

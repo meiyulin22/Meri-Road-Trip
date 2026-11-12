@@ -12,6 +12,8 @@ import { toCalendarDate } from "@/components/trip-workspace/trip-dates-model";
 import { parseExactDays } from "@/domain/trip-state/trip-dates";
 import { destinationText, type TripState, type TripStateField } from "@/domain/trip-state/trip-state";
 
+import { PlanDraftSection } from "./plan-draft-section";
+import { PlanMemories } from "./plan-memories";
 import handoffStyles from "./plan-handoff-page.module.css";
 import styles from "./trip-plan.module.css";
 
@@ -21,10 +23,7 @@ const copy = {
     missing: (action: string) => `This tab doesn’t have a plan handoff. Return to your journey and choose ${action}.`,
     received: "The details below were captured from your journey when you opened this plan.",
     endDate: "End date",
-    preferencesUnavailable: "Meri couldn’t read your preferences from the conversation.",
-    noPreferences: "Meri found no travel preferences in the conversation.",
     itinerary: "Itinerary",
-    awaitingItinerary: "Your journey details are ready. The itinerary hasn’t been generated yet.",
     remainingDays: "Remaining days",
     waitingForDays: "The rest of the itinerary is locked until you confirm how many days you’ll travel.",
   },
@@ -33,10 +32,7 @@ const copy = {
     missing: (action: string) => `当前标签页没有本次交接。请回到旅程，再点一次「${action}」。`,
     received: "下面是打开计划时从旅程带过来的信息。",
     endDate: "结束日期",
-    preferencesUnavailable: "这次没能从对话中提取旅行偏好。",
-    noPreferences: "这次对话里没有提取到旅行偏好。",
     itinerary: "行程安排",
-    awaitingItinerary: "旅程信息已交接，具体行程还没有生成。",
     remainingDays: "剩下的几天",
     waitingForDays: "确认总天数后，才能安排剩下的行程。",
   },
@@ -77,21 +73,11 @@ export function PlanHandoffPage({ tripId }: { readonly tripId: string }) {
             <>
               <p className={styles.overview}>{text.received}</p>
               <PlanFacts state={handoff.tripState} words={words} endDateLabel={text.endDate} dayCount={dayCount} />
-              <section className={handoffStyles.preferences} aria-labelledby="plan-preferences-heading">
-                <h2 id="plan-preferences-heading">{words.plan.memoriesTitle}</h2>
-                {handoff.preferenceStatus === "unavailable" ? <p>{text.preferencesUnavailable}</p> :
-                  handoff.preferences.length === 0 ? <p>{text.noPreferences}</p> : (
-                    <ul>
-                      {handoff.preferences.map(({ messageId, quote }) => (
-                        <li key={`${messageId}:${quote}`}><q>{quote}</q></li>
-                      ))}
-                    </ul>
-                  )}
-              </section>
+              <PlanMemories tripId={tripId} handoff={handoff} />
               <div className={handoffStyles.itinerary}>
-                <section className={styles.locked} aria-labelledby="plan-itinerary-heading">
+                <section className={handoffStyles.itineraryHeading} aria-labelledby="plan-itinerary-heading">
                   <h2 id="plan-itinerary-heading">{text.itinerary}</h2>
-                  <p>{text.awaitingItinerary}</p>
+                  <PlanDraftSection tripId={tripId} handoff={handoff} />
                 </section>
                 {dayCount === null ? (
                   <section className={styles.locked} aria-labelledby="plan-remaining-days-heading">

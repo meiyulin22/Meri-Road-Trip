@@ -538,7 +538,33 @@ add/set 使用 Promise.all 查询表达。解析层保留不同 provider ID，�
 
 点击发出 `POST /api/trips/{id}/planning-handoff`。服务端确认访客归属后重新读取已保存的 TripState，再做一次准备度判断。通过后用本旅程最近保存的用户原话提取偏好。提取输入最多十条、6,000 字符，代码只接受能按消息 ID 匹配到原文的摘录。模型不可用时仍交接旅程状态，计划页提示偏好提取失败。响应带 TripState、偏好、参考日期、时区和语言。应用不写回旅程状态或消息。
 
-[交接 UI 模型](../src/components/trip-workspace/planning-handoff-model.ts) 校验响应，将快照放在当前标签页的 sessionStorage，再打开 [真实计划页](../src/app/trips/%5Bid%5D/plan/page.tsx)。页面单独校验旅程归属，刷新只读快照。若当前标签页没有快照，返回 Workspace 再点 Generate plan。当前计划页展示已交接的输入，日程尚未生成。原 GET 准备度接口仍可单独查询。
+[交接 UI 模型](../src/components/trip-workspace/planning-handoff-model.ts) 校验响应，将快照放在当前标签页的 sessionStorage，再打开 [真实计划页](../src/app/trips/%5Bid%5D/plan/page.tsx)。页面单独校验旅程归属，刷新只读快照。若当前标签页没有快照，返回 Workspace 再点 Generate plan。原 GET 准备度接口仍可单独查询。
+
+**计划页生成行程（1.2005）：**计划页拿到交接快照后，由 [PlanDraftSection](../src/components/trip-plan/plan-draft-section.tsx) 发出 `POST /api/trips/{id}/plan-draft`，请求体是交接快照。
+
+| 步骤 | 谁做 | 数据变化 |
+| --- | --- | --- |
+| 1. 校验请求体、访客归属 | [plan-draft-handler](../src/capabilities/planning/plan-draft-handler.ts) | 无 |
+| 2. 重新读取已保存 TripState，与快照逐字段比对 | 同上 | 不一致返回 409 `journey_changed`，不做调研 |
+| 3. 代码分天：无确切天数 → 第一个城市示范第 1 天；单城 → 全部天数；多城且有天数 → 返回 `unsupported`，不做调研 | [allocateDays](../src/domain/plan/plan-draft.ts) | 无 |
+| 4. 第一轮调研：Kimi 提名、搜索核实、提取景点卡 | [research-agent](../src/agents/planner/research-agent.ts) | 无持久化 |
+| 5. Plan Agent 选点、时段和时间锚点，代码校验、最多重试一次 | [plan-agent](../src/agents/planner/plan-agent.ts) | 无持久化 |
+| 6. 每天配一张照片：先找当天景点的照片，再找所在城市的，尽量不和前几天重复；只查本地图集和已下载的照片，不调用远程照片服务 | handler 的 `dayPhotos` + [findPlaceImage](../src/capabilities/destination/place-images.ts) | 无 |
+| 7. 返回草稿、草稿用到的景点卡、各城调研状态、未选城市的省、每天的照片 | handler | 浏览器把结果和交接快照一起存进 sessionStorage |
+
+页面显示：顶部统计（天数、景点数、有出处的景点、待处理）；冲突提示；每天一张可展开的卡片，展开时顶部是当天照片（标注拍的是什么和作者，作者链接先确认再打开来源），收起时右侧是缩略图（窄屏隐藏），景点按上午、下午、晚上分组；时间锚点用描边胶囊显示时间并附理由；景点卡里有出处的事实逐条列出，缺少的字段标「待核实」，「N 条出处」展开后显示原文、来源网站和查询日期。天数未知时下面保留「剩下的几天」锁定卡。等待期间显示说明和骨架卡，不显示假进度；刷新页面直接读缓存，不重新调研；重新点 Generate plan 会写入新快照，旧草稿不再匹配。
+
+| 错误 | HTTP | 页面 |
+| --- | --- | --- |
+| 无访客、旅程不存在 | 404 | 失败提示和重试 |
+| 请求体不是合法交接快照 | 400 | 同上 |
+| 快照与已保存旅程不一致 | 409 | 请回旅程重新 Generate plan，不提供重试 |
+| 模型不可用 | 503 | 稍后再试，提供重试 |
+| 其他 | 500 | 失败提示和重试 |
+
+**Meri 记得（1.2005）：**[PlanMemories](../src/components/trip-plan/plan-memories.tsx) 显示交接时提取的偏好（绿色，悬停显示原话），以及用户在计划页添加的偏好（米色，标「你添加的」，可删除）。「＋ 添加」打开和设计预览相同的面板：可以写一句话，或点「带小孩」「少走路」等常用标签。没有偏好时显示引导语，提示可以说节奏、步行、同行人、不想去的地方。添加的偏好存在当前标签页的 sessionStorage（每次最多 20 条、每条 80 字），**不改交接快照，也不触发重新规划**，下方提示「新加的偏好不会改动下面的行程，下次调整行程时 Meri 会用上」。计划页修改对话尚未实现，所以这些偏好目前只显示，还没有被任何生成步骤读取。
+
+偏好摘录取自浏览器的快照：交接时已在服务端核对过原话，模型只把它当数据读。整次请求在一个 HTTP 调用里完成（实测单城约 30–45 秒），没有进度事件、断点续跑和计划存储；同一标签页里重复挂载会复用正在进行的请求。
 
 **计划页设计预览（1.1000）：** [/plan-preview](../src/app/plan-preview/page.tsx)（[PlanPreview](../src/components/trip-plan/plan-preview.tsx)）是独立展示页，使用示例数据，不保存、不调用规划接口。页面标"示例数据"，右下角的预览开关切换三种状态：
 - **生成中：**进度按步骤点亮（核实地点 → 找景点 → 核实开放时间 → 算车程 → 查天气 → 排好第 1 天 → 查机票高铁 → 找住处 → 排剩下几天），区块从骨架依次填进内容，完成后收成一行"用时 · 调用工具次数 · 花费"。
@@ -921,7 +947,7 @@ add/set 使用 Promise.all 查询表达。解析层保留不同 provider ID，�
 
 生成前重新核验 POI，保存证据和新鲜度，再研究交通、天气、开放/访问与风险。准备度通过不代表这些事实已成立。执行、失败恢复、研究预算及持久化规划产物尚未接入。
 
-正式计划页的设计是，天数未知时只给示范第一天，「剩下的几天」锁住，等用户提供或确认总天数后才规划。调研按城市准备景点卡。多城市的天数先由 Plan Agent 分配，代码校验后由 Jev 按天打分，再由同一个 Plan Agent 排每日行程。细节见 [Planner 实施交接](agent-planner/implementation-plan.md)。
+单城和示范第一天已在计划页生成（见 5.4）。正式计划页的设计是，天数未知时只给示范第一天，「剩下的几天」锁住，等用户提供或确认总天数后才规划。调研按城市准备景点卡。多城市的天数先由 Plan Agent 分配，代码校验后由 Jev 按天打分，再由同一个 Plan Agent 排每日行程。细节见 [Planner 实施交接](agent-planner/implementation-plan.md)。
 
 ### 核心文件索引
 

@@ -4,39 +4,12 @@ import { z } from "zod";
 
 import { draftPlan } from "@/agents/planner/plan-agent";
 import { runFirstRoundResearch } from "@/agents/planner/research-agent";
+import { cityResearchSchema } from "@/domain/plan/plan-draft-response";
 import { planHandoffSchema } from "@/domain/plan/plan-handoff";
 import type { CityResearch } from "@/domain/plan/spot-card";
 
-const evidenceSchema = z.object({
-  url: z.string(),
-  title: z.string(),
-  publishedAt: z.string().nullable(),
-  checkedAt: z.string(),
-  quote: z.string(),
-}).nullable();
-
 // The JSON printed by verify-plan-research.ts, so a draft can be rerun without searching again.
-const researchFileSchema = z.object({
-  cities: z.array(z.object({
-    province: z.string(),
-    city: z.string(),
-    status: z.enum(["ready", "partial", "unavailable", "deferred"]),
-    searchCalls: z.number(),
-    spots: z.array(z.object({
-      id: z.string(),
-      province: z.string(),
-      city: z.string(),
-      name: z.string(),
-      requested: z.boolean(),
-      location: evidenceSchema,
-      opening: evidenceSchema,
-      reservation: evidenceSchema,
-      setting: evidenceSchema,
-      walking: evidenceSchema,
-      suggestedDuration: evidenceSchema,
-    })),
-  })),
-});
+const researchFileSchema = z.object({ cities: z.array(cityResearchSchema) });
 
 async function main(): Promise<void> {
   const [handoffPath, researchPath] = process.argv.slice(2);

@@ -147,7 +147,7 @@ LLM 解释自然语言并提出受限 JSON；应用校验、决定是否执行�
 | 推荐生成与搜索降级 | recommendation context/generator/prompt/workflow/use case、Discovery Search/Bocha | 第 4.1 节 |
 | 日期/交通/出发地直接编辑 | brief panel、location editor/model、trip-state persistence model、state/suggestions routes | 第 5.1 节 |
 | Generate plan 交接 | planning-readiness、planning-handoff route/model、generate-plan action、真实计划页 | 第 5.4 节 |
-| Agent、工具、Planner | `src/agents/README.md`（先读）、`docs/agent-planner/README.md`（规划决定）、`src/agents/` 源码与工具测试、`scripts/verify-agent-tools.ts`、`scripts/verify-plan-research.ts`、`scripts/verify-plan-draft.ts` | 景点调研和单城草稿可用脚本独立验证；计划页交接见第 5.4 节 |
+| Agent、工具、Planner | `src/agents/README.md`（先读）、`docs/agent-planner/README.md`（规划决定）、`src/agents/` 源码与工具测试、`scripts/verify-agent-tools.ts`、`scripts/verify-plan-research.ts`、`scripts/verify-plan-draft.ts` | 景点调研和单城草稿可用脚本独立验证；计划页交接与生成行程见 USER_FLOW 第 5.4 节 |
 | 保存、并发、列表或删除 | Journey/Trip services、repository 接口、Postgres 实现、schema、my-journeys 和相关页面 | 第 1.1、2.3、7 节 |
 | 视觉或动画 | 对应 TSX/CSS、现有 UI 组件及引用的 public 资源 | 涉及操作变化时同步相应业务章节 |
 
@@ -217,6 +217,7 @@ LLM 解释自然语言并提出受限 JSON；应用校验、决定是否执行�
 | [src/app/api/trips/[id]/destination-photos/route.ts](../src/app/api/trips/%5Bid%5D/destination-photos/route.ts) | HTTP 接口层 | GET 已选地点照片：owner 检查，按当前目的地和对话里卡片展示过的照片返回每个地点一张，private/no-store，不写入任何数据。 |
 | [src/app/api/trips/[id]/destinations/route.ts](../src/app/api/trips/%5Bid%5D/destinations/route.ts) | HTTP 接口层 | GET 手动搜索、POST 按 query/id 或建议完整名称/地区重查并添加、DELETE 完整元组/旧记录；搜索词是几个整省的合称（江浙沪）时由模型的地点解读（兜底表）直接给出这几个省，不查地图，POST 用同一份结果核对；归属检查、唯一目标核验及目的地并发控制。 |
 | [src/app/api/trips/[id]/planning-handoff/route.ts](../src/app/api/trips/%5Bid%5D/planning-handoff/route.ts) | HTTP 接口层 | POST 校验访客归属与准备度，返回保存的 TripState、偏好、语言、时区和参考日期。 |
+| [src/app/api/trips/[id]/plan-draft/route.ts](../src/app/api/trips/%5Bid%5D/plan-draft/route.ts) | HTTP 接口层 | POST 接收交接快照，接上旅程服务、首轮调研和 Plan Agent，交给 plan-draft-handler。 |
 | [src/app/api/trips/[id]/planning-readiness/route.ts](../src/app/api/trips/%5Bid%5D/planning-readiness/route.ts) | HTTP 接口层 | GET 读取新鲜 TripState，返回 missing/unverified/selected 准备度；不生成计划。 |
 | [src/app/api/trips/[id]/route.ts](../src/app/api/trips/%5Bid%5D/route.ts) | HTTP 接口层 | DELETE /api/trips/[id] 只删除当前访客拥有的 Trip，数据库级联清理状态和消息。 |
 | [src/app/api/trips/[id]/state/route.ts](../src/app/api/trips/%5Bid%5D/state/route.ts) | HTTP 接口层 | GET 状态/PATCH 领域校验后的 patch；调用 JourneyService，不自行做高德核验，冲突错误当前未单独映射 409。 |
@@ -333,8 +334,15 @@ Generate plan 背后的计划页先用示例数据做出完整页面（设计决
 
 | 文件地址 | 层/类别 | 做什么 |
 | --- | --- | --- |
-| [src/components/trip-plan/plan-handoff-page.tsx](../src/components/trip-plan/plan-handoff-page.tsx) | 表现层 | 真实计划页，展示快照里的旅程事实和偏好摘录，区分无交接、提取失败与待排程。 |
-| [src/components/trip-plan/plan-handoff-page.module.css](../src/components/trip-plan/plan-handoff-page.module.css) | 样式 | 真实计划页的事实、偏好和待生成区块布局。 |
+| [src/components/trip-plan/plan-handoff-page.tsx](../src/components/trip-plan/plan-handoff-page.tsx) | 表现层 | 真实计划页，展示快照里的旅程事实，挂「Meri 记得」和行程区块，没有交接时提示回旅程。 |
+| [src/components/trip-plan/plan-handoff-page.module.css](../src/components/trip-plan/plan-handoff-page.module.css) | 样式 | 真实计划页的事实、偏好和行程区块布局。 |
+| [src/components/trip-plan/plan-draft-section.tsx](../src/components/trip-plan/plan-draft-section.tsx) | 表现层 | 请求或读取缓存的行程草稿，显示等待、失败重试、暂不支持、统计、冲突，以及按时段分组的每日卡片、当天照片和缩略图、时间锚点胶囊、待核实字段和出处。 |
+| [src/components/trip-plan/plan-draft.module.css](../src/components/trip-plan/plan-draft.module.css) | 样式 | 行程草稿的统计胶囊、时段时间轴、锚点、出处展开、提示卡和骨架加载。 |
+| [src/components/trip-plan/plan-memories.tsx](../src/components/trip-plan/plan-memories.tsx) | 表现层 | 「Meri 记得」：交接提取的偏好和用户在计划页添加的偏好，添加面板复用 PreferenceSheet；新偏好不触发重新规划。 |
+| [src/components/trip-plan/plan-memories.module.css](../src/components/trip-plan/plan-memories.module.css) | 样式 | 偏好卡片、标签和提示。 |
+| [src/components/trip-plan/plan-memories-model.ts](../src/components/trip-plan/plan-memories-model.ts) | 表现层模型 | 添加偏好时去空格、去重、限 20 条 80 字；按旅程存取当前标签页的 sessionStorage。 |
+| [src/components/trip-plan/plan-memories-model.test.ts](../src/components/trip-plan/plan-memories-model.test.ts) | 测试 | 验证去重、跳过已提取的偏好和数量、长度上限。 |
+| [src/components/trip-plan/plan-draft-model.ts](../src/components/trip-plan/plan-draft-model.ts) | 表现层模型 | 调用 plan-draft 接口并映射错误；按交接快照存取 sessionStorage 缓存；按时段分组和列出有出处的事实。 |
 | [src/components/trip-plan/plan-preview.tsx](../src/components/trip-plan/plan-preview.tsx) | 表现层 | 预览页的编排：右下角预览开关切换三种状态（生成中：按定时的假事件逐步点亮进度、区块从骨架填进内容；只有目的地：第 1 天排好、其余锁住；全部填好）；在页面上点选天数、日期、出发地、交通方式后，只让依赖它的区块"重新规划"一下；顶部事实点"修改"会重新锁住对应区块；修改对话框带小熊猫，提交后显示"修改还没接上"的示例回复。1.1001 起：天气按出发日期分预报 / 往年同期；手动添加偏好后出现"按新偏好重新规划"，点了只重排各天；导出菜单下载日历、打印时所有天展开。 |
 | [src/components/trip-plan/plan-view.ts](../src/components/trip-plan/plan-view.ts) | 表现层纯函数 | 计划页的数据形状（日程、景点、路程、核实来源、天气、住宿、交通选项、记忆、运行统计），以及规则：每个区块需要哪些事实、某个事实影响哪些区块、一次运行有哪些步骤（第 1 天先排）、某步完成后哪个区块就绪、时长文字、核实计数、日期推算。 |
 | [src/components/trip-plan/plan-view.test.ts](../src/components/trip-plan/plan-view.test.ts) | 测试（对应模块边界） | 验证只有目的地时只有第 1 天可排、改一个事实只重排用到它的区块、运行步骤顺序和跳过锁住的区块、中英文时长、示例数据自洽（每两个景点间一段路）、日期跨月推算。 |
@@ -401,6 +409,7 @@ Generate plan 背后的计划页先用示例数据做出完整页面（设计决
 | [src/domain/plan/spot-card.ts](../src/domain/plan/spot-card.ts) | 领域层 | 景点卡、原文证据和单城调研结果的类型，未知字段可以为空。 |
 | [src/domain/plan/plan-draft.ts](../src/domain/plan/plan-draft.ts) | 领域层 | 计划草稿类型；单城或示范第一天的分天；校验 Plan Agent 提案（候选、所在城市、跨天重复、每天上限、有原文支持的时间锚点、点名景点），整理冲突和待核实字段。 |
 | [src/domain/plan/plan-draft.test.ts](../src/domain/plan/plan-draft.test.ts) | 测试（对应模块边界） | 验证示范第一天、单城按出发日期分天、多城暂不支持、提案校验与冲突整理。 |
+| [src/domain/plan/plan-draft-response.ts](../src/domain/plan/plan-draft-response.ts) | 领域层 | 景点卡、调研结果和计划页响应的运行时 schema，供接口、页面和验证脚本共用。 |
 | [src/domain/trip-state/planning-readiness.test.ts](../src/domain/trip-state/planning-readiness.test.ts) | 测试（对应模块边界） | 验证缺目的地、只有省、省市混合、旧文本和已选城市的准备度；其他字段不是硬门槛。 |
 | [src/domain/trip-state/planning-readiness.ts](../src/domain/trip-state/planning-readiness.ts) | 领域层 | 纯准备度规则：missing、unverified 或 selected（只有省也算 selected）；仅检查状态，不研究可行性。 |
 | [src/domain/trip-state/trip-dates.test.ts](../src/domain/trip-state/trip-dates.test.ts) | 测试（对应模块边界） | 验证含首尾计数、任意两项补算第三项、修改哪项决定补算哪项、跨月跨年/闰日，以及近似/非法值不参与。 |
@@ -521,6 +530,8 @@ Generate plan 背后的计划页先用示例数据做出完整页面（设计决
 | [src/capabilities/planning/extract-plan-preferences.test.ts](../src/capabilities/planning/extract-plan-preferences.test.ts) | 测试 | 验证原话来源、上下文上限和不可用降级。 |
 | [src/capabilities/planning/planning-handoff-handler.ts](../src/capabilities/planning/planning-handoff-handler.ts) | 应用层 | 组织归属检查后的状态读取、准备度和偏好提取，返回禁止缓存的交接结果。 |
 | [src/capabilities/planning/planning-handoff-route.test.ts](../src/capabilities/planning/planning-handoff-route.test.ts) | 测试 | 验证归属、准备度、快照传递和客户端响应解析。 |
+| [src/capabilities/planning/plan-draft-handler.ts](../src/capabilities/planning/plan-draft-handler.ts) | 应用层 | 校验交接快照和归属，与已保存 TripState 比对，先判断分天是否支持，再跑调研和草稿，只返回用到的景点卡，并为每天从本地图集选一张照片（先景点后城市，尽量不重复）；记录用时和 token。 |
+| [src/capabilities/planning/plan-draft-route.test.ts](../src/capabilities/planning/plan-draft-route.test.ts) | 测试 | 验证正常草稿与客户端解析、快照过期 409、多城不调研、错误映射、每天照片的选择与重复，以及页面的时段分组和出处列表。 |
 
 ### 6.11b Agent（Mastra）
 

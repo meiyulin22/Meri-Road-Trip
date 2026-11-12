@@ -5,8 +5,7 @@
   margin-top: 18px;
 }
 
-.facts > div,
-.preferences {
+.facts > div {
   padding: 12px 14px;
   border: 1px solid var(--line);
   border-radius: 12px;
@@ -25,28 +24,21 @@
   font-weight: 600;
 }
 
-.preferences,
 .itinerary {
   margin-top: 16px;
-}
-
-.preferences h2 {
-  font-size: 15px;
-  font-weight: 650;
-}
-
-.preferences p,
-.preferences ul {
-  margin-top: 6px;
-  color: var(--muted);
-  font-size: 13px;
-}
-
-.preferences ul {
-  padding-left: 18px;
 }
 
 .itinerary {
   display: grid;
   gap: 10px;
+}
+
+.itineraryHeading {
+  display: grid;
+  gap: 12px;
+}
+
+.itineraryHeading > h2 {
+  font-size: 18px;
+  font-weight: 650;
 }

@@ -15,6 +15,8 @@ import {
 } from "@/domain/plan/plan-draft";
 import type { CityResearch, SpotCard } from "@/domain/plan/spot-card";
 import { createMoonshotChatModelFromEnvironment } from "@/platform/llm/moonshot-chat-model";
+import { logger } from "@/platform/observability/logger";
+import { serializeError } from "@/platform/observability/serialize-error";
 
 const maxAttempts = 2;
 const draftTimeoutMs = 60_000;
@@ -126,7 +128,8 @@ export async function draftPlan(
       };
       review = reviewProposal(allocation.mode, allocation.frames, cards, proposal);
     }
-  } catch {
+  } catch (error) {
+    logger.warn({ attempts, reviewed: review !== null, error: serializeError(error) }, "Plan Agent model call failed");
     // A failed second attempt still leaves the first reviewed proposal to work with.
     if (review === null) return { status: "unavailable" };
   }
