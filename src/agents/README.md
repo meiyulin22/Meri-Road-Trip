@@ -136,16 +136,25 @@ on the home page. The handoff can extract preferences from the conversation. The
 snapshot defines destination scope and selected spots. Deleted places and unselected
 cards cannot return through conversation history.
 
+Planned changes to the handoff: each preference gets a type tag (pace, walking
+limit, companions, budget, diet, interests, avoid), and extraction reads the whole
+Workspace conversation up to about 30 turns under a token cap. The user does not
+return to the Workspace after Generate plan. Facts filled in the Workspace are
+locked; a missing fact can be filled once on the plan page and is locked after the
+user confirms it.
+
 ### The run
 
 ```text
 PlanHandoff
-  → research     discover candidate spots and check user-named places by city within budget
-  → outline      assign days to cities, with one Kimi call for a confirmed multi-city trip
+  → research     discover candidate spots and check user-named places in every selected city
+  → outline      the Plan Agent assigns days to cities for a confirmed multi-city trip;
+                 code validates; it may pause to ask the user when preferences are too thin
   → rank         score optional spots for each day with Jev, or Kimi initially
   → plan         the same Plan Agent selects spots across the days
   → verify       check scheduled candidates and a few alternatives for the trip dates
   → validate     code orders stops, checks evidence and feasibility, and records conflicts
+  → review       a reviewer agent checks the whole plan last, once the baseline works
   → save         a new plan version with the snapshot it was built from
 ```
 
@@ -210,9 +219,13 @@ and reported unknowns).
 ## 6. Running and deploying
 
 Development runs locally under `next dev`, where a long run has no time limit. The
-target host is a VPS in Japan: Kimi (`api.moonshot.cn`) and Tianditu are in China and the
-Neon database is in Singapore, so Japan is near all three. The trial times above
-come from a development machine and are not a measurement of the deployed app.
+target host is a VPS in the United States (decided 2026-11-12, replacing Japan). Kimi
+(`api.moonshot.cn`) and Tianditu are in China and the Neon database is in Singapore, so
+reachability and latency from the US are measured before launch. Tianditu's firewall
+refuses this development machine (HTTP 418): its adapters are built against sample
+responses, and a one-request verification script is run by hand on a machine with a
+whitelisted IP. The trial times above come from a development machine and are not a
+measurement of the deployed app.
 
 ## 7. Decisions
 
@@ -223,3 +236,5 @@ come from a development machine and are not a measurement of the deployed app.
 | 2026-10-05 | Agents live in `src/agents/`; this README is their document, and `docs/` links here. |
 | 2026-10-05 | The plan opens on its own page after Generate plan. |
 | 2026-10-05 | Mastra's usage telemetry is off by default. |
+| 2026-11-12 | Research covers every selected city first; the Plan Agent then allocates days and selects spots, and code only validates. The Plan Agent may pause to ask the user. A reviewer agent checks last. |
+| 2026-11-12 | Deploy to a US VPS. Tianditu is integrated last, verified by hand on a whitelisted machine. |
