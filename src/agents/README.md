@@ -16,7 +16,8 @@ shapes the Planner — business, page, run, tools, memory — is kept in Chinese
 | Implemented (1.0300) | Mastra instance, a trial agent, two tools (`resolve-place`, `web-search`), a live verification script |
 | Implemented (Workspace) | The Generate plan action opens the real plan page with a saved TripState snapshot and source-checked preference quotes |
 | Implemented (standalone) | First-round Research Agent and Kimi Search Pro, runnable with a PlanHandoff JSON file |
-| Planned | City allocation, daily itinerary, second-round verification, route and weather tools, durable plan workflow, itinerary storage and display, tracing storage, evaluation |
+| Implemented (standalone) | Plan Agent draft for one city or a preview day, runnable with a PlanHandoff and research JSON |
+| Planned | Multi-city allocation, plan page display, second-round verification, route and weather tools, durable plan workflow, itinerary storage and display, tracing storage, evaluation |
 
 ## 1. Why an agent here
 
@@ -40,8 +41,8 @@ src/agents/          Mastra instance, agents, and their tools          ← this 
   index.ts           Mastra instance for the Scout trial
   scout-agent.ts     1.0300 trial agent (to be removed when the planner lands)
   tools/             Thin wrappers over src/platform ports, one tool per file
-  planner/           First-round Research Agent and its tests
-src/domain/plan/     Handoff and spot cards — pure, no Mastra
+  planner/           First-round Research Agent, Plan Agent draft, and their tests
+src/domain/plan/     Handoff, spot cards, plan drafts and their validation — pure, no Mastra
 src/platform/        Ports and adapters the tools call (Tianditu, Bocha, Kimi, Postgres)
 ```
 
@@ -125,6 +126,33 @@ node --env-file=.env.local --import tsx scripts/verify-plan-research.ts path/to/
 The script uses MOONSHOT_API_KEY for both the model and [Kimi Search
 Pro](../platform/search/kimi-search-pro.ts). The Generate plan button currently
 opens the handoff page. This script runs research independently of the page.
+
+### Plan Agent draft (single city)
+
+[plan-agent.ts](planner/plan-agent.ts) turns research into a
+[PlanDraft](../domain/plan/plan-draft.ts). Code allocates the days first: without a
+confirmed duration, one preview day in the first selected city; with one city and a
+confirmed duration, every day in that city, dated from the start date when it is
+exact. Several cities with a confirmed duration return `unsupported` until the Plan
+Agent's allocation is built.
+
+One structured Kimi call chooses each day's spots from the candidates, which it sees
+under short IDs (`s1`, `s2`…) with their quoted facts and the user's preference
+quotes. Each stop has a slot (morning, afternoon or evening) and an optional time
+anchor such as a last cable car. Code keeps a stop only if the spot is a candidate in
+that day's city and is not already scheduled, and allows four stops a day while the
+transport is unknown. An anchor stays only if one of the spot's quoted facts states
+that time. In a full plan every requested spot must be scheduled. When the review
+finds problems, the model gets one more attempt with them. Whatever still fails is
+dropped and reported: unscheduled requested spots and empty days become conflicts,
+and scheduled spots list their unknown facts as unverified.
+
+```bash
+node --env-file=.env.local --import tsx scripts/verify-plan-draft.ts path/to/handoff.json [path/to/research.json]
+```
+
+Without a research file the script runs the first round first. It prints the draft,
+the attempts, token usage and timings.
 
 ## 4. Planned: the Planner
 

@@ -147,7 +147,7 @@ LLM 解释自然语言并提出受限 JSON；应用校验、决定是否执行�
 | 推荐生成与搜索降级 | recommendation context/generator/prompt/workflow/use case、Discovery Search/Bocha | 第 4.1 节 |
 | 日期/交通/出发地直接编辑 | brief panel、location editor/model、trip-state persistence model、state/suggestions routes | 第 5.1 节 |
 | Generate plan 交接 | planning-readiness、planning-handoff route/model、generate-plan action、真实计划页 | 第 5.4 节 |
-| Agent、工具、Planner | `src/agents/README.md`（先读）、`docs/agent-planner/README.md`（规划决定）、`src/agents/` 源码与工具测试、`scripts/verify-agent-tools.ts`、`scripts/verify-plan-research.ts` | 景点调研可用脚本独立验证；计划页交接见第 5.4 节 |
+| Agent、工具、Planner | `src/agents/README.md`（先读）、`docs/agent-planner/README.md`（规划决定）、`src/agents/` 源码与工具测试、`scripts/verify-agent-tools.ts`、`scripts/verify-plan-research.ts`、`scripts/verify-plan-draft.ts` | 景点调研和单城草稿可用脚本独立验证；计划页交接见第 5.4 节 |
 | 保存、并发、列表或删除 | Journey/Trip services、repository 接口、Postgres 实现、schema、my-journeys 和相关页面 | 第 1.1、2.3、7 节 |
 | 视觉或动画 | 对应 TSX/CSS、现有 UI 组件及引用的 public 资源 | 涉及操作变化时同步相应业务章节 |
 
@@ -398,7 +398,9 @@ Generate plan 背后的计划页先用示例数据做出完整页面（设计决
 | [src/domain/trip-state/destination-edit.ts](../src/domain/trip-state/destination-edit.ts) | 领域层 | none/add/set/remove 契约、严格模型 JSON Schema、表达数量/长度/去重校验。 |
 | [src/domain/trip-state/destination-legacy-read.test.ts](../src/domain/trip-state/destination-legacy-read.test.ts) | 测试（对应模块边界） | 验证旧自由文本保留为 legacyText，不把未核验名称假装成市。 |
 | [src/domain/plan/plan-handoff.ts](../src/domain/plan/plan-handoff.ts) | 领域层 | 交接快照与响应契约，校验 TripState、参考日期、语言和偏好摘录。 |
-| [src/domain/plan/spot-card.ts](../src/domain/plan/spot-card.ts) | 领域层 | 景点卡与原文证据的类型，未知字段可以为空。 |
+| [src/domain/plan/spot-card.ts](../src/domain/plan/spot-card.ts) | 领域层 | 景点卡、原文证据和单城调研结果的类型，未知字段可以为空。 |
+| [src/domain/plan/plan-draft.ts](../src/domain/plan/plan-draft.ts) | 领域层 | 计划草稿类型；单城或示范第一天的分天；校验 Plan Agent 提案（候选、所在城市、跨天重复、每天上限、有原文支持的时间锚点、点名景点），整理冲突和待核实字段。 |
+| [src/domain/plan/plan-draft.test.ts](../src/domain/plan/plan-draft.test.ts) | 测试（对应模块边界） | 验证示范第一天、单城按出发日期分天、多城暂不支持、提案校验与冲突整理。 |
 | [src/domain/trip-state/planning-readiness.test.ts](../src/domain/trip-state/planning-readiness.test.ts) | 测试（对应模块边界） | 验证缺目的地、只有省、省市混合、旧文本和已选城市的准备度；其他字段不是硬门槛。 |
 | [src/domain/trip-state/planning-readiness.ts](../src/domain/trip-state/planning-readiness.ts) | 领域层 | 纯准备度规则：missing、unverified 或 selected（只有省也算 selected）；仅检查状态，不研究可行性。 |
 | [src/domain/trip-state/trip-dates.test.ts](../src/domain/trip-state/trip-dates.test.ts) | 测试（对应模块边界） | 验证含首尾计数、任意两项补算第三项、修改哪项决定补算哪项、跨月跨年/闰日，以及近似/非法值不参与。 |
@@ -529,6 +531,8 @@ Generate plan 背后的计划页先用示例数据做出完整页面（设计决
 | [src/agents/scout-agent.ts](../src/agents/scout-agent.ts) | Agent 层 | 1.0300 试验 Agent：用两个现有工具回答一个关于中国地点的问题，只为验证 Kimi 经 Mastra 调用工具；将被规划 Agent 取代，不在其上扩建。模型首次使用时才读取环境变量。 |
 | [src/agents/planner/research-agent.ts](../src/agents/planner/research-agent.ts) | Agent 层 | 按已选城市进行首轮景点调研。有点名景点时分别查点名与城市候选。其余城市先做城市搜索，再按需由 Mastra 工具补查。单独结构化候选并核对来源和原文摘录。 |
 | [src/agents/planner/research-agent.test.ts](../src/agents/planner/research-agent.test.ts) | 测试（对应模块边界） | 用模拟模型和搜索结果验证 10 城范围、每城查询预算、证据校验和点名景点的保留。 |
+| [src/agents/planner/plan-agent.ts](../src/agents/planner/plan-agent.ts) | Agent 层 | Plan Agent 的单城选点：代码分天后，一次 Kimi 结构化调用按短 ID 选每天的景点、时段和时间锚点；代码校验，不通过时带问题重试一次，其余记为冲突。 |
+| [src/agents/planner/plan-agent.test.ts](../src/agents/planner/plan-agent.test.ts) | 测试（对应模块边界） | 用模拟模型验证示范第一天、单城 7 天、带问题重试、重试失败保留首个提案、模型不可用和多城暂不支持。 |
 | [src/agents/tools/resolve-place.ts](../src/agents/tools/resolve-place.ts) | Agent 工具 | 用工作区同一套地点核验（天地图）查一个中文地名，返回匹配地点（省/市/区、GCJ-02 坐标、是否景点）、最多 5 个候选或整省；不代表开放或可达。 |
 | [src/agents/tools/web-search.ts](../src/agents/tools/web-search.ts) | Agent 工具 | 经 Bocha 搜索近期公告（封闭、预约、季节通行），最多 5 条，每条带来源和发布日期；结果只是线索，提供方失败只返回 unavailable，不暴露带密钥的 URL。 |
 | [src/agents/tools/tools.test.ts](../src/agents/tools/tools.test.ts) | 测试（对应模块边界） | 验证地点结果的映射与 5 条上限、整省与失败状态，以及搜索 5 条上限、日期透传和失败降级。 |
@@ -666,6 +670,7 @@ Generate plan 背后的计划页先用示例数据做出完整页面（设计决
 | [scripts/verify-destination-conversation-turns.ts](../scripts/verify-destination-conversation-turns.ts) | 开发验证工具 | 用多轮样例人工检查真实模型的地点/偏好解释、推荐意图、中国范围、错别字保留、天气/准备度/单问题规则、已有状态保护及回复语言和英文地名翻译（20–27 为英文界面或跨语言输入），需要模型配置。 |
 | [scripts/verify-agent-tools.ts](../scripts/verify-agent-tools.ts) | 开发验证工具 | 用真模型和真提供方跑试验 Agent 的 4 个问题，打印每一步的工具调用与结果、耗时、token 用量和回复；第 4 个验证"工具 + 结构化输出"必须用单独的结构化步骤，需要模型、高德和 Bocha 配置。 |
 | [scripts/verify-plan-research.ts](../scripts/verify-plan-research.ts) | 开发验证工具 | 读入 PlanHandoff，用 Kimi 模型和联网搜索 Pro 跑首轮调研，输出各城市状态和景点卡 JSON。 |
+| [scripts/verify-plan-draft.ts](../scripts/verify-plan-draft.ts) | 开发验证工具 | 读入 PlanHandoff 和可选的调研结果 JSON（省去重复搜索），跑 Plan Agent 单城草稿，输出草稿、尝试次数、token 和耗时。 |
 | [scripts/verify-workspace-location-tool.ts](../scripts/verify-workspace-location-tool.ts) | 开发验证工具 | 人工调用真实 Workspace 解释器，检查地点意图结构；文件名保留旧 tool 命名，当前不是开放式工具 Agent。 |
 
 ### 6.16 网站静态资源

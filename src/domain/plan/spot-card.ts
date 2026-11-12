@@ -19,3 +19,12 @@ export type SpotCard = {
   readonly walking: SpotEvidence | null;
   readonly suggestedDuration: SpotEvidence | null;
 };
+
+/** One city's first-round research: its cards, and whether its search finished. */
+export type CityResearch = {
+  readonly province: string;
+  readonly city: string;
+  readonly status: "ready" | "partial" | "unavailable" | "deferred";
+  readonly searchCalls: number;
+  readonly spots: readonly SpotCard[];
+};

@@ -6,7 +6,7 @@ import { z } from "zod";
 import { namesSamePlace } from "@/capabilities/destination/resolve-destination-place";
 import { normalizeRecommendationName } from "@/domain/location/recommendation-identity";
 import type { PlanHandoff } from "@/domain/plan/plan-handoff";
-import type { SpotCard, SpotEvidence } from "@/domain/plan/spot-card";
+import type { CityResearch, SpotCard, SpotEvidence } from "@/domain/plan/spot-card";
 import { MAX_TRIP_DESTINATION_CITIES } from "@/domain/trip-state/destination-areas";
 import { parseExactDays } from "@/domain/trip-state/trip-dates";
 import { createMoonshotChatModelFromEnvironment } from "@/platform/llm/moonshot-chat-model";
@@ -40,13 +40,6 @@ type City = {
   readonly province: string;
   readonly city: string;
   readonly requested: readonly string[];
-};
-type CityResearch = {
-  readonly province: string;
-  readonly city: string;
-  readonly status: "ready" | "partial" | "unavailable" | "deferred";
-  readonly searchCalls: number;
-  readonly spots: readonly SpotCard[];
 };
 type Source = {
   readonly id: number;
