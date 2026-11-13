@@ -81,6 +81,7 @@ function spotCard(city: City, name: string, requested: boolean): SpotCard {
     setting: null,
     walking: null,
     suggestedDuration: null,
+    mapCheck: { status: "unchecked" },
   };
 }
 

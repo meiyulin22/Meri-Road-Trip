@@ -3,7 +3,7 @@ import { z } from "zod";
 import { parsePlaceImage, type PlaceImage } from "@/domain/location/place-image";
 
 import { daySlots, spotFacts, type PlanDraft } from "./plan-draft";
-import type { CityResearch, SpotCard, SpotEvidence } from "./spot-card";
+import type { CityResearch, SpotCard, SpotEvidence, SpotMapCheck } from "./spot-card";
 
 export const spotEvidenceSchema: z.ZodType<SpotEvidence> = z.strictObject({
   url: z.string(),
@@ -12,6 +12,12 @@ export const spotEvidenceSchema: z.ZodType<SpotEvidence> = z.strictObject({
   checkedAt: z.string(),
   quote: z.string(),
 });
+
+const spotMapCheckSchema: z.ZodType<SpotMapCheck> = z.discriminatedUnion("status", [
+  z.strictObject({ status: z.literal("located"), district: z.string().min(1).nullable() }),
+  z.strictObject({ status: z.literal("not_located") }),
+  z.strictObject({ status: z.literal("unchecked") }),
+]);
 
 export const spotCardSchema: z.ZodType<SpotCard> = z.strictObject({
   id: z.string().min(1),
@@ -25,6 +31,7 @@ export const spotCardSchema: z.ZodType<SpotCard> = z.strictObject({
   setting: spotEvidenceSchema.nullable(),
   walking: spotEvidenceSchema.nullable(),
   suggestedDuration: spotEvidenceSchema.nullable(),
+  mapCheck: spotMapCheckSchema,
 });
 
 export const cityResearchSchema: z.ZodType<CityResearch> = z.strictObject({
@@ -82,6 +89,8 @@ export const planDraftResponseSchema = z.discriminatedUnion("status", [
     pendingProvinces: z.array(z.string().min(1)),
     /** A photo for each day where the local catalog has one: a stop of the day, or its city. */
     dayPhotos: z.array(z.strictObject({ day: z.number().int().positive(), image: placeImageSchema })),
+    /** Stopped when a Tianditu call failed: the remaining spots stayed unchecked. */
+    mapCheck: z.enum(["complete", "stopped"]),
   }),
   z.strictObject({ status: z.literal("unsupported"), reason: z.enum(["no_city", "multiple_cities"]) }),
 ]);

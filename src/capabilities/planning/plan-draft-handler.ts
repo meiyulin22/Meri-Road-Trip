@@ -12,11 +12,13 @@ import { TripNotFoundError } from "@/domain/trip/trip-errors";
 import { logger } from "@/platform/observability/logger";
 import { serializeError } from "@/platform/observability/serialize-error";
 
+import type { MapCheckOutcome } from "@/agents/planner/map-check";
 import type { PlanDraftResult } from "@/agents/planner/plan-agent";
 
 type PlanDraftDependencies = {
   readonly loadJourney: (tripId: string, ownerGuestId: string) => Promise<{ tripState: TripState }>;
   readonly research: (handoff: PlanHandoff) => Promise<{ cities: readonly CityResearch[]; pendingProvinces: readonly string[] }>;
+  readonly checkMap: (cities: readonly CityResearch[]) => Promise<MapCheckOutcome>;
   readonly draft: (handoff: PlanHandoff, research: readonly CityResearch[]) => Promise<PlanDraftResult>;
   readonly findImage: (subject: PhotoSubject) => Promise<PlaceImage | null>;
 };
@@ -99,7 +101,9 @@ export async function handlePlanDraftPost(
       return noStore({ status: "unsupported", reason: allocation.reason } satisfies PlanDraftResponse);
     }
 
-    const research = await dependencies.research(handoff);
+    const researched = await dependencies.research(handoff);
+    const mapCheck = await dependencies.checkMap(researched.cities);
+    const research = { ...researched, cities: mapCheck.cities };
     const result = await dependencies.draft(handoff, research.cities);
     if (result.status === "unsupported") return noStore({ status: "unsupported", reason: result.reason } satisfies PlanDraftResponse);
     if (result.status === "unavailable") return failure(503, "planner_unavailable", "The planner is temporarily unavailable.");
@@ -113,6 +117,7 @@ export async function handlePlanDraftPost(
       spots: research.cities.flatMap(({ spots }) => spots.filter(({ id }) => scheduled.has(id) || conflicted.has(id))),
       cities: research.cities.map(({ province, city, status }) => ({ province, city, status })),
       pendingProvinces: [...research.pendingProvinces],
+      mapCheck: mapCheck.status,
       dayPhotos: await dayPhotos(result.draft.days, (spotId) => cards.get(spotId) ?? null, dependencies.findImage),
     };
     logger.info({
@@ -124,6 +129,8 @@ export async function handlePlanDraftPost(
       attempts: result.attempts,
       inputTokens: result.usage.inputTokens,
       outputTokens: result.usage.outputTokens,
+      mapCheck: mapCheck.status,
+      mapLookups: mapCheck.lookups,
       durationMs: Math.round(performance.now() - startedAt),
     }, "Plan draft completed");
     return noStore(response);

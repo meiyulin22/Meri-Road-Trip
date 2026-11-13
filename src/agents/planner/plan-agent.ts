@@ -59,7 +59,11 @@ function candidateSummary(card: SpotCard, shortId: string) {
   const facts = Object.fromEntries(spotFacts
     .filter((fact) => fact !== "location")
     .map((fact) => [fact, card[fact]?.quote.slice(0, maxQuoteCharacters) ?? null]));
-  return { id: shortId, name: card.name, requested: card.requested, ...facts };
+  const located = card.mapCheck.status === "located";
+  return {
+    id: shortId, name: card.name, requested: card.requested,
+    located, district: card.mapCheck.status === "located" ? card.mapCheck.district : null, ...facts,
+  };
 }
 
 /**
@@ -112,6 +116,7 @@ export async function draftPlan(
           `Plan at most ${maxStopsPerDay} stops a day at a relaxed pace, since the local transport is not known. Prefer fewer stops for a day with a long visit.`,
           "In full mode, schedule every requested candidate. In preview mode, plan the best single day and leave the rest for later days.",
           "Put each stop in the morning, afternoon or evening. Match the user's preferences when choosing among candidates.",
+          "Prefer candidates with located true: the map found them in the city. A candidate with located false is still valid and should be used rather than leave a day empty. Give every listed day at least one stop while candidates remain. Keep candidates from the same district on the same day where you can.",
           "Add an anchor only when a candidate's quoted fact states a clock time that matters, such as a last entry or a sunrise. Copy the time as HH:MM. Otherwise anchor is null.",
           `Write anchor reasons in ${handoff.locale === "zh" ? "Chinese" : "English"}, under 20 words.`,
           'Return {"days":[{"day":1,"stops":[{"spotId":"s1","slot":"morning","anchor":null}]}]}.',

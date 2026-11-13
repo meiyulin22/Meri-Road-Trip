@@ -32,7 +32,7 @@ function card(name: string, overrides: Partial<SpotCard> = {}): SpotCard {
   return {
     id: name, province: "云南省", city: "丽江市", name, requested: false,
     location: { ...evidence, quote: name + "位于丽江市" }, opening: null, reservation: null,
-    setting: null, walking: null, suggestedDuration: null, ...overrides,
+    setting: null, walking: null, suggestedDuration: null, mapCheck: { status: "unchecked" }, ...overrides,
   };
 }
 
@@ -68,8 +68,14 @@ test("drafts from the saved journey and returns only the cards the plan uses", a
         assert.deepEqual(received.preferences, handoff.preferences);
         return { cities: research, pendingProvinces: ["四川省"] };
       },
-      async draft(_received, cities) {
+      async checkMap(cities) {
         assert.equal(cities, research);
+        const [lijiang] = cities;
+        return { status: "stopped", lookups: 1, cities: [{ ...lijiang, spots: lijiang.spots.map((spot) =>
+          spot.name === "玉龙雪山" ? { ...spot, mapCheck: { status: "located", district: "玉龙纳西族自治县" } } : spot) }] };
+      },
+      async draft(_received, cities) {
+        assert.equal(cities[0].spots[0].mapCheck.status, "located");
         return { status: "ready", draft, attempts: 1, usage: { inputTokens: 100, outputTokens: 20 } };
       },
       async findImage(subject) {
@@ -86,6 +92,8 @@ test("drafts from the saved journey and returns only the cards the plan uses", a
   assert.deepEqual(result.spots.map(({ name }) => name), ["玉龙雪山", "丽江古城"]);
   assert.deepEqual(result.cities, [{ province: "云南省", city: "丽江市", status: "partial" }]);
   assert.deepEqual(result.pendingProvinces, ["四川省"]);
+  assert.equal(result.mapCheck, "stopped");
+  assert.deepEqual(result.spots[0].mapCheck, { status: "located", district: "玉龙纳西族自治县" });
   assert.equal(result.draft.days[0].stops[1].anchor?.time, "16:00");
   // Day 1 shows its first stop with a photo; day 2 has no stops and falls back to the city.
   assert.deepEqual(result.dayPhotos.map(({ day, image }) => [day, image.url]), [[1, "/photos/yulong.jpg"], [2, "/photos/lijiang.jpg"]]);
@@ -94,7 +102,7 @@ test("drafts from the saved journey and returns only the cards the plan uses", a
 test("refuses a handoff that no longer matches the saved journey, before any research", async () => {
   const changed: TripState = { ...tripState, duration: { state: "known", value: "3天", source: "user" } };
   const response = await handlePlanDraftPost("trip-id", "owner-id", handoff, {
-    loadJourney: async () => ({ tripState: changed }), research: unreachable, draft: unreachable, findImage: unreachable,
+    loadJourney: async () => ({ tripState: changed }), research: unreachable, checkMap: unreachable, draft: unreachable, findImage: unreachable,
   });
   assert.equal(response.status, 409);
   await assert.rejects(requestPlanDraft("trip-id", handoff, new AbortController().signal, async () => response),
@@ -106,26 +114,27 @@ test("answers several cities without spending searches, and maps the other failu
     { province: "云南省", places: [{ name: "丽江市", spots: [] }, { name: "大理白族自治州", spots: [] }] },
   ] } };
   const unsupported = await handlePlanDraftPost("trip-id", "owner-id", { ...handoff, tripState: twoCities }, {
-    loadJourney: async () => ({ tripState: twoCities }), research: unreachable, draft: unreachable, findImage: unreachable,
+    loadJourney: async () => ({ tripState: twoCities }), research: unreachable, checkMap: unreachable, draft: unreachable, findImage: unreachable,
   });
   assert.deepEqual(await unsupported.json(), { status: "unsupported", reason: "multiple_cities" });
 
   const unavailable = await handlePlanDraftPost("trip-id", "owner-id", handoff, {
     loadJourney: async () => ({ tripState }),
     research: async () => ({ cities: research, pendingProvinces: [] }),
+    checkMap: async (cities) => ({ cities: [...cities], status: "complete", lookups: 0 }),
     draft: async () => ({ status: "unavailable" }),
     findImage: unreachable,
   });
   assert.equal(unavailable.status, 503);
 
   assert.equal((await handlePlanDraftPost("trip-id", null, handoff, {
-    loadJourney: unreachable, research: unreachable, draft: unreachable, findImage: unreachable,
+    loadJourney: unreachable, research: unreachable, checkMap: unreachable, draft: unreachable, findImage: unreachable,
   })).status, 404);
   assert.equal((await handlePlanDraftPost("trip-id", "owner-id", { tripState }, {
-    loadJourney: unreachable, research: unreachable, draft: unreachable, findImage: unreachable,
+    loadJourney: unreachable, research: unreachable, checkMap: unreachable, draft: unreachable, findImage: unreachable,
   })).status, 400);
   assert.equal((await handlePlanDraftPost("trip-id", "owner-id", handoff, {
-    loadJourney: async () => { throw new TripNotFoundError("trip-id"); }, research: unreachable, draft: unreachable,
+    loadJourney: async () => { throw new TripNotFoundError("trip-id"); }, research: unreachable, checkMap: unreachable, draft: unreachable,
     findImage: unreachable,
   })).status, 404);
 });

@@ -31,11 +31,12 @@ function handoff(places: readonly string[], duration: TripState["duration"]): Pl
 
 const sevenDays = { state: "known", value: "7天", source: "user" } as const;
 
-function card(name: string, requested = false): SpotCard {
+function card(name: string, requested = false, index = 0): SpotCard {
   return {
     id: JSON.stringify(["云南省", "丽江市", name]), province: "云南省", city: "丽江市", name, requested,
     location: { url: "https://example.com", title: name, publishedAt: null, checkedAt: "2026-11-12T08:00:00.000Z", quote: name + "位于丽江市" },
     opening: null, reservation: null, setting: null, walking: null, suggestedDuration: null,
+    mapCheck: index % 2 === 0 ? { status: "located", district: "古城区" } : { status: "not_located" },
   };
 }
 
@@ -43,7 +44,7 @@ function card(name: string, requested = false): SpotCard {
 const spotNames = ["黑龙潭", "玉龙雪山", "丽江古城", "蓝月谷", "束河古镇", "拉市海", "白沙古镇", "玉水寨"];
 const research: CityResearch[] = [{
   province: "云南省", city: "丽江市", status: "ready", searchCalls: 2,
-  spots: spotNames.map((name, index) => card(name, index === 0)),
+  spots: spotNames.map((name, index) => card(name, index === 0, index)),
 }];
 
 type ProposedDay = { day: number; stops: { spotId: string; slot: string; anchor: null }[] };
@@ -89,6 +90,10 @@ test("without a confirmed duration, plans one preview day from the first city", 
   assert.equal(result.attempts, 1);
   assert.deepEqual(result.usage, { inputTokens: 100, outputTokens: 20 });
   assert.equal((prompts[0] as { mode: string }).mode, "preview");
+  // The model sees which candidates the map found, and in which district.
+  const candidates = (prompts[0] as { candidates: { name: string; located: boolean; district: string | null }[] }).candidates;
+  assert.deepEqual(candidates.slice(0, 2).map(({ name, located, district }) => [name, located, district]),
+    [["黑龙潭", true, "古城区"], ["玉龙雪山", false, null]]);
 });
 
 test("a single city with seven confirmed days gets exactly seven days", async () => {

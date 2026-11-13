@@ -155,6 +155,19 @@
   font-weight: 600;
 }
 
+.mapBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 1px 7px;
+  border-radius: 6px;
+  color: var(--soft);
+  background: var(--paper-deep);
+  font-size: 10px;
+  font-weight: 600;
+}
+.mapBadge[data-located="true"] { color: var(--green); background: var(--green-soft); }
+
 .facts { display: grid; gap: 4px; margin-top: 8px; }
 .facts > div { display: grid; grid-template-columns: 64px minmax(0, 1fr); gap: 8px; font-size: 13px; line-height: 1.6; }
 .facts dt { color: var(--soft); }

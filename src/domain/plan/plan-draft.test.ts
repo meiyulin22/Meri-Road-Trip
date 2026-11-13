@@ -28,7 +28,7 @@ function card(name: string, overrides: Partial<SpotCard> = {}): SpotCard {
   return {
     id: name, province: "云南省", city: "丽江市", name, requested: false,
     location: evidence(name + "位于丽江市"), opening: null, reservation: null,
-    setting: null, walking: null, suggestedDuration: null, ...overrides,
+    setting: null, walking: null, suggestedDuration: null, mapCheck: { status: "unchecked" }, ...overrides,
   };
 }
 

@@ -406,7 +406,7 @@ Generate plan 背后的计划页先用示例数据做出完整页面（设计决
 | [src/domain/trip-state/destination-edit.ts](../src/domain/trip-state/destination-edit.ts) | 领域层 | none/add/set/remove 契约、严格模型 JSON Schema、表达数量/长度/去重校验。 |
 | [src/domain/trip-state/destination-legacy-read.test.ts](../src/domain/trip-state/destination-legacy-read.test.ts) | 测试（对应模块边界） | 验证旧自由文本保留为 legacyText，不把未核验名称假装成市。 |
 | [src/domain/plan/plan-handoff.ts](../src/domain/plan/plan-handoff.ts) | 领域层 | 交接快照与响应契约，校验 TripState、参考日期、语言和偏好摘录。 |
-| [src/domain/plan/spot-card.ts](../src/domain/plan/spot-card.ts) | 领域层 | 景点卡、原文证据和单城调研结果的类型，未知字段可以为空。 |
+| [src/domain/plan/spot-card.ts](../src/domain/plan/spot-card.ts) | 领域层 | 景点卡、原文证据、天地图定位结果和单城调研结果的类型，未知字段可以为空。 |
 | [src/domain/plan/plan-draft.ts](../src/domain/plan/plan-draft.ts) | 领域层 | 计划草稿类型；单城或示范第一天的分天；校验 Plan Agent 提案（候选、所在城市、跨天重复、每天上限、有原文支持的时间锚点、点名景点），整理冲突和待核实字段。 |
 | [src/domain/plan/plan-draft.test.ts](../src/domain/plan/plan-draft.test.ts) | 测试（对应模块边界） | 验证示范第一天、单城按出发日期分天、多城暂不支持、提案校验与冲突整理。 |
 | [src/domain/plan/plan-draft-response.ts](../src/domain/plan/plan-draft-response.ts) | 领域层 | 景点卡、调研结果和计划页响应的运行时 schema，供接口、页面和验证脚本共用。 |
@@ -542,6 +542,8 @@ Generate plan 背后的计划页先用示例数据做出完整页面（设计决
 | [src/agents/scout-agent.ts](../src/agents/scout-agent.ts) | Agent 层 | 1.0300 试验 Agent：用两个现有工具回答一个关于中国地点的问题，只为验证 Kimi 经 Mastra 调用工具；将被规划 Agent 取代，不在其上扩建。模型首次使用时才读取环境变量。 |
 | [src/agents/planner/research-agent.ts](../src/agents/planner/research-agent.ts) | Agent 层 | 按已选城市进行首轮景点调研。Kimi 先按天数提名城市代表景点（只是提案），与点名景点每 3 个一组并行搜索核实，再由 Mastra 工具补查一次。单独结构化候选并核对来源和原文摘录，没有出处的提名不成卡。 |
 | [src/agents/planner/research-agent.test.ts](../src/agents/planner/research-agent.test.ts) | 测试（对应模块边界） | 用模拟模型和搜索结果验证提名与点名景点分组搜索、无出处提名被丢弃、模型不可用时的退路、只补查一次、10 城范围和证据校验。 |
+| [src/agents/planner/map-check.ts](../src/agents/planner/map-check.ts) | Agent 层（固定步骤） | 景点卡的天地图定位：每个有出处的景点查一次（每城最多 12 个），只认本市同名结果并记区县；第一次失败即停止、不重试，其余保持未核实；使用定位缓存。 |
+| [src/agents/planner/map-check.test.ts](../src/agents/planner/map-check.test.ts) | 测试 | 验证别省同名不算、景区后缀、停车场不算、失败即停、缓存命中、每城上限和缓存过期。 |
 | [src/agents/planner/plan-agent.ts](../src/agents/planner/plan-agent.ts) | Agent 层 | Plan Agent 的单城选点：代码分天后，一次 Kimi 结构化调用按短 ID 选每天的景点、时段和时间锚点；代码校验，不通过时带问题重试一次，其余记为冲突。 |
 | [src/agents/planner/plan-agent.test.ts](../src/agents/planner/plan-agent.test.ts) | 测试（对应模块边界） | 用模拟模型验证示范第一天、单城 7 天、带问题重试、重试失败保留首个提案、模型不可用和多城暂不支持。 |
 | [src/agents/tools/resolve-place.ts](../src/agents/tools/resolve-place.ts) | Agent 工具 | 用工作区同一套地点核验（天地图）查一个中文地名，返回匹配地点（省/市/区、GCJ-02 坐标、是否景点）、最多 5 个候选或整省；不代表开放或可达。 |
@@ -606,7 +608,8 @@ Generate plan 背后的计划页先用示例数据做出完整页面（设计决
 | [public/photos/songzanlin-4424995.jpg](../public/photos/songzanlin-4424995.jpg) | 静态资源 | 松赞林寺照片，Pixabay 4424995，作者 samyo；作为香格里拉市／迪庆州明确登记的代表图，旧香格里拉丽江雪山文件已撤下。 |
 | [src/platform/http/request-pacer.ts](../src/platform/http/request-pacer.ts) | 基础设施/工具 | 给外部请求排队、按最小间隔放行（可暂停、可插队），天地图用它避开限流；原本写给高德，1.0702 移除高德时搬到这里。 |
 | [src/platform/http/request-pacer.test.ts](../src/platform/http/request-pacer.test.ts) | 测试（对应模块边界） | 验证按间隔依次放行、暂停会拦住已在排队的请求、插队的请求排第一。 |
-| [src/platform/tianditu/tianditu-fetch.ts](../src/platform/tianditu/tianditu-fetch.ts) | 基础设施/适配器 | 天地图请求客户端：独立排队（开始间隔 ≥300ms，复用 amap-fetch 的通用 pacer）、超时、key 只拼进天地图地址；418 或防火墙 HTML 页视为拒绝、不重试；**429 视为限流**，整队暂停 1 秒、被拒请求排队首、最多重试 3 次；失败只返回固定原因，不含 URL 和 key。 |
+| [src/platform/tianditu/tianditu-fetch.ts](../src/platform/tianditu/tianditu-fetch.ts) | 基础设施/适配器 | 天地图请求客户端：独立排队（开始间隔 ≥300ms，复用 amap-fetch 的通用 pacer）、超时、key 只拼进天地图地址；418 或防火墙 HTML 页视为拒绝、不重试；**429 视为限流**，整队暂停 1 秒、被拒请求排队首、最多重试 3 次（`retryRateLimit: false` 时不重试，景点定位用）；失败只返回固定原因，不含 URL 和 key。 |
+| [src/platform/tianditu/spot-location-memory.ts](../src/platform/tianditu/spot-location-memory.ts) | 基础设施/缓存 | 景点定位缓存：按「省|市|景点」存天地图的判断（找到：区县和地图名，30 天；没找到：7 天），`.cache/tianditu-spot-locations.json`，上限 2000 条，失败不存。 |
 | [src/platform/tianditu/classification-memory.ts](../src/platform/tianditu/classification-memory.ts) | 基础设施/缓存 | 分类搜索缓存：按「行政区 + 类别」把 `queryType 13` 的一页存到 `.cache/tianditu-classification.json`，7 天、上限 50 页、只存真实答案（拒绝和空结果不存）；文件损坏按空缓存处理；写入用临时文件 + 改名，写失败不影响本次查询。 |
 | [src/platform/tianditu/classification-memory.test.ts](../src/platform/tianditu/classification-memory.test.ts) | 测试（对应模块边界） | 验证只存真实答案、重启后仍在、7 天过期、超 50 页淘汰最旧、文件损坏当空缓存、统计顺序。 |
 | [scripts/cache-stats.ts](../scripts/cache-stats.ts) | 开发验证工具 | 打印分类缓存的每个键、条数、缓存时间和剩余天数；`--clear` 清空。不需要 key。 |

@@ -1,6 +1,6 @@
 "use client";
 
-import { ChevronDown, Clock, ExternalLink, Info, MoonStar, RotateCw, Sparkles, Star, Sun, Sunrise, TriangleAlert } from "lucide-react";
+import { ChevronDown, Clock, ExternalLink, Info, MapPin, MoonStar, RotateCw, Sparkles, Star, Sun, Sunrise, TriangleAlert } from "lucide-react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import Image from "next/image";
 import { useEffect, useMemo, useState } from "react";
@@ -41,7 +41,10 @@ const copy = {
     unverified: (fields: string) => `To check: ${fields}`,
     sources: (count: number) => `${count} ${count === 1 ? "source" : "sources"}`,
     checked: (date: string) => `checked ${date}`,
-    summary: { days: "days", stops: "stops", sourced: "with sources", conflicts: "to resolve" },
+    summary: { days: "days", stops: "stops", sourced: "with sources", located: "on the map", conflicts: "to resolve" },
+    located: (district: string | null) => district ? `On the map · ${district}` : "On the map",
+    notLocated: "Not found on the map",
+    mapStopped: "The map check is unavailable right now, so some spots show as not found on the map.",
     conflictsTitle: "Couldn’t fit everything",
     requestedUnscheduled: (name: string) => `${name} isn’t in the plan yet.`,
     notEnough: (day: number) => `Day ${day} has no spots yet: research found too few candidates.`,
@@ -68,7 +71,10 @@ const copy = {
     unverified: (fields: string) => `待核实：${fields}`,
     sources: (count: number) => `${count} 条出处`,
     checked: (date: string) => `${date} 查询`,
-    summary: { days: "天", stops: "个景点", sourced: "有出处", conflicts: "待处理" },
+    summary: { days: "天", stops: "个景点", sourced: "有出处", located: "已定位", conflicts: "待处理" },
+    located: (district: string | null) => district ? `已定位 · ${district}` : "已定位",
+    notLocated: "位置未核实",
+    mapStopped: "位置核实暂时不可用，部分景点显示为位置未核实。",
     conflictsTitle: "有些安排没排进去",
     requestedUnscheduled: (name: string) => `${name}还没排进行程。`,
     notEnough: (day: number) => `第 ${day} 天暂时空着：调研到的候选不够。`,
@@ -201,6 +207,7 @@ function DraftDays({ response, text, locale }: {
   const [openDay, setOpenDay] = useState<number | null>(draft.days[0]?.day ?? null);
   const stops = draft.days.reduce((count, day) => count + day.stops.length, 0);
   const sourced = draft.days.flatMap((day) => day.stops).filter(({ spotId }) => cards.get(spotId)?.location).length;
+  const located = draft.days.flatMap((day) => day.stops).filter(({ spotId }) => cards.get(spotId)?.mapCheck.status === "located").length;
   const partial = response.cities.filter(({ status }) => status === "partial" || status === "unavailable").map(({ city }) => city);
   const nameOf = (spotId: string) => cards.get(spotId)?.name ?? spotId;
 
@@ -210,10 +217,18 @@ function DraftDays({ response, text, locale }: {
         <div><dt>{text.summary.days}</dt><dd>{draft.days.length}</dd></div>
         <div><dt>{text.summary.stops}</dt><dd>{stops}</dd></div>
         <div><dt>{text.summary.sourced}</dt><dd>{sourced}/{stops}</dd></div>
+        <div><dt>{text.summary.located}</dt><dd>{located}/{stops}</dd></div>
         {draft.conflicts.length > 0 ? (
           <div data-tone="warn"><dt>{text.summary.conflicts}</dt><dd>{draft.conflicts.length}</dd></div>
         ) : null}
       </dl>
+
+      {response.mapCheck === "stopped" ? (
+        <div className={draftStyles.notice} role="status">
+          <Info aria-hidden="true" size={18} />
+          <p>{text.mapStopped}</p>
+        </div>
+      ) : null}
 
       {draft.conflicts.length > 0 ? (
         <div className={draftStyles.notice} data-tone="warn">
@@ -318,6 +333,12 @@ function DraftDay({ day, cards, unverified, text, locale, preview, open, onOpen,
                               <h4>{card?.name ?? stop.spotId}</h4>
                               {card?.requested ? (
                                 <span className={draftStyles.requested}><Star aria-hidden="true" size={11} />{text.requested}</span>
+                              ) : null}
+                              {card ? (
+                                <span className={draftStyles.mapBadge} data-located={card.mapCheck.status === "located"}>
+                                  <MapPin aria-hidden="true" size={11} />
+                                  {card.mapCheck.status === "located" ? text.located(card.mapCheck.district) : text.notLocated}
+                                </span>
                               ) : null}
                             </div>
                             {stop.anchor ? <p className={draftStyles.anchorReason}>{stop.anchor.reason}</p> : null}

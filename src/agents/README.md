@@ -137,6 +137,29 @@ The script uses MOONSHOT_API_KEY for both the model and [Kimi Search
 Pro](../platform/search/kimi-search-pro.ts). The Generate plan button currently
 opens the handoff page. This script runs research independently of the page.
 
+### Map check (1.2006)
+
+[map-check.ts](planner/map-check.ts) looks up each sourced spot card once on Tianditu,
+with the card's province and 市 as hints, up to twelve spots a city. A spot counts as
+located only when a result inside its own 市 carries its name, allowing an
+administrative or scenic-area suffix, so a same-named place in another province
+(甘肃 has an 洱海 too) never counts. A located card records its district; a spot not
+found stays a card, marked not located, because Tianditu's data is incomplete. The
+first failed lookup stops the check for the whole plan with no retry, rate limits
+included (the client is built with `retryRateLimit: false`); the remaining spots stay
+unchecked and the plan goes on. Judgements are cached in
+`.cache/tianditu-spot-locations.json`: found for 30 days, not found for 7, never a
+failure. The Plan Agent sees `located` and `district`, prefers located spots, keeps a
+district together on one day, and still fills every day.
+
+Live check on 2026-11-13 from saved research: Dali located 洱海 and 崇圣寺三塔 in 大理市
+but not 蝴蝶泉 (only same-named places elsewhere); Lijiang located six of seven
+(玉龙雪山, 白沙古镇, 东巴谷 in 玉龙纳西族自治县; 丽江古城, 黑龙潭公园, 木府 in 古城区), not
+狮子山. Ten lookups took 3.1 s. The three-day Lijiang draft then put the 玉龙县 spots on
+day 1, the 古城区 spots on day 2 and 狮子山 on day 3. A first prompt that only said
+"prefer located" left day 3 empty rather than use 狮子山, so the prompt now also says
+every day needs a stop.
+
 ### Plan Agent draft (single city)
 
 [plan-agent.ts](planner/plan-agent.ts) turns research into a

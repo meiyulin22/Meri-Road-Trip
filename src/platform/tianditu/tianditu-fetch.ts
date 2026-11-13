@@ -56,10 +56,16 @@ function isRefusal(status: number, text: string): boolean {
 
 export function createTiandituClient(
   fetcher: typeof fetch = fetch,
-  options: { readonly timeoutMs?: number; readonly gate?: Gate } = {},
+  options: {
+    readonly timeoutMs?: number;
+    readonly gate?: Gate;
+    /** False for callers that must stop at the first refusal, rate limits included. */
+    readonly retryRateLimit?: boolean;
+  } = {},
 ): TiandituClient {
   const gate = options.gate ?? sharedGate;
   const timeoutMs = options.timeoutMs ?? 8_000;
+  const retries = options.retryRateLimit === false ? 0 : maxRetries;
   return {
     async get(path, params) {
       const key = process.env.TIANDITU_API_KEY?.trim();
@@ -80,7 +86,7 @@ export function createTiandituClient(
           // queue cools down and the refused call goes first when it does — unlike 418, which
           // is the firewall's block and only gets worse with retries.
           if (response.status === 429) {
-            const retrying = attempt < maxRetries;
+            const retrying = attempt < retries;
             logger.warn({ event: logEvents.tiandituRateLimited, path, attempt: attempt + 1, retrying },
               "Tianditu refused a request for exceeding its rate limit");
             if (!retrying) return { ok: false, reason: "rate_limited" };
