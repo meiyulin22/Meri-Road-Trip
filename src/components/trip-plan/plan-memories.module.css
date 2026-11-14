@@ -25,7 +25,8 @@
   font-size: 12px;
   cursor: help;
 }
-.chips li[data-added="true"] { padding-right: 4px; color: #5c4a2c; background: #f3ead6; }
+.chips li { padding-right: 4px; }
+.chips li[data-added="true"] { color: #5c4a2c; background: #f3ead6; }
 .chips li button {
   display: grid;
   place-items: center;

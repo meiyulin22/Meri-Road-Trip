@@ -1,20 +1,16 @@
 import { z } from "zod";
 
 import { locales } from "@/domain/locale/locale";
+import { planPreferenceSchema } from "@/domain/plan/trip-preference";
 import { validateTripState } from "@/domain/trip-state/trip-state";
-
-const preferenceSchema = z.strictObject({
-  messageId: z.string().min(1),
-  quote: z.string().min(1),
-  createdAt: z.iso.datetime(),
-});
 
 export const planHandoffSchema = z.strictObject({
   tripState: z.unknown().transform(validateTripState),
   referenceDate: z.iso.date(),
   timezone: z.string().min(1),
   locale: z.enum(locales),
-  preferences: z.array(preferenceSchema),
+  /** The trip's active preferences when the plan was opened: conversation, plan page and answers. */
+  preferences: z.array(planPreferenceSchema),
   preferenceStatus: z.enum(["ready", "unavailable"]),
 });
 

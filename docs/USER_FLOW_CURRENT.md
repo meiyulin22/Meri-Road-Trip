@@ -536,7 +536,7 @@ add/set 使用 Promise.all 查询表达。解析层保留不同 provider ID，�
 
 按钮始终显示。不可用时使用 `aria-disabled` 而非 `disabled`，保持可聚焦，使键盘用户也能读到提示；提示卡位于按钮所在容器内，指针从按钮移到提示上不会关闭，可点击其中的“在旅程信息里搜索并添加目的地”。该链接通过 [TripWorkspace](../src/components/trip-workspace/trip-workspace.tsx) 递增编辑器打开请求，右侧 [DestinationEditor](../src/components/trip-workspace/destination-editor.tsx) 重新挂载为展开状态并自动聚焦搜索框。聊天发送或选卡保存中暂缓交接。重复点击由按钮的请求状态拦住；失败或准备度不通过时在按钮下方显示说明，目的地变化后旧说明失效。
 
-点击发出 `POST /api/trips/{id}/planning-handoff`。服务端确认访客归属后重新读取已保存的 TripState，再做一次准备度判断。通过后用本旅程最近保存的用户原话提取偏好。提取输入最多十条、6,000 字符，代码只接受能按消息 ID 匹配到原文的摘录。模型不可用时仍交接旅程状态，计划页提示偏好提取失败。响应带 TripState、偏好、参考日期、时区和语言。应用不写回旅程状态或消息。
+点击发出 `POST /api/trips/{id}/planning-handoff`。服务端确认访客归属后重新读取已保存的 TripState，再做一次准备度判断。通过后从本旅程的用户消息提取偏好（1.2007 起）：读整段对话，最多 30 条、12,000 字符；放不下时保留第一条（落地页那句话）再加最近的消息。每条偏好有三部分：用户原话（逐字核对，必须出现在它指向的那条消息里）、给用户看的短标签（例如「想去山川湖海」→「喜欢自然景观」）和不显示的类型（节奏、体力、同行人、预算、饮食、兴趣、不想要、其他）。提取结果写入 `trip_preferences`：替换这个旅程上次从对话提取、仍有效的偏好；用户删除过的同一句原话不再写入；计划页添加的保留。模型不可用时不改已保存的偏好，计划页提示提取失败。响应带 TripState、该旅程当前有效的偏好、参考日期、时区和语言。应用不写回旅程状态或消息。
 
 [交接 UI 模型](../src/components/trip-workspace/planning-handoff-model.ts) 校验响应，将快照放在当前标签页的 sessionStorage，再打开 [真实计划页](../src/app/trips/%5Bid%5D/plan/page.tsx)。页面单独校验旅程归属，刷新只读快照。若当前标签页没有快照，返回 Workspace 再点 Generate plan。原 GET 准备度接口仍可单独查询。
 
@@ -549,7 +549,7 @@ add/set 使用 Promise.all 查询表达。解析层保留不同 provider ID，�
 | 3. 代码分天：无确切天数 → 第一个城市示范第 1 天；单城 → 全部天数；多城且有天数 → 返回 `unsupported`，不做调研 | [allocateDays](../src/domain/plan/plan-draft.ts) | 无 |
 | 4. 第一轮调研：Kimi 提名、搜索核实、提取景点卡 | [research-agent](../src/agents/planner/research-agent.ts) | 无持久化 |
 | 4b. 天地图定位（1.2006）：有出处的景点每个查一次天地图（每城最多 12 个），以省、市为提示，名称允许带景区后缀，只算本市的结果；找到记区县，找不到标「位置未核实」但保留。**第一次失败就停止，不重试（429 也不重试）**，其余景点保持未核实，计划照常生成 | [map-check](../src/agents/planner/map-check.ts) | 判断结果写进 `.cache/tianditu-spot-locations.json`（找到 30 天、没找到 7 天、上限 2000 条；失败不写） |
-| 5. Plan Agent 选点、时段和时间锚点（优先已定位的景点、同一区县尽量排同一天、每天至少一个景点），代码校验、最多重试一次 | [plan-agent](../src/agents/planner/plan-agent.ts) | 无持久化 |
+| 5. Plan Agent 选点、时段和时间锚点（优先已定位的景点、同一区县尽量排同一天、每天至少一个景点；偏好以「类型 + 原话」交给模型，有体力或同行人类偏好时代码把每天上限从 4 个降到 3 个），代码校验、最多重试一次 | [plan-agent](../src/agents/planner/plan-agent.ts) | 无持久化 |
 | 6. 每天配一张照片：先找当天景点的照片，再找所在城市的，尽量不和前几天重复；只查本地图集和已下载的照片，不调用远程照片服务 | handler 的 `dayPhotos` + [findPlaceImage](../src/capabilities/destination/place-images.ts) | 无 |
 | 7. 返回草稿、草稿用到的景点卡、各城调研状态、未选城市的省、每天的照片 | handler | 浏览器把结果和交接快照一起存进 sessionStorage |
 
@@ -563,7 +563,7 @@ add/set 使用 Promise.all 查询表达。解析层保留不同 provider ID，�
 | 模型不可用 | 503 | 稍后再试，提供重试 |
 | 其他 | 500 | 失败提示和重试 |
 
-**Meri 记得（1.2005）：**[PlanMemories](../src/components/trip-plan/plan-memories.tsx) 显示交接时提取的偏好（绿色，悬停显示原话），以及用户在计划页添加的偏好（米色，标「你添加的」，可删除）。「＋ 添加」打开和设计预览相同的面板：可以写一句话，或点「带小孩」「少走路」等常用标签。没有偏好时显示引导语，提示可以说节奏、步行、同行人、不想去的地方。添加的偏好存在当前标签页的 sessionStorage（每次最多 20 条、每条 80 字），**不改交接快照，也不触发重新规划**，下方提示「新加的偏好不会改动下面的行程，下次调整行程时 Meri 会用上」。计划页修改对话尚未实现，所以这些偏好目前只显示，还没有被任何生成步骤读取。
+**Meri 记得（1.2005，1.2007 起存进数据库）：**[PlanMemories](../src/components/trip-plan/plan-memories.tsx) 显示每条偏好的短标签，悬停显示用户原话；来自对话的为绿色，计划页添加的为米色并标「你添加的」，每条都可以删除。打开页面时先显示交接里的偏好，再通过 `GET /api/trips/{id}/preferences` 读取最新列表。「＋ 添加」打开和设计预览相同的面板：点「带小孩」「少走路」等常用选项时类型已知、标签就是选项本身；自己写的一句话由 `POST /api/trips/{id}/preferences` 调一次 Kimi 生成标签和类型，模型不可用时这句话本身作标签、类型为「其他」。同一句话不重复保存，每个旅程最多 30 条有效偏好。删除走 `DELETE /api/trips/{id}/preferences/{preferenceId}`，只把状态改为 removed。这三个接口都先按 cookie 检查旅程归属，不属于当前访客返回 404。添加的偏好**不改交接快照，也不触发重新规划**，下方提示「新加的偏好不会改动下面的行程，下次调整行程时 Meri 会用上」。计划页修改对话尚未实现；下一次点 Generate plan 时，这些偏好会随交接一起交给规划。
 
 偏好摘录取自浏览器的快照：交接时已在服务端核对过原话，模型只把它当数据读。整次请求在一个 HTTP 调用里完成（实测单城约 30–45 秒），没有进度事件、断点续跑和计划存储；同一标签页里重复挂载会复用正在进行的请求。
 

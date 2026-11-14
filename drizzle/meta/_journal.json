@@ -71,6 +71,13 @@
       "when": 1790681001082,
       "tag": "0009_drop_trip_user_actions",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1794640062240,
+      "tag": "0010_trip_preferences",
+      "breakpoints": true
     }
   ]
 }

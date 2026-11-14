@@ -170,8 +170,10 @@ exact. Several cities with a confirmed duration return `unsupported` until the P
 Agent's allocation is built.
 
 One structured Kimi call chooses each day's spots from the candidates, which it sees
-under short IDs (`s1`, `s2`…) with their quoted facts and the user's preference
-quotes. Each stop has a slot (morning, afternoon or evening) and an optional time
+under short IDs (`s1`, `s2`…) with their quoted facts and the user's preferences: each
+preference's kind and the traveller's own words, never the short label shown on the
+page. A walking limit or companions lower the daily limit from four stops to three,
+decided in code from the kinds (1.2007). Each stop has a slot (morning, afternoon or evening) and an optional time
 anchor such as a last cable car. Code keeps a stop only if the spot is a candidate in
 that day's city and is not already scheduled, and allows four stops a day while the
 transport is unknown. An anchor stays only if one of the spot's quoted facts states

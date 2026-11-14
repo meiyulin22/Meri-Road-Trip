@@ -121,6 +121,8 @@ export function reviewProposal(
   frames: readonly DayFrame[],
   cards: readonly SpotCard[],
   proposal: PlanProposal,
+  /** Lower for a lighter trip, such as with a walking limit or companions. */
+  maxStops: number = maxStopsPerDay,
 ): ProposalReview {
   const errors: string[] = [];
   const cardsById = new Map(cards.map((card) => [card.id, card]));
@@ -146,8 +148,8 @@ export function reviewProposal(
         errors.push(`Day ${frame.day}: ${card.name} is already scheduled.`);
         continue;
       }
-      if (stops.length >= maxStopsPerDay) {
-        errors.push(`Day ${frame.day} has more than ${maxStopsPerDay} stops.`);
+      if (stops.length >= maxStops) {
+        errors.push(`Day ${frame.day} has more than ${maxStops} stops.`);
         break;
       }
       used.add(card.id);

@@ -1,3 +1,5 @@
+import { randomUUID } from "node:crypto";
+
 import { cookies } from "next/headers";
 import { z } from "zod";
 
@@ -18,18 +20,19 @@ export async function POST(_request: Request, context: { params: Promise<{ id: s
   const { year, month, day } = Object.fromEntries(parts.map((part) => [part.type, part.value]));
   const referenceDate = `${year}-${month}-${day}`;
 
-  const [{ journeyService }, { tripMessageService }, { extractPlanPreferences }, locale] = await Promise.all([
+  const [{ journeyService }, { tripMessageService }, { extractPlanPreferences }, { tripPreferenceRepository }, locale] = await Promise.all([
     import("@/capabilities/journey/journey-service-instance"),
     import("@/capabilities/conversation/trip-message-service-instance"),
     import("@/capabilities/planning/extract-plan-preferences"),
+    import("@/capabilities/planning/trip-preference-repository-instance"),
     requestLocale(),
   ]);
   return handlePlanningHandoffPost(tripId, ownerGuestId, { timezone, referenceDate, locale }, {
     loadJourney: (id, owner) => journeyService.loadJourney(id, owner),
     listMessages: (id, owner) => tripMessageService.listMessages(id, owner),
-    extractPreferences: async (messages, requestId) => {
-      const result = await extractPlanPreferences(messages, requestId);
-      return { ...result, preferences: [...result.preferences] };
-    },
+    extractPreferences: (messages, requestId) => extractPlanPreferences(messages, requestId),
+    listPreferences: (id) => tripPreferenceRepository.listByTripId(id),
+    replaceConversationPreferences: (id, preferences) => tripPreferenceRepository.replaceConversationPreferences(id, preferences),
+    newId: () => randomUUID(),
   });
 }

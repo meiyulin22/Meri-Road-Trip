@@ -109,6 +109,7 @@ flowchart TB
 | TripMessage | user/assistant、正文、可选 presentation、时间戳 | `trip_messages` | 真实历史，待选卡不是用户决定 |
 | JourneySummary | 列表用标题、目的地、日期等摘要 | Trip + TripState 查询投影 | 读模型，不可作为更新基底 |
 | TripDraft / Interpretation | 草稿或四项聊天 JSON | 本次调用中校验 | 模型提案，不是持久化状态 |
+| TripPreference | 旅程偏好：短标签、类型、用户原话、来源、状态 | `trip_preferences` | 交接时从对话提取、计划页增删；原话是给规划模型的依据，标签和类型由模型生成、不是事实 |
 
 当前数据库关系（完整字段目录、约束和读写路径见 [DATABASE_SCHEMA.md](DATABASE_SCHEMA.md)）：
 

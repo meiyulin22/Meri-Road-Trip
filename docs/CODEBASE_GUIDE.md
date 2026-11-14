@@ -217,6 +217,9 @@ LLM 解释自然语言并提出受限 JSON；应用校验、决定是否执行�
 | [src/app/api/trips/[id]/destination-photos/route.ts](../src/app/api/trips/%5Bid%5D/destination-photos/route.ts) | HTTP 接口层 | GET 已选地点照片：owner 检查，按当前目的地和对话里卡片展示过的照片返回每个地点一张，private/no-store，不写入任何数据。 |
 | [src/app/api/trips/[id]/destinations/route.ts](../src/app/api/trips/%5Bid%5D/destinations/route.ts) | HTTP 接口层 | GET 手动搜索、POST 按 query/id 或建议完整名称/地区重查并添加、DELETE 完整元组/旧记录；搜索词是几个整省的合称（江浙沪）时由模型的地点解读（兜底表）直接给出这几个省，不查地图，POST 用同一份结果核对；归属检查、唯一目标核验及目的地并发控制。 |
 | [src/app/api/trips/[id]/planning-handoff/route.ts](../src/app/api/trips/%5Bid%5D/planning-handoff/route.ts) | HTTP 接口层 | POST 校验访客归属与准备度，返回保存的 TripState、偏好、语言、时区和参考日期。 |
+| [src/app/api/trips/[id]/preferences/route.ts](../src/app/api/trips/%5Bid%5D/preferences/route.ts) | HTTP 接口层 | GET 列出、POST 添加旅程偏好。 |
+| [src/app/api/trips/[id]/preferences/[preferenceId]/route.ts](../src/app/api/trips/%5Bid%5D/preferences/%5BpreferenceId%5D/route.ts) | HTTP 接口层 | DELETE 把一条偏好标为 removed。 |
+| [src/app/api/trips/[id]/preferences/dependencies.ts](../src/app/api/trips/%5Bid%5D/preferences/dependencies.ts) | 装配 | 偏好接口用到的旅程服务、repository 和标签模型。 |
 | [src/app/api/trips/[id]/plan-draft/route.ts](../src/app/api/trips/%5Bid%5D/plan-draft/route.ts) | HTTP 接口层 | POST 接收交接快照，接上旅程服务、首轮调研和 Plan Agent，交给 plan-draft-handler。 |
 | [src/app/api/trips/[id]/planning-readiness/route.ts](../src/app/api/trips/%5Bid%5D/planning-readiness/route.ts) | HTTP 接口层 | GET 读取新鲜 TripState，返回 missing/unverified/selected 准备度；不生成计划。 |
 | [src/app/api/trips/[id]/route.ts](../src/app/api/trips/%5Bid%5D/route.ts) | HTTP 接口层 | DELETE /api/trips/[id] 只删除当前访客拥有的 Trip，数据库级联清理状态和消息。 |
@@ -340,8 +343,7 @@ Generate plan 背后的计划页先用示例数据做出完整页面（设计决
 | [src/components/trip-plan/plan-draft.module.css](../src/components/trip-plan/plan-draft.module.css) | 样式 | 行程草稿的统计胶囊、时段时间轴、锚点、出处展开、提示卡和骨架加载。 |
 | [src/components/trip-plan/plan-memories.tsx](../src/components/trip-plan/plan-memories.tsx) | 表现层 | 「Meri 记得」：交接提取的偏好和用户在计划页添加的偏好，添加面板复用 PreferenceSheet；新偏好不触发重新规划。 |
 | [src/components/trip-plan/plan-memories.module.css](../src/components/trip-plan/plan-memories.module.css) | 样式 | 偏好卡片、标签和提示。 |
-| [src/components/trip-plan/plan-memories-model.ts](../src/components/trip-plan/plan-memories-model.ts) | 表现层模型 | 添加偏好时去空格、去重、限 20 条 80 字；按旅程存取当前标签页的 sessionStorage。 |
-| [src/components/trip-plan/plan-memories-model.test.ts](../src/components/trip-plan/plan-memories-model.test.ts) | 测试 | 验证去重、跳过已提取的偏好和数量、长度上限。 |
+| [src/components/trip-plan/plan-preferences-model.ts](../src/components/trip-plan/plan-preferences-model.ts) | 表现层模型 | 调用偏好接口读取、添加、删除；常用选项按顺序对应类型。 |
 | [src/components/trip-plan/plan-draft-model.ts](../src/components/trip-plan/plan-draft-model.ts) | 表现层模型 | 调用 plan-draft 接口并映射错误；按交接快照存取 sessionStorage 缓存；按时段分组和列出有出处的事实。 |
 | [src/components/trip-plan/plan-preview.tsx](../src/components/trip-plan/plan-preview.tsx) | 表现层 | 预览页的编排：右下角预览开关切换三种状态（生成中：按定时的假事件逐步点亮进度、区块从骨架填进内容；只有目的地：第 1 天排好、其余锁住；全部填好）；在页面上点选天数、日期、出发地、交通方式后，只让依赖它的区块"重新规划"一下；顶部事实点"修改"会重新锁住对应区块；修改对话框带小熊猫，提交后显示"修改还没接上"的示例回复。1.1001 起：天气按出发日期分预报 / 往年同期；手动添加偏好后出现"按新偏好重新规划"，点了只重排各天；导出菜单下载日历、打印时所有天展开。 |
 | [src/components/trip-plan/plan-view.ts](../src/components/trip-plan/plan-view.ts) | 表现层纯函数 | 计划页的数据形状（日程、景点、路程、核实来源、天气、住宿、交通选项、记忆、运行统计），以及规则：每个区块需要哪些事实、某个事实影响哪些区块、一次运行有哪些步骤（第 1 天先排）、某步完成后哪个区块就绪、时长文字、核实计数、日期推算。 |
@@ -405,7 +407,8 @@ Generate plan 背后的计划页先用示例数据做出完整页面（设计决
 | [src/domain/trip-state/destination-areas.ts](../src/domain/trip-state/destination-areas.ts) | 领域层 | 省市/spot 类型和纯函数：格式化（直辖市的景点紧跟市名：北京市（故宫））、标题（超过两省缩写为“…等N省”）、计数、包含、去重添加、新增部分（destinationAdditions）、级联删除、唯一匹配及结构读取。 |
 | [src/domain/trip-state/destination-edit.ts](../src/domain/trip-state/destination-edit.ts) | 领域层 | none/add/set/remove 契约、严格模型 JSON Schema、表达数量/长度/去重校验。 |
 | [src/domain/trip-state/destination-legacy-read.test.ts](../src/domain/trip-state/destination-legacy-read.test.ts) | 测试（对应模块边界） | 验证旧自由文本保留为 legacyText，不把未核验名称假装成市。 |
-| [src/domain/plan/plan-handoff.ts](../src/domain/plan/plan-handoff.ts) | 领域层 | 交接快照与响应契约，校验 TripState、参考日期、语言和偏好摘录。 |
+| [src/domain/plan/plan-handoff.ts](../src/domain/plan/plan-handoff.ts) | 领域层 | 交接快照与响应契约，校验 TripState、参考日期、语言和当前有效的偏好。 |
+| [src/domain/plan/trip-preference.ts](../src/domain/plan/trip-preference.ts) | 领域层 | 旅程偏好：标签、类型、原话、来源、状态；类型、来源与上限常量；原话比较；体力和同行人类偏好把每天上限降到 3。 |
 | [src/domain/plan/spot-card.ts](../src/domain/plan/spot-card.ts) | 领域层 | 景点卡、原文证据、天地图定位结果和单城调研结果的类型，未知字段可以为空。 |
 | [src/domain/plan/plan-draft.ts](../src/domain/plan/plan-draft.ts) | 领域层 | 计划草稿类型；单城或示范第一天的分天；校验 Plan Agent 提案（候选、所在城市、跨天重复、每天上限、有原文支持的时间锚点、点名景点），整理冲突和待核实字段。 |
 | [src/domain/plan/plan-draft.test.ts](../src/domain/plan/plan-draft.test.ts) | 测试（对应模块边界） | 验证示范第一天、单城按出发日期分天、多城暂不支持、提案校验与冲突整理。 |
@@ -526,10 +529,13 @@ Generate plan 背后的计划页先用示例数据做出完整页面（设计决
 
 | 文件地址 | 层/类别 | 做什么 |
 | --- | --- | --- |
-| [src/capabilities/planning/extract-plan-preferences.ts](../src/capabilities/planning/extract-plan-preferences.ts) | 应用层 | 从有上限的已保存用户消息提取偏好，以消息 ID 核对原话，区分空结果和不可用。 |
-| [src/capabilities/planning/extract-plan-preferences.test.ts](../src/capabilities/planning/extract-plan-preferences.test.ts) | 测试 | 验证原话来源、上下文上限和不可用降级。 |
-| [src/capabilities/planning/planning-handoff-handler.ts](../src/capabilities/planning/planning-handoff-handler.ts) | 应用层 | 组织归属检查后的状态读取、准备度和偏好提取，返回禁止缓存的交接结果。 |
-| [src/capabilities/planning/planning-handoff-route.test.ts](../src/capabilities/planning/planning-handoff-route.test.ts) | 测试 | 验证归属、准备度、快照传递和客户端响应解析。 |
+| [src/capabilities/planning/extract-plan-preferences.ts](../src/capabilities/planning/extract-plan-preferences.ts) | 应用层 | 读整段对话（30 条、12,000 字符，保留第一条）提取偏好，每条带原话、短标签和类型，以消息 ID 核对原话；另给计划页写的一句话生成标签和类型。 |
+| [src/capabilities/planning/extract-plan-preferences.test.ts](../src/capabilities/planning/extract-plan-preferences.test.ts) | 测试 | 验证原话来源、标签和类型、30 条与第一条的截取、标签降级和不可用降级。 |
+| [src/capabilities/planning/trip-preferences-handler.ts](../src/capabilities/planning/trip-preferences-handler.ts) | 应用层 | 偏好接口：归属检查后列出有效偏好、添加（查重、上限、常用选项或模型标签）、删除（改为 removed）。 |
+| [src/capabilities/planning/trip-preferences-route.test.ts](../src/capabilities/planning/trip-preferences-route.test.ts) | 测试 | 经客户端模型验证列出、添加、去重、删除、归属和输入校验，以及每天上限。 |
+| [src/capabilities/planning/trip-preference-repository-instance.ts](../src/capabilities/planning/trip-preference-repository-instance.ts) | 装配 | 偏好 repository 的生产实例。 |
+| [src/capabilities/planning/planning-handoff-handler.ts](../src/capabilities/planning/planning-handoff-handler.ts) | 应用层 | 组织归属检查后的状态读取、准备度和偏好提取，保存偏好（替换上次的对话提取、跳过用户删除过的），返回禁止缓存的交接结果。 |
+| [src/capabilities/planning/planning-handoff-route.test.ts](../src/capabilities/planning/planning-handoff-route.test.ts) | 测试 | 验证归属、准备度、偏好保存与替换、删除过的不回来、提取不可用时保留已存的、快照传递和客户端响应解析。 |
 | [src/capabilities/planning/plan-draft-handler.ts](../src/capabilities/planning/plan-draft-handler.ts) | 应用层 | 校验交接快照和归属，与已保存 TripState 比对，先判断分天是否支持，再跑调研和草稿，只返回用到的景点卡，并为每天从本地图集选一张照片（先景点后城市，尽量不重复）；记录用时和 token。 |
 | [src/capabilities/planning/plan-draft-route.test.ts](../src/capabilities/planning/plan-draft-route.test.ts) | 测试 | 验证正常草稿与客户端解析、快照过期 409、多城不调研、错误映射、每天照片的选择与重复，以及页面的时段分组和出处列表。 |
 
@@ -633,6 +639,7 @@ Generate plan 背后的计划页先用示例数据做出完整页面（设计决
 | [scripts/db-local.ps1](../scripts/db-local.ps1) | 开发验证工具 | `npm run db:local`：起容器 → 轮询就绪 → 强制用本地 URL 跑 `drizzle-kit migrate` → 打印 .env.local 要粘贴的连接串；`-Stop` 停容器并保留数据卷。 |
 | [src/platform/persistence/database/schema/index.ts](../src/platform/persistence/database/schema/index.ts) | 数据库基础设施 | 导出当前三张表的 schema，不包含旧 user actions 表。 |
 | [src/platform/persistence/database/schema/trip-messages.ts](../src/platform/persistence/database/schema/trip-messages.ts) | 数据库基础设施 | trip_messages 表和角色 enum，正文/presentation/时间戳及 Trip 外键级联。 |
+| [src/platform/persistence/database/schema/trip-preferences.ts](../src/platform/persistence/database/schema/trip-preferences.ts) | 基础设施/schema | trip_preferences 表、三个 enum 和 (trip_id, status) 索引。 |
 | [src/platform/persistence/database/schema/trip-states.ts](../src/platform/persistence/database/schema/trip-states.ts) | 数据库基础设施 | trip_states 表，以 Trip ID 为主键，JSONB 保存状态，删除 Trip 时级联。 |
 | [src/platform/persistence/database/schema/trips.ts](../src/platform/persistence/database/schema/trips.ts) | 数据库基础设施 | trips 表及 idea/planning enum，保存 ID/owner/status/时间戳。 |
 | [src/platform/persistence/in-memory/in-memory-trip-message-repository.test.ts](../src/platform/persistence/in-memory/in-memory-trip-message-repository.test.ts) | 测试（对应模块边界） | 验证完整对话顺序、独立原话/助手消息及重复身份处理。 |
@@ -645,12 +652,15 @@ Generate plan 背后的计划页先用示例数据做出完整页面（设计决
 | [src/platform/persistence/postgres/postgres-journey-summary-repository.test.ts](../src/platform/persistence/postgres/postgres-journey-summary-repository.test.ts) | 测试（对应模块边界） | mock 验证权威状态投影、owner 过滤、缺状态、certainty 保留及已保存地点的投影。 |
 | [src/platform/persistence/postgres/postgres-journey-summary-repository.ts](../src/platform/persistence/postgres/postgres-journey-summary-repository.ts) | 基础设施端口/适配器 | 关联 Trip 与当前状态，按 owner 查询并投影列表摘要（含已保存的地点结构），不使用旧 Trip 字段。 |
 | [src/platform/persistence/postgres/postgres-trip-message-repository.test.ts](../src/platform/persistence/postgres/postgres-trip-message-repository.test.ts) | 测试（对应模块边界） | mock 验证完整 turn 单次插入、原话/助手 presentation、时间顺序和重复 ID 处理。 |
+| [src/platform/persistence/postgres/postgres-trip-preference-repository.ts](../src/platform/persistence/postgres/postgres-trip-preference-repository.ts) | 基础设施/存储 | Drizzle 实现：替换对话提取是先删后插两步、没有事务；删除只改状态。 |
+| [src/platform/persistence/postgres/postgres-trip-preference-repository.test.ts](../src/platform/persistence/postgres/postgres-trip-preference-repository.test.ts) | 测试 | 用数据库替身验证先删后插、只改状态和错误包装。 |
 | [src/platform/persistence/postgres/postgres-trip-message-repository.ts](../src/platform/persistence/postgres/postgres-trip-message-repository.ts) | 基础设施端口/适配器 | PostgreSQL 消息插入/读取，完整双边 turn 单次 insert，稳定 ID 重试及 presentation 校验；按 id+trip+assistant 替换 presentation（推荐卡照片，唯一的消息更新）。 |
 | [src/platform/persistence/postgres/postgres-trip-repository.test.ts](../src/platform/persistence/postgres/postgres-trip-repository.test.ts) | 测试（对应模块边界） | mock 数据库验证字段映射、owner 条件、列表/删除及错误 cause。 |
 | [src/platform/persistence/postgres/postgres-trip-repository.ts](../src/platform/persistence/postgres/postgres-trip-repository.ts) | 基础设施端口/适配器 | PostgreSQL Trip 增查删适配，显式字段映射、owner 过滤和错误包装。 |
 | [src/platform/persistence/postgres/postgres-trip-state-repository.test.ts](../src/platform/persistence/postgres/postgres-trip-state-repository.test.ts) | 测试（对应模块边界） | mock 数据库验证状态语义、旧数据读取、JSONB CAS 条件/冲突及异常。 |
 | [src/platform/persistence/postgres/postgres-trip-state-repository.ts](../src/platform/persistence/postgres/postgres-trip-state-repository.ts) | 基础设施端口/适配器 | 状态 JSONB 存取、领域读取校验/兼容，原始 JSONB 条件 CAS 与错误包装。 |
 | [src/platform/persistence/trip-message-repository.ts](../src/platform/persistence/trip-message-repository.ts) | 持久化端口/读模型 | 消息存储端口，定义完整 turn、单消息、列表及助手消息 presentation 替换能力。 |
+| [src/platform/persistence/trip-preference-repository.ts](../src/platform/persistence/trip-preference-repository.ts) | 基础设施/接口 | 偏好 repository：列出、替换对话提取、新增、标为删除。 |
 | [src/platform/persistence/trip-repository.ts](../src/platform/persistence/trip-repository.ts) | 持久化端口/读模型 | Trip 存储端口，定义创建、owner-scoped 查询/删除等，不写具体 SQL。 |
 | [src/platform/persistence/trip-state-repository.ts](../src/platform/persistence/trip-state-repository.ts) | 持久化端口/读模型 | TripState 存储端口，包含读取/更新及可选 compareAndUpdate；生产实现使用 CAS。 |
 
@@ -668,6 +678,7 @@ Generate plan 背后的计划页先用示例数据做出完整页面（设计决
 | [drizzle/0007_trip_user_actions.sql](../drizzle/0007_trip_user_actions.sql) | 数据库演进/工具元数据 | 历史迁移：创建显式推荐 action 表和外键；不是当前 schema 的实体。 |
 | [drizzle/0008_trip_message_presentation.sql](../drizzle/0008_trip_message_presentation.sql) | 数据库演进/工具元数据 | 为助手消息增加 JSONB presentation，用于刷新恢复卡片。 |
 | [drizzle/0009_drop_trip_user_actions.sql](../drizzle/0009_drop_trip_user_actions.sql) | 数据库演进/工具元数据 | 定义删除旧 trip_user_actions 表，当前代码以请求入口标记推荐来源；未在本次执行迁移。 |
+| [drizzle/0010_trip_preferences.sql](../drizzle/0010_trip_preferences.sql) | 迁移 | 创建 trip_preferences 表、enum、外键和索引。 |
 | [drizzle/meta/0000_snapshot.json](../drizzle/meta/0000_snapshot.json) | 数据库演进/工具元数据 | 第 0 次迁移生成的历史 schema 快照（public.trips），用于 Drizzle 差异计算，不是当前在线数据库状态。 |
 | [drizzle/meta/0001_snapshot.json](../drizzle/meta/0001_snapshot.json) | 数据库演进/工具元数据 | 第 1 次迁移生成的历史 schema 快照（public.trips），用于 Drizzle 差异计算，不是当前在线数据库状态。 |
 | [drizzle/meta/0002_snapshot.json](../drizzle/meta/0002_snapshot.json) | 数据库演进/工具元数据 | 第 2 次迁移生成的历史 schema 快照（public.trip_states、public.trips），用于 Drizzle 差异计算，不是当前在线数据库状态。 |
