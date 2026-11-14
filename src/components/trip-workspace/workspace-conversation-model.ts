@@ -96,6 +96,13 @@ export class DestinationSelectionFollowUpError extends WorkspaceConversationRequ
   }
 }
 
+export class DestinationMapUnavailableError extends WorkspaceConversationRequestError {
+  constructor() {
+    super("The map service could not check the destination.");
+    this.name = "DestinationMapUnavailableError";
+  }
+}
+
 export class DestinationOfferExpiredError extends WorkspaceConversationRequestError {
   constructor() {
     super("The destination offer has expired.");

@@ -275,3 +275,43 @@ test("the model's reading decides a group the nickname table does not know, and 
     async (expression) => { looked.push(expression); return { status: "unresolved" }; }, "我想去江浙", async () => null);
   assert.deepEqual(looked, ["江浙"]);
 });
+
+const lijiangOldTown = { providerId: "tianditu-lijiang-old-town", name: "丽江古城", province: "云南省",
+  city: "丽江市", district: "古城区", region: "云南省丽江市古城区", address: "古城区",
+  longitude: 100.23, latitude: 26.87, coordinateSystem: "CGCS2000" as const, kind: "sight" as const };
+const lijiangCity = { ...lijiangOldTown, providerId: "tianditu-lijiang-city", name: "丽江市", district: null,
+  region: "云南省丽江市", address: null, kind: undefined };
+
+test("a city's own short name is the city, never a spot of it, even when a sight comes back first", async () => {
+  // Tianditu sometimes answers 丽江 with 丽江古城 first. The user named the city.
+  const resolution = await resolveDestinationPlace("丽江", async (expression) =>
+    resolveDestinationCandidates(expression, [lijiangOldTown]));
+  const picks = resolution.status === "resolved" ? [resolution.pick]
+    : resolution.status === "ambiguous" ? resolution.options : [];
+  assert.ok(picks.length > 0);
+  assert.ok(picks.every((pick) => pick.place === "丽江市" && pick.spot === null));
+  // Searching by hand still lists the old town as a spot the user can pick on purpose.
+  assert.deepEqual(picksFromSearch([lijiangOldTown]).map(({ place, spot }) => [place, spot]), [["丽江市", "丽江古城"]]);
+});
+
+test("a card saved with the city's short name as its spot still adds the city", async () => {
+  const choice = { id: destinationPreferenceId("云南省", "丽江市", "丽江"), name: "丽江市", province: "云南省",
+    city: "丽江市", spot: "丽江" };
+  // On the second lookup Tianditu answers with the city itself, which used to fail as a mismatch.
+  assert.deepEqual(await verifyDestinationChoice(choice, {
+    search: async () => ({ status: "success", candidates: [lijiangCity] }),
+  }), { status: "verified", pick: { province: "云南省", place: "丽江市", spot: null } });
+  assert.deepEqual(await verifyDestinationChoice(choice, {
+    search: async () => ({ status: "provider_error" }),
+  }), { status: "provider_error" });
+});
+
+test("a scenic area that shares its city's name stays a distinct choice under its full name", async () => {
+  const scenic = { ...lijiangOldTown, providerId: "huangshan-scenic", name: "黄山风景区", province: "安徽省",
+    city: "黄山市", district: "黄山区", region: "安徽省黄山市黄山区" };
+  assert.deepEqual(picksFromSearch([scenic]).map(({ place, spot }) => [place, spot]), [["黄山市", "黄山风景区"]]);
+  // Named as 黄山, the scenic area keeps its full name, so it is not mistaken for 黄山市.
+  const resolution = await resolveDestinationPlace("黄山", async (expression) =>
+    resolveDestinationCandidates(expression, [scenic]));
+  assert.equal(resolution.status === "resolved" ? resolution.pick.spot : null, "黄山风景区");
+});

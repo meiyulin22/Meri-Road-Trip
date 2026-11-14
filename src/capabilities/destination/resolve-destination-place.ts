@@ -131,6 +131,13 @@ function spotOf(candidate: LocationCandidate, place: string, expression: string)
   // provider's full administrative name so confirmation repeats a precise search.
   if (candidate.district !== null && name === normalize(candidate.district)) return candidate.name;
   const said = normalize(expression);
+  // 丽江 is 丽江市 itself. A sight that only starts with the city's name (丽江古城) is
+  // not what the user named, and their word for the city must never become a spot of it:
+  // that card could not be verified again. A scenic area named for its city (黄山风景区)
+  // is a real second place, kept under its full name so it differs from the city.
+  if (said.length >= 2 && namesSamePlace(place, expression)) {
+    return namesSamePlace(candidate.name, expression) ? candidate.name : null;
+  }
   // 杭州西湖风景名胜区 is the 西湖 the user asked for; keep their word for it.
   return said.length >= 2 && namesWithoutOwnPlace(name, candidate).some((variant) => variant.startsWith(said))
     ? expression.trim() : candidate.name;

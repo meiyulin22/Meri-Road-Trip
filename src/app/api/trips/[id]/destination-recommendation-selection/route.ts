@@ -92,8 +92,12 @@ export async function handleDestinationRecommendationSelectionPost(
         id: destinationPreferenceId(choice.province, choice.city, choice.spot ?? null), name: choice.city }]
         : chosen.filter((item) => ids.includes(item.id)));
     const resolved = await Promise.all(verificationChoices.map(verify));
+    // A map that did not answer is not a place that failed its check: say which it was.
+    if (resolved.some((item) => item.status === "provider_error")) {
+      return Response.json({ error: "The map service is unavailable. Please try again.", code: "map_unavailable" }, { status: 503 });
+    }
     if (resolved.some((item) => item.status !== "verified")) {
-      return Response.json({ error: "Some places could not be verified. Please search again." }, { status: 409 });
+      return Response.json({ error: "Some places could not be verified. Please search again.", code: "unverified" }, { status: 409 });
     }
     // Verification can take seconds; merge into the state that exists afterwards.
     ({ tripState: currentState } = await dependencies.loadJourney(tripId, ownerGuestId));

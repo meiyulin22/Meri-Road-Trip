@@ -5,7 +5,7 @@ import { resolveDestinationCandidates } from "@/domain/location/destination-reso
 import type { DestinationPick } from "@/domain/trip-state/destination-areas";
 
 import type { LocationService } from "./location-service";
-import { picksFromSearch, resolveDestinationPlace } from "./resolve-destination-place";
+import { namesSamePlace, picksFromSearch, resolveDestinationPlace } from "./resolve-destination-place";
 
 export type VerifiedChoice =
   | { readonly status: "verified"; readonly pick: DestinationPick }
@@ -19,6 +19,16 @@ export async function verifyDestinationChoice(
   if (!isChinaProvince(choice.province)) return { status: "unresolved" };
   if (choice.id === `province:${choice.province}` && choice.city === undefined && choice.spot === undefined) {
     return { status: "verified", pick: { province: choice.province, place: null, spot: null } };
+  }
+  // Cards saved before 1.2008 could carry the city's own short name as a spot (丽江 under
+  // 丽江市). That spot is the city; recheck the city instead of a place that never existed.
+  if (choice.city && choice.spot && namesSamePlace(choice.city, choice.spot)) {
+    const city = await service.search(choice.city);
+    if (city.status !== "success") return { status: "provider_error" };
+    const isCity = picksFromSearch(city.candidates)
+      .some((pick) => pick.province === choice.province && pick.place === choice.city);
+    return isCity ? { status: "verified", pick: { province: choice.province, place: choice.city, spot: null } }
+      : { status: "unresolved" };
   }
   const result = await service.search(choice.spot ?? choice.name);
   if (result.status !== "success") return { status: "provider_error" };

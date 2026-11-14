@@ -31,7 +31,7 @@ test("batch selection saves city and attraction preference and retries in either
  const retry=await select(tripId,"owner",{...body,destinationIds:["b","a"]},f.dependencies);assert.equal(retry.status,200);assert.deepEqual((await retry.json()).assistantMessage,saved.assistantMessage);assert.equal(f.getWrites(),1);
 });
 test("verification failure prevents the whole batch from being saved",async()=>{
- const f=fixture();const response=await select(tripId,"owner",body,{...f.dependencies,verifyChoice:async()=>({status:"provider_error"})});assert.equal(response.status,409);assert.equal(f.getWrites(),0);
+ const f=fixture();const response=await select(tripId,"owner",body,{...f.dependencies,verifyChoice:async()=>({status:"provider_error"})});assert.equal(response.status,503);assert.equal((await response.json()).code,"map_unavailable");assert.equal(f.getWrites(),0);
 });
 test("write failure has no follow-up; follow-up failure reports saved state",async()=>{
  const f=fixture();const failed=await select(tripId,"owner",body,{...f.dependencies,updateTripState:async()=>{throw new Error("write");}});assert.equal(failed.status,500);assert.equal(f.messages.length,1);

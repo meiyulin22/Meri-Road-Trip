@@ -19,7 +19,7 @@ import { DestinationChoicesCard } from "./destination-choices-card";
 import { GeneratePlanAction } from "./generate-plan-action";
 import { formatMessageTimestamp } from "./message-timestamp";
 import { appendPersistedMessageIfAbsent, destinationChoicePresentation, messageCreatedAt, pendingRecommendationPresentation, recommendationIdsAwaitingPhoto, toWorkspaceUIMessages, withRecommendationPhoto } from "./trip-message-ui-adapter";
-import { DestinationOfferExpiredError, DestinationSelectionCityLimitError, DestinationSelectionFollowUpError, RecommendationsStaleError } from "./workspace-conversation-model";
+import { DestinationMapUnavailableError, DestinationOfferExpiredError, DestinationSelectionCityLimitError, DestinationSelectionFollowUpError, RecommendationsStaleError } from "./workspace-conversation-model";
 import {
   reconcileCommittedUserId,
   WorkspaceChatTransport,
@@ -218,6 +218,8 @@ export function ConversationPanel({
       } else if (error instanceof DestinationOfferExpiredError) {
         setClosedOfferIds((current) => [...new Set([...current, messageId])]);
         setSelectionNotice(words.offerExpired);
+      } else if (error instanceof DestinationMapUnavailableError) {
+        setSelectionNotice(words.mapUnavailable);
       } else if (error instanceof DestinationSelectionCityLimitError) {
         setSelectionNotice(text.destinationEditor.cityLimit(MAX_TRIP_DESTINATION_CITIES));
       } else {
