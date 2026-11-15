@@ -56,7 +56,8 @@ export const dali: CityResearch = {
 export type ProposedDay = { day: number; stops: { spotId: string; slot: string; anchor: null }[] };
 
 export type RouteAnswer = { cities: { id: string; days: number; reason: string }[];
-  days: { day: number; focus: string | null; theme: string | null }[]; omitted: { id: string; reason: string }[] };
+  days: { day: number; focus: string | null; theme: string | null }[]; omitted: { id: string; reason: string }[];
+  question?: { text: string; options: { label: string; kind: string }[] } | null };
 
 function answer(content: unknown) {
   return Response.json({
@@ -75,6 +76,7 @@ export function modelAnswering(options: {
   routes?: readonly RouteAnswer[];
   dayPrompts?: unknown[];
   routePrompts?: unknown[];
+  routeSystems?: string[];
 } = {}) {
   let call = 0;
   let routeCall = 0;
@@ -89,6 +91,7 @@ export function modelAnswering(options: {
       const prompt = JSON.parse(request.messages.at(-1)?.content ?? "null");
       if (request.response_format?.json_schema?.name === "plan_route") {
         options.routePrompts?.push(prompt);
+        options.routeSystems?.push(request.messages.find(({ role }) => role === "system")?.content ?? "");
         const route = options.routes?.[routeCall];
         routeCall += 1;
         return route ? answer(route) : new Response("unavailable", { status: 503 });

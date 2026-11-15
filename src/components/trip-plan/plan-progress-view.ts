@@ -5,6 +5,7 @@ import {
   type PlanActivity,
   type PlanProgressEnvelope,
   type PlanProgressEvent,
+  type PlanQuestion,
   type PlanStage,
 } from "@/domain/plan/plan-progress";
 import type { SpotCard } from "@/domain/plan/spot-card";
@@ -38,6 +39,13 @@ export type ProgressView = {
   readonly spots: Readonly<Record<string, SpotCard>>;
   readonly photos: Readonly<Record<number, PlaceImage>>;
   readonly finished: RunEnding | null;
+  /** The question the run is waiting on, until it is answered. */
+  readonly question: PlanQuestion | null;
+  /** Server time the run began waiting; the clock stops there. */
+  readonly waitingSince: number | null;
+  /** Time spent waiting for answers, left out of the run's clock. */
+  readonly waitedMs: number;
+  readonly answers: readonly { readonly question: string; readonly choice: string | null }[];
 };
 
 export const emptyProgress: ProgressView = {
@@ -52,6 +60,10 @@ export const emptyProgress: ProgressView = {
   spots: {},
   photos: {},
   finished: null,
+  question: null,
+  waitingSince: null,
+  waitedMs: 0,
+  answers: [],
 };
 
 /**
@@ -110,6 +122,16 @@ export function applyProgress(view: ProgressView, { seq, at, event }: PlanProgre
       };
     case "day.photo":
       return { ...next, photos: { ...next.photos, [event.day]: event.image } };
+    case "run.waiting":
+      return { ...next, question: event.question, waitingSince: at };
+    case "question.answered":
+      return {
+        ...next,
+        question: null,
+        waitingSince: null,
+        waitedMs: next.waitedMs + (next.waitingSince === null ? 0 : Math.max(0, at - next.waitingSince)),
+        answers: [...next.answers, { question: next.question?.text ?? "", choice: event.choice }],
+      };
     case "run.finished":
       return {
         ...next,

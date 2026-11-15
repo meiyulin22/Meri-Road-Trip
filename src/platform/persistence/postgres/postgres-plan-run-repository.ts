@@ -15,7 +15,7 @@ type PlanRunRow = typeof planRuns.$inferSelect;
 type PlanVersionRow = typeof planVersions.$inferSelect;
 
 type PostgresPlanRunOperation =
-  | "createRun" | "finishRun" | "findRun" | "findLatestRun" | "appendEvent" | "listEvents"
+  | "createRun" | "moveRun" | "finishRun" | "findRun" | "findLatestRun" | "appendEvent" | "listEvents"
   | "createVersion" | "findVersionByRun" | "findLatestVersion";
 
 export class PostgresPlanRunRepositoryError extends Error {
@@ -80,6 +80,18 @@ export class PostgresPlanRunRepository implements PlanRunRepository {
       await this.database.insert(planRuns).values(run);
     } catch (error) {
       throw new PostgresPlanRunRepositoryError("createRun", run.id, error);
+    }
+  }
+
+  async moveRun(runId: string, from: "running" | "suspended", to: "running" | "suspended"): Promise<boolean> {
+    try {
+      const updated = await this.database.update(planRuns)
+        .set({ status: to })
+        .where(and(eq(planRuns.id, runId), eq(planRuns.status, from)))
+        .returning({ id: planRuns.id });
+      return updated.length > 0;
+    } catch (error) {
+      throw new PostgresPlanRunRepositoryError("moveRun", runId, error);
     }
   }
 

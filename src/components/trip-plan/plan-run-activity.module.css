@@ -49,6 +49,16 @@
 .row[data-status="running"] .mark { color: var(--accent); }
 .row[data-status="stopped"] .mark { color: var(--accent); font-weight: 700; }
 .row[data-status="done"] .mark { color: var(--green); }
+.row[data-status="waiting"] .mark { color: var(--accent); font-weight: 700; }
+.waitingTag {
+  margin-left: 8px;
+  padding: 1px 8px;
+  border-radius: 999px;
+  color: var(--accent);
+  background: var(--accent-soft);
+  font-size: 11px;
+  font-weight: 600;
+}
 
 .spinner { display: inline-block; animation: turn 1.6s linear infinite; }
 
@@ -119,12 +129,46 @@ button.toggle:focus-visible { outline: 2px solid var(--green); outline-offset: 2
   white-space: nowrap;
 }
 
+/* The question the run waits on: a card under the log, with one button per option. */
+.question {
+  display: grid;
+  gap: 10px;
+  padding: 14px 16px;
+  border: 1px solid rgba(201, 95, 61, .32);
+  border-radius: 16px;
+  background: #fffdf8;
+  animation: settle .3s ease-out;
+}
+.questionEyebrow { color: var(--accent); font-size: 11px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; }
+.questionText { font-size: 15px; font-weight: 650; }
+.options { display: flex; flex-wrap: wrap; gap: 8px; }
+.option {
+  padding: 8px 14px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  color: var(--ink);
+  background: #fff;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: border-color .15s ease, transform .15s ease;
+}
+.option:hover:not(:disabled) { border-color: var(--green); transform: translateY(-1px); }
+.option:focus-visible { outline: 2px solid var(--green); outline-offset: 2px; }
+.option:disabled { cursor: default; opacity: .6; }
+.option[data-skip="true"] { color: var(--muted); border-style: dashed; }
+.questionError { color: var(--accent); font-size: 12px; }
+
+@keyframes settle { from { transform: translateY(4px); } to { transform: none; } }
 @keyframes turn { to { transform: rotate(360deg); } }
 @keyframes arrive { from { color: var(--ink); } to { color: var(--muted); } }
 
 @media (prefers-reduced-motion: reduce) {
   .spinner { animation: none; }
   .activity li { animation: none; }
+  .question { animation: none; }
+  .option { transition: none; }
   .chevron, .summary { transition: none; }
 }
 

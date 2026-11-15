@@ -17,6 +17,7 @@ import type { PlanRunStartResponse } from "@/domain/plan/plan-run";
 import type { SpotCard, SpotEvidence } from "@/domain/plan/spot-card";
 
 import {
+  answerPlanQuestion,
   parseProgressMessage,
   PlanDraftRequestError,
   planRunEventsUrl,
@@ -29,7 +30,7 @@ import {
   type PlanDraftFailure,
 } from "./plan-draft-model";
 import { applyProgress, emptyProgress, pendingDays, type ProgressView } from "./plan-progress-view";
-import { PlanRunActivity } from "./plan-run-activity";
+import { PlanQuestionCard, PlanRunActivity } from "./plan-run-activity";
 import draftStyles from "./plan-draft.module.css";
 import styles from "./trip-plan.module.css";
 
@@ -149,7 +150,12 @@ function checkedDate(evidence: SpotEvidence, locale: Locale): string {
  * The plan for the handoff this tab holds. The server either has it saved, is making it,
  * or starts a run; a running plan streams its real progress and its days as they come.
  */
-export function PlanDraftSection({ tripId, handoff }: { readonly tripId: string; readonly handoff: PlanHandoff }) {
+export function PlanDraftSection({ tripId, handoff, onPreferenceSaved = () => {} }: {
+  readonly tripId: string;
+  readonly handoff: PlanHandoff;
+  /** Called when answering the plan's question saved a new preference. */
+  readonly onPreferenceSaved?: () => void;
+}) {
   const locale = useLocale();
   const text = copy[locale];
   const [attempt, setAttempt] = useState(0);
@@ -177,6 +183,7 @@ export function PlanDraftSection({ tripId, handoff }: { readonly tripId: string;
   if (state.kind === "running") {
     return (
       <LiveRun key={state.runId} tripId={tripId} runId={state.runId} text={text} locale={locale}
+        onAnswered={onPreferenceSaved}
         onDone={(plan, progress) => setState({ kind: "ready", plan, progress })}
         onFailed={(reason, progress) => setState({ kind: "failed", reason, progress })} />
     );
@@ -220,7 +227,8 @@ export function PlanDraftSection({ tripId, handoff }: { readonly tripId: string;
  * event id, so a dropped connection resumes where it stopped. When the run ends, the
  * saved version replaces the streamed days.
  */
-function LiveRun({ tripId, runId, text, locale, onDone, onFailed }: {
+function LiveRun({ tripId, runId, text, locale, onDone, onFailed, onAnswered }: {
+  readonly onAnswered: () => void;
   readonly tripId: string;
   readonly runId: string;
   readonly text: Copy;
@@ -229,20 +237,29 @@ function LiveRun({ tripId, runId, text, locale, onDone, onFailed }: {
   readonly onFailed: (reason: PlanDraftFailure, progress: ProgressView) => void;
 }) {
   const [view, dispatch] = useReducer(applyProgress, emptyProgress);
+  // A new connection after each answer, starting after the last event this page has.
+  const [after, setAfter] = useState(0);
   // The first day opens by itself when it arrives, until the reader opens or closes one.
   const [openDay, setOpenDay] = useState<number | null | "first">("first");
 
   useEffect(() => {
-    const source = new EventSource(planRunEventsUrl(tripId, runId));
+    const source = new EventSource(planRunEventsUrl(tripId, runId, after));
     source.onmessage = (message: MessageEvent<string>) => {
       const envelope = parseProgressMessage(message.data, runId);
       if (!envelope) return;
       dispatch(envelope);
-      // The run is over: no reconnect after its last event.
-      if (envelope.event.type === "run.finished") source.close();
+      // Over, or paused for an answer: the server ends the stream, so do not reconnect.
+      if (envelope.event.type === "run.finished" || envelope.event.type === "run.waiting") source.close();
     };
     return () => source.close();
-  }, [runId, tripId]);
+  }, [after, runId, tripId]);
+
+  const answer = async (choice: string | null) => {
+    if (!view.question) return;
+    await answerPlanQuestion(tripId, runId, { questionId: view.question.id, choice }, new AbortController().signal);
+    setAfter(view.lastSeq);
+    if (choice !== null) onAnswered();
+  };
 
   const finished = view.finished;
   useEffect(() => {
@@ -268,6 +285,7 @@ function LiveRun({ tripId, runId, text, locale, onDone, onFailed }: {
   return (
     <section className={draftStyles.draft} aria-busy="true">
       <PlanRunActivity view={view} />
+      {view.question ? <PlanQuestionCard key={view.question.id} question={view.question} onAnswer={answer} /> : null}
       {view.route ? <RouteStrip route={view.route} text={text} /> : null}
       {view.days.length > 0 || view.route ? (
         <div className={draftStyles.days}>

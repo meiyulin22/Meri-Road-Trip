@@ -5,6 +5,7 @@ import {
   latestPlanResponseSchema,
   planRunStartResponseSchema,
   type LatestPlanResponse,
+  type PlanAnswer,
   type PlanRunStartResponse,
 } from "@/domain/plan/plan-run";
 import type { SpotCard } from "@/domain/plan/spot-card";
@@ -53,8 +54,28 @@ export async function readLatestPlan(tripId: string, signal: AbortSignal, fetche
   return latestPlanResponseSchema.parse(await response.json());
 }
 
-export function planRunEventsUrl(tripId: string, runId: string): string {
-  return `${tripPath(tripId)}/plan-runs/${encodeURIComponent(runId)}/events`;
+/** A run's event stream; after answering, a new connection starts after the last event seen. */
+export function planRunEventsUrl(tripId: string, runId: string, after = 0): string {
+  const url = `${tripPath(tripId)}/plan-runs/${encodeURIComponent(runId)}/events`;
+  return after > 0 ? `${url}?after=${after}` : url;
+}
+
+/** Answers the question a run waits on: an option's label, or null to let Meri decide. */
+export async function answerPlanQuestion(
+  tripId: string,
+  runId: string,
+  answer: PlanAnswer,
+  signal: AbortSignal,
+  fetcher: Fetcher = fetch,
+): Promise<void> {
+  const response = await fetcher(`${tripPath(tripId)}/plan-runs/${encodeURIComponent(runId)}/answer`, {
+    method: "POST",
+    cache: "no-store",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(answer),
+    signal,
+  });
+  if (!response.ok) throw new PlanDraftRequestError("failed");
 }
 
 /** One Server-Sent Event's data, or null when it is not a progress event of this run. */

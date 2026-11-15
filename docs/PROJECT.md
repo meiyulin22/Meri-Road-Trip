@@ -190,8 +190,8 @@ every selected city with sourced spot cards, checks the spots on Tianditu,
 routes the trip and chooses each day's spots, then saves the plan as a
 version; a later change to the Journey marks it stale. Every fact carries its
 source and date, and anything not found is listed as unknown. Its real
-progress streams to the page. Pausing to ask the user, a second round of
-verification, routes and weather are next. The design is in
+progress streams to the page, and it can pause to ask the traveller one question
+(1.2011). A second round of verification, routes and weather are next. The design is in
 [the agents README](../src/agents/README.md).
 
 The next planning input should come from current TripState, including city-level

@@ -113,9 +113,10 @@ export function planScope(tripState: TripState): PlanScope {
 
 /** What the Plan Agent proposes for the route, by the short city IDs it was given. */
 export type RouteProposal = {
-  readonly cities: readonly { readonly id: string; readonly days: number; readonly reason: string }[];
+  /** A reason can be missing: the model sometimes leaves it empty, which does not make the route wrong. */
+  readonly cities: readonly { readonly id: string; readonly days: number; readonly reason: string | null }[];
   readonly days: readonly { readonly day: number; readonly focus: string | null; readonly theme: string | null }[];
-  readonly omitted: readonly { readonly id: string; readonly reason: string }[];
+  readonly omitted: readonly { readonly id: string; readonly reason: string | null }[];
 };
 
 /** A city as the Plan Agent sees it: a short ID, how many candidates research found, and their districts. */

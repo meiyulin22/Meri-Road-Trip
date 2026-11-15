@@ -7,7 +7,8 @@ import { readyPlanSchema, type ReadyPlan } from "./plan-draft-response";
 import type { PlanHandoff } from "./plan-handoff";
 import { planRunErrorCodes, type PlanRunErrorCode } from "./plan-progress";
 
-export const planRunStatuses = ["running", "succeeded", "failed", "interrupted"] as const;
+/** `suspended`: waiting for the traveller's answer, with the workflow's snapshot in Postgres. */
+export const planRunStatuses = ["running", "suspended", "succeeded", "failed", "interrupted"] as const;
 export type PlanRunStatus = (typeof planRunStatuses)[number];
 
 /** What one run spent, for the run record and later evaluation. Research model tokens are not counted yet. */
@@ -34,7 +35,7 @@ export type PlanRun = {
 };
 
 export type PlanRunFinish = Pick<PlanRun, "errorCode" | "usage" | "durationMs"> & {
-  readonly status: Exclude<PlanRunStatus, "running">;
+  readonly status: Exclude<PlanRunStatus, "running" | "suspended">;
   readonly finishedAt: string;
 };
 
@@ -60,6 +61,13 @@ export const planRunStartResponseSchema = z.discriminatedUnion("status", [
   z.strictObject({ status: z.literal("unsupported"), reason: z.literal("no_city") }),
 ]);
 export type PlanRunStartResponse = z.output<typeof planRunStartResponseSchema>;
+
+/** What the plan page sends to answer a run's question: an option's label, or null for "you decide". */
+export const planAnswerSchema = z.strictObject({
+  questionId: z.uuid(),
+  choice: z.string().trim().min(1).max(40).nullable(),
+});
+export type PlanAnswer = z.output<typeof planAnswerSchema>;
 
 /** What GET plan answers: the newest saved plan, whether the trip changed since, and the newest run. */
 export const latestPlanResponseSchema = z.strictObject({

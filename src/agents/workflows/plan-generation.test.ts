@@ -8,6 +8,7 @@ import { afternoon, dali, day, fiveDays, handoff, lijiang, modelAnswering } from
 import { PlanRunService } from "@/capabilities/planning/plan-run-service";
 import type { PlanProgressEnvelope } from "@/domain/plan/plan-progress";
 import type { CityResearch } from "@/domain/plan/spot-card";
+import type { TripPreference } from "@/domain/plan/trip-preference";
 import { InMemoryPlanRunRepository } from "@/platform/persistence/in-memory/in-memory-plan-run-repository";
 
 import { createPlanGenerationWorkflow, type PlanGenerationDependencies } from "./plan-generation";
@@ -28,6 +29,7 @@ const researched: Record<string, CityResearch> = {
 
 function setup(overrides: Partial<PlanGenerationDependencies> = {}, timeLimitMs?: number) {
   const repository = new InMemoryPlanRunRepository();
+  const preferences: TripPreference[] = [];
   const lookups: string[] = [];
   const workflow = createPlanGenerationWorkflow({
     researchCity: async (task, _handoff, onProgress) => {
@@ -60,11 +62,15 @@ function setup(overrides: Partial<PlanGenerationDependencies> = {}, timeLimitMs?
   let id = 0;
   const service = new PlanRunService({
     repository,
+    preferences: {
+      listByTripId: async () => preferences,
+      create: async (preference) => { preferences.push(preference); },
+    },
     workflow: async () => ({ workflow: mastra.getWorkflow("planGeneration") }),
-    newId: () => `00000000-0000-4000-8000-00000000000${++id}`,
+    newId: () => `00000000-0000-4000-8000-${String(++id).padStart(12, "0")}`,
     timeLimitMs,
   });
-  return { repository, service, lookups };
+  return { repository, service, lookups, preferences };
 }
 
 async function followToEnd(service: PlanRunService, repository: InMemoryPlanRunRepository, runId: string, afterSeq = 0) {
@@ -167,4 +173,69 @@ test("a run past its time limit is stopped and says so", async () => {
   const finished = events.at(-1)?.event;
   assert.deepEqual(finished?.type === "run.finished" && [finished.status, finished.errorCode], ["failed", "time_limit"]);
   assert.equal(repository.versions.length, 0);
+});
+
+test("pauses on the Plan Agent's question, saves the answer as a preference, and resumes from the route", async () => {
+  const routePrompts: { preferences: { kind: string; quote: string }[] }[] = [];
+  const routeSystems: string[] = [];
+  const asking = { ...route, question: { text: "更想多看山水，还是多逛古城？", options: [
+    { label: "山水", kind: "interests" }, { label: "古城烟火", kind: "interests" },
+  ] } };
+  const { repository, service, preferences } = setup({
+    planModel: { model: modelAnswering({
+      routes: [asking, route],
+      routePrompts,
+      routeSystems,
+      days: [[day(1, "s1", "s2"), day(2, "s3"), day(3, "s4")], [afternoon(day(4, "s1")), day(5, "s2")]],
+    }) },
+  });
+  const started = await service.start(tripId, trip);
+  const before = await followToEnd(service, repository, started.runId);
+  const waiting = before.at(-1)?.event;
+  assert.equal(waiting?.type, "run.waiting");
+  if (waiting?.type !== "run.waiting") return;
+  // Paused before any day: nothing routed yet, and the run waits rather than ends.
+  assert.ok(!before.some(({ event }) => event.type === "route.ready" || event.type === "run.finished"));
+  assert.equal(repository.runs.get(started.runId)?.status, "suspended");
+  assert.match(routeSystems[0], /Ask the traveller one question first/u);
+
+  // Another page following the waiting run gets the same events and the question again.
+  assert.deepEqual((await followToEnd(service, repository, started.runId)).map(({ seq }) => seq), before.map(({ seq }) => seq));
+  // A choice that is not an option, or an old question, does not resume it.
+  assert.equal(await service.answer(tripId, started.runId, { questionId: waiting.question.id, choice: "沙漠" }), "wrong_question");
+
+  assert.equal(await service.answer(tripId, started.runId, { questionId: waiting.question.id, choice: "山水" }), "resumed");
+  assert.equal(await service.answer(tripId, started.runId, { questionId: waiting.question.id, choice: "山水" }), "not_waiting");
+  const after = await followToEnd(service, repository, started.runId, before.at(-1)?.seq);
+  assert.deepEqual(after.map(({ seq }) => seq), after.map((_, index) => before.length + index + 1));
+  assert.equal(after[0].event.type, "stage.started");
+  assert.ok(after.some(({ event }) => event.type === "question.answered" && event.choice === "山水"));
+  const finished = after.at(-1)?.event;
+  assert.equal(finished?.type === "run.finished" && finished.status, "succeeded");
+  // Research and the map were not repeated after the answer.
+  assert.ok(!after.some(({ event }) => event.type === "city.researched" || event.type === "map.checked"));
+
+  // The answer is a preference: saved for the trip, read by the second route call, kept in the version.
+  assert.deepEqual(preferences.map(({ label, kind, source }) => [label, kind, source]), [["山水", "interests", "question"]]);
+  assert.ok(routePrompts[1].preferences.some(({ quote }) => quote.includes("山水")));
+  assert.match(routeSystems[1], /question is always null/u);
+  assert.ok(repository.versions[0].preferences.some(({ label }) => label === "山水"));
+  assert.equal(repository.runs.get(started.runId)?.status, "succeeded");
+});
+
+test("a single city, or a resumed route, is never asked about", async () => {
+  const routeSystems: string[] = [];
+  const { repository, service } = setup({
+    planModel: { model: modelAnswering({
+      routes: [{ ...route, cities: [{ id: "c1", days: 5, reason: "雪山" }], question: {
+        text: "问？", options: [{ label: "甲", kind: "interests" }, { label: "乙", kind: "interests" }] } }],
+      routeSystems,
+      days: [[day(1, "s1"), day(2, "s2"), day(3, "s3"), day(4, "s4"), day(5, "s5")]],
+    }) },
+  });
+  const started = await service.start(tripId, handoff(["丽江市"], fiveDays));
+  const events = await followToEnd(service, repository, started.runId);
+  assert.ok(!events.some(({ event }) => event.type === "run.waiting"));
+  assert.equal(events.at(-1)?.event.type, "run.finished");
+  assert.match(routeSystems[0], /question is always null/u);
 });

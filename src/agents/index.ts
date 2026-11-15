@@ -1,5 +1,6 @@
 import { Mastra } from "@mastra/core";
-import { InMemoryStore } from "@mastra/core/storage";
+import { InMemoryStore, MastraCompositeStore } from "@mastra/core/storage";
+import { WorkflowsPG } from "@mastra/pg";
 
 import { findPlaceImage } from "@/capabilities/destination/place-images";
 import { createMoonshotChatModelFromEnvironment } from "@/platform/llm/moonshot-chat-model";
@@ -55,12 +56,29 @@ export function planGenerationDependencies(
 const planGeneration = createPlanGenerationWorkflow(planGenerationDependencies());
 
 /**
- * Every agent and workflow Meri runs, registered once. Workflow state lives in memory:
- * Meri keeps its own run records and events in Postgres, and a run cut off by a restart
- * is marked interrupted rather than resumed. Durable snapshots come with suspend/resume.
+ * Where Mastra keeps its state. Only workflow snapshots go to Postgres, in a `mastra`
+ * schema beside Meri's tables: one table, mastra_workflow_snapshot, that @mastra/pg creates
+ * and maintains itself on first use (not a Drizzle migration). A run waiting for an answer
+ * therefore survives a restart. Every other Mastra domain stays in memory, unused. Without
+ * DATABASE_URL (a script, a test) everything stays in memory.
+ */
+function mastraStorage() {
+  const connectionString = process.env.DATABASE_URL?.trim();
+  if (!connectionString) return new InMemoryStore();
+  return new MastraCompositeStore({
+    id: "meri-storage",
+    default: new InMemoryStore(),
+    domains: { workflows: new WorkflowsPG({ connectionString, schemaName: "mastra" }) },
+  });
+}
+
+/**
+ * Every agent and workflow Meri runs, registered once. Meri keeps its own run records and
+ * events in its tables; a run that was working when the server stopped is marked
+ * interrupted, while one waiting for an answer resumes from its snapshot.
  */
 export const mastra = new Mastra({
   agents: { scout: scoutAgent },
   workflows: { planGeneration },
-  storage: new InMemoryStore(),
+  storage: mastraStorage(),
 });

@@ -12,6 +12,13 @@ export class InMemoryPlanRunRepository implements PlanRunRepository {
     this.runs.set(run.id, run);
   }
 
+  async moveRun(runId: string, from: "running" | "suspended", to: "running" | "suspended"): Promise<boolean> {
+    const run = this.runs.get(runId);
+    if (!run || run.status !== from) return false;
+    this.runs.set(runId, { ...run, status: to });
+    return true;
+  }
+
   async finishRun(runId: string, finish: PlanRunFinish): Promise<boolean> {
     const run = this.runs.get(runId);
     if (!run || run.status !== "running") return false;

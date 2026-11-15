@@ -1,5 +1,6 @@
 import { z } from "zod";
 
+import { maxPreferenceLabelLength, preferenceKinds } from "./trip-preference";
 import { placeImageSchema, planDaySchema, planRouteSchema, spotCardSchema } from "./plan-draft-response";
 
 /**
@@ -30,6 +31,20 @@ export type PlanActivity = z.output<typeof planActivitySchema>;
 
 const cityStatus = z.enum(["ready", "partial", "unavailable", "deferred"]);
 
+/**
+ * What the Plan Agent asks while routing, when the preferences leave a real choice open.
+ * Each option says which kind of preference it expresses, so the answer is saved as one.
+ */
+export const planQuestionSchema = z.strictObject({
+  id: z.uuid(),
+  text: z.string().trim().min(1).max(120),
+  options: z.array(z.strictObject({
+    label: z.string().trim().min(1).max(maxPreferenceLabelLength),
+    kind: z.enum(preferenceKinds),
+  })).min(2).max(3),
+});
+export type PlanQuestion = z.output<typeof planQuestionSchema>;
+
 export const planRunEndings = ["succeeded", "failed", "interrupted"] as const;
 export type PlanRunEnding = (typeof planRunEndings)[number];
 
@@ -59,6 +74,10 @@ export const planProgressEventSchema = z.discriminatedUnion("type", [
   /** One day as soon as its city is drafted, with the cards its stops refer to. */
   z.strictObject({ type: z.literal("day.ready"), day: planDaySchema, spots: z.array(spotCardSchema) }),
   z.strictObject({ type: z.literal("day.photo"), day: z.number().int().positive(), image: placeImageSchema }),
+  /** The run is paused until the traveller answers; it is saved and survives a restart. */
+  z.strictObject({ type: z.literal("run.waiting"), question: planQuestionSchema }),
+  /** The traveller's choice, or null for "you decide"; the run goes on from the route. */
+  z.strictObject({ type: z.literal("question.answered"), questionId: z.uuid(), choice: z.string().min(1).nullable() }),
   z.strictObject({
     type: z.literal("run.finished"),
     status: z.enum(planRunEndings),

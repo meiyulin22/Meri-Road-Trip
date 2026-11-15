@@ -17,9 +17,10 @@ import type { PlaceImage } from "@/domain/location/place-image";
 import { finishDraft, type PlanDay, type PlanDraft, planScope, type RoutedPlan } from "@/domain/plan/plan-draft";
 import type { ReadyPlan } from "@/domain/plan/plan-draft-response";
 import type { PlanHandoff } from "@/domain/plan/plan-handoff";
-import type { PlanProgressEvent, PlanStage } from "@/domain/plan/plan-progress";
+import { type PlanProgressEvent, type PlanQuestion, planQuestionSchema, type PlanStage } from "@/domain/plan/plan-progress";
 import type { PlanRunUsage, PlanVersion } from "@/domain/plan/plan-run";
 import type { CityResearch } from "@/domain/plan/spot-card";
+import type { PlanPreference } from "@/domain/plan/trip-preference";
 
 /** What the workflow needs from outside; tests pass fakes, src/agents/index.ts the real ones. */
 export type PlanGenerationDependencies = {
@@ -34,6 +35,16 @@ export type PlanGenerationDependencies = {
 
 /** Thrown by a step when the model cannot be reached at all; the run fails with this code. */
 export const plannerUnavailable = "planner_unavailable";
+
+/** The step that may pause to ask the traveller, and what it is resumed with. */
+export const routeStepId = "plan-route";
+export const routeResumeSchema = z.object({
+  /** The chosen option's label, or null for "you decide". */
+  choice: z.string().nullable(),
+  /** The answer saved as a preference; null for "you decide". */
+  preference: z.custom<PlanPreference>().nullable(),
+});
+export type RouteResume = z.infer<typeof routeResumeSchema>;
 
 type MapResult = { cities: CityResearch[]; status: "complete" | "stopped"; lookups: number };
 type RouteResult = MapResult & { plan: RoutedPlan; usage: PlanUsage };
@@ -203,20 +214,42 @@ export function createPlanGenerationWorkflow(deps: PlanGenerationDependencies) {
   });
 
   const routeStep = createStep({
-    id: "plan-route",
+    id: routeStepId,
     inputSchema: z.custom<MapResult>(),
     outputSchema: z.custom<RouteResult>(),
     stateSchema: runState,
-    execute: async ({ inputData, state, writer }) => {
+    suspendSchema: z.object({ question: planQuestionSchema, usage: z.custom<PlanUsage>() }),
+    resumeSchema: routeResumeSchema,
+    execute: async ({ inputData, state, setState, writer, suspend, suspendData, resumeData }) => {
       const { emit, flush } = emitter(writer);
       const scope = scopeOf(state);
-      const result = await planRoute(state.handoff, scope, inputData.cities, deps.planModel,
+      let handoff = state.handoff;
+      let usage: PlanUsage = { inputTokens: 0, outputTokens: 0 };
+      if (resumeData && suspendData) {
+        // The answer is one more preference for the rest of the run and the saved version.
+        if (resumeData.preference) {
+          handoff = { ...handoff, preferences: [...handoff.preferences, resumeData.preference] };
+          await setState({ ...state, handoff });
+        }
+        usage = suspendData.usage;
+        emit({ type: "question.answered", questionId: suspendData.question.id, choice: resumeData.choice });
+      }
+      // Asked at most once a run, and only where cities compete for the days.
+      const allowQuestion = !resumeData && scope.mode === "full" && scope.cities.length > 1;
+      const result = await planRoute(handoff, scope, inputData.cities, deps.planModel,
         ({ attempt }) => emit({ type: "stage.activity", stage: "route",
-          activity: { kind: "routing", cities: scope.cities.length, days: scope.dates.length, attempt } }));
+          activity: { kind: "routing", cities: scope.cities.length, days: scope.dates.length, attempt } }),
+        { allowQuestion });
       if (result.status === "unavailable") throw new Error(plannerUnavailable);
+      if (result.status === "question") {
+        const question: PlanQuestion = { id: randomUUID(), ...result.question };
+        emit({ type: "run.waiting", question });
+        await flush();
+        return suspend({ question, usage: addUsage(usage, result.usage) });
+      }
       emit({ type: "route.ready", route: result.plan.route });
       await flush();
-      return { ...inputData, plan: result.plan, usage: result.usage };
+      return { ...inputData, plan: result.plan, usage: addUsage(usage, result.usage) };
     },
   });
 

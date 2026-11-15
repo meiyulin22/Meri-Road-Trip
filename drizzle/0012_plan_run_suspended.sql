@@ -1,0 +1,1 @@
+ALTER TYPE "public"."plan_run_status" ADD VALUE 'suspended' BEFORE 'succeeded';

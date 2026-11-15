@@ -35,21 +35,30 @@ const copy = {
  * with the trip. Ones added after the handoff wait for the next change to the plan and
  * never re-plan the current days on their own.
  */
-export function PlanMemories({ tripId, handoff }: { readonly tripId: string; readonly handoff: PlanHandoff }) {
+export function PlanMemories({ tripId, handoff, refreshKey = 0 }: {
+  readonly tripId: string;
+  readonly handoff: PlanHandoff;
+  /** Changes when the plan saved a preference itself, such as an answer to its question. */
+  readonly refreshKey?: number;
+}) {
   const locale = useLocale();
   const words = useMessages();
   const text = copy[locale];
   const [preferences, setPreferences] = useState<readonly PlanPreference[]>(handoff.preferences);
   const [sheetOpen, setSheetOpen] = useState(false);
   const [status, setStatus] = useState<"idle" | "saving" | "failed">("idle");
-  const usedByPlan = new Set(handoff.preferences.map(({ id }) => id));
+  // An answer to the plan's own question shaped the plan too, though it came after the handoff.
+  const usedByPlan = new Set([
+    ...handoff.preferences.map(({ id }) => id),
+    ...preferences.filter(({ source }) => source === "question").map(({ id }) => id),
+  ]);
 
   // The saved list can be newer than the handoff: preferences added before a refresh.
   useEffect(() => {
     let active = true;
     listPreferences(tripId).then((saved) => { if (active) setPreferences(saved); }).catch(() => {});
     return () => { active = false; };
-  }, [tripId]);
+  }, [refreshKey, tripId]);
 
   async function add(texts: readonly string[]) {
     setSheetOpen(false);

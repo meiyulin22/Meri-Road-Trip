@@ -1,6 +1,13 @@
 import { createHash, randomUUID } from "node:crypto";
 
-import { plannerUnavailable, stageSummary, stepStages, type PlanGenerationWorkflow } from "@/agents/workflows/plan-generation";
+import {
+  plannerUnavailable,
+  routeStepId,
+  stageSummary,
+  stepStages,
+  type PlanGenerationWorkflow,
+  type RouteResume,
+} from "@/agents/workflows/plan-generation";
 import { initialPlanState } from "@/agents/workflows/plan-generation";
 import type { PlanHandoff } from "@/domain/plan/plan-handoff";
 import {
@@ -10,10 +17,12 @@ import {
   type PlanRunErrorCode,
   type PlanStage,
 } from "@/domain/plan/plan-progress";
-import type { PlanRun, PlanRunUsage, PlanVersion } from "@/domain/plan/plan-run";
+import type { PlanAnswer, PlanRun, PlanRunUsage, PlanVersion } from "@/domain/plan/plan-run";
+import { maxActivePreferences, maxPreferenceQuoteLength, type PlanPreference } from "@/domain/plan/trip-preference";
 import { logger } from "@/platform/observability/logger";
 import { serializeError } from "@/platform/observability/serialize-error";
 import type { PlanRunRepository } from "@/platform/persistence/plan-run-repository";
+import type { TripPreferenceRepository } from "@/platform/persistence/trip-preference-repository";
 
 /**
  * A backstop for the whole run. Each part has its own deadline (70 s a city, two cities at
@@ -45,8 +54,17 @@ export type PlanRunStart =
 
 type WorkflowChunk = { type: string; payload?: unknown };
 
+/** A run starts once and resumes once for each answer, numbering its events on from the last. */
+type RunSegment =
+  | { readonly kind: "start" }
+  | { readonly kind: "resume"; readonly resume: RouteResume; readonly lastSeq: number; readonly activeMs: number };
+
+export type PlanAnswerOutcome = "resumed" | "not_found" | "not_waiting" | "wrong_question";
+
 export type PlanRunServiceDependencies = {
   readonly repository: PlanRunRepository;
+  /** Where an answer to the run's question is saved as a preference. */
+  readonly preferences: Pick<TripPreferenceRepository, "listByTripId" | "create">;
   /** Boxed: a workflow has a `then` method of its own, so a promise would try to resolve it. */
   readonly workflow: () => Promise<{ readonly workflow: PlanGenerationWorkflow }>;
   readonly now?: () => Date;
@@ -106,6 +124,8 @@ export class PlanRunService {
     const latest = await this.deps.repository.findLatestRun(tripId);
     if (latest?.handoffKey === key) {
       if (latest.status === "running" && activeRuns.has(latest.id)) return { status: "running", runId: latest.id };
+      // Waiting for an answer: the page follows it and shows the question again.
+      if (latest.status === "suspended") return { status: "running", runId: latest.id };
       if (latest.status === "running") await this.interrupt(latest);
       if (latest.status === "succeeded") {
         const version = await this.deps.repository.findVersionByRun(latest.id);
@@ -200,6 +220,57 @@ export class PlanRunService {
     }
   }
 
+  /**
+   * Resumes a run waiting for this question with the traveller's choice: the answer is
+   * saved as a preference and the workflow goes on from the route, from its snapshot in
+   * Postgres, also after a restart. Only one answer resumes a run.
+   */
+  async answer(tripId: string, runId: string, answer: PlanAnswer): Promise<PlanAnswerOutcome> {
+    const run = await this.deps.repository.findRun(tripId, runId);
+    if (!run) return "not_found";
+    if (run.status !== "suspended") return "not_waiting";
+    const events = await this.deps.repository.listEvents(runId, 0);
+    const waiting = events.findLast(({ event }) => event.type === "run.waiting");
+    const question = waiting?.event.type === "run.waiting" ? waiting.event.question : null;
+    if (!waiting || !question || question.id !== answer.questionId) return "wrong_question";
+    const option = answer.choice === null ? null : question.options.find(({ label }) => label === answer.choice) ?? null;
+    if (answer.choice !== null && !option) return "wrong_question";
+    // Claimed in the database, so a second answer or a second tab cannot resume it twice.
+    if (!await this.deps.repository.moveRun(runId, "suspended", "running")) return "not_waiting";
+
+    const answeredAt = this.now();
+    const preference: PlanPreference | null = option && {
+      id: this.newId(), label: option.label, kind: option.kind,
+      quote: `${question.text} ${option.label}`.slice(0, maxPreferenceQuoteLength),
+      source: "question", messageId: null, createdAt: answeredAt.toISOString(),
+    };
+    if (preference) await this.savePreference(tripId, preference);
+    activeRuns.set(runId, { events: [...events], listeners: new Set() });
+    void this.execute(run, {
+      kind: "resume",
+      resume: { choice: option?.label ?? null, preference },
+      lastSeq: events.at(-1)?.seq ?? 0,
+      // The time already spent working, without the wait for the answer.
+      activeMs: Math.max(0, waiting.at - Date.parse(run.startedAt)),
+    }).catch((error: unknown) => {
+      logger.error({ runId, error: serializeError(error) }, "Plan run could not finish");
+      activeRuns.delete(runId);
+    });
+    return "resumed";
+  }
+
+  /** The answer joins the trip's preferences, like one added on the plan page, while there is room. */
+  private async savePreference(tripId: string, preference: PlanPreference): Promise<void> {
+    try {
+      const existing = await this.deps.preferences.listByTripId(tripId);
+      if (existing.filter(({ status }) => status === "active").length >= maxActivePreferences) return;
+      await this.deps.preferences.create({ ...preference, tripId, status: "active" });
+    } catch (error) {
+      // The run still uses the answer; only the plan page's list would miss it.
+      logger.warn({ tripId, error: serializeError(error) }, "Plan answer not saved as a preference");
+    }
+  }
+
   /** Marks a run cut off by a restart as interrupted and records its last event. */
   private async interrupt(run: PlanRun): Promise<PlanProgressEnvelope | null> {
     const finishedAt = this.now();
@@ -219,9 +290,9 @@ export class PlanRunService {
     return envelope;
   }
 
-  private async execute(run: PlanRun): Promise<void> {
+  private async execute(run: PlanRun, segment: RunSegment = { kind: "start" }): Promise<void> {
     const startedAt = performance.now();
-    let seq = 0;
+    let seq = segment.kind === "resume" ? segment.lastSeq : 0;
     let saving = Promise.resolve();
     const active = activeRuns.get(run.id);
     // Sent at once, in order; saved one at a time behind it. Each Neon write takes a
@@ -243,6 +314,7 @@ export class PlanRunService {
 
     let errorCode: PlanRunErrorCode | null = null;
     let output: { versionId: string; usage: PlanRunUsage } | null = null;
+    let suspended = false;
     let timedOut = false;
     let timer: NodeJS.Timeout | null = null;
     try {
@@ -253,7 +325,10 @@ export class PlanRunService {
         void workflowRun.cancel();
       }, this.timeLimitMs);
       const input = { runId: run.id, tripId: run.tripId, handoff: run.handoff };
-      const stream = workflowRun.stream({ inputData: input, initialState: initialPlanState(input) });
+      // A resumed run starts again at the route; Mastra reads every earlier step from its snapshot.
+      const stream = segment.kind === "start"
+        ? workflowRun.stream({ inputData: input, initialState: initialPlanState(input) })
+        : workflowRun.resumeStream({ step: routeStepId, resumeData: segment.resume });
       const stepStarts = new Map<string, number>();
       for await (const chunk of stream.fullStream as AsyncIterable<WorkflowChunk>) {
         if (chunk.type === "workflow-step-start") {
@@ -280,6 +355,8 @@ export class PlanRunService {
       const result = await stream.result;
       if (result.status === "success") {
         output = result.result;
+      } else if (result.status === "suspended") {
+        suspended = true;
       } else {
         // Mastra hands back the step's error serialized, as { name, message }.
         const error = result.status === "failed" ? result.error as { name?: unknown; message?: unknown } | undefined : undefined;
@@ -294,7 +371,20 @@ export class PlanRunService {
       if (timer) clearTimeout(timer);
     }
 
-    const durationMs = Math.round(performance.now() - startedAt);
+    const durationMs = Math.round(performance.now() - startedAt) + (segment.kind === "resume" ? segment.activeMs : 0);
+    if (suspended) {
+      // The step already sent run.waiting; the run waits in Postgres, not in this process.
+      try {
+        await this.deps.repository.moveRun(run.id, "running", "suspended");
+      } catch (error) {
+        logger.error({ runId: run.id, error: serializeError(error) }, "Plan run not marked as waiting");
+      }
+      await saving;
+      logger.info({ runId: run.id, tripId: run.tripId, durationMs }, "Plan run waiting for an answer");
+      for (const listener of active?.listeners ?? []) listener.onClose();
+      activeRuns.delete(run.id);
+      return;
+    }
     const status = output ? "succeeded" : "failed";
     try {
       await this.deps.repository.finishRun(run.id, {

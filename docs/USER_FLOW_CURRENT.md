@@ -553,6 +553,8 @@ add/set 使用 Promise.all 查询表达。解析层保留不同 provider ID，�
 | 5. 工作流 `load-scope`：算出要调研的城市（超过上限的城市延后）和只有省的待定省份 | [plan-generation](../src/agents/workflows/plan-generation.ts) | 无 |
 | 6. `research-city`：每城一步，两城并行（Mastra `foreach`）。Kimi 提名、搜索核实、补查一次、提取景点卡；每城 70 秒期限，一张卡出错只丢这一张 | [researchCity](../src/agents/planner/research-agent.ts) | 无 |
 | 7. `map-check` 天地图定位（1.2006）：有出处的景点每个查一次（每城最多 12 个），只算本市的结果；找到记区县，找不到标「位置未核实」但保留。**第一次失败就停止，不重试（429 也不重试）**，其余景点保持未核实，计划照常生成 | [map-check](../src/agents/planner/map-check.ts) | 判断结果写进 `.cache/tianditu-spot-locations.json`（找到 30 天、没找到 7 天；失败不写） |
+| 8a. **生成中提问（1.2011）**：多城、全程模式、本次运行第一次规划路线时，Plan Agent 可以先提一个问题（2–3 个选项，每个选项带偏好类型）。代码只接受格式合法的问题，否则照常排路线。接受时步骤写 `run.waiting` 事件并调用 Mastra 的 `suspend`，运行暂停 | [plan-route](../src/agents/planner/plan-route.ts)、[plan-generation](../src/agents/workflows/plan-generation.ts) | `plan_runs.status` 变为 `suspended`；Mastra 把运行快照写进 Neon 的 `mastra.mastra_workflow_snapshot`（每个运行一行，有就更新） |
+| 8b. **回答**：页面发 `POST /api/trips/{id}/plan-runs/{runId}/answer`，`{ questionId, choice }`（选项文字，或 null 表示「你来定」）。服务端检查归属、确认运行确实在等这个问题，用一条 UPDATE 把状态从 suspended 改回 running（同时只能有一个回答成功），把选项存成一条偏好，再从快照恢复：只重跑 `plan-route` 及之后的步骤，调研和天地图定位不重做。答案加进本次运行的偏好，这次不再提问 | [plan-run-handler](../src/capabilities/planning/plan-run-handler.ts)、[plan-run-service](../src/capabilities/planning/plan-run-service.ts) | `trip_preferences` 新增一行（`source = question`，标签是选项，原话是「问题 + 选项」）；事件接着编号，先是 `question.answered` |
 | 8. `plan-route`：Plan Agent 规划路线（城市顺序、每城天数和理由、每天重点区县和主题，可放弃城市并写原因）；代码校验，不通过重试一次，仍不通过按添加顺序平均分天（「自动分配」）。换城市的第一天是转场日 | [plan-route](../src/agents/planner/plan-route.ts) | 无 |
 | 9. `plan-days`：按路线顺序**逐城**选点、时段和时间锚点（1.2010 起每城一次调用，排好一城就推送这一城的每一天）；代码校验、最多重试一次；最后汇总冲突和待核实字段。模型完全连不上时运行失败（`planner_unavailable`） | [plan-days](../src/agents/planner/plan-days.ts)、[finishDraft](../src/domain/plan/plan-draft.ts) | 无 |
 | 10. `day-photos`：每天一张照片（先当天景点、再所在城市，尽量不重复），只查本地图集和已下载的照片 | [day-photos](../src/agents/planner/day-photos.ts) | 无 |
@@ -564,6 +566,7 @@ add/set 使用 Promise.all 查询表达。解析层保留不同 provider ID，�
 页面显示：
 
 - **实时活动流**（[PlanRunActivity](../src/components/trip-plan/plan-run-activity.tsx)，状态由 [plan-progress-view](../src/components/trip-plan/plan-progress-view.ts) 按事件推出）：七个阶段（读取行程范围、调研景点、天地图定位、规划路线、按天选景点、配图、保存计划）。正在进行的阶段有转动的 ✻ 和计时，下面用 ⎿ 显示一行实时小字：调研时每个城市一行（提名代表景点、搜索哪些景点 几/几、检查结果、摘录出处），定位时「景点 几/几」，路线和选点时显示城市和天数，重试时标「第 2 次」。完成的阶段收成 ✓ 一行，带数字和用时（例如「13 张卡 · 12 条有出处 · 8 次搜索 28s」），调研、定位、路线三行可以展开看每城明细、未定位数量和路线理由。没有百分比进度条。系统开启「减少动态效果」时 ✻ 不转、不做颜色提示，计时照常。
+- **提问时**：活动流标题变成「等你回答」，「规划路线」这一行的标记换成「?」并带「等你回答」标签，总计时停住（等待时间不计入用时）。下面出现问题卡：「Meri 想先问一句」、问题、2–3 个选项按钮和虚线的「你来定」。点了之后按钮变灰，服务器恢复运行，页面带 `?after=最后一个事件序号` 重新连接，接着显示后面的阶段；「Meri 记得」刷新，出现这条答案。路线那一行展开后第一行是「问题 → 你的选择」。刷新或服务器重启后，问题仍在，回答后照样接着跑。
 - 路线一出来就显示路线条；每天的卡片随 `day.ready` 逐块出现，路线已定但还没排好的天显示占位卡；照片随 `day.photo` 补上。
 - 运行成功后读取 `GET /api/trips/{id}/plan`，用保存的版本替换流式内容，并加上顶部统计、冲突和待核实标记（与 1.2005 起的展示相同：路线条、转场日、重点区县、已定位标记、时间锚点、出处展开）。活动流保留在上方，标题变为「计划已生成」。
 - 刷新页面：同一份交接直接拿到保存的计划，不重新调研；运行中的则接着看同一个运行。不再使用 sessionStorage 缓存草稿（交接快照仍在 sessionStorage）。重新点 Generate plan 并且交接内容变了（例如计划页加了偏好）才会生成新版本。
@@ -576,9 +579,12 @@ add/set 使用 Promise.all 查询表达。解析层保留不同 provider ID，�
 | 模型连不上 | `run.finished` failed，`planner_unavailable` | 稍后再试，提供重试；已经推送的阶段保留显示 |
 | 超过 8 分钟兜底时限 | failed，`time_limit` | 说明用时过长，提供重试 |
 | 服务器重启时还在运行 | 第一个来看的页面把运行标为 `interrupted` | 说明服务器重启，提供重试（不自动续跑，避免没人看着时重新花搜索和天地图请求） |
+| 服务器重启时在等回答 | 状态仍是 `suspended`，快照在 Neon | 照常显示问题，回答后从快照接着跑 |
+| 回答时运行已不在等待（已被另一个页面回答） | 409 `not_waiting` | 「没有发送成功，请再试一次」 |
+| 回答的不是当前问题或不是它的选项 | 409 `wrong_question`；请求体不合法 400 | 同上 |
 | 其他 | failed，`internal_error`；接口 500 | 失败提示和重试 |
 
-运行记录只在本进程内存里广播，部署按单个 `next start` 进程设计（美国 VPS）。Mastra 自己的工作流状态也只在内存（`InMemoryStore`）；暂停提问（1.2011）时再接入持久化快照。
+运行记录只在本进程内存里广播，部署按单个 `next start` 进程设计（美国 VPS）。Mastra 的工作流快照（1.2011 起）存在 Neon 的 `mastra` schema，由 `@mastra/pg` 自己建表维护，不归 Drizzle 迁移管；Mastra 的其他部分仍在内存。
 
 **Meri 记得（1.2005，1.2007 起存进数据库）：**[PlanMemories](../src/components/trip-plan/plan-memories.tsx) 显示每条偏好的短标签，悬停显示用户原话；来自对话的为绿色，计划页添加的为米色并标「你添加的」，每条都可以删除。打开页面时先显示交接里的偏好，再通过 `GET /api/trips/{id}/preferences` 读取最新列表。「＋ 添加」打开和设计预览相同的面板：点「带小孩」「少走路」等常用选项时类型已知、标签就是选项本身；自己写的一句话由 `POST /api/trips/{id}/preferences` 调一次 Kimi 生成标签和类型，模型不可用时这句话本身作标签、类型为「其他」。同一句话不重复保存，每个旅程最多 30 条有效偏好。删除走 `DELETE /api/trips/{id}/preferences/{preferenceId}`，只把状态改为 removed。这三个接口都先按 cookie 检查旅程归属，不属于当前访客返回 404。添加的偏好**不改交接快照，也不触发重新规划**，下方提示「新加的偏好不会改动下面的行程，下次调整行程时 Meri 会用上」。计划页修改对话尚未实现；下一次点 Generate plan 时，这些偏好会随交接一起交给规划。
 

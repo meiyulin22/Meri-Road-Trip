@@ -175,6 +175,6 @@ is not supported yet: there is no service worker or offline cache.
   companion instead of answering as a general chatbot.
 - **Generate plan as the Planner agent.** A Mastra agent that researches the
   Journey with tools within a budget and returns a plan code validates before
-  saving. The workflow, live progress and plan versions exist since 1.2010; pausing
-  to ask the user, second-round verification and routes are next. See
+  saving. The workflow, live progress and plan versions exist since 1.2010, pausing
+  to ask the user since 1.2011; second-round verification and routes are next. See
   [src/agents/README.md](src/agents/README.md).

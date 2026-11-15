@@ -181,7 +181,7 @@ Trip 不再保存 name、origin、destination 或日期列，避免与 TripState
 | --- | --- | --- | --- | --- |
 | `id` | `id` | uuid | 主键 | 运行身份，同时是 Mastra 工作流的 runId |
 | `trip_id` | `tripId` | uuid | 非空、外键→trips.id，级联删除 | 所属 Journey |
-| `status` | `status` | `plan_run_status` enum | 非空 | `running`、`succeeded`、`failed`、`interrupted`（服务器重启时还在运行，被第一个来看的页面标记） |
+| `status` | `status` | `plan_run_status` enum | 非空 | `running`、`suspended`（1.2011：等用户回答，Mastra 快照在 `mastra` schema）、`succeeded`、`failed`、`interrupted`（服务器重启时还在运行，被第一个来看的页面标记） |
 | `handoff` | `handoff` | jsonb | 非空 | 本次运行收到的交接快照（TripState、偏好、参考日期、语言）；读取时按 PlanHandoff 校验 |
 | `handoff_key` | `handoffKey` | text | 非空 | 交接快照按键排序后的 SHA-256；同一份交接复用已有运行或已保存的计划 |
 | `error_code` | `errorCode` | text | 可空 | `planner_unavailable`、`time_limit`、`internal_error`、`interrupted`；不存提供方的错误原文 |
@@ -195,7 +195,21 @@ Trip 不再保存 name、origin、destination 或日期列，避免与 TripState
 
 `plan_versions`：生成好的计划。`version` 按旅程从 1 递增（`unique(trip_id, version)`），`run_id` 唯一；`trip_state` 和 `preferences` 是生成时依据的 TripState 和偏好，`plan` 是页面显示的完整计划（草稿、用到的景点卡、各城调研状态、待定省份、每天照片、天地图核实状态）。三个 JSONB 列读取时都会校验。计划不写回 TripState；是否过期在读取时把 `trip_state` 和当前 TripState 按键排序后比较。
 
-### 3.6 索引与约束范围
+### 3.6 `mastra` schema：Mastra 的工作流快照（1.2011，不归 Drizzle 管）
+
+`mastra.mastra_workflow_snapshot` 由 `@mastra/pg`（1.29.0）的 `WorkflowsPG` 在第一次连库时自己创建并维护，不在 Drizzle schema 和迁移里，所以 `npm run db:migrate` 不会建它，新库上应用一启动就会自动建好。它只装 Mastra 的工作流状态，Meri 的业务数据都不在这里。
+
+| 列 | 类型 | 用途 |
+| --- | --- | --- |
+| `workflow_name` | text | 工作流 ID（`plan-generation`） |
+| `run_id` | text | 运行 ID，等于 `plan_runs.id`（没有外键，删除 Journey 不会级联删除快照） |
+| `resourceId` | text，可空 | Meri 不用 |
+| `snapshot` | jsonb | 运行状态、每个已完成步骤的输出、workflow state、暂停的步骤和给用户的问题 |
+| `createdAt` / `updatedAt`（及带时区的 `createdAtZ` / `updatedAtZ`） | timestamp | 创建与最后更新时间 |
+
+唯一约束 `(workflow_name, run_id)`；写入是 `INSERT … ON CONFLICT (workflow_name, run_id) DO UPDATE`，每个运行一行、状态变化时覆盖。实测一个暂停在路线前的三城运行约 23 KB。恢复时 Mastra 按 run_id 读回这一行。没有设清理策略，快照会随运行累积，以后需要时再按 `updatedAtZ` 清理。
+
+### 3.7 索引与约束范围
 
 各表主键提供唯一性及对应索引；除 trip_preferences 的 (trip_id, status) 和 plan_runs 的 (trip_id, started_at) 外，当前 schema 未声明额外的 owner、消息时间或 JSONB 查询索引。外键保证归属对象存在，不代替 owner 授权，也不会自动为外键列建立额外索引。这里只记录现状，不提前增加索引或新表。
 
@@ -267,6 +281,7 @@ pending 标记只保存推荐范围，不保存要推荐什么：卡片请求从
 | 计划页增删偏好 | trip_preferences | [偏好 handler](../src/capabilities/planning/trip-preferences-handler.ts) | 先按 cookie 检查 Trip 归属；新增前查重；删除只把 status 改为 removed |
 | 开始 Generate plan | plan_runs、plan_versions | [plan-run-service](../src/capabilities/planning/plan-run-service.ts)、[运行 repository](../src/platform/persistence/postgres/postgres-plan-run-repository.ts) | 先按 handoff_key 找最近运行：有版本直接返回，运行中复用；否则插入 running 行 |
 | 运行进度与结束 | plan_run_events、plan_runs | 同上 | 事件按 seq 逐条插入；结束时只更新仍是 running 的行（`WHERE status = 'running'`），防止中断标记和正常结束互相覆盖 |
+| 回答问题并恢复运行（1.2011） | plan_runs、trip_preferences、mastra.mastra_workflow_snapshot | plan-run-service 的 `answer` | `UPDATE … SET status = 'running' WHERE status = 'suspended'` 认领，只有一个回答成功；答案存成 `source = question` 的偏好；Mastra 从快照恢复。运行暂停时用同样的条件 UPDATE 改回 `suspended` |
 | 保存计划版本 | plan_versions | [plan-generation](../src/agents/workflows/plan-generation.ts) 的 save-plan 步骤 | 先查该旅程最大版本号再插入下一个；唯一约束拒绝并发重复 |
 | 删除 Journey | trips，级联其余六表 | [Trip repository](../src/platform/persistence/postgres/postgres-trip-repository.ts) | DELETE 同时带 Trip ID/owner 条件，依赖外键级联 |
 
@@ -289,6 +304,7 @@ pending 标记只保存推荐范围，不保存要推荐什么：卡片请求从
 | [0010_trip_preferences.sql](../drizzle/0010_trip_preferences.sql) | 创建 trip_preferences 表、三个 enum、两个外键和 (trip_id, status) 索引。0007–0009 是手写迁移、没有快照，drizzle-kit 生成时多出一句已存在的 `trip_messages.presentation`，已手动删掉；0010 快照是当前完整 schema |
 
 | [0011_plan_runs.sql](../drizzle/0011_plan_runs.sql) | 创建 plan_runs、plan_run_events、plan_versions 和 plan_run_status enum，四个级联外键、唯一约束和 (trip_id, started_at) 索引（drizzle-kit 生成，没有多余语句） |
+| [0012_plan_run_suspended.sql](../drizzle/0012_plan_run_suspended.sql) | `plan_run_status` 加 `suspended`（在 `succeeded` 之前） |
 
 `_journal.json` 记录仓库迁移顺序；历史 snapshots 只覆盖已有快照，不应拿最后一份历史 snapshot 当完整当前 schema。执行状态需针对实际环境另行确认，本文件不授权清库或执行 DROP。
 

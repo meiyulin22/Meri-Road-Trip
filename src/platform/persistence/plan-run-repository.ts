@@ -4,6 +4,8 @@ import type { PlanRun, PlanRunFinish, PlanVersion } from "@/domain/plan/plan-run
 /** Plan runs, their progress events and the plan versions they save. */
 export interface PlanRunRepository {
   createRun(run: PlanRun): Promise<void>;
+  /** Moves a run between running and waiting for an answer; false when it was not in `from`. */
+  moveRun(runId: string, from: "running" | "suspended", to: "running" | "suspended"): Promise<boolean>;
   /** Ends a run that is still running; false when it had already ended. */
   finishRun(runId: string, finish: PlanRunFinish): Promise<boolean>;
   findRun(tripId: string, runId: string): Promise<PlanRun | null>;

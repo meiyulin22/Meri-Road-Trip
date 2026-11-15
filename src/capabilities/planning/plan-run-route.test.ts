@@ -2,7 +2,9 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import {
+  answerPlanQuestion,
   parseProgressMessage,
+  planRunEventsUrl,
   PlanDraftRequestError,
   readLatestPlan,
   runFailure,
@@ -23,7 +25,13 @@ import { TripNotFoundError } from "@/domain/trip/trip-errors";
 
 import { dayPhotos } from "@/agents/planner/day-photos";
 
-import { handlePlanGet, handlePlanRunEvents, handlePlanRunPost, type PlanRunDependencies } from "./plan-run-handler";
+import {
+  handlePlanAnswerPost,
+  handlePlanGet,
+  handlePlanRunEvents,
+  handlePlanRunPost,
+  type PlanRunDependencies,
+} from "./plan-run-handler";
 import { canonicalJson } from "./plan-run-service";
 
 const tripState: TripState = {
@@ -93,7 +101,8 @@ function deps(overrides: Partial<PlanRunDependencies["service"]> = {}, state: Tr
       assert.deepEqual([id, owner], [tripId, "owner-id"]);
       return { tripState: state };
     },
-    service: { start: unreachable, latest: unreachable, findRun: unreachable, follow: () => assert.fail("follow"), ...overrides },
+    service: { start: unreachable, latest: unreachable, findRun: unreachable, answer: unreachable,
+      follow: () => assert.fail("follow"), ...overrides },
   };
 }
 
@@ -249,4 +258,39 @@ test("two days in one city prefer different photos and share the city's when not
   assert.deepEqual(photos.map(({ day, image }) => [day, image.url]),
     [[1, "/photos/yulong.jpg"], [2, "/photos/lijiang.jpg"], [3, "/photos/lijiang.jpg"]]);
   assert.deepEqual(reported, [1, 2, 3]);
+});
+
+test("answers a waiting run's question, and refuses answers it cannot take", async () => {
+  const questionId = "00000000-0000-4000-8000-000000000003";
+  await answerPlanQuestion(tripId, runId, { questionId, choice: "山水" }, new AbortController().signal, async (url, init) => {
+    assert.equal(url, `/api/trips/${tripId}/plan-runs/${runId}/answer`);
+    return handlePlanAnswerPost(tripId, "owner-id", runId, JSON.parse(String(init?.body)), deps({
+      async answer(id, run, answer) {
+        assert.deepEqual([id, run, answer], [tripId, runId, { questionId, choice: "山水" }]);
+        return "resumed";
+      },
+    }));
+  });
+  for (const [outcome, status] of [["not_found", 404], ["not_waiting", 409], ["wrong_question", 409]] as const) {
+    const response = await handlePlanAnswerPost(tripId, "owner-id", runId, { questionId, choice: null }, deps({ answer: async () => outcome }));
+    assert.equal(response.status, status);
+  }
+  assert.equal((await handlePlanAnswerPost(tripId, "owner-id", runId, { choice: "山水" }, deps())).status, 400);
+  assert.equal((await handlePlanAnswerPost(tripId, null, runId, { questionId, choice: null }, deps())).status, 404);
+  // After answering, the page opens a new stream after the last event it has.
+  assert.equal(planRunEventsUrl(tripId, runId, 12), `/api/trips/${tripId}/plan-runs/${runId}/events?after=12`);
+  assert.equal(planRunEventsUrl(tripId, runId), `/api/trips/${tripId}/plan-runs/${runId}/events`);
+});
+
+test("the live view stops its clock while waiting for an answer and remembers the answer", () => {
+  const question = { id: "00000000-0000-4000-8000-000000000003", text: "山水还是古城？",
+    options: [{ label: "山水", kind: "interests" as const }, { label: "古城", kind: "interests" as const }] };
+  let view = applyProgress(emptyProgress, { runId, seq: 1, at: 1000, event: { type: "stage.started", stage: "route" } });
+  view = applyProgress(view, { runId, seq: 2, at: 4000, event: { type: "run.waiting", question } });
+  assert.equal(view.question?.id, question.id);
+  assert.equal(view.waitingSince, 4000);
+  view = applyProgress(view, { runId, seq: 3, at: 64000, event: { type: "question.answered", questionId: question.id, choice: "山水" } });
+  assert.equal(view.question, null);
+  assert.equal(view.waitedMs, 60000);
+  assert.deepEqual(view.answers, [{ question: "山水还是古城？", choice: "山水" }]);
 });

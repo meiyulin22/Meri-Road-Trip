@@ -43,6 +43,8 @@ async function main(): Promise<void> {
   const mastra = new Mastra({ workflows: { planGeneration: workflow }, storage: new InMemoryStore(), logger: false });
   const service = new PlanRunService({
     repository,
+    // The answer to a question is printed, not saved: this run has no trip in the database.
+    preferences: { listByTripId: async () => [], create: async () => {} },
     workflow: async () => ({ workflow: mastra.getWorkflow("planGeneration") }),
   });
 
@@ -50,8 +52,17 @@ async function main(): Promise<void> {
   const started = await service.start(tripId, handoff);
   const run = await repository.findRun(tripId, started.runId);
   if (!run) throw new Error("The run was not recorded.");
-  for await (const { seq, at, event } of service.follow(run, 0, new AbortController().signal)) {
-    process.stdout.write(JSON.stringify({ seq, at, ...event }) + "\n");
+  let after = 0;
+  // A question is answered with its first option, so the resumed half is checked too.
+  for (;;) {
+    let waiting: { id: string; choice: string } | null = null;
+    for await (const { seq, at, event } of service.follow(run, after, new AbortController().signal)) {
+      process.stdout.write(JSON.stringify({ seq, at, ...event }) + "\n");
+      after = seq;
+      if (event.type === "run.waiting") waiting = { id: event.question.id, choice: event.question.options[0].label };
+    }
+    if (!waiting) break;
+    await service.answer(tripId, run.id, { questionId: waiting.id, choice: waiting.choice });
   }
   const finished = repository.runs.get(started.runId);
   process.stdout.write(JSON.stringify({ run: finished && { ...finished, handoff: undefined }, plan: repository.versions[0]?.plan ?? null }, null, 2) + "\n");

@@ -18,7 +18,8 @@ shapes the Planner — business, page, run, tools, memory — is kept in Chinese
 | Implemented (standalone) | First-round Research Agent and Kimi Search Pro, runnable with a PlanHandoff JSON file |
 | Implemented (plan page) | Plan Agent route and days for every selected city (1.2009); the plan page shows the days, time anchors, sources and conflicts |
 | Implemented (1.2010) | The plan-generation Mastra workflow, its live progress over Server-Sent Events, and run records, progress events and plan versions in Postgres (section 3, "The plan workflow") |
-| Planned | Pausing to ask the user (suspend/resume, 1.2011), second-round verification, route and weather tools, a reviewer agent, tracing storage, evaluation |
+| Implemented (1.2011) | The Plan Agent may pause the run to ask one question; the answer becomes a preference and the run resumes from its snapshot in Postgres, also after a restart ("Asking the traveller") |
+| Planned | Second-round verification, route and weather tools, a reviewer agent, tracing storage, evaluation |
 
 ## 1. Why an agent here
 
@@ -242,12 +243,13 @@ and a handoff that already has a plan answers with it. A run has an eight-minute
 (each part has its own deadline; ten cities can need about seven minutes). A model that
 cannot be reached fails the run as `planner_unavailable`.
 
-**Storage.** Mastra's own state is in memory (`InMemoryStore`). Meri keeps the run record
-(`plan_runs`: handoff, status, error code, usage, time), every event, and each finished plan
-as a numbered version with the TripState and preferences it was built from
-(`plan_versions`; see [DATABASE_SCHEMA](../../docs/DATABASE_SCHEMA.md)). A run left running
-by a restart is not resumed: the first page that follows it marks it interrupted. Durable
-Mastra snapshots in Postgres come with suspend/resume (1.2011).
+**Storage.** Meri keeps the run record (`plan_runs`: handoff, status, error code, usage,
+time), every event, and each finished plan as a numbered version with the TripState and
+preferences it was built from (`plan_versions`; see [DATABASE_SCHEMA](../../docs/DATABASE_SCHEMA.md)).
+Since 1.2011 Mastra's workflow snapshots are in Postgres too (next section); every other
+Mastra domain stays in memory. A run that was *working* when the server stopped is not
+resumed: the first page that follows it marks it interrupted. A run *waiting for an answer*
+resumes from its snapshot.
 
 **Measured on 2026-11-15** through the plan page, 丽江 and 大理 over five days from a
 development machine: 40 s and 43 s end to end. Research of both cities in parallel took
@@ -256,14 +258,59 @@ development machine: 40 s and 43 s end to end. Research of both cities in parall
 none. About 2,000 input and 450 output tokens for route and days; research tokens are not
 counted yet.
 
+### Asking the traveller (1.2011)
+
+When the preferences leave the route to taste, the Plan Agent may ask one question before
+routing, and the workflow pauses until the traveller answers on the plan page.
+
+- **Who decides.** The route call may return a question (text and two or three options, each
+  with the preference kind it expresses) next to its route. Code accepts it only for a full
+  trip of two or more cities, only on the first route of a run, and only in a valid shape
+  (labels under 24 characters, distinct, a known kind); otherwise the route stands. The
+  prompt asks for a question when there are fewer days than cities and no preference says
+  which matter more, or when there is no interests or pace preference and the cities differ.
+- **Pausing.** The `plan-route` step writes `run.waiting` with the question and returns
+  Mastra's `suspend({ question, usage })`. The run's status becomes `suspended`; the page's
+  stream ends; the clock stops.
+- **Where it is saved.** `@mastra/pg`'s `WorkflowsPG` writes the run's snapshot to Neon, schema
+  `mastra`, table `mastra_workflow_snapshot` (one row a run, keyed by workflow name and run id,
+  `INSERT … ON CONFLICT DO UPDATE` on every change). The snapshot holds every finished step's
+  output, the workflow state, and the suspended step with its payload. `WorkflowsPG` creates
+  the schema and table itself on first use; Drizzle does not manage them. [index.ts](index.ts)
+  routes only the workflows domain there through `MastraCompositeStore`; without
+  `DATABASE_URL` everything stays in memory.
+- **Answering.** `POST /api/trips/[id]/plan-runs/[runId]/answer` with `{ questionId, choice }`
+  (an option's label, or null for "you decide"). The service checks the run is waiting on
+  that question, claims it (`suspended → running` in one UPDATE, so a second answer gets 409),
+  saves the choice as a preference (`source: question`), and calls
+  `run.resumeStream({ step: "plan-route", resumeData })`. Mastra reloads the snapshot and
+  re-runs only `plan-route` onwards: research and the map check are not repeated. The step adds
+  the answer to the run's preferences (and so to the saved version), writes
+  `question.answered`, and routes again without the option to ask. Events go on numbering
+  from the last; the page reconnects with `?after=` its last event.
+- **Version pin.** `@mastra/pg` is pinned at 1.29.0, released with `@mastra/core` 1.74.0. Its
+  1.30.0 declares support for core ≥1.68 but reads seven trace-query exports that core 1.74 does
+  not have, and Next refused to build it. Upgrade both together.
+
+Measured on 2026-11-15 through the plan page: 大理, 丽江 and 迪庆 over three days with no
+preferences. The run paused after 51 s of work with "Do you prefer a relaxed lakeside pace or
+active mountain trekking?" and three options. The dev server was then stopped and started
+again; the page showed the same question, the answer resumed the run from its snapshot
+(a 23 KB row), and the plan finished at 1 min 14 s of working time with the route themed on
+trekking. In a Kimi-only check of the route call, an empty preference list asked 6 times in
+6; with interests and pace preferences, once in 3. Before the prompt named these cases, Kimi
+never asked. The same check found Kimi sometimes writes an empty city reason, which used to
+fail the whole route answer; an empty reason is now just a missing one.
+
 Run the workflow from the command line, printing each event as it arrives:
 
 ```bash
 node --env-file=.env.local --import tsx scripts/verify-plan-draft.ts path/to/handoff.json [path/to/research.json]
 ```
 
-With a research file, the saved cards stand in for research. The script keeps the run in
-memory and needs no database.
+With a research file, the saved cards stand in for research. The script keeps the run and
+its version in memory, and its own Mastra instance keeps snapshots in memory too; a question
+is answered with its first option, so the resumed half runs as well.
 
 ## 4. Planned: the Planner
 
@@ -378,4 +425,5 @@ measurement of the deployed app.
 | 2026-10-05 | Mastra's usage telemetry is off by default. |
 | 2026-11-12 | Research covers every selected city first; the Plan Agent then allocates days and selects spots, and code only validates. The Plan Agent may pause to ask the user. A reviewer agent checks last. |
 | 2026-11-12 | Deploy to a US VPS. Tianditu is integrated last, verified by hand on a whitelisted machine. |
+| 2026-11-15 | 1.2011: the Plan Agent may ask one question while routing, with options only (plus "you decide"); not about adding days, which would change locked TripState facts. Mastra's workflow snapshots go to Postgres (`mastra` schema), with `@mastra/pg` 1.29.0 pinned to core 1.74.0. |
 | 2026-11-15 | Generate plan runs as a Mastra workflow with live progress over SSE. Mastra's state stays in memory until suspend/resume needs durable snapshots; Meri stores runs, events and plan versions itself. The Plan Agent chooses days one city at a time, so each city's days reach the page as they are ready. A restarted run is marked interrupted, not resumed. |

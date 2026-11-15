@@ -61,3 +61,43 @@ test("a model that cannot be built is unavailable before any call", async () => 
   });
   assert.deepEqual(result, { status: "unavailable" });
 });
+
+test("a question is returned only when allowed and well formed; otherwise the route stands", async () => {
+  const trip = handoff(["丽江市", "大理白族自治州"], fiveDays);
+  const scope = ready(planScope(trip.tripState));
+  const answer = {
+    cities: [{ id: "c1", days: 3, reason: "雪山" }, { id: "c2", days: 2, reason: "洱海" }], days: [], omitted: [],
+    question: { text: "山水还是古城？", options: [{ label: "山水", kind: "interests" }, { label: "古城", kind: "interests" }] },
+  };
+  const asked = await planRoute(trip, scope, [lijiang, dali], { model: modelAnswering({ routes: [answer] }) }, () => {},
+    { allowQuestion: true });
+  assert.equal(asked.status, "question");
+  assert.deepEqual(asked.status === "question" && asked.question.options.map(({ label }) => label), ["山水", "古城"]);
+
+  // Not allowed: the same answer is just a route.
+  const notAllowed = await planRoute(trip, scope, [lijiang, dali], { model: modelAnswering({ routes: [answer] }) });
+  assert.equal(notAllowed.status, "ready");
+
+  // One option, a duplicate label or an unknown kind is no question at all.
+  for (const options of [
+    [{ label: "山水", kind: "interests" }],
+    [{ label: "山水", kind: "interests" }, { label: "山水", kind: "pace" }],
+    [{ label: "山水", kind: "interests" }, { label: "古城", kind: "mood" }],
+  ]) {
+    const result = await planRoute(trip, scope, [lijiang, dali],
+      { model: modelAnswering({ routes: [{ ...answer, question: { text: "？", options } }] }) }, () => {}, { allowQuestion: true });
+    assert.equal(result.status, "ready");
+  }
+});
+
+test("an empty reason is a missing reason, not a failed route", async () => {
+  const trip = handoff(["丽江市", "大理白族自治州"], fiveDays);
+  const result = await planRoute(trip, ready(planScope(trip.tripState)), [lijiang, dali], {
+    model: modelAnswering({ routes: [{ cities: [{ id: "c1", days: 3, reason: "" }, { id: "c2", days: 2, reason: "洱海" }], days: [], omitted: [] }] }),
+  });
+  assert.equal(result.status, "ready");
+  if (result.status !== "ready") return;
+  assert.equal(result.attempts, 1);
+  assert.equal(result.plan.route.source, "agent");
+  assert.deepEqual(result.plan.route.cities.map(({ reason }) => reason), [null, "洱海"]);
+});

@@ -44,9 +44,9 @@ flowchart TB
 | --- | --- |
 | 已实现 | 访客所属 Journey、自然语言创建、持久化会话、普通字段编辑、目的地省/市/spot、显式多选确认、推荐与准备度检查 |
 | 已实现但有范围限制 | PWA manifest/图标，无离线缓存；推荐使用搜索启发，无访问检查或排序；地点照片只作装饰 |
-| 已实现（Generate plan 首版） | 计划页由 Mastra 工作流生成全部日程：各城调研（带来源的景点卡）→ 天地图定位 → Plan Agent 路线与逐城选点 → 配图 → 保存计划版本；进度以 SSE 实时推送，运行记录与事件存库（1.2010）。见 [src/agents/README.md](../src/agents/README.md) |
+| 已实现（Generate plan 首版） | 计划页由 Mastra 工作流生成全部日程：各城调研（带来源的景点卡）→ 天地图定位 → Plan Agent 路线与逐城选点 → 配图 → 保存计划版本；进度以 SSE 实时推送，运行记录与事件存库（1.2010）；偏好不足时可暂停提问，快照存在 Postgres，回答后恢复（1.2011）。见 [src/agents/README.md](../src/agents/README.md) |
 | 试验阶段 | Scout 验证 Mastra 工具调用 |
-| 未实现 | 生成中暂停提问（suspend/resume）、第二轮精查与审核 Agent、实时天气/路线研究、Agent 运行追踪与评估、后台监控、Adaptive Workspace |
+| 未实现 | 第二轮精查与审核 Agent、实时天气/路线研究、Agent 运行追踪与评估、后台监控、Adaptive Workspace |
 
 ## 2. 技术栈与接入位置
 
@@ -87,7 +87,7 @@ flowchart TB
 | 表现层 | 渲染、编辑、暂选、pending/error、同步保存结果 | `src/components/` | 领域类型、展示纯函数、本应用 API | UI 提示不能替代服务端资格检查 |
 | 领域层 | Trip/State/Message 等契约，合法状态和纯规则 | `src/domain/` | 不调用网络或数据库；输出规范对象/状态变换 | 不解释未知提供方身份，不生成 UI 代码 |
 | 应用层 | 为一次用户操作编排校验、查询、保存及回复 | `src/capabilities/` | 领域规则和外部端口 | 固定流程，不是 Agent |
-| Agent 层 | 给定目标和工具，由模型决定下一步调用哪个工具 | `src/agents/` | 工具包装 platform 端口；planner 函数（调研、定位、路线、选点）由 `src/agents/workflows/` 的 Mastra 工作流编排 | 暂停提问、可恢复快照及追踪待实现，见 `src/agents/README.md` |
+| Agent 层 | 给定目标和工具，由模型决定下一步调用哪个工具 | `src/agents/` | 工具包装 platform 端口；planner 函数（调研、定位、路线、选点）由 `src/agents/workflows/` 的 Mastra 工作流编排 | 追踪与评估待实现，见 `src/agents/README.md` |
 | 基础设施层 | 模型、地图、搜索、身份、日志、数据库适配 | `src/platform/` | provider SDK/HTTP、Neon/Drizzle；返回规范化结果 | 端口和实现目前同属 platform，并非完全强制隔离 |
 
 ### 3.1 应用能力模块

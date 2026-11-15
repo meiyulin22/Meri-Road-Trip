@@ -3,7 +3,7 @@
 import { ArrowLeft, Lock } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
-import { useMemo, useSyncExternalStore } from "react";
+import { useMemo, useState, useSyncExternalStore } from "react";
 
 import { useLocale, useMessages } from "@/components/i18n/locale-context";
 import type { Messages } from "@/components/i18n/messages";
@@ -47,6 +47,7 @@ export function PlanHandoffPage({ tripId }: { readonly tripId: string }) {
   const text = copy[locale];
   const hydrated = useSyncExternalStore(subscribe, () => true, () => false);
   const handoff = useMemo(() => hydrated ? readPlanHandoff(tripId) : null, [hydrated, tripId]);
+  const [preferenceChanges, setPreferenceChanges] = useState(0);
 
   const state = handoff?.tripState;
   const dayCount = state ? parseExactDays(state.duration) : null;
@@ -73,11 +74,12 @@ export function PlanHandoffPage({ tripId }: { readonly tripId: string }) {
             <>
               <p className={styles.overview}>{text.received}</p>
               <PlanFacts state={handoff.tripState} words={words} endDateLabel={text.endDate} dayCount={dayCount} />
-              <PlanMemories tripId={tripId} handoff={handoff} />
+              <PlanMemories tripId={tripId} handoff={handoff} refreshKey={preferenceChanges} />
               <div className={handoffStyles.itinerary}>
                 <section className={handoffStyles.itineraryHeading} aria-labelledby="plan-itinerary-heading">
                   <h2 id="plan-itinerary-heading">{text.itinerary}</h2>
-                  <PlanDraftSection tripId={tripId} handoff={handoff} />
+                  <PlanDraftSection tripId={tripId} handoff={handoff}
+                    onPreferenceSaved={() => setPreferenceChanges((count) => count + 1)} />
                 </section>
                 {dayCount === null ? (
                   <section className={styles.locked} aria-labelledby="plan-remaining-days-heading">

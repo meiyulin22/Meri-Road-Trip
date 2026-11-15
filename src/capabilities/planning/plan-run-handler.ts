@@ -1,7 +1,7 @@
 import { TripStateNotFoundError } from "@/capabilities/journey/journey-errors";
 import { planScope } from "@/domain/plan/plan-draft";
 import { planHandoffSchema } from "@/domain/plan/plan-handoff";
-import type { LatestPlanResponse, PlanRunStartResponse } from "@/domain/plan/plan-run";
+import { planAnswerSchema, type LatestPlanResponse, type PlanRunStartResponse } from "@/domain/plan/plan-run";
 import type { TripState } from "@/domain/trip-state/trip-state";
 import { TripNotFoundError } from "@/domain/trip/trip-errors";
 import { logger } from "@/platform/observability/logger";
@@ -11,7 +11,7 @@ import { canonicalJson, type PlanRunService } from "./plan-run-service";
 
 export type PlanRunDependencies = {
   readonly loadJourney: (tripId: string, ownerGuestId: string) => Promise<{ tripState: TripState }>;
-  readonly service: Pick<PlanRunService, "start" | "latest" | "findRun" | "follow">;
+  readonly service: Pick<PlanRunService, "start" | "latest" | "findRun" | "follow" | "answer">;
 };
 
 /** A comment line every 15 s keeps proxies from closing a quiet stream. */
@@ -69,6 +69,34 @@ export async function handlePlanRunPost(
   }
 }
 
+/**
+ * The traveller's answer to the question a run is waiting on. The run resumes in the
+ * background (202); the page follows its events again from the last one it saw.
+ */
+export async function handlePlanAnswerPost(
+  tripId: string,
+  ownerGuestId: string | null,
+  runId: string,
+  body: unknown,
+  deps: PlanRunDependencies,
+): Promise<Response> {
+  if (!ownerGuestId) return notFound();
+  const parsed = planAnswerSchema.safeParse(body);
+  if (!parsed.success) return failure(400, "invalid_answer", "The answer is invalid.");
+  try {
+    await deps.loadJourney(tripId, ownerGuestId);
+    const outcome = await deps.service.answer(tripId, runId, parsed.data);
+    if (outcome === "not_found") return failure(404, "run_not_found", "Plan run not found.");
+    if (outcome === "not_waiting") return failure(409, "not_waiting", "This plan is not waiting for an answer.");
+    if (outcome === "wrong_question") return failure(409, "wrong_question", "This answer does not match the question.");
+    return noStore({ status: "running", runId }, 202);
+  } catch (error) {
+    if (isNotFound(error)) return notFound();
+    logger.error({ tripId, runId, error: serializeError(error) }, "Plan answer failed");
+    return failure(500, "internal_error", "Failed to answer the plan's question.");
+  }
+}
+
 /** The newest saved plan of the trip, whether the trip changed since, and the newest run. */
 export async function handlePlanGet(tripId: string, ownerGuestId: string | null, deps: PlanRunDependencies): Promise<Response> {
   if (!ownerGuestId) return notFound();
@@ -91,8 +119,10 @@ export async function handlePlanGet(tripId: string, ownerGuestId: string | null,
 
 /**
  * A run's progress as Server-Sent Events: each event's id is its sequence number, so a
- * browser that reconnects sends Last-Event-ID and gets only what it missed. The stream
- * ends after the run's last event, or when the page goes away; the run goes on either way.
+ * browser that reconnects sends Last-Event-ID and gets only what it missed; a page that
+ * opens a new connection after answering passes `after` instead. The stream ends after
+ * the run's last event, when it starts waiting for an answer, or when the page goes away;
+ * the run goes on either way.
  */
 export async function handlePlanRunEvents(
   tripId: string,

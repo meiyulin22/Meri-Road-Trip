@@ -5,7 +5,7 @@ import { useEffect, useState } from "react";
 
 import { useLocale } from "@/components/i18n/locale-context";
 import type { Locale } from "@/domain/locale/locale";
-import type { PlanActivity, PlanStage } from "@/domain/plan/plan-progress";
+import type { PlanActivity, PlanQuestion, PlanStage } from "@/domain/plan/plan-progress";
 
 import type { ProgressView, StageView } from "./plan-progress-view";
 import styles from "./plan-run-activity.module.css";
@@ -24,6 +24,8 @@ const copy = {
     title: "Meri is planning",
     done: "Plan ready",
     stopped: "Planning stopped",
+    waiting: "Waiting for your answer",
+    answered: (question: string, choice: string | null) => `${question} → ${choice ?? "left to Meri"}`,
     stages: {
       scope: "Read the trip", research: "Research spots", map: "Locate on Tianditu", route: "Plan the route",
       days: "Choose each day's spots", photos: "Pick day photos", save: "Save the plan",
@@ -61,6 +63,8 @@ const copy = {
     title: "Meri 正在规划",
     done: "计划已生成",
     stopped: "规划中止",
+    waiting: "等你回答",
+    answered: (question: string, choice: string | null) => `${question} → ${choice ?? "交给 Meri 决定"}`,
     stages: {
       scope: "读取行程范围", research: "调研景点", map: "天地图定位", route: "规划路线",
       days: "按天选景点", photos: "配图", save: "保存计划",
@@ -124,12 +128,17 @@ function useNow(running: boolean): number {
 export function PlanRunActivity({ view }: { readonly view: ProgressView }) {
   const locale = useLocale();
   const text = copy[locale];
-  const running = view.finished === null;
+  const running = view.finished === null && view.question === null;
   const now = useNow(running);
   const [open, setOpen] = useState<PlanStage | null>(null);
-  const elapsed = view.finished ? view.finished.ms : view.startedAt === null ? 0 : Math.max(0, now - view.startedAt);
+  // The clock counts Meri's work only: it stops while the run waits for an answer.
+  const elapsed = view.finished ? view.finished.ms : view.startedAt === null
+    ? 0
+    : Math.max(0, (view.waitingSince ?? now) - view.startedAt - view.waitedMs);
   const lastDone = [...view.stages].reverse().find(({ status }) => status === "done");
-  const title = view.finished === null ? text.title : view.finished.status === "succeeded" ? text.done : text.stopped;
+  const title = view.finished !== null
+    ? view.finished.status === "succeeded" ? text.done : text.stopped
+    : view.question ? text.waiting : text.title;
 
   return (
     <section className={styles.feed} data-state={view.finished?.status ?? "running"} aria-label={title}>
@@ -169,11 +178,14 @@ function StageRow({ stage, view, text, locale, now, open, onToggle }: {
   }
   if (stage.status === "running") {
     const stopped = view.finished !== null;
+    const waiting = !stopped && view.question !== null;
     return (
-      <li className={styles.row} data-status={stopped ? "stopped" : "running"} aria-current={stopped ? undefined : "step"}>
-        <span className={styles.mark} aria-hidden="true">{stopped ? "×" : <span className={styles.spinner}>✻</span>}</span>
-        <span className={styles.label}>{label}</span>
-        {stopped || stage.startedAt === null ? null : <span className={styles.time}>{formatMs(Math.max(0, now - stage.startedAt))}</span>}
+      <li className={styles.row} data-status={stopped ? "stopped" : waiting ? "waiting" : "running"} aria-current={stopped ? undefined : "step"}>
+        <span className={styles.mark} aria-hidden="true">{stopped ? "×" : waiting ? "?" : <span className={styles.spinner}>✻</span>}</span>
+        <span className={styles.label}>{label}{waiting ? <span className={styles.waitingTag}>{text.waiting}</span> : null}</span>
+        {stopped || waiting || stage.startedAt === null
+          ? null
+          : <span className={styles.time}>{formatMs(Math.max(0, now - stage.startedAt))}</span>}
         {stage.activities.length > 0 ? (
           <ul className={styles.activity}>
             {stage.activities.map((activity) => {
@@ -222,10 +234,51 @@ function stageDetails(stage: PlanStage, view: ProgressView, text: Copy): string[
   }
   if (stage === "route" && view.route) {
     return [
+      ...view.answers.map(({ question, choice }) => text.answered(question, choice)),
       ...view.route.cities.map(({ city, days, reason }) => `${city} · ${days}${reason ? ` · ${reason}` : ""}`),
       ...view.route.omitted.map(({ city, reason }) => `${city} ×${reason ? ` · ${reason}` : ""}`),
       ...(view.route.source === "fallback" ? [text.routeAuto] : []),
     ];
   }
   return [];
+}
+
+const questionCopy = {
+  en: { eyebrow: "A quick question first", skip: "You decide", failed: "That didn’t go through. Try again." },
+  zh: { eyebrow: "Meri 想先问一句", skip: "你来定", failed: "没有发送成功，请再试一次。" },
+} as const;
+
+/**
+ * The question a run waits on. Choosing an option, or letting Meri decide, resumes the
+ * run; the answer is kept as a preference. Shown again after a refresh until answered.
+ */
+export function PlanQuestionCard({ question, onAnswer }: {
+  readonly question: PlanQuestion;
+  readonly onAnswer: (choice: string | null) => Promise<void>;
+}) {
+  const locale = useLocale();
+  const text = questionCopy[locale];
+  const [sending, setSending] = useState(false);
+  const [failed, setFailed] = useState(false);
+  const choose = (choice: string | null) => {
+    setSending(true);
+    setFailed(false);
+    onAnswer(choice).catch(() => {
+      setFailed(true);
+      setSending(false);
+    });
+  };
+  return (
+    <section className={styles.question} aria-labelledby={`question-${question.id}`}>
+      <span className={styles.questionEyebrow}>{text.eyebrow}</span>
+      <p className={styles.questionText} id={`question-${question.id}`}>{question.text}</p>
+      <div className={styles.options}>
+        {question.options.map(({ label }) => (
+          <button key={label} type="button" className={styles.option} disabled={sending} onClick={() => choose(label)}>{label}</button>
+        ))}
+        <button type="button" className={styles.option} data-skip="true" disabled={sending} onClick={() => choose(null)}>{text.skip}</button>
+      </div>
+      {failed ? <p className={styles.questionError} role="alert">{text.failed}</p> : null}
+    </section>
+  );
 }

@@ -16,7 +16,7 @@ export async function GET(request: Request, context: { params: Promise<{ id: str
     import("@/capabilities/journey/journey-service-instance"),
     import("@/capabilities/planning/plan-run-service-instance"),
   ]);
-  return handlePlanRunEvents(tripId, ownerGuestId, runId, request.headers.get("last-event-id"), request.signal, {
+  return handlePlanRunEvents(tripId, ownerGuestId, runId, request.headers.get("last-event-id") ?? new URL(request.url).searchParams.get("after"), request.signal, {
     loadJourney: (id, owner) => journeyService.loadJourney(id, owner),
     service: planRunService,
   });
