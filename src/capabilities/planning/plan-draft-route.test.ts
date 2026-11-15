@@ -44,12 +44,13 @@ const research: CityResearch[] = [{
 const draft: PlanDraft = {
   mode: "full",
   totalDays: 2,
+  route: { source: "agent", cities: [{ province: "云南省", city: "丽江市", days: 2, reason: "雪山和古城" }], omitted: [] },
   days: [
-    { day: 1, date: "2026-12-20", province: "云南省", city: "丽江市", stops: [
+    { day: 1, date: "2026-12-20", province: "云南省", city: "丽江市", arrivingFrom: null, focus: "玉龙纳西族自治县", theme: "雪山", stops: [
       { spotId: "丽江古城", slot: "evening", anchor: null },
       { spotId: "玉龙雪山", slot: "morning", anchor: { time: "16:00", reason: "索道末班 16:00", evidence } },
     ] },
-    { day: 2, date: "2026-12-21", province: "云南省", city: "丽江市", stops: [] },
+    { day: 2, date: "2026-12-21", province: "云南省", city: "丽江市", arrivingFrom: null, focus: null, theme: null, stops: [] },
   ],
   conflicts: [{ kind: "not_enough_candidates", day: 2 }],
   unverified: [{ spotId: "丽江古城", fields: ["opening", "reservation"] }],
@@ -77,7 +78,7 @@ test("drafts from the saved journey and returns only the cards the plan uses", a
       },
       async draft(_received, cities) {
         assert.equal(cities[0].spots[0].mapCheck.status, "located");
-        return { status: "ready", draft, attempts: 1, usage: { inputTokens: 100, outputTokens: 20 } };
+        return { status: "ready", draft, attempts: 1, routeAttempts: 1, usage: { inputTokens: 100, outputTokens: 20 } };
       },
       async findImage(subject) {
         // The catalog knows 玉龙雪山 and the city; 丽江古城 has no photo of its own.
@@ -110,14 +111,14 @@ test("refuses a handoff that no longer matches the saved journey, before any res
     (error) => error instanceof PlanDraftRequestError && error.reason === "journey_changed");
 });
 
-test("answers several cities without spending searches, and maps the other failures", async () => {
-  const twoCities: TripState = { ...tripState, destination: { state: "known", source: "user", areas: [
-    { province: "云南省", places: [{ name: "丽江市", spots: [] }, { name: "大理白族自治州", spots: [] }] },
+test("answers a trip without a city before spending searches, and maps the other failures", async () => {
+  const provinceOnly: TripState = { ...tripState, destination: { state: "known", source: "user", areas: [
+    { province: "云南省", places: [] },
   ] } };
-  const unsupported = await handlePlanDraftPost("trip-id", "owner-id", { ...handoff, tripState: twoCities }, {
-    loadJourney: async () => ({ tripState: twoCities }), research: unreachable, checkMap: unreachable, draft: unreachable, findImage: unreachable,
+  const unsupported = await handlePlanDraftPost("trip-id", "owner-id", { ...handoff, tripState: provinceOnly }, {
+    loadJourney: async () => ({ tripState: provinceOnly }), research: unreachable, checkMap: unreachable, draft: unreachable, findImage: unreachable,
   });
-  assert.deepEqual(await unsupported.json(), { status: "unsupported", reason: "multiple_cities" });
+  assert.deepEqual(await unsupported.json(), { status: "unsupported", reason: "no_city" });
 
   const unavailable = await handlePlanDraftPost("trip-id", "owner-id", handoff, {
     loadJourney: async () => ({ tripState }),
@@ -150,7 +151,7 @@ test("the page groups a day by slot and shows each sourced fact once", () => {
 });
 
 test("two days in one city prefer different photos and share the city's when nothing else is left", async () => {
-  const days = [1, 2, 3].map((day) => ({ day, date: null, province: "云南省", city: "丽江市",
+  const days = [1, 2, 3].map((day) => ({ day, date: null, province: "云南省", city: "丽江市", arrivingFrom: null, focus: null, theme: null,
     stops: [{ spotId: day === 1 ? "玉龙雪山" : "丽江古城", slot: "morning" as const, anchor: null }] }));
   const photos = await dayPhotos(days, (spotId) => spotId, async (subject) =>
     subject.spot === "玉龙雪山" ? { url: "/photos/yulong.jpg", caption: "玉龙雪山" }

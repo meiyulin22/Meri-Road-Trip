@@ -122,8 +122,12 @@ three candidates for a three-day Lijiang trip. With nominations the same cases
 gave 洱海, 崇圣寺三塔 and 蝴蝶泉 for Dali and seven candidates for Lijiang. A
 curated spot catalog is planned to replace the nomination call later.
 
-The first round researches up to ten cities, two at a time, with a 45-second
-deadline and up to five search calls per city. A trip without a confirmed
+The first round researches up to ten cities, two at a time, with a 70-second
+deadline and up to five search calls per city. Extraction asks for only as many cards
+as the city needs, with short quotes; the model answers in a loose shape and each card
+is checked on its own, so one overlong quote drops that fact, not the city (1.2009: two
+cities in parallel had timed out at 45 s and lost a whole city to one invalid field).
+A city that does not finish logs which step failed and how, by error name only. A trip without a confirmed
 duration researches its first selected city. A province without selected cities
 is reported separately.
 
@@ -163,11 +167,19 @@ every day needs a stop.
 ### Plan Agent draft (single city)
 
 [plan-agent.ts](planner/plan-agent.ts) turns research into a
-[PlanDraft](../domain/plan/plan-draft.ts). Code allocates the days first: without a
-confirmed duration, one preview day in the first selected city; with one city and a
-confirmed duration, every day in that city, dated from the start date when it is
-exact. Several cities with a confirmed duration return `unsupported` until the Plan
-Agent's allocation is built.
+[PlanDraft](../domain/plan/plan-draft.ts). Code scopes the plan first: without a
+confirmed duration, one preview day in the first selected city; with one, every selected
+city across every day, dated from the start date when it is exact.
+
+The Plan Agent then routes the trip, one city included (1.2009): one structured Kimi
+call orders the cities to avoid backtracking, gives each its days with a short reason,
+and gives every day a focus district and a theme. With fewer days than cities it may
+leave cities out, each with a reason. Code checks that every city appears exactly once,
+routed or left out, that cities are left out only when the days cannot hold them, that
+the days add up, and that each focus is a district the map located spots in for that
+city; it gives one more attempt with the problems, then shares the days out in the
+order the cities were added (marked as automatic). The first day in each later city is
+a transfer day: no morning stops, one stop fewer, travel time still unknown.
 
 One structured Kimi call chooses each day's spots from the candidates, which it sees
 under short IDs (`s1`, `s2`…) with their quoted facts and the user's preferences: each

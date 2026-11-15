@@ -3,7 +3,7 @@ import { randomUUID } from "node:crypto";
 import type { PhotoSubject } from "@/capabilities/destination/place-images";
 import { TripStateNotFoundError } from "@/capabilities/journey/journey-errors";
 import type { PlaceImage } from "@/domain/location/place-image";
-import { allocateDays, type PlanDay } from "@/domain/plan/plan-draft";
+import { planScope, type PlanDay } from "@/domain/plan/plan-draft";
 import type { PlanDraftResponse } from "@/domain/plan/plan-draft-response";
 import { planHandoffSchema, type PlanHandoff } from "@/domain/plan/plan-handoff";
 import type { CityResearch } from "@/domain/plan/spot-card";
@@ -96,9 +96,9 @@ export async function handlePlanDraftPost(
     }
 
     // Checked before research, so an unsupported trip spends no searches.
-    const allocation = allocateDays(handoff.tripState);
-    if (allocation.status === "unsupported") {
-      return noStore({ status: "unsupported", reason: allocation.reason } satisfies PlanDraftResponse);
+    const scope = planScope(handoff.tripState);
+    if (scope.status === "unsupported") {
+      return noStore({ status: "unsupported", reason: scope.reason } satisfies PlanDraftResponse);
     }
 
     const researched = await dependencies.research(handoff);
@@ -127,6 +127,10 @@ export async function handlePlanDraftPost(
       days: result.draft.days.length,
       conflicts: result.draft.conflicts.length,
       attempts: result.attempts,
+      routeAttempts: result.routeAttempts,
+      routeSource: result.draft.route.source,
+      cities: result.draft.route.cities.length,
+      omittedCities: result.draft.route.omitted.length,
       inputTokens: result.usage.inputTokens,
       outputTokens: result.usage.outputTokens,
       mapCheck: mapCheck.status,

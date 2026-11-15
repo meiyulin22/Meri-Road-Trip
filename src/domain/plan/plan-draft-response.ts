@@ -45,11 +45,21 @@ export const cityResearchSchema: z.ZodType<CityResearch> = z.strictObject({
 const planDraftSchema: z.ZodType<PlanDraft> = z.strictObject({
   mode: z.enum(["preview", "full"]),
   totalDays: z.number().int().positive().nullable(),
+  route: z.strictObject({
+    source: z.enum(["agent", "fallback"]),
+    cities: z.array(z.strictObject({
+      province: z.string().min(1), city: z.string().min(1), days: z.number().int().positive(), reason: z.string().min(1).nullable(),
+    })),
+    omitted: z.array(z.strictObject({ province: z.string().min(1), city: z.string().min(1), reason: z.string().min(1).nullable() })),
+  }),
   days: z.array(z.strictObject({
     day: z.number().int().positive(),
     date: z.iso.date().nullable(),
     province: z.string().min(1),
     city: z.string().min(1),
+    arrivingFrom: z.string().min(1).nullable(),
+    focus: z.string().min(1).nullable(),
+    theme: z.string().min(1).nullable(),
     stops: z.array(z.strictObject({
       spotId: z.string().min(1),
       slot: z.enum(daySlots),
@@ -72,9 +82,8 @@ const placeImageSchema: z.ZodType<PlaceImage, unknown> = z.unknown().transform((
 });
 
 /**
- * What the plan page receives. A ready draft carries the cards it refers to, so the page
- * can name each stop and show its sources, and each city's research status. Several
- * cities with a confirmed duration wait for the Plan Agent's allocation.
+ * What the plan page receives. A ready draft carries its route, the cards it refers to, so
+ * the page can name each stop and show its sources, and each city's research status.
  */
 export const planDraftResponseSchema = z.discriminatedUnion("status", [
   z.strictObject({
@@ -92,7 +101,7 @@ export const planDraftResponseSchema = z.discriminatedUnion("status", [
     /** Stopped when a Tianditu call failed: the remaining spots stayed unchecked. */
     mapCheck: z.enum(["complete", "stopped"]),
   }),
-  z.strictObject({ status: z.literal("unsupported"), reason: z.enum(["no_city", "multiple_cities"]) }),
+  z.strictObject({ status: z.literal("unsupported"), reason: z.literal("no_city") }),
 ]);
 
 export type PlanDraftResponse = z.output<typeof planDraftResponseSchema>;

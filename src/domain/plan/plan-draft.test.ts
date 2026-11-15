@@ -3,7 +3,7 @@ import test from "node:test";
 
 import type { TripState } from "@/domain/trip-state/trip-state";
 
-import { allocateDays, finishDraft, reviewProposal } from "./plan-draft";
+import { fallbackRoute, finishDraft, planScope, reviewProposal, reviewRoute, type DayFrame, type RouteCityInput } from "./plan-draft";
 import type { SpotCard, SpotEvidence } from "./spot-card";
 
 function tripState(places: readonly string[], duration: TripState["duration"], startDate: TripState["startDate"] = { state: "missing" }): TripState {
@@ -32,35 +32,100 @@ function card(name: string, overrides: Partial<SpotCard> = {}): SpotCard {
   };
 }
 
-test("an unconfirmed duration gives one preview day in the first city", () => {
-  const allocation = allocateDays(tripState(["丽江市", "大理白族自治州"], { state: "approximate", value: "一周左右", source: "user" }));
-  assert.deepEqual(allocation, {
+const route = { source: "agent", cities: [{ province: "云南省", city: "丽江市", days: 2, reason: null }], omitted: [] } as const;
+
+function frame(day: number, overrides: Partial<DayFrame> = {}): DayFrame {
+  return { day, date: null, province: "云南省", city: "丽江市", arrivingFrom: null, focus: null, theme: null, ...overrides };
+}
+
+const fiveDays = { state: "known", value: "5天", source: "user" } as const;
+
+test("an unconfirmed duration scopes one preview day in the first city", () => {
+  assert.deepEqual(planScope(tripState(["丽江市", "大理白族自治州"], { state: "approximate", value: "一周左右", source: "user" })), {
     status: "ready", mode: "preview", totalDays: null,
-    frames: [{ day: 1, date: null, province: "云南省", city: "丽江市" }],
+    cities: [{ province: "云南省", city: "丽江市" }], dates: [null],
   });
+  assert.deepEqual(planScope(tripState([], fiveDays)), { status: "unsupported", reason: "no_city" });
 });
 
-test("a single city takes every confirmed day, dated from the start date", () => {
-  const allocation = allocateDays(tripState(["丽江市"], { state: "known", value: "7天", source: "user" },
+test("a confirmed duration scopes every city across every day, dated from the start date", () => {
+  const scope = planScope(tripState(["丽江市", "大理白族自治州"], { state: "known", value: "7天", source: "user" },
     { state: "known", value: "2026-12-30", source: "user" }));
-  assert.equal(allocation.status, "ready");
-  if (allocation.status !== "ready") return;
-  assert.equal(allocation.mode, "full");
-  assert.equal(allocation.frames.length, 7);
-  assert.deepEqual(allocation.frames.map(({ date }) => date), [
-    "2026-12-30", "2026-12-31", "2027-01-01", "2027-01-02", "2027-01-03", "2027-01-04", "2027-01-05",
-  ]);
+  assert.equal(scope.status, "ready");
+  if (scope.status !== "ready") return;
+  assert.equal(scope.mode, "full");
+  assert.deepEqual(scope.cities.map(({ city }) => city), ["丽江市", "大理白族自治州"]);
+  assert.deepEqual(scope.dates, ["2026-12-30", "2026-12-31", "2027-01-01", "2027-01-02", "2027-01-03", "2027-01-04", "2027-01-05"]);
 });
 
-test("several cities with a confirmed duration wait for the Plan Agent's allocation", () => {
-  assert.deepEqual(allocateDays(tripState(["丽江市", "大理白族自治州"], { state: "known", value: "5天", source: "user" })),
-    { status: "unsupported", reason: "multiple_cities" });
-  assert.deepEqual(allocateDays(tripState([], { state: "known", value: "5天", source: "user" })),
-    { status: "unsupported", reason: "no_city" });
+const twoCityScope = planScope(tripState(["丽江市", "大理白族自治州"], fiveDays));
+const routeCities: RouteCityInput[] = [
+  { id: "c1", province: "云南省", city: "丽江市", candidates: 7, districts: ["古城区", "玉龙纳西族自治县"] },
+  { id: "c2", province: "云南省", city: "大理白族自治州", candidates: 3, districts: ["大理市"] },
+];
+
+test("a route in its own order becomes days city after city, with a transfer day and each day's focus", () => {
+  assert.equal(twoCityScope.status, "ready");
+  if (twoCityScope.status !== "ready") return;
+  const review = reviewRoute(twoCityScope, routeCities, {
+    cities: [{ id: "c2", days: 2, reason: "洱海慢慢走" }, { id: "c1", days: 3, reason: "雪山和古城" }],
+    days: [
+      { day: 1, focus: "大理市", theme: "洱海环线" }, { day: 3, focus: "古城区", theme: "古城慢逛" },
+      { day: 4, focus: "玉龙纳西族自治县", theme: "雪山" },
+    ],
+    omitted: [],
+  });
+  assert.deepEqual(review.errors, []);
+  assert.deepEqual(review.plan?.frames.map(({ day, city, arrivingFrom, focus }) => [day, city, arrivingFrom, focus]), [
+    [1, "大理白族自治州", null, "大理市"], [2, "大理白族自治州", null, null],
+    [3, "丽江市", "大理白族自治州", "古城区"], [4, "丽江市", null, "玉龙纳西族自治县"], [5, "丽江市", null, null],
+  ]);
+  assert.deepEqual(review.plan?.route.cities.map(({ city, days, reason }) => [city, days, reason]),
+    [["大理白族自治州", 2, "洱海慢慢走"], ["丽江市", 3, "雪山和古城"]]);
+});
+
+test("a route that misses a city, miscounts days, leaves a city out needlessly or invents a district is sent back", () => {
+  if (twoCityScope.status !== "ready") return;
+  assert.deepEqual(reviewRoute(twoCityScope, routeCities, {
+    cities: [{ id: "c1", days: 4, reason: "…" }, { id: "c9", days: 1, reason: "…" }], days: [], omitted: [],
+  }).errors, ["c9 is not one of the trip's cities.", "大理白族自治州 is neither routed nor left out with a reason."]);
+  assert.deepEqual(reviewRoute(twoCityScope, routeCities, {
+    cities: [{ id: "c1", days: 4, reason: "…" }], days: [], omitted: [{ id: "c2", reason: "太远" }],
+  }).errors, ["There are enough days for every city that has candidates; leave none of those out.", "The routed days add up to 4, not 5."]);
+  // A city where research found nothing may be left out, with its days going elsewhere.
+  const empty = [routeCities[0], { ...routeCities[1], candidates: 0, districts: [] }];
+  const review = reviewRoute(twoCityScope, empty, {
+    cities: [{ id: "c1", days: 5, reason: "…" }], days: [], omitted: [{ id: "c2", reason: "这次没查到大理的景点" }],
+  });
+  assert.deepEqual(review.errors, []);
+  assert.deepEqual(review.plan?.route.omitted, [{ province: "云南省", city: "大理白族自治州", reason: "这次没查到大理的景点" }]);
+  assert.deepEqual(reviewRoute(twoCityScope, routeCities, {
+    cities: [{ id: "c1", days: 3, reason: "…" }, { id: "c2", days: 2, reason: "…" }],
+    days: [{ day: 4, focus: "古城区", theme: null }], omitted: [],
+  }).errors, ["Day 4: 古城区 is not a district the map found in 大理白族自治州."]);
+});
+
+test("with fewer days than cities the route may leave cities out, and the fallback keeps the first ones", () => {
+  const scope = planScope(tripState(["丽江市", "大理白族自治州", "迪庆藏族自治州"], { state: "known", value: "2天", source: "user" }));
+  if (scope.status !== "ready") return;
+  const cities = [...routeCities, { id: "c3", province: "云南省", city: "迪庆藏族自治州", candidates: 4, districts: [] }];
+  const review = reviewRoute(scope, cities, {
+    cities: [{ id: "c1", days: 1, reason: "…" }, { id: "c2", days: 1, reason: "…" }], days: [],
+    omitted: [{ id: "c3", reason: "离大理和丽江都要 4 小时以上" }],
+  });
+  assert.deepEqual(review.plan?.route.omitted, [{ province: "云南省", city: "迪庆藏族自治州", reason: "离大理和丽江都要 4 小时以上" }]);
+
+  const fallback = fallbackRoute(scope);
+  assert.equal(fallback.route.source, "fallback");
+  assert.deepEqual(fallback.route.cities.map(({ city, days }) => [city, days]), [["丽江市", 1], ["大理白族自治州", 1]]);
+  assert.deepEqual(fallback.route.omitted.map(({ city }) => city), ["迪庆藏族自治州"]);
+  if (twoCityScope.status === "ready") {
+    assert.deepEqual(fallbackRoute(twoCityScope).route.cities.map(({ days }) => days), [3, 2]);
+  }
 });
 
 test("review drops unknown spots, repeats and unsourced times, and reports each one", () => {
-  const frames = [1, 2].map((day) => ({ day, date: null, province: "云南省", city: "丽江市" }));
+  const frames = [frame(1), frame(2)];
   const cards = [
     card("玉龙雪山", { requested: true, opening: evidence("冰川公园索道末班16：00上行") }),
     card("丽江古城"),
@@ -88,7 +153,7 @@ test("review drops unknown spots, repeats and unsourced times, and reports each 
     "黑龙潭 was requested by the user and is not scheduled.",
   ]);
 
-  const draft = finishDraft({ status: "ready", mode: "full", totalDays: 2, frames }, cards, review.days);
+  const draft = finishDraft({ mode: "full", totalDays: 2, frames, route }, cards, review.days);
   assert.deepEqual(draft.conflicts, [
     { kind: "requested_unscheduled", spotId: "黑龙潭" },
     { kind: "not_enough_candidates", day: 2 },
@@ -100,11 +165,28 @@ test("review drops unknown spots, repeats and unsourced times, and reports each 
 });
 
 test("a preview day leaves requested spots for the locked days", () => {
-  const frames = [{ day: 1, date: null, province: "云南省", city: "丽江市" }];
+  const frames = [frame(1)];
   const cards = [card("玉龙雪山"), card("黑龙潭", { requested: true })];
   const review = reviewProposal("preview", frames, cards, { days: [
     { day: 1, stops: [{ spotId: "玉龙雪山", slot: "morning", anchor: null }] },
   ] });
   assert.deepEqual(review.errors, []);
-  assert.deepEqual(finishDraft({ status: "ready", mode: "preview", totalDays: null, frames }, cards, review.days).conflicts, []);
+  assert.deepEqual(finishDraft({ mode: "preview", totalDays: null, frames, route }, cards, review.days).conflicts, []);
+});
+
+test("a transfer day has no morning", () => {
+  const review = reviewProposal("full", [frame(1, { arrivingFrom: "大理白族自治州" })], [card("玉龙雪山"), card("丽江古城")], { days: [
+    { day: 1, stops: [{ spotId: "玉龙雪山", slot: "morning", anchor: null }, { spotId: "丽江古城", slot: "evening", anchor: null }] },
+  ] });
+  assert.deepEqual(review.days[0].stops.map(({ spotId }) => spotId), ["丽江古城"]);
+  assert.deepEqual(review.errors, ["Day 1 is a transfer day from 大理白族自治州: 玉龙雪山 cannot be in the morning."]);
+});
+
+test("a transfer day takes one stop fewer", () => {
+  const cards = ["玉龙雪山", "丽江古城", "黑龙潭", "木府"].map((name) => card(name));
+  const review = reviewProposal("full", [frame(1, { arrivingFrom: "大理白族自治州" })], cards, { days: [
+    { day: 1, stops: cards.map(({ id }) => ({ spotId: id, slot: "afternoon" as const, anchor: null })) },
+  ] });
+  assert.equal(review.days[0].stops.length, 3);
+  assert.deepEqual(review.errors, ["Day 1 has more than 3 stops."]);
 });

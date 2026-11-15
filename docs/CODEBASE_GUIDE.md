@@ -410,8 +410,8 @@ Generate plan 背后的计划页先用示例数据做出完整页面（设计决
 | [src/domain/plan/plan-handoff.ts](../src/domain/plan/plan-handoff.ts) | 领域层 | 交接快照与响应契约，校验 TripState、参考日期、语言和当前有效的偏好。 |
 | [src/domain/plan/trip-preference.ts](../src/domain/plan/trip-preference.ts) | 领域层 | 旅程偏好：标签、类型、原话、来源、状态；类型、来源与上限常量；原话比较；体力和同行人类偏好把每天上限降到 3。 |
 | [src/domain/plan/spot-card.ts](../src/domain/plan/spot-card.ts) | 领域层 | 景点卡、原文证据、天地图定位结果和单城调研结果的类型，未知字段可以为空。 |
-| [src/domain/plan/plan-draft.ts](../src/domain/plan/plan-draft.ts) | 领域层 | 计划草稿类型；单城或示范第一天的分天；校验 Plan Agent 提案（候选、所在城市、跨天重复、每天上限、有原文支持的时间锚点、点名景点），整理冲突和待核实字段。 |
-| [src/domain/plan/plan-draft.test.ts](../src/domain/plan/plan-draft.test.ts) | 测试（对应模块边界） | 验证示范第一天、单城按出发日期分天、多城暂不支持、提案校验与冲突整理。 |
+| [src/domain/plan/plan-draft.ts](../src/domain/plan/plan-draft.ts) | 领域层 | 计划草稿与路线类型；规划范围（示范日或全部城市与日期）；校验 Plan Agent 的路线（覆盖、放弃条件、天数、区县）并生成每天的城市、转场、重点区县和主题；按添加顺序兜底分天；校验选点提案（候选、所在城市、跨天重复、每天上限与转场日少 1、有原文支持的时间锚点、点名景点），整理冲突和待核实字段。 |
+| [src/domain/plan/plan-draft.test.ts](../src/domain/plan/plan-draft.test.ts) | 测试（对应模块边界） | 验证规划范围、路线生成转场日和区县、路线错误被退回、天数不够时放弃城市与兜底、选点校验、转场日少一个景点和冲突整理。 |
 | [src/domain/plan/plan-draft-response.ts](../src/domain/plan/plan-draft-response.ts) | 领域层 | 景点卡、调研结果和计划页响应的运行时 schema，供接口、页面和验证脚本共用。 |
 | [src/domain/trip-state/planning-readiness.test.ts](../src/domain/trip-state/planning-readiness.test.ts) | 测试（对应模块边界） | 验证缺目的地、只有省、省市混合、旧文本和已选城市的准备度；其他字段不是硬门槛。 |
 | [src/domain/trip-state/planning-readiness.ts](../src/domain/trip-state/planning-readiness.ts) | 领域层 | 纯准备度规则：missing、unverified 或 selected（只有省也算 selected）；仅检查状态，不研究可行性。 |
@@ -550,8 +550,8 @@ Generate plan 背后的计划页先用示例数据做出完整页面（设计决
 | [src/agents/planner/research-agent.test.ts](../src/agents/planner/research-agent.test.ts) | 测试（对应模块边界） | 用模拟模型和搜索结果验证提名与点名景点分组搜索、无出处提名被丢弃、模型不可用时的退路、只补查一次、10 城范围和证据校验。 |
 | [src/agents/planner/map-check.ts](../src/agents/planner/map-check.ts) | Agent 层（固定步骤） | 景点卡的天地图定位：每个有出处的景点查一次（每城最多 12 个），只认本市同名结果并记区县；第一次失败即停止、不重试，其余保持未核实；使用定位缓存。 |
 | [src/agents/planner/map-check.test.ts](../src/agents/planner/map-check.test.ts) | 测试 | 验证别省同名不算、景区后缀、停车场不算、失败即停、缓存命中、每城上限和缓存过期。 |
-| [src/agents/planner/plan-agent.ts](../src/agents/planner/plan-agent.ts) | Agent 层 | Plan Agent 的单城选点：代码分天后，一次 Kimi 结构化调用按短 ID 选每天的景点、时段和时间锚点；代码校验，不通过时带问题重试一次，其余记为冲突。 |
-| [src/agents/planner/plan-agent.test.ts](../src/agents/planner/plan-agent.test.ts) | 测试（对应模块边界） | 用模拟模型验证示范第一天、单城 7 天、带问题重试、重试失败保留首个提案、模型不可用和多城暂不支持。 |
+| [src/agents/planner/plan-agent.ts](../src/agents/planner/plan-agent.ts) | Agent 层 | Plan Agent：先一次 Kimi 调用规划路线（城市顺序、天数、每天重点区县和主题、放弃的城市），代码校验、重试一次、再兜底；再一次调用按短 ID 选每天的景点、时段和时间锚点，代码校验、重试一次，其余记为冲突。 |
+| [src/agents/planner/plan-agent.test.ts](../src/agents/planner/plan-agent.test.ts) | 测试（对应模块边界） | 用模拟模型验证示范第一天、单城 7 天、带问题重试、模型不可用、丽江大理 5 天的路线与转场日，以及路线两次不通过后的兜底。 |
 | [src/agents/tools/resolve-place.ts](../src/agents/tools/resolve-place.ts) | Agent 工具 | 用工作区同一套地点核验（天地图）查一个中文地名，返回匹配地点（省/市/区、GCJ-02 坐标、是否景点）、最多 5 个候选或整省；不代表开放或可达。 |
 | [src/agents/tools/web-search.ts](../src/agents/tools/web-search.ts) | Agent 工具 | 经 Bocha 搜索近期公告（封闭、预约、季节通行），最多 5 条，每条带来源和发布日期；结果只是线索，提供方失败只返回 unavailable，不暴露带密钥的 URL。 |
 | [src/agents/tools/tools.test.ts](../src/agents/tools/tools.test.ts) | 测试（对应模块边界） | 验证地点结果的映射与 5 条上限、整省与失败状态，以及搜索 5 条上限、日期透传和失败降级。 |

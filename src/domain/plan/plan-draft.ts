@@ -31,6 +31,12 @@ export type DayFrame = {
   readonly date: string | null;
   readonly province: string;
   readonly city: string;
+  /** The city left that morning: a transfer day, lighter, with the travel time still unknown. */
+  readonly arrivingFrom: string | null;
+  /** The district the day mostly spends in, one the map located spots in. */
+  readonly focus: string | null;
+  /** A short theme for the day, Meri's suggestion. */
+  readonly theme: string | null;
 };
 
 export type PlanDay = DayFrame & { readonly stops: readonly PlanStop[] };
@@ -41,27 +47,51 @@ export type PlanConflict =
 
 export type PlanMode = "preview" | "full";
 
+export type RouteCity = {
+  readonly province: string;
+  readonly city: string;
+  readonly days: number;
+  /** Why this many days, in the Plan Agent's words; null when code split the days. */
+  readonly reason: string | null;
+};
+
+/** The order of the cities and their days, or why a city did not fit. */
+export type PlanRoute = {
+  readonly source: "agent" | "fallback";
+  readonly cities: readonly RouteCity[];
+  readonly omitted: readonly { readonly province: string; readonly city: string; readonly reason: string | null }[];
+};
+
 export type PlanDraft = {
   readonly mode: PlanMode;
   readonly totalDays: number | null;
+  readonly route: PlanRoute;
   readonly days: readonly PlanDay[];
   readonly conflicts: readonly PlanConflict[];
   /** Scheduled spots whose facts no source supports yet, shown as 待核实. */
   readonly unverified: readonly { readonly spotId: string; readonly fields: readonly SpotFact[] }[];
 };
 
-export type DayAllocation =
-  | { readonly status: "ready"; readonly mode: PlanMode; readonly totalDays: number | null; readonly frames: readonly DayFrame[] }
-  | { readonly status: "unsupported"; readonly reason: "no_city" | "multiple_cities" };
+export type TripCity = { readonly province: string; readonly city: string };
+
+/** What a plan covers before the Plan Agent routes it: the cities, how many days, and their dates. */
+export type PlanScope =
+  | {
+    readonly status: "ready";
+    readonly mode: PlanMode;
+    readonly totalDays: number | null;
+    readonly cities: readonly TripCity[];
+    readonly dates: readonly (string | null)[];
+  }
+  | { readonly status: "unsupported"; readonly reason: "no_city" };
 
 const dayMs = 24 * 60 * 60 * 1000;
 
 /**
- * Which city each day is in. Without a confirmed duration, the first selected city gets
- * one preview day and the rest stay locked. A single city takes every confirmed day.
- * Several cities need the Plan Agent's allocation, which is not built yet.
+ * Without a confirmed duration, one preview day in the first selected city; the rest stay
+ * locked. With one, every selected city across every day, for the Plan Agent to route.
  */
-export function allocateDays(tripState: TripState): DayAllocation {
+export function planScope(tripState: TripState): PlanScope {
   const destination = tripState.destination;
   const cities = destination.state === "known"
     ? destination.areas.flatMap(({ province, places }) => places.map(({ name }) => ({ province, city: name })))
@@ -69,15 +99,135 @@ export function allocateDays(tripState: TripState): DayAllocation {
   if (cities.length === 0) return { status: "unsupported", reason: "no_city" };
 
   const totalDays = parseExactDays(tripState.duration);
-  if (totalDays !== null && cities.length > 1) return { status: "unsupported", reason: "multiple_cities" };
-
   const start = parseExactDate(tripState.startDate);
-  const frames = Array.from({ length: totalDays ?? 1 }, (_, index) => ({
-    day: index + 1,
-    date: start === null ? null : formatExactDate(start + index * dayMs),
-    ...cities[0],
-  }));
-  return { status: "ready", mode: totalDays === null ? "preview" : "full", totalDays, frames };
+  const dates = Array.from({ length: totalDays ?? 1 }, (_, index) =>
+    start === null ? null : formatExactDate(start + index * dayMs));
+  return {
+    status: "ready",
+    mode: totalDays === null ? "preview" : "full",
+    totalDays,
+    cities: totalDays === null ? cities.slice(0, 1) : cities,
+    dates,
+  };
+}
+
+/** What the Plan Agent proposes for the route, by the short city IDs it was given. */
+export type RouteProposal = {
+  readonly cities: readonly { readonly id: string; readonly days: number; readonly reason: string }[];
+  readonly days: readonly { readonly day: number; readonly focus: string | null; readonly theme: string | null }[];
+  readonly omitted: readonly { readonly id: string; readonly reason: string }[];
+};
+
+/** A city as the Plan Agent sees it: a short ID, how many candidates research found, and their districts. */
+export type RouteCityInput = TripCity & {
+  readonly id: string;
+  readonly candidates: number;
+  readonly districts: readonly string[];
+};
+
+export type RoutedPlan = { readonly route: PlanRoute; readonly frames: readonly DayFrame[] };
+
+/** Days laid out city after city; the first day in each later city is a transfer day. */
+function framesFor(
+  cities: readonly (TripCity & { readonly days: number })[],
+  dates: readonly (string | null)[],
+  dayDetails: ReadonlyMap<number, { readonly focus: string | null; readonly theme: string | null }> = new Map(),
+): DayFrame[] {
+  const frames: DayFrame[] = [];
+  cities.forEach((city, cityIndex) => {
+    for (let index = 0; index < city.days; index += 1) {
+      const day = frames.length + 1;
+      frames.push({
+        day, date: dates[day - 1] ?? null, province: city.province, city: city.city,
+        arrivingFrom: cityIndex > 0 && index === 0 ? cities[cityIndex - 1].city : null,
+        focus: dayDetails.get(day)?.focus ?? null,
+        theme: dayDetails.get(day)?.theme ?? null,
+      });
+    }
+  });
+  return frames;
+}
+
+/**
+ * Checks the Plan Agent's route: every city exactly once, either in the route or left out
+ * with a reason, left out only when the days cannot hold every city, at least one day each,
+ * the days adding up, and each day's focus a district the map found in that day's city.
+ * Errors are written for the model's second attempt.
+ */
+export function reviewRoute(
+  scope: Extract<PlanScope, { status: "ready" }>,
+  cities: readonly RouteCityInput[],
+  proposal: RouteProposal,
+): { readonly plan: RoutedPlan | null; readonly errors: readonly string[] } {
+  const errors: string[] = [];
+  const byId = new Map(cities.map((city) => [city.id, city]));
+  const totalDays = scope.dates.length;
+  const seen = new Set<string>();
+  for (const { id } of [...proposal.cities, ...proposal.omitted]) {
+    if (!byId.has(id)) errors.push(`${id} is not one of the trip's cities.`);
+    else if (seen.has(id)) errors.push(`${byId.get(id)?.city} appears more than once.`);
+    seen.add(id);
+  }
+  for (const city of cities) {
+    if (!seen.has(city.id)) errors.push(`${city.city} is neither routed nor left out with a reason.`);
+  }
+  // A city may be left out when the days cannot hold every city, or when research found
+  // nothing there to plan: empty days would help no one.
+  const needlessOmissions = proposal.omitted.filter(({ id }) => (byId.get(id)?.candidates ?? 0) > 0);
+  if (needlessOmissions.length > 0 && cities.length <= totalDays) {
+    errors.push("There are enough days for every city that has candidates; leave none of those out.");
+  }
+  if (proposal.cities.length === 0) errors.push("The route has no city.");
+  if (proposal.cities.some(({ days }) => !Number.isInteger(days) || days < 1)) errors.push("Every routed city needs at least one day.");
+  const sum = proposal.cities.reduce((total, { days }) => total + days, 0);
+  if (sum !== totalDays) errors.push(`The routed days add up to ${sum}, not ${totalDays}.`);
+  if (errors.length > 0) return { plan: null, errors };
+
+  const routed = proposal.cities.map(({ id, days, reason }) => ({ ...(byId.get(id) as RouteCityInput), days, reason }));
+  const dayDetails = new Map(proposal.days.map(({ day, focus, theme }) => [day, { focus, theme }]));
+  const frames = framesFor(routed, scope.dates, dayDetails);
+  for (const frame of frames) {
+    const districts = routed.find(({ city }) => city === frame.city)?.districts ?? [];
+    if (frame.focus !== null && !districts.includes(frame.focus)) {
+      errors.push(`Day ${frame.day}: ${frame.focus} is not a district the map found in ${frame.city}.`);
+    }
+  }
+  if (errors.length > 0) return { plan: null, errors };
+  return {
+    plan: {
+      route: {
+        source: "agent",
+        cities: routed.map(({ province, city, days, reason }) => ({ province, city, days, reason })),
+        omitted: proposal.omitted.map(({ id, reason }) => {
+          const city = byId.get(id) as RouteCityInput;
+          return { province: city.province, city: city.city, reason };
+        }),
+      },
+      frames,
+    },
+    errors,
+  };
+}
+
+/**
+ * When the Plan Agent cannot route the trip: the cities in the order they were added, the
+ * days shared as evenly as they go, earlier cities taking the extra days. With fewer days
+ * than cities, the first cities keep a day each and the rest are left out.
+ */
+export function fallbackRoute(scope: Extract<PlanScope, { status: "ready" }>): RoutedPlan {
+  const totalDays = scope.dates.length;
+  const kept = scope.cities.slice(0, totalDays);
+  const base = Math.floor(totalDays / kept.length);
+  const extra = totalDays % kept.length;
+  const routed = kept.map((city, index) => ({ ...city, days: base + (index < extra ? 1 : 0) }));
+  return {
+    route: {
+      source: "fallback",
+      cities: routed.map(({ province, city, days }) => ({ province, city, days, reason: null })),
+      omitted: scope.cities.slice(totalDays).map(({ province, city }) => ({ province, city, reason: null })),
+    },
+    frames: framesFor(routed, scope.dates),
+  };
 }
 
 /** What the Plan Agent returns, before code checks it. */
@@ -148,9 +298,16 @@ export function reviewProposal(
         errors.push(`Day ${frame.day}: ${card.name} is already scheduled.`);
         continue;
       }
-      if (stops.length >= maxStops) {
-        errors.push(`Day ${frame.day} has more than ${maxStops} stops.`);
+      // A transfer day loses a stop to the road.
+      const limit = frame.arrivingFrom === null ? maxStops : Math.max(1, maxStops - 1);
+      if (stops.length >= limit) {
+        errors.push(`Day ${frame.day} has more than ${limit} stops.`);
         break;
+      }
+      // The morning of a transfer day is spent on the road.
+      if (frame.arrivingFrom !== null && stop.slot === "morning") {
+        errors.push(`Day ${frame.day} is a transfer day from ${frame.arrivingFrom}: ${card.name} cannot be in the morning.`);
+        continue;
       }
       used.add(card.id);
       const evidence = stop.anchor ? anchorEvidence(card, stop.anchor.time) : null;
@@ -177,7 +334,7 @@ export function reviewProposal(
 
 /** The draft from the last reviewed proposal; whatever still does not fit becomes a conflict. */
 export function finishDraft(
-  allocation: Extract<DayAllocation, { status: "ready" }>,
+  allocation: { readonly mode: PlanMode; readonly totalDays: number | null; readonly frames: readonly DayFrame[]; readonly route: PlanRoute },
   cards: readonly SpotCard[],
   days: readonly PlanDay[],
 ): PlanDraft {
@@ -197,5 +354,5 @@ export function finishDraft(
     .filter((card) => scheduled.has(card.id))
     .map((card) => ({ spotId: card.id, fields: spotFacts.filter((fact) => card[fact] === null) }))
     .filter(({ fields }) => fields.length > 0);
-  return { mode: allocation.mode, totalDays: allocation.totalDays, days, conflicts, unverified };
+  return { mode: allocation.mode, totalDays: allocation.totalDays, route: allocation.route, days, conflicts, unverified };
 }

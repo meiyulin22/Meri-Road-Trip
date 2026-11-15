@@ -1,6 +1,6 @@
 "use client";
 
-import { ChevronDown, Clock, ExternalLink, Info, MapPin, MoonStar, RotateCw, Sparkles, Star, Sun, Sunrise, TriangleAlert } from "lucide-react";
+import { ArrowRight, ChevronDown, Clock, ExternalLink, Info, MapPin, MoonStar, RotateCw, Route, Sparkles, Star, Sun, Sunrise, TriangleAlert } from "lucide-react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import Image from "next/image";
 import { useEffect, useMemo, useState } from "react";
@@ -50,7 +50,13 @@ const copy = {
     notEnough: (day: number) => `Day ${day} has no spots yet: research found too few candidates.`,
     researchPartial: (cities: string) => `Some research for ${cities} didn’t finish, so there may be fewer options.`,
     pendingProvinces: (provinces: string) => `${provinces}: choose a city to include it.`,
-    multipleCities: "Splitting days across several cities is still being built. For now, plan one city or leave the length open for a preview day.",
+    routeDays: (days: number) => `${days} ${days === 1 ? "day" : "days"}`,
+    routeTitle: "Route",
+    routeFallback: "Days shared out automatically",
+    omittedTitle: "Not in this trip",
+    omittedFallback: (days: number) => `Only ${days} ${days === 1 ? "day" : "days"}: kept the first cities in the order you added them.`,
+    transfer: (from: string, to: string) => `${from} → ${to}`,
+    transferNote: "Transfer day · travel time to be confirmed",
     noCity: "Choose a city in your journey to start planning.",
     failed: {
       journey_changed: "Your journey changed after this plan was opened. Go back and choose Generate plan again.",
@@ -80,7 +86,13 @@ const copy = {
     notEnough: (day: number) => `第 ${day} 天暂时空着：调研到的候选不够。`,
     researchPartial: (cities: string) => `${cities}的部分调研没有完成，候选可能偏少。`,
     pendingProvinces: (provinces: string) => `${provinces}：选定城市后才会纳入规划。`,
-    multipleCities: "多城市分天还在开发中。目前可以只规划一个城市，或者不定天数先看示范日。",
+    routeDays: (days: number) => `${days} 天`,
+    routeTitle: "路线",
+    routeFallback: "自动分配天数",
+    omittedTitle: "这次没排入",
+    omittedFallback: (days: number) => `只有 ${days} 天，按添加顺序保留了前面的城市。`,
+    transfer: (from: string, to: string) => `${from} → ${to}`,
+    transferNote: "转场日 · 车程待核实",
     noCity: "请先在旅程里选定城市再规划。",
     failed: {
       journey_changed: "打开计划后旅程有了变化。请回到旅程，再点一次 Generate plan。",
@@ -169,7 +181,7 @@ export function PlanDraftSection({ tripId, handoff }: { readonly tripId: string;
     return (
       <section className={draftStyles.notice} role="status">
         <Info aria-hidden="true" size={18} />
-        <p>{response.reason === "multiple_cities" ? text.multipleCities : text.noCity}</p>
+        <p>{text.noCity}</p>
       </section>
     );
   }
@@ -246,6 +258,22 @@ function DraftDays({ response, text, locale }: {
         </div>
       ) : null}
 
+      <RouteStrip route={draft.route} text={text} />
+      {draft.route.omitted.length > 0 ? (
+        <div className={draftStyles.notice} data-tone="warn">
+          <TriangleAlert aria-hidden="true" size={18} />
+          <div>
+            <p className={draftStyles.noticeTitle}>{text.omittedTitle}</p>
+            <ul>
+              {draft.route.omitted.map(({ city, reason }) => (
+                <li key={city}><strong>{city}</strong>{reason ? `${locale === "zh" ? "：" : ": "}${reason}` : ""}</li>
+              ))}
+            </ul>
+            {draft.route.omitted.some(({ reason }) => reason === null) ? <p>{text.omittedFallback(draft.days.length)}</p> : null}
+          </div>
+        </div>
+      ) : null}
+
       <div className={draftStyles.days}>
         {draft.days.map((day, index) => (
           <DraftDay key={day.day} day={day} cards={cards} text={text} locale={locale} index={index} photo={photos.get(day.day) ?? null}
@@ -281,7 +309,7 @@ function DraftDay({ day, cards, unverified, text, locale, preview, open, onOpen,
 }) {
   const reduce = useReducedMotion() ?? false;
   const headingId = `draft-day-${day.day}`;
-  const title = day.stops.map(({ spotId }) => cards.get(spotId)?.name ?? spotId).join(" · ");
+  const title = day.theme ?? day.stops.map(({ spotId }) => cards.get(spotId)?.name ?? spotId).join(" · ");
 
   return (
     <motion.article className={styles.dayCard} data-open={open} aria-labelledby={headingId}
@@ -292,7 +320,13 @@ function DraftDay({ day, cards, unverified, text, locale, preview, open, onOpen,
         <span className={styles.dayHeading}>
           <span className={styles.dayMeta}>
             {text.dayLabel(day.day)}{day.date ? ` · ${formatDate(day.date, locale)}` : ""} · {day.city}
+            {day.focus ? ` · ${day.focus}` : ""}
             {preview ? <span className={draftStyles.previewTag}>{text.preview}</span> : null}
+            {day.arrivingFrom ? (
+              <span className={draftStyles.transferTag} title={text.transferNote}>
+                {text.transfer(day.arrivingFrom, day.city)}
+              </span>
+            ) : null}
           </span>
           <span className={styles.dayTitle} id={headingId}>{title || "—"}</span>
         </span>
@@ -412,5 +446,27 @@ function DayPhoto({ photo }: { readonly photo: PlaceImage }) {
         {photo.credit && href ? <PhotoSourceCredit className={draftStyles.bannerCredit} href={href} image={photo} /> : null}
       </figcaption>
     </figure>
+  );
+}
+
+/** The cities in route order with their days; hovering a city shows why it got them. */
+function RouteStrip({ route, text }: {
+  readonly route: Extract<PlanDraftResponse, { status: "ready" }>["draft"]["route"];
+  readonly text: Copy;
+}) {
+  return (
+    <div className={draftStyles.route} aria-label={text.routeTitle}>
+      <Route aria-hidden="true" size={15} className={draftStyles.routeIcon} />
+      <ol>
+        {route.cities.map(({ city, days, reason }, index) => (
+          <li key={city} title={reason ?? undefined}>
+            {index > 0 ? <ArrowRight aria-hidden="true" size={13} className={draftStyles.routeArrow} /> : null}
+            <span className={draftStyles.routeCity}>{city}</span>
+            <span className={draftStyles.routeDays}>{text.routeDays(days)}</span>
+          </li>
+        ))}
+      </ol>
+      {route.source === "fallback" ? <span className={draftStyles.routeFallback}>{text.routeFallback}</span> : null}
+    </div>
   );
 }

@@ -27,6 +27,42 @@
 
 .days { display: grid; gap: 10px; }
 
+/* The route: cities in order, each with its days, like a line on a ticket. */
+.route {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 10px;
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: linear-gradient(90deg, #fffdf8, #f4f8f3);
+}
+.routeIcon { color: var(--green); }
+.route ol { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; list-style: none; }
+.route li { display: inline-flex; align-items: center; gap: 6px; cursor: help; }
+.routeCity { font-size: 14px; font-weight: 650; }
+.routeDays {
+  padding: 1px 8px;
+  border-radius: 999px;
+  color: var(--green);
+  background: var(--green-soft);
+  font-size: 11px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.routeArrow { color: var(--soft); }
+.routeFallback { margin-left: auto; color: var(--muted); font-size: 11px; }
+.transferTag {
+  margin-left: 8px;
+  padding: 1px 7px;
+  border: 1px dashed rgba(201, 95, 61, .45);
+  border-radius: 999px;
+  color: var(--accent);
+  font-size: 10px;
+  font-weight: 600;
+}
+
 .previewTag {
   margin-left: 8px;
   padding: 1px 7px;
