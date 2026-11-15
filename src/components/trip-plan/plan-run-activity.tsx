@@ -28,7 +28,7 @@ const copy = {
     answered: (question: string, choice: string | null) => `${question} → ${choice ?? "left to Meri"}`,
     stages: {
       scope: "Read the trip", research: "Research spots", map: "Locate on Tianditu", route: "Plan the route",
-      days: "Choose each day's spots", photos: "Pick day photos", save: "Save the plan",
+      days: "Choose each day's spots", verify: "Check opening and booking", photos: "Pick day photos", save: "Save the plan",
     } satisfies Record<PlanStage, string>,
     summary: (stage: PlanStage, s: Readonly<Record<string, number>>): string => {
       switch (stage) {
@@ -37,6 +37,8 @@ const copy = {
         case "map": return `located ${s.located}/${s.checked} · ${s.lookups} lookups`;
         case "route": return `${s.cities} ${s.cities === 1 ? "city" : "cities"} · ${s.days} ${s.days === 1 ? "day" : "days"}`;
         case "days": return `${s.stops} stops over ${s.days} ${s.days === 1 ? "day" : "days"}` + (s.conflicts ? ` · ${s.conflicts} to resolve` : "");
+        case "verify": return `checked ${s.checked}/${s.stops}` + (s.reservations ? ` · ${s.reservations} need booking` : "")
+          + (s.moved ? ` · ${s.moved} moved` : "") + (s.closed ? ` · ${s.closed} closed` : "");
         case "photos": return `${s.photos} ${s.photos === 1 ? "photo" : "photos"}`;
         case "save": return `version ${s.version}`;
       }
@@ -50,8 +52,11 @@ const copy = {
         case "locating": return `${activity.spot} · ${activity.done}/${activity.total}`;
         case "routing": return `${activity.cities} ${activity.cities === 1 ? "city" : "cities"}, ${activity.days} days` + (activity.attempt > 1 ? ` · attempt ${activity.attempt}` : "");
         case "drafting": return `${activity.city} · day ${activity.days.join(", ")}` + (activity.attempt > 1 ? ` · attempt ${activity.attempt}` : "");
+        case "verifying": return `${activity.spot} · ${activity.done}/${activity.total}`;
+        case "repairing": return `re-planning day ${activity.days.join(", ")} · round ${activity.round}`;
       }
     },
+    verifyDetail: (rounds: number) => rounds === 0 ? "Nothing closed on its day." : `${rounds} repair ${rounds === 1 ? "round" : "rounds"}.`,
     city: (city: string, cards: number, sourced: number, searches: number) => `${city} · ${cards} cards, ${sourced} sourced, ${searches} searches`,
     cityStatus: { ready: "", partial: " · incomplete", unavailable: " · nothing found", deferred: " · later" },
     mapDetail: (located: number, notLocated: number) => `${located} located, ${notLocated} not found on the map`,
@@ -67,7 +72,7 @@ const copy = {
     answered: (question: string, choice: string | null) => `${question} → ${choice ?? "交给 Meri 决定"}`,
     stages: {
       scope: "读取行程范围", research: "调研景点", map: "天地图定位", route: "规划路线",
-      days: "按天选景点", photos: "配图", save: "保存计划",
+      days: "按天选景点", verify: "核实开放与预约", photos: "配图", save: "保存计划",
     } satisfies Record<PlanStage, string>,
     summary: (stage: PlanStage, s: Readonly<Record<string, number>>): string => {
       switch (stage) {
@@ -76,6 +81,8 @@ const copy = {
         case "map": return `定位 ${s.located}/${s.checked} · ${s.lookups} 次查询`;
         case "route": return `${s.cities} 座城市 · ${s.days} 天`;
         case "days": return `${s.days} 天 · ${s.stops} 个景点` + (s.conflicts ? ` · ${s.conflicts} 项待处理` : "");
+        case "verify": return `核实 ${s.checked}/${s.stops}` + (s.reservations ? ` · ${s.reservations} 处需预约` : "")
+          + (s.moved ? ` · ${s.moved} 处换日` : "") + (s.closed ? ` · ${s.closed} 处关闭` : "");
         case "photos": return `${s.photos} 张`;
         case "save": return `第 ${s.version} 版`;
       }
@@ -89,8 +96,11 @@ const copy = {
         case "locating": return `${activity.spot} · ${activity.done}/${activity.total}`;
         case "routing": return `${activity.cities} 座城市、${activity.days} 天` + (activity.attempt > 1 ? ` · 第 ${activity.attempt} 次` : "");
         case "drafting": return `${activity.city} · 第 ${activity.days.join("、")} 天` + (activity.attempt > 1 ? ` · 第 ${activity.attempt} 次` : "");
+        case "verifying": return `${activity.spot} · ${activity.done}/${activity.total}`;
+        case "repairing": return `重排第 ${activity.days.join("、")} 天 · 第 ${activity.round} 轮`;
       }
     },
+    verifyDetail: (rounds: number) => rounds === 0 ? "所有景点当天都能去。" : `修正了 ${rounds} 轮。`,
     city: (city: string, cards: number, sourced: number, searches: number) => `${city} · ${cards} 张卡，${sourced} 条有出处，${searches} 次搜索`,
     cityStatus: { ready: "", partial: " · 未全部完成", unavailable: " · 没有找到", deferred: " · 稍后" },
     mapDetail: (located: number, notLocated: number) => `已定位 ${located} 个，${notLocated} 个位置未核实`,
@@ -231,6 +241,10 @@ function stageDetails(stage: PlanStage, view: ProgressView, text: Copy): string[
   }
   if (stage === "map" && view.map) {
     return [text.mapDetail(view.map.located, view.map.notLocated), ...(view.map.status === "stopped" ? [text.mapStopped] : [])];
+  }
+  if (stage === "verify") {
+    const verify = view.stages.find(({ stage: item }) => item === "verify");
+    return verify?.status === "done" ? [text.verifyDetail(verify.summary.rounds ?? 0)] : [];
   }
   if (stage === "route" && view.route) {
     return [

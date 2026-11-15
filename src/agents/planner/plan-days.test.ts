@@ -94,3 +94,21 @@ test("a city's transfer day keeps its stops after the arrival, and a city withou
   });
   assert.deepEqual(empty.status === "ready" && empty.days.map(({ stops }) => stops.length), [0, 0]);
 });
+
+test("reads an anchor written as a bare time, and gives a malformed answer a second attempt", async () => {
+  const { trip, scope, frames } = framesFor(["丽江市"], { state: "missing" });
+  const withEvidence = lijiang.spots.map((spot, index) => index === 1
+    ? { ...spot, opening: { ...(spot.location as NonNullable<typeof spot.location>), quote: "玉龙雪山16:00停止入园" } }
+    : spot);
+  const bare = { day: 1, stops: [{ spotId: "s2", slot: "morning", anchor: "16:00", anchorReason: "停止入园" }] };
+  const read = await draftCityDays(trip, scope.mode, frames, withEvidence, { model: modelAnswering({ days: [[bare as never]] }) });
+  assert.equal(read.status === "ready" && read.days[0].stops[0].anchor?.time, "16:00");
+
+  // The first answer is not JSON in the requested shape; the second is fine.
+  const broken = [{ day: 1, stops: [{ spotId: "s2", slot: "noon", anchor: null }] }];
+  const retried = await draftCityDays(trip, scope.mode, frames, lijiang.spots, {
+    model: modelAnswering({ days: [broken as never, [day(1, "s2")]] }),
+  });
+  assert.equal(retried.status, "ready");
+  assert.equal(retried.status === "ready" && retried.attempts, 2);
+});

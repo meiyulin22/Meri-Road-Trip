@@ -19,7 +19,8 @@ shapes the Planner — business, page, run, tools, memory — is kept in Chinese
 | Implemented (plan page) | Plan Agent route and days for every selected city (1.2009); the plan page shows the days, time anchors, sources and conflicts |
 | Implemented (1.2010) | The plan-generation Mastra workflow, its live progress over Server-Sent Events, and run records, progress events and plan versions in Postgres (section 3, "The plan workflow") |
 | Implemented (1.2011) | The Plan Agent may pause the run to ask one question; the answer becomes a preference and the run resumes from its snapshot in Postgres, also after a restart ("Asking the traveller") |
-| Planned | Second-round verification, route and weather tools, a reviewer agent, tracing storage, evaluation |
+| Implemented (1.2013) | The validation stage: the second round checks opening, closures and booking for the trip's dates; code moves a closed stop, the Plan Agent re-plans what code cannot fix, in a Mastra `dountil` loop ("The validation stage") |
+| Planned | Weather and route checkers in the validation stage, a reviewer agent, tracing storage, evaluation |
 
 ## 1. Why an agent here
 
@@ -323,6 +324,53 @@ option. An answer with a question once took Kimi past the route's 30 s, so the r
 now 60 s. Research for 大理州 with 大理市 named nominated 洱海, 苍山, 大理古城, 崇圣寺三塔, 喜洲 and
 双廊, all in 大理市, and made no 大理市 card.
 
+### The validation stage (1.2013)
+
+After the days are chosen, the plan is checked against when each spot is actually open, and
+repaired before it is saved. The stage has room for more checkers (weather and drive times
+next) and, later, a reviewer agent; today it has one checker.
+
+```text
+plan-days → verify-facts → dountil(verify-repair, until nothing is closed or 2 rounds) → day-photos
+```
+
+1. **Collect facts** ([verify-spots.ts](planner/verify-spots.ts)). Every scheduled stop, then two
+   unscheduled cards per city as checked replacements, within 24 Kimi searches a run, four at a
+   time. One search per spot (`{city} {spot} 门票 是否需要预约 开放时间 {year}`), then one
+   structured extraction call per city turns the text into rules: daily hours, weekdays closed,
+   month-day ranges closed (with the part that closes, if only part), booking, and vague notices.
+   Code keeps a rule only if its quote is in the source found for that spot, the source names the
+   spot, and the values are in the quote (周一 for Monday, 18:00, 12月1日, the number of days).
+2. **Decide in code** ([availability.ts](../domain/plan/availability.ts)). For each stop on its date
+   and slot: closed (a whole-spot weekday or range hits, or an evening visit where it closes before
+   18:00), partial (only a part closes), uncertain (a vague notice, or no dates yet), open, or
+   unchecked (nothing found). A dated notice older than a year is not used. Booking is a flag, not
+   a closure.
+3. **Repair** ([plan-repair.ts](../domain/plan/plan-repair.ts), then the Plan Agent). Code moves an
+   evening stop that closes early to the afternoon, or a closed stop to another day in its city
+   that is open and has room. Days still holding a closed stop go back to `draftCityDays` for
+   those days only, without the closed spot and anything kept elsewhere. New stops are checked,
+   verdicts are taken again; at most two rounds. A stop still closed leaves its day and becomes a
+   `closed_on_day` conflict. Every stop keeps its verdict in `draft.checks` (with booking and where
+   it moved from).
+
+Events: `stage.activity` (verifying a spot n/m, re-planning days, round), `spot.checked` for
+every stop's verdict (sent again after a repair), `day.ready` for repaired days, and one
+`stage.finished` for the whole loop. The run service starts each stage once and keys its timing
+by stage, since this stage is two steps.
+
+Measured on 2026-11-15 through the plan page, 丽江 three days from 2026-12-21: the stage took
+20–25 s for 7–9 searches. With the first query wording, sources rarely gave hours or booking;
+the current wording found both for 玉龙雪山 and 木府. Kimi left a nested `reservation` object
+null even when its sources said 无预约不入园, so booking is extracted as flat fields; in two runs
+after that it found "需提前7天在小程序预约" for 玉龙雪山 every time. That trip had no closures on its
+dates, so moving and re-planning were exercised by tests, not live. A spot searched with nothing
+usable found used to read "open that day"; it is unchecked.
+
+The same live check found the day-planning call failing when Kimi wrote a time anchor as a bare
+string: that answer shape is now read, and a malformed answer gets the second attempt instead of
+failing the run.
+
 Run the workflow from the command line, printing each event as it arrives:
 
 ```bash
@@ -446,5 +494,6 @@ measurement of the deployed app.
 | 2026-10-05 | Mastra's usage telemetry is off by default. |
 | 2026-11-12 | Research covers every selected city first; the Plan Agent then allocates days and selects spots, and code only validates. The Plan Agent may pause to ask the user. A reviewer agent checks last. |
 | 2026-11-12 | Deploy to a US VPS. Tianditu is integrated last, verified by hand on a whitelisted machine. |
+| 2026-11-15 | 1.2013: a validation stage after the days. Facts come from fixed searches, not tools the agent chooses; Kimi turns text into rules with quotes; code checks the quotes, computes dates and decides; the Plan Agent only re-plans what code cannot fix, in a `dountil` loop of at most two rounds. A reviewer agent will sit in the same stage when evaluation shows it helps. |
 | 2026-11-15 | 1.2011: the Plan Agent may ask one question while routing, with options only (plus "you decide"); not about adding days, which would change locked TripState facts. Mastra's workflow snapshots go to Postgres (`mastra` schema), with `@mastra/pg` 1.29.0 pinned to core 1.74.0. |
 | 2026-11-15 | Generate plan runs as a Mastra workflow with live progress over SSE. Mastra's state stays in memory until suspend/resume needs durable snapshots; Meri stores runs, events and plan versions itself. The Plan Agent chooses days one city at a time, so each city's days reach the page as they are ready. A restarted run is marked interrupted, not resumed. |

@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowRight, ChevronDown, Clock, ExternalLink, Info, MapPin, MoonStar, RotateCw, Route, Sparkles, Star, Sun, Sunrise, TriangleAlert } from "lucide-react";
+import { ArrowRight, CalendarCheck, ChevronDown, Clock, ExternalLink, Info, MapPin, MoonStar, RotateCw, Route, Sparkles, Star, Sun, Sunrise, TriangleAlert } from "lucide-react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import Image from "next/image";
 import { useEffect, useMemo, useReducer, useState } from "react";
@@ -10,7 +10,7 @@ import { creditsHref } from "@/components/trip-workspace/destination-choices-car
 import { PhotoSourceCredit } from "@/components/trip-workspace/photo-source-dialog";
 import type { PlaceImage } from "@/domain/location/place-image";
 import type { Locale } from "@/domain/locale/locale";
-import type { DaySlot, PlanDay, PlanRoute, SpotFact } from "@/domain/plan/plan-draft";
+import type { DaySlot, PlanDay, PlanRoute, SpotFact, StopCheck } from "@/domain/plan/plan-draft";
 import type { ReadyPlan } from "@/domain/plan/plan-draft-response";
 import type { PlanHandoff } from "@/domain/plan/plan-handoff";
 import type { PlanRunStartResponse } from "@/domain/plan/plan-run";
@@ -50,6 +50,17 @@ const copy = {
     summary: { days: "days", stops: "stops", sourced: "with sources", located: "on the map", conflicts: "to resolve" },
     located: (district: string | null) => district ? `On the map · ${district}` : "On the map",
     notLocated: "Not found on the map",
+    check: {
+      open: "Open that day", partial: "Partly closed", closed: "Closed that day", uncertain: "Opening to confirm",
+    } satisfies Record<Exclude<StopCheck["status"], "unchecked">, string>,
+    booking: (days: number | null) => days === null ? "Booking needed" : `Book ${days} ${days === 1 ? "day" : "days"} ahead`,
+    movedFrom: (day: number) => `Moved from day ${day}`,
+    availabilityLabel: "Opening",
+    hours: (open: string, close: string) => `Open ${open}–${close}`,
+    weekday: ["", "Mondays", "Tuesdays", "Wednesdays", "Thursdays", "Fridays", "Saturdays", "Sundays"],
+    closedWeekday: (days: string, scope: string | null) => `Closed on ${days}${scope ? ` (${scope})` : ""}`,
+    closedRange: (from: string, to: string, scope: string | null) => `Closed ${from} to ${to}${scope ? ` (${scope})` : ""}`,
+    closedOnDay: (name: string, day: number) => `${name} is closed on day ${day}, and no other day in its city could take it.`,
     mapStopped: "The map check is unavailable right now, so some spots show as not found on the map.",
     conflictsTitle: "Couldn’t fit everything",
     requestedUnscheduled: (name: string) => `${name} isn’t in the plan yet.`,
@@ -88,6 +99,17 @@ const copy = {
     summary: { days: "天", stops: "个景点", sourced: "有出处", located: "已定位", conflicts: "待处理" },
     located: (district: string | null) => district ? `已定位 · ${district}` : "已定位",
     notLocated: "位置未核实",
+    check: {
+      open: "当天开放", partial: "部分关闭", closed: "当天关闭", uncertain: "开放待确认",
+    } satisfies Record<Exclude<StopCheck["status"], "unchecked">, string>,
+    booking: (days: number | null) => days === null ? "需预约" : `需预约 · 提前 ${days} 天`,
+    movedFrom: (day: number) => `从第 ${day} 天换来`,
+    availabilityLabel: "开放",
+    hours: (open: string, close: string) => `${open}–${close} 开放`,
+    weekday: ["", "周一", "周二", "周三", "周四", "周五", "周六", "周日"],
+    closedWeekday: (days: string, scope: string | null) => `每${days}不开放${scope ? `（${scope}）` : ""}`,
+    closedRange: (from: string, to: string, scope: string | null) => `${from} 至 ${to} 关闭${scope ? `（${scope}）` : ""}`,
+    closedOnDay: (name: string, day: number) => `${name}第 ${day} 天关闭，同城其他日子也排不进去。`,
     mapStopped: "位置核实暂时不可用，部分景点显示为位置未核实。",
     conflictsTitle: "有些安排没排进去",
     requestedUnscheduled: (name: string) => `${name}还没排进行程。`,
@@ -292,6 +314,10 @@ function LiveRun({ tripId, runId, text, locale, onDone, onFailed, onAnswered }: 
           {view.days.map((day, index) => (
             <DraftDay key={day.day} day={day} cards={cards} text={text} locale={locale} index={index}
               photo={view.photos[day.day] ?? null} preview={view.scope?.mode === "preview"} unverified={new Map()}
+              checks={new Map(day.stops.flatMap(({ spotId }) => {
+                const check = view.checks[`${day.day}|${spotId}`];
+                return check ? [[spotId, check] as const] : [];
+              }))}
               open={shownOpen === day.day} onOpen={() => setOpenDay(shownOpen === day.day ? null : day.day)} />
           ))}
           {pendingDays(view).map((day) => (
@@ -361,8 +387,10 @@ function DraftDays({ response, text, locale }: {
             <p className={draftStyles.noticeTitle}>{text.conflictsTitle}</p>
             <ul>
               {draft.conflicts.map((conflict) => (
-                <li key={conflict.kind === "requested_unscheduled" ? conflict.spotId : `day-${conflict.day}`}>
-                  {conflict.kind === "requested_unscheduled" ? text.requestedUnscheduled(nameOf(conflict.spotId)) : text.notEnough(conflict.day)}
+                <li key={conflict.kind === "not_enough_candidates" ? `day-${conflict.day}` : `${conflict.kind}-${conflict.spotId}`}>
+                  {conflict.kind === "requested_unscheduled" ? text.requestedUnscheduled(nameOf(conflict.spotId))
+                    : conflict.kind === "closed_on_day" ? text.closedOnDay(nameOf(conflict.spotId), conflict.day)
+                      : text.notEnough(conflict.day)}
                 </li>
               ))}
             </ul>
@@ -391,6 +419,7 @@ function DraftDays({ response, text, locale }: {
           <DraftDay key={day.day} day={day} cards={cards} text={text} locale={locale} index={index} photo={photos.get(day.day) ?? null}
             preview={draft.mode === "preview"}
             unverified={new Map(draft.unverified.map(({ spotId, fields }) => [spotId, fields]))}
+            checks={new Map((draft.checks ?? []).filter(({ day: number }) => number === day.day).map((check) => [check.spotId, check]))}
             open={openDay === day.day} onOpen={() => setOpenDay(openDay === day.day ? null : day.day)} />
         ))}
       </div>
@@ -407,7 +436,9 @@ function DraftDays({ response, text, locale }: {
 
 const slotIcon = { morning: Sunrise, afternoon: Sun, evening: MoonStar } satisfies Record<DaySlot, typeof Sun>;
 
-function DraftDay({ day, cards, unverified, text, locale, preview, open, onOpen, index, photo }: {
+function DraftDay({ day, cards, unverified, checks, text, locale, preview, open, onOpen, index, photo }: {
+  /** The second round's verdict per stop of this day, by spot ID. */
+  readonly checks: ReadonlyMap<string, StopCheck>;
   readonly day: PlanDay;
   readonly photo: PlaceImage | null;
   readonly cards: ReadonlyMap<string, SpotCard>;
@@ -486,6 +517,7 @@ function DraftDay({ day, cards, unverified, text, locale, preview, open, onOpen,
                                   {card.mapCheck.status === "located" ? text.located(card.mapCheck.district) : text.notLocated}
                                 </span>
                               ) : null}
+                              <StopCheckBadges check={checks.get(stop.spotId)} text={text} />
                             </div>
                             {stop.anchor ? <p className={draftStyles.anchorReason}>{stop.anchor.reason}</p> : null}
                             {card ? <StopFacts card={card} missing={missing} text={text} locale={locale} /> : null}
@@ -504,6 +536,39 @@ function DraftDay({ day, cards, unverified, text, locale, preview, open, onOpen,
   );
 }
 
+/** The second round on one stop: open or not that day, booking, and whether it was moved. */
+function StopCheckBadges({ check, text }: { readonly check: StopCheck | undefined; readonly text: Copy }) {
+  if (!check) return null;
+  return (
+    <>
+      {check.status !== "unchecked" ? (
+        <span className={draftStyles.checkBadge} data-status={check.status}>
+          <CalendarCheck aria-hidden="true" size={11} />{text.check[check.status]}
+        </span>
+      ) : null}
+      {check.reservation ? <span className={draftStyles.checkBadge} data-status="booking">{text.booking(check.reservation.daysAhead)}</span> : null}
+      {check.movedFrom !== null ? <span className={draftStyles.checkBadge} data-status="moved">{text.movedFrom(check.movedFrom)}</span> : null}
+    </>
+  );
+}
+
+/** The second round's facts as lines to read, each with the quote it rests on. */
+function availabilityLines(card: SpotCard, text: Copy): { label: string; line: string; evidence: SpotEvidence }[] {
+  const facts = card.availability;
+  if (!facts) return [];
+  const opening = text.availabilityLabel;
+  const lines = [
+    ...(facts.hours ? [{ label: opening, line: text.hours(facts.hours.open, facts.hours.close), evidence: facts.hours.evidence }] : []),
+    ...facts.closedWeekdays.map(({ weekday, scope, evidence }) => ({ label: opening, line: text.closedWeekday(text.weekday[weekday], scope), evidence })),
+    ...facts.closedRanges.map(({ from, to, scope, evidence }) => ({ label: opening, line: text.closedRange(from, to, scope), evidence })),
+    ...(facts.reservation?.required
+      ? [{ label: text.facts.reservation, line: text.booking(facts.reservation.daysAhead), evidence: facts.reservation.evidence }]
+      : []),
+    ...facts.uncertain.map(({ note, evidence }) => ({ label: opening, line: note, evidence })),
+  ];
+  return lines.filter((item, index) => lines.findIndex(({ line }) => line === item.line) === index).slice(0, 6);
+}
+
 function StopFacts({ card, missing, text, locale }: {
   readonly card: SpotCard;
   readonly missing: readonly SpotFact[];
@@ -511,27 +576,39 @@ function StopFacts({ card, missing, text, locale }: {
   readonly locale: Locale;
 }) {
   const facts = sourcedFacts(card);
-  const sources = [...(card.location ? [{ fact: "location" as const, evidence: card.location }] : []), ...facts];
+  const opening = availabilityLines(card, text);
+  // What the second round found answers the first round's open questions about opening and booking.
+  const stillMissing = missing.filter((fact) => !(card.availability && (
+    (fact === "opening" && (card.availability.hours || card.availability.closedWeekdays.length > 0))
+    || (fact === "reservation" && card.availability.reservation))));
+  const sources = [
+    ...(card.location ? [{ key: "location", label: text.facts.location, evidence: card.location }] : []),
+    ...facts.map(({ fact, evidence }) => ({ key: fact, label: text.facts[fact], evidence })),
+    ...opening.map(({ label, line, evidence }) => ({ key: `opening-${line}`, label, evidence })),
+  ];
   return (
     <>
-      {facts.length > 0 ? (
+      {facts.length > 0 || opening.length > 0 ? (
         <dl className={draftStyles.facts}>
           {facts.map(({ fact, evidence }) => (
             <div key={fact}><dt>{text.facts[fact]}</dt><dd>{evidence.quote}</dd></div>
           ))}
+          {opening.map(({ label, line }) => (
+            <div key={line}><dt>{label}</dt><dd>{line}</dd></div>
+          ))}
         </dl>
       ) : null}
       <div className={draftStyles.stopMeta}>
-        {missing.length > 0 ? (
-          <span className={draftStyles.toCheck}>{text.unverified(missing.map((fact) => text.facts[fact]).join(locale === "zh" ? "、" : ", "))}</span>
+        {stillMissing.length > 0 ? (
+          <span className={draftStyles.toCheck}>{text.unverified(stillMissing.map((fact) => text.facts[fact]).join(locale === "zh" ? "、" : ", "))}</span>
         ) : null}
         {sources.length > 0 ? (
           <details className={draftStyles.sources}>
             <summary>{text.sources(sources.length)}</summary>
             <ul>
-              {sources.map(({ fact, evidence }) => (
-                <li key={fact}>
-                  <span className={draftStyles.sourceFact}>{text.facts[fact]}</span>
+              {sources.map(({ key, label, evidence }) => (
+                <li key={key}>
+                  <span className={draftStyles.sourceFact}>{label}</span>
                   <q>{evidence.quote}</q>
                   <a href={evidence.url} target="_blank" rel="noopener noreferrer">
                     {sourceHost(evidence.url)} · {text.checked(checkedDate(evidence, locale))}

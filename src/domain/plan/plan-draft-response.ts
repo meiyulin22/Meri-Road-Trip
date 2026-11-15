@@ -3,7 +3,7 @@ import { z } from "zod";
 import { parsePlaceImage, type PlaceImage } from "@/domain/location/place-image";
 
 import { daySlots, spotFacts, type PlanDay, type PlanDraft, type PlanRoute } from "./plan-draft";
-import type { CityResearch, SpotCard, SpotEvidence, SpotMapCheck } from "./spot-card";
+import type { CityResearch, SpotAvailability, SpotCard, SpotEvidence, SpotMapCheck } from "./spot-card";
 
 export const spotEvidenceSchema: z.ZodType<SpotEvidence> = z.strictObject({
   url: z.string(),
@@ -19,6 +19,24 @@ const spotMapCheckSchema: z.ZodType<SpotMapCheck> = z.discriminatedUnion("status
   z.strictObject({ status: z.literal("unchecked") }),
 ]);
 
+const monthDay = z.string().regex(/^\d{2}-\d{2}$/u);
+const clock = z.string().regex(/^\d{2}:\d{2}$/u);
+
+export const spotAvailabilitySchema: z.ZodType<SpotAvailability> = z.strictObject({
+  checkedAt: z.string(),
+  hours: z.strictObject({ open: clock, close: clock, evidence: spotEvidenceSchema }).nullable(),
+  closedWeekdays: z.array(z.strictObject({
+    weekday: z.number().int().min(1).max(7), scope: z.string().min(1).nullable(), evidence: spotEvidenceSchema,
+  })),
+  closedRanges: z.array(z.strictObject({
+    from: monthDay, to: monthDay, scope: z.string().min(1).nullable(), evidence: spotEvidenceSchema,
+  })),
+  reservation: z.strictObject({
+    required: z.boolean(), daysAhead: z.number().int().nonnegative().nullable(), evidence: spotEvidenceSchema,
+  }).nullable(),
+  uncertain: z.array(z.strictObject({ note: z.string().min(1), evidence: spotEvidenceSchema })),
+});
+
 export const spotCardSchema: z.ZodType<SpotCard> = z.strictObject({
   id: z.string().min(1),
   province: z.string().min(1),
@@ -32,6 +50,7 @@ export const spotCardSchema: z.ZodType<SpotCard> = z.strictObject({
   walking: spotEvidenceSchema.nullable(),
   suggestedDuration: spotEvidenceSchema.nullable(),
   mapCheck: spotMapCheckSchema,
+  availability: spotAvailabilitySchema.optional(),
 });
 
 export const cityResearchSchema: z.ZodType<CityResearch> = z.strictObject({
@@ -65,6 +84,14 @@ export const planDaySchema: z.ZodType<PlanDay> = z.strictObject({
   })),
 });
 
+export const stopCheckSchema = z.strictObject({
+  day: z.number().int().positive(),
+  spotId: z.string().min(1),
+  status: z.enum(["open", "partial", "closed", "uncertain", "unchecked"]),
+  reservation: z.strictObject({ daysAhead: z.number().int().nonnegative().nullable() }).nullable(),
+  movedFrom: z.number().int().positive().nullable(),
+});
+
 export const planDraftSchema: z.ZodType<PlanDraft> = z.strictObject({
   mode: z.enum(["preview", "full"]),
   totalDays: z.number().int().positive().nullable(),
@@ -73,8 +100,10 @@ export const planDraftSchema: z.ZodType<PlanDraft> = z.strictObject({
   conflicts: z.array(z.discriminatedUnion("kind", [
     z.strictObject({ kind: z.literal("requested_unscheduled"), spotId: z.string().min(1) }),
     z.strictObject({ kind: z.literal("not_enough_candidates"), day: z.number().int().positive() }),
+    z.strictObject({ kind: z.literal("closed_on_day"), day: z.number().int().positive(), spotId: z.string().min(1) }),
   ])),
   unverified: z.array(z.strictObject({ spotId: z.string().min(1), fields: z.array(z.enum(spotFacts)) })),
+  checks: z.array(stopCheckSchema).optional(),
 });
 
 // The page renders this URL, so it passes the same checks as every other place photo.

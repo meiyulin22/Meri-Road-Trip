@@ -43,7 +43,18 @@ export type PlanDay = DayFrame & { readonly stops: readonly PlanStop[] };
 
 export type PlanConflict =
   | { readonly kind: "requested_unscheduled"; readonly spotId: string }
-  | { readonly kind: "not_enough_candidates"; readonly day: number };
+  | { readonly kind: "not_enough_candidates"; readonly day: number }
+  /** A spot the traveller named is closed on every day its city could take it (1.2013). */
+  | { readonly kind: "closed_on_day"; readonly day: number; readonly spotId: string };
+
+/** What the second round decided for one scheduled stop, and whether it was moved there. */
+export type StopCheck = {
+  readonly day: number;
+  readonly spotId: string;
+  readonly status: "open" | "partial" | "closed" | "uncertain" | "unchecked";
+  readonly reservation: { readonly daysAhead: number | null } | null;
+  readonly movedFrom: number | null;
+};
 
 export type PlanMode = "preview" | "full";
 
@@ -70,6 +81,8 @@ export type PlanDraft = {
   readonly conflicts: readonly PlanConflict[];
   /** Scheduled spots whose facts no source supports yet, shown as 待核实. */
   readonly unverified: readonly { readonly spotId: string; readonly fields: readonly SpotFact[] }[];
+  /** The second round's verdict for each stop; absent on plans made before it (1.2013). */
+  readonly checks?: readonly StopCheck[];
 };
 
 export type TripCity = { readonly province: string; readonly city: string };

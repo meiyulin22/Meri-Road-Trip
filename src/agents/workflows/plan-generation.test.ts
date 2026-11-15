@@ -53,6 +53,8 @@ function setup(overrides: Partial<PlanGenerationDependencies> = {}, timeLimitMs?
       },
       memory: { get: () => null, set: () => {} },
     },
+    // No facts by default: every stop stays unchecked and the loop has nothing to repair.
+    verifySpots: async () => ({ availability: new Map(), searches: 0, usage: { inputTokens: 0, outputTokens: 0 } }),
     findImage: async (subject) => subject.spot ? null : { url: `/photos/${subject.place}.jpg`, caption: subject.place ?? "城市" },
     saveVersion: (version) => repository.createVersion(version),
     now: () => new Date("2026-11-15T08:00:00.000Z"),
@@ -91,7 +93,7 @@ test("streams real progress city by city, stops the map at its first failure, an
   // Sequence numbers have no gaps, and the page sees the stages in workflow order.
   assert.deepEqual(events.map(({ seq }) => seq), events.map((_, index) => index + 1));
   assert.deepEqual(events.filter(({ event }) => event.type === "stage.started").map(({ event }) => "stage" in event && event.stage),
-    ["scope", "research", "map", "route", "days", "photos", "save"]);
+    ["scope", "research", "map", "route", "days", "verify", "photos", "save"]);
   assert.equal(types[0], "stage.started");
   assert.equal(types.at(-1), "run.finished");
   // Route before any day, and each day as its city is drafted.
@@ -258,4 +260,54 @@ test("answering leave-one-out lets the resumed route drop exactly that city", as
   const plan = repository.versions[0].plan;
   assert.equal(plan.draft.route.source, "agent");
   assert.deepEqual(plan.draft.route.omitted.map(({ city }) => city), ["大理白族自治州"]);
+});
+
+test("the validation loop moves a closed stop, re-plans a day it cannot fix, and reports the rest", async () => {
+  const dated = handoff(["丽江市"], { state: "known", value: "3天", source: "user" });
+  const startsMonday = { ...dated, tripState: { ...dated.tripState, startDate: { state: "known" as const, value: "2026-12-21", source: "user" as const } } };
+  const quote = (text: string) => ({ url: "https://example.com", title: "来源", publishedAt: null, checkedAt: "2026-11-15T08:00:00.000Z", quote: text });
+  const facts = (name: string) => ({
+    checkedAt: "2026-11-15T08:00:00.000Z", hours: null, reservation: null, uncertain: [],
+    closedWeekdays: name === "玉龙雪山" ? [{ weekday: 1, scope: null, evidence: quote("每周一闭园") }] : [],
+    closedRanges: name === "黑龙潭" ? [{ from: "12-01", to: "03-31", scope: null, evidence: quote("12月1日至3月31日闭园") }] : [],
+  });
+  const asked: string[][] = [];
+  const dayPrompts: { candidates: { name: string }[] }[] = [];
+  const { repository, service } = setup({
+    planModel: { model: modelAnswering({
+      routes: [{ cities: [{ id: "c1", days: 3, reason: "雪山" }], days: [], omitted: [] }],
+      dayPrompts,
+      // 黑龙潭 and 玉龙雪山 on Monday, then the re-plan of day 1 alone.
+      days: [[day(1, "s1", "s2"), day(2, "s3"), day(3, "s4")], [day(1, "s1")]],
+    }) },
+    verifySpots: async (cards) => {
+      asked.push(cards.map(({ name }) => name));
+      return { availability: new Map(cards.map((card) => [card.id, facts(card.name)])), searches: cards.length,
+        usage: { inputTokens: 10, outputTokens: 5 } };
+    },
+  });
+  const started = await service.start(tripId, startsMonday);
+  const events = await followToEnd(service, repository, started.runId);
+
+  // Scheduled stops first, then two checked replacements; the re-planned stop is checked after.
+  assert.deepEqual(asked[0], ["黑龙潭", "玉龙雪山", "丽江古城", "蓝月谷", "束河古镇", "拉市海"]);
+  assert.equal(asked.length, 1);
+  // The re-plan of day 1 never offers a spot closed that day or kept elsewhere.
+  assert.deepEqual(dayPrompts[1].candidates.map(({ name }) => name), ["束河古镇", "拉市海", "白沙古镇", "玉水寨"]);
+
+  const draft = repository.versions[0].plan.draft;
+  const names = (day: number) => draft.days[day - 1].stops.map(({ spotId }) => JSON.parse(spotId)[2]);
+  assert.deepEqual([names(1), names(2), names(3)], [["束河古镇"], ["丽江古城", "玉龙雪山"], ["蓝月谷"]]);
+  assert.deepEqual(draft.conflicts, [{ kind: "closed_on_day", day: 1, spotId: JSON.stringify(["云南省", "丽江市", "黑龙潭"]) }]);
+  const yulong = draft.checks?.find(({ spotId }) => spotId.includes("玉龙雪山"));
+  assert.deepEqual(yulong && [yulong.day, yulong.status, yulong.movedFrom], [2, "open", 1]);
+
+  // The page saw the closed verdicts first, then the repaired days, then one ✓ line.
+  assert.ok(events.some(({ event }) => event.type === "spot.checked" && event.check.status === "closed"));
+  assert.ok(events.some(({ event }) => event.type === "stage.activity" && event.activity.kind === "repairing"));
+  const verify = events.filter(({ event }) => event.type === "stage.finished" && event.stage === "verify");
+  assert.equal(verify.length, 1);
+  assert.deepEqual(verify[0].event.type === "stage.finished" && verify[0].event.summary,
+    { checked: 1, stops: 4, reservations: 0, moved: 1, closed: 1, rounds: 1 });
+  assert.equal(events.filter(({ event }) => event.type === "stage.started" && event.stage === "verify").length, 1);
 });

@@ -29,6 +29,28 @@ export type SpotCard = {
   readonly walking: SpotEvidence | null;
   readonly suggestedDuration: SpotEvidence | null;
   readonly mapCheck: SpotMapCheck;
+  /** What the second round found about opening on the trip's dates; absent until it runs. */
+  readonly availability?: SpotAvailability;
+};
+
+/**
+ * The second round's facts about when a spot is open, each with the quote it rests on.
+ * Weekdays run 1 (Monday) to 7 (Sunday); ranges are month-day, "12-01" to "03-31", and may
+ * cross the new year. A scope names the part that closes (a cable car, an area); null is the
+ * whole spot. Notices too vague for a rule stay uncertain, with their quote.
+ */
+export type SpotAvailability = {
+  readonly checkedAt: string;
+  readonly hours: { readonly open: string; readonly close: string; readonly evidence: SpotEvidence } | null;
+  readonly closedWeekdays: readonly { readonly weekday: number; readonly scope: string | null; readonly evidence: SpotEvidence }[];
+  readonly closedRanges: readonly {
+    readonly from: string;
+    readonly to: string;
+    readonly scope: string | null;
+    readonly evidence: SpotEvidence;
+  }[];
+  readonly reservation: { readonly required: boolean; readonly daysAhead: number | null; readonly evidence: SpotEvidence } | null;
+  readonly uncertain: readonly { readonly note: string; readonly evidence: SpotEvidence }[];
 };
 
 /** One city's first-round research: its cards, and whether its search finished. */

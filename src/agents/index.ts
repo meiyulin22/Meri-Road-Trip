@@ -11,6 +11,7 @@ import { TiandituLocationProvider } from "@/platform/tianditu/tianditu-location-
 import { sharedSpotLocationMemory } from "@/platform/tianditu/spot-location-memory";
 
 import { researchCity } from "./planner/research-agent";
+import { verifySpots } from "./planner/verify-spots";
 import { scoutAgent } from "./scout-agent";
 import { createPlanGenerationWorkflow, type PlanGenerationDependencies } from "./workflows/plan-generation";
 
@@ -34,6 +35,10 @@ export function planGenerationDependencies(
       model: createMoonshotChatModelFromEnvironment,
     }, onProgress),
     planModel: { model: createMoonshotChatModelFromEnvironment },
+    verifySpots: (cards, options, onProgress) => verifySpots(cards, options, {
+      search: (query, signal) => createKimiSearchProFromEnvironment().search(query, signal),
+      model: createMoonshotChatModelFromEnvironment,
+    }, onProgress),
     map: {
       // One lookup a spot; the first failure stops the check, rate limits included, with no retry.
       search: (name, areas) => {

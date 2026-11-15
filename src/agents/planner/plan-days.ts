@@ -31,11 +31,13 @@ const proposalSchema = z.object({
     stops: z.array(z.object({
       spotId: z.string().trim().min(1).max(20),
       slot: z.enum(daySlots),
-      anchor: z.object({
-        time: z.string().trim().min(3).max(5),
-        // English runs longer than Chinese for the same reason.
-        reason: z.string().trim().min(1).max(120),
-      }).nullable(),
+      // Kimi sometimes writes the anchor as a bare time with anchorReason beside it (measured
+      // 2026-11-15); both shapes are read, and what is not a usable anchor becomes none.
+      anchor: z.union([
+        z.object({ time: z.string(), reason: z.string() }),
+        z.string(),
+      ]).nullable().optional(),
+      anchorReason: z.string().nullable().optional(),
     })).max(maxStopsPerDay + 2),
   })).max(400),
 });
@@ -55,6 +57,17 @@ export type CityDaysResult =
 
 /** Hears each model attempt as it starts, for the plan page's live line. */
 export type CityDaysProgress = (progress: { attempt: number }) => void;
+
+/** An anchor in either shape the model writes, or none when it is not a time with a reason. */
+function anchorOf(
+  anchor: { time: string; reason: string } | string | null | undefined,
+  separateReason: string | null | undefined,
+): { time: string; reason: string } | null {
+  const time = (typeof anchor === "string" ? anchor : anchor?.time)?.trim();
+  const reason = (typeof anchor === "string" ? separateReason : anchor?.reason)?.trim();
+  if (!time || !reason || time.length < 3 || time.length > 5) return null;
+  return { time, reason: reason.slice(0, 120) };
+}
 
 /** What the model reads about one candidate: short IDs and the quoted facts, nothing more. */
 function candidateSummary(card: SpotCard, shortId: string) {
@@ -108,11 +121,12 @@ export async function draftCityDays(
   };
   const maxStops = maxStopsForPreferences(handoff.preferences, maxStopsPerDay);
   let review: ProposalReview | null = null;
+  let problems: readonly string[] = [];
   let attempts = 0;
-  try {
-    while (attempts < maxAttempts && (review === null || review.errors.length > 0)) {
-      attempts += 1;
-      onProgress({ attempt: attempts });
+  while (attempts < maxAttempts && (review === null || review.errors.length > 0) && !signal.aborted) {
+    attempts += 1;
+    onProgress({ attempt: attempts });
+    try {
       const { output, usage: callUsage } = await generateText({
         model,
         abortSignal: signal,
@@ -132,22 +146,30 @@ export async function draftCityDays(
           `Write anchor reasons in ${handoff.locale === "zh" ? "Chinese" : "English"}, under 20 words.`,
           'Return {"days":[{"day":1,"stops":[{"spotId":"s1","slot":"morning","anchor":null}]}]}.',
         ].join(" "),
-        prompt: JSON.stringify(review === null ? input : { ...input, problemsWithPreviousAnswer: review.errors }),
+        prompt: JSON.stringify(problems.length === 0 ? input : { ...input, problemsWithPreviousAnswer: problems }),
       });
       usage.inputTokens += callUsage.inputTokens ?? 0;
       usage.outputTokens += callUsage.outputTokens ?? 0;
       const proposal: PlanProposal = {
         days: output.days.map((day) => ({
-          ...day,
-          stops: day.stops.map((stop) => ({ ...stop, spotId: shortIds.get(stop.spotId) ?? stop.spotId })),
+          day: day.day,
+          stops: day.stops.map((stop) => ({
+            spotId: shortIds.get(stop.spotId) ?? stop.spotId,
+            slot: stop.slot,
+            anchor: anchorOf(stop.anchor, stop.anchorReason),
+          })),
         })),
       };
-      review = reviewProposal(mode, frames, cards, proposal, maxStops);
+      const reviewed = reviewProposal(mode, frames, cards, proposal, maxStops);
+      // A second answer replaces the first only when it is not worse.
+      if (review === null || reviewed.errors.length <= review.errors.length) review = reviewed;
+      problems = reviewed.errors;
+    } catch (error) {
+      // A malformed answer is one more attempt, like one that fails the checks; a failed
+      // second attempt still leaves the first reviewed proposal to work with.
+      logger.warn({ attempts, reviewed: review !== null, error: serializeError(error) }, "Plan Agent model call failed");
+      problems = ["The previous answer was not valid JSON in the requested shape. An anchor is null or {\"time\":\"HH:MM\",\"reason\":\"…\"}."];
     }
-  } catch (error) {
-    logger.warn({ attempts, reviewed: review !== null, error: serializeError(error) }, "Plan Agent model call failed");
-    // A failed second attempt still leaves the first reviewed proposal to work with.
-    if (review === null) return { status: "unavailable" };
   }
   if (review === null) return { status: "unavailable" };
   return { status: "ready", days: review.days, attempts, usage };

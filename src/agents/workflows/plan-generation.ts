@@ -4,6 +4,7 @@ import { createStep, createWorkflow } from "@mastra/core/workflows";
 import { z } from "zod";
 
 import { dayPhotos, type FindDayImage } from "@/agents/planner/day-photos";
+import { maxVerifySearches, type VerifyProgress, type VerifyResult } from "@/agents/planner/verify-spots";
 import { checkSpotsOnMap, type MapCheckDependencies } from "@/agents/planner/map-check";
 import { draftCityDays } from "@/agents/planner/plan-days";
 import { planRoute, type PlanModelDependencies, type PlanUsage, type ReadyScope } from "@/agents/planner/plan-route";
@@ -14,13 +15,15 @@ import {
   researchTasks,
 } from "@/agents/planner/research-agent";
 import type { PlaceImage } from "@/domain/location/place-image";
-import { finishDraft, type PlanDay, type PlanDraft, planScope, type RoutedPlan } from "@/domain/plan/plan-draft";
+import { finishDraft, maxStopsPerDay, type PlanDay, type PlanDraft, planScope, type RoutedPlan } from "@/domain/plan/plan-draft";
 import type { ReadyPlan } from "@/domain/plan/plan-draft-response";
 import type { PlanHandoff } from "@/domain/plan/plan-handoff";
 import { type PlanProgressEvent, type PlanQuestion, planQuestionSchema, type PlanStage } from "@/domain/plan/plan-progress";
 import type { PlanRunUsage, PlanVersion } from "@/domain/plan/plan-run";
-import type { CityResearch } from "@/domain/plan/spot-card";
-import type { PlanPreference } from "@/domain/plan/trip-preference";
+import type { CityResearch, SpotCard } from "@/domain/plan/spot-card";
+import { stopVerdict } from "@/domain/plan/availability";
+import { closedStops, type Moved, moveClosedStops, stopChecks, verdictsFor } from "@/domain/plan/plan-repair";
+import { maxStopsForPreferences, type PlanPreference } from "@/domain/plan/trip-preference";
 
 /** What the workflow needs from outside; tests pass fakes, src/agents/index.ts the real ones. */
 export type PlanGenerationDependencies = {
@@ -28,6 +31,12 @@ export type PlanGenerationDependencies = {
   readonly researchCity: (task: ResearchTask, handoff: PlanHandoff, onProgress: ResearchProgress) => Promise<CityResearch>;
   readonly planModel: PlanModelDependencies;
   readonly map: MapCheckDependencies;
+  /** The second round on these cards; the real one is verifySpots with Kimi search and model. */
+  readonly verifySpots: (
+    cards: readonly SpotCard[],
+    options: { readonly month: string; readonly referenceDate: string; readonly locale: "zh" | "en"; readonly budget: number },
+    onProgress: VerifyProgress,
+  ) => Promise<VerifyResult>;
   readonly findImage: FindDayImage;
   readonly saveVersion: (version: Omit<PlanVersion, "version">) => Promise<PlanVersion>;
   readonly now: () => Date;
@@ -49,7 +58,16 @@ export type RouteResume = z.infer<typeof routeResumeSchema>;
 type MapResult = { cities: CityResearch[]; status: "complete" | "stopped"; lookups: number };
 type RouteResult = MapResult & { plan: RoutedPlan; usage: PlanUsage };
 type DaysResult = MapResult & { draft: PlanDraft; usage: PlanUsage };
-type PhotosResult = DaysResult & { dayPhotos: { day: number; image: PlaceImage }[] };
+/** Where the validation loop stands: how many repair rounds ran, what moved, what it spent. */
+type VerifyResultState = DaysResult & {
+  verify: { round: number; done: boolean; moved: Moved[]; dropped: { day: number; spotId: string }[]; searches: number; checked: string[] };
+};
+type PhotosResult = VerifyResultState & { dayPhotos: { day: number; image: PlaceImage }[] };
+
+/** Repair rounds after the first check; a conflict still left after them is shown, not hidden. */
+export const maxRepairRounds = 2;
+/** Unscheduled cards checked per city, so a closed stop has a checked replacement. */
+const backupsPerCity = 2;
 
 const runInput = z.object({ runId: z.string(), tripId: z.string(), handoff: z.custom<PlanHandoff>() });
 const runState = z.object({
@@ -69,6 +87,8 @@ export const stepStages = {
   "map-check": "map",
   "plan-route": "route",
   "plan-days": "days",
+  "verify-facts": "verify",
+  "verify-repair": "verify",
   "day-photos": "photos",
   "save-plan": "save",
 } as const satisfies Record<string, PlanStage>;
@@ -135,6 +155,20 @@ export function stageSummary(stepId: string, output: unknown): { stage: PlanStag
       return { stage, summary: {
         days: draft.days.length, stops: draft.days.reduce((sum, { stops }) => sum + stops.length, 0),
         conflicts: draft.conflicts.length,
+      } };
+    }
+    case "verify": {
+      // The stage ends with the loop: one ✓ line for the check and every repair round.
+      const { draft, verify } = output as VerifyResultState;
+      if (stepId !== "verify-repair" || !verify.done) return null;
+      const checks = draft.checks ?? [];
+      return { stage, summary: {
+        checked: checks.filter(({ status }) => status !== "unchecked").length,
+        stops: checks.length,
+        reservations: checks.filter(({ reservation }) => reservation !== null).length,
+        moved: verify.moved.length,
+        closed: draft.conflicts.filter(({ kind }) => kind === "closed_on_day").length,
+        rounds: verify.round,
       } };
     }
     case "photos":
@@ -296,9 +330,177 @@ export function createPlanGenerationWorkflow(deps: PlanGenerationDependencies) {
     },
   });
 
+  /** Every card by ID, with the second round's facts once they are in. */
+  const cardsOf = (cities: readonly CityResearch[]) => new Map(cities.flatMap(({ spots }) => spots).map((card) => [card.id, card]));
+  const withFacts = (cities: readonly CityResearch[], facts: VerifyResult["availability"]) => cities.map((city) => ({
+    ...city, spots: city.spots.map((card) => facts.has(card.id) ? { ...card, availability: facts.get(card.id) } : card),
+  }));
+  const monthOf = (draft: PlanDraft) => {
+    const date = draft.days.find(({ date: value }) => value !== null)?.date;
+    return date ? `${Number(date.slice(0, 4))}年${Number(date.slice(5, 7))}月` : "";
+  };
+
+  /**
+   * The validation stage, part one: collect the facts. Every scheduled stop is checked, then
+   * a few unscheduled cards per city as replacements, within the search budget. Code turns
+   * the facts into a verdict for each stop on its own date.
+   */
+  const verifyFactsStep = createStep({
+    id: "verify-facts",
+    inputSchema: z.custom<DaysResult>(),
+    outputSchema: z.custom<VerifyResultState>(),
+    stateSchema: runState,
+    execute: async ({ inputData, state, writer }) => {
+      const { emit, flush } = emitter(writer);
+      const { draft } = inputData;
+      const cards = cardsOf(inputData.cities);
+      const scheduled = [...new Set(draft.days.flatMap(({ stops }) => stops.map(({ spotId }) => spotId)))];
+      const routed = draft.route.cities.map(({ city }) => city);
+      const backups = routed.flatMap((city) => [...cards.values()]
+        .filter((card) => card.city === city && !scheduled.includes(card.id) && card.location !== null)
+        .sort((left, right) => Number(right.mapCheck.status === "located") - Number(left.mapCheck.status === "located"))
+        .slice(0, backupsPerCity));
+      const targets = [...scheduled.flatMap((id) => cards.get(id) ?? []), ...backups];
+      const result = await deps.verifySpots(targets, {
+        month: monthOf(draft), referenceDate: state.handoff.referenceDate, locale: state.handoff.locale, budget: maxVerifySearches,
+      }, ({ city, spot, done, total }) => emit({ type: "stage.activity", stage: "verify",
+        activity: { kind: "verifying", city, spot, done, total } }));
+      const cities = withFacts(inputData.cities, result.availability);
+      const checkedCards = cardsOf(cities);
+      const verdicts = verdictsFor(draft.days, checkedCards, state.handoff.referenceDate);
+      for (const check of stopChecks(draft.days, checkedCards, verdicts, [])) emit({ type: "spot.checked", check });
+      await flush();
+      return {
+        ...inputData,
+        cities,
+        usage: addUsage(inputData.usage, result.usage),
+        verify: {
+          round: 0, done: closedStops(draft.days, verdicts).length === 0, moved: [], dropped: [], searches: result.searches,
+          checked: [...result.availability.keys()],
+        },
+      };
+    },
+  });
+
+  /**
+   * The validation stage, part two, run in a loop until nothing is closed or the rounds run
+   * out: code moves what it can, the Plan Agent re-plans only the days still affected, the
+   * new stops are checked, and the verdicts are taken again. Then the stops still closed
+   * become conflicts and every stop keeps its verdict.
+   */
+  const verifyRepairStep = createStep({
+    id: "verify-repair",
+    inputSchema: z.custom<VerifyResultState>(),
+    outputSchema: z.custom<VerifyResultState>(),
+    stateSchema: runState,
+    execute: async ({ inputData, state, writer }) => {
+      const { emit, flush } = emitter(writer);
+      const scope = scopeOf(state);
+      const referenceDate = state.handoff.referenceDate;
+      const maxStops = maxStopsForPreferences(state.handoff.preferences, maxStopsPerDay);
+      let { cities, usage } = inputData;
+      let days = [...inputData.draft.days];
+      let { round, searches, moved, checked, dropped } = inputData.verify;
+
+      if (!inputData.verify.done) {
+        round += 1;
+        const before = new Map(days.map((day) => [day.day, JSON.stringify(day)]));
+        const issues = closedStops(days, verdictsFor(days, cardsOf(cities), referenceDate));
+        emit({ type: "stage.activity", stage: "verify",
+          activity: { kind: "repairing", days: [...new Set(issues.map(({ day }) => day))], round } });
+
+        // Code first: a later slot, or another day in the same city.
+        const step = moveClosedStops(days, cardsOf(cities), referenceDate, maxStops);
+        days = step.days;
+        moved = [...moved, ...step.moved];
+
+        // Then the Plan Agent, only for the days still holding a closed stop.
+        const stuckDays = [...new Set(step.stuck.map(({ day }) => day))];
+        for (const city of [...new Set(days.filter(({ day }) => stuckDays.includes(day)).map(({ city: name }) => name))]) {
+          const affected = days.filter((day) => day.city === city && stuckDays.includes(day.day));
+          const elsewhere = new Set(days.filter((day) => !affected.includes(day)).flatMap(({ stops }) => stops.map(({ spotId }) => spotId)));
+          const closedThere = new Set(step.stuck.map(({ spotId }) => spotId));
+          dropped = [...dropped, ...step.stuck.filter(({ day }) => affected.some(({ day: number }) => number === day))];
+          const candidates = [...cardsOf(cities).values()].filter((card) => card.city === city
+            && !elsewhere.has(card.id) && !closedThere.has(card.id)
+            && affected.every((day) => stopVerdict(card.availability, day.date, "afternoon", referenceDate).status !== "closed"));
+          const frames = affected.map((day) => ({ ...day, stops: [] }));
+          const result = await draftCityDays(state.handoff, scope.mode, frames, candidates, deps.planModel);
+          const replanned = result.status === "ready"
+            ? result.days
+            : affected.map((day) => ({ ...day, stops: day.stops.filter(({ spotId }) => !closedThere.has(spotId)) }));
+          if (result.status === "ready") usage = addUsage(usage, result.usage);
+          days = days.map((day) => replanned.find(({ day: number }) => number === day.day) ?? day);
+        }
+
+        // New stops get their facts too, while the search budget lasts.
+        const unchecked = [...new Set(days.flatMap(({ stops }) => stops.map(({ spotId }) => spotId)))]
+          .filter((id) => !checked.includes(id)).flatMap((id) => cardsOf(cities).get(id) ?? []);
+        if (unchecked.length > 0 && searches < maxVerifySearches) {
+          const result = await deps.verifySpots(unchecked, {
+            month: monthOf(inputData.draft), referenceDate, locale: state.handoff.locale, budget: maxVerifySearches - searches,
+          }, ({ city, spot, done, total }) => emit({ type: "stage.activity", stage: "verify",
+            activity: { kind: "verifying", city, spot, done, total } }));
+          cities = withFacts(cities, result.availability);
+          searches += result.searches;
+          checked = [...checked, ...result.availability.keys()];
+          usage = addUsage(usage, result.usage);
+        }
+
+        const cards = cardsOf(cities);
+        for (const day of days) {
+          if (before.get(day.day) === JSON.stringify(day)) continue;
+          const used = new Set(day.stops.map(({ spotId }) => spotId));
+          emit({ type: "day.ready", day, spots: [...cards.values()].filter(({ id }) => used.has(id)) });
+        }
+      }
+
+      const cards = cardsOf(cities);
+      let verdicts = verdictsFor(days, cards, referenceDate);
+      const done = closedStops(days, verdicts).length === 0 || round >= maxRepairRounds;
+      let draft: PlanDraft = { ...inputData.draft, days };
+      if (done) {
+        // What is still closed cannot happen: it leaves the day and is shown as a conflict, as is a
+        // stop dropped for being closed that no other day took.
+        const scheduledNow = new Set(days.flatMap(({ stops }) => stops.map(({ spotId }) => spotId)));
+        const stillClosed = [
+          ...closedStops(days, verdicts),
+          ...dropped.filter(({ spotId }) => !scheduledNow.has(spotId))
+            .filter((item, index, all) => all.findIndex(({ spotId }) => spotId === item.spotId) === index),
+        ];
+        const finalDays = days.map((day) => ({
+          ...day, stops: day.stops.filter(({ spotId }) => !stillClosed.some((item) => item.day === day.day && item.spotId === spotId)),
+        }));
+        verdicts = verdictsFor(finalDays, cards, referenceDate);
+        const routedCards = [...cards.values()].filter(({ city }) => draft.route.cities.some((routed) => routed.city === city));
+        const frames = finalDays.map(({ day, date, province, city, arrivingFrom, focus, theme }) =>
+          ({ day, date, province, city, arrivingFrom, focus, theme }));
+        const finished = finishDraft({ mode: draft.mode, totalDays: draft.totalDays, frames, route: draft.route }, routedCards, finalDays);
+        const closedConflicts = stillClosed.map(({ day, spotId }) => ({ kind: "closed_on_day" as const, day, spotId }));
+        draft = {
+          ...finished,
+          conflicts: [
+            ...finished.conflicts.filter((conflict) => !("spotId" in conflict && stillClosed.some(({ spotId }) => spotId === conflict.spotId))),
+            ...closedConflicts,
+          ],
+          checks: stopChecks(finalDays, cards, verdicts, moved),
+        };
+        if (stillClosed.length > 0) {
+          for (const day of finalDays.filter(({ day: number }) => stillClosed.some((item) => item.day === number))) {
+            const used = new Set(day.stops.map(({ spotId }) => spotId));
+            emit({ type: "day.ready", day, spots: [...cards.values()].filter(({ id }) => used.has(id)) });
+          }
+        }
+        for (const check of draft.checks ?? []) emit({ type: "spot.checked", check });
+      }
+      await flush();
+      return { ...inputData, cities, usage, draft, verify: { round, done, moved, dropped, searches, checked } };
+    },
+  });
+
   const photosStep = createStep({
     id: "day-photos",
-    inputSchema: z.custom<DaysResult>(),
+    inputSchema: z.custom<VerifyResultState>(),
     outputSchema: z.custom<PhotosResult>(),
     execute: async ({ inputData, writer }) => {
       const { emit, flush } = emitter(writer);
@@ -337,7 +539,7 @@ export function createPlanGenerationWorkflow(deps: PlanGenerationDependencies) {
         version: saved.version,
         usage: {
           ...usage,
-          searches: cities.reduce((sum, { searchCalls }) => sum + searchCalls, 0),
+          searches: cities.reduce((sum, { searchCalls }) => sum + searchCalls, 0) + inputData.verify.searches,
           mapLookups: lookups,
         },
       };
@@ -355,6 +557,9 @@ export function createPlanGenerationWorkflow(deps: PlanGenerationDependencies) {
     .then(mapCheck)
     .then(routeStep)
     .then(daysStep)
+    .then(verifyFactsStep)
+    // The validation loop: repair and re-check until nothing is closed, at most maxRepairRounds rounds.
+    .dountil(verifyRepairStep, async ({ inputData }) => inputData.verify.done)
     .then(photosStep)
     .then(saveStep)
     .commit();

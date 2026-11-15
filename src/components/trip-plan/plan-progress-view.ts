@@ -1,5 +1,5 @@
 import type { PlaceImage } from "@/domain/location/place-image";
-import type { PlanDay, PlanRoute } from "@/domain/plan/plan-draft";
+import type { PlanDay, PlanRoute, StopCheck } from "@/domain/plan/plan-draft";
 import {
   planStages,
   type PlanActivity,
@@ -46,6 +46,8 @@ export type ProgressView = {
   /** Time spent waiting for answers, left out of the run's clock. */
   readonly waitedMs: number;
   readonly answers: readonly { readonly question: string; readonly choice: string | null }[];
+  /** The second round's verdict for each stop, by "day|spotId", latest wins. */
+  readonly checks: Readonly<Record<string, StopCheck>>;
 };
 
 export const emptyProgress: ProgressView = {
@@ -64,6 +66,7 @@ export const emptyProgress: ProgressView = {
   waitingSince: null,
   waitedMs: 0,
   answers: [],
+  checks: {},
 };
 
 /**
@@ -122,6 +125,8 @@ export function applyProgress(view: ProgressView, { seq, at, event }: PlanProgre
       };
     case "day.photo":
       return { ...next, photos: { ...next.photos, [event.day]: event.image } };
+    case "spot.checked":
+      return { ...next, checks: { ...next.checks, [`${event.check.day}|${event.check.spotId}`]: event.check } };
     case "run.waiting":
       return { ...next, question: event.question, waitingSince: at };
     case "question.answered":

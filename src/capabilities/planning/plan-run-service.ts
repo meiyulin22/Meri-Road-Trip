@@ -329,12 +329,13 @@ export class PlanRunService {
       const stream = segment.kind === "start"
         ? workflowRun.stream({ inputData: input, initialState: initialPlanState(input) })
         : workflowRun.resumeStream({ step: routeStepId, resumeData: segment.resume });
-      const stepStarts = new Map<string, number>();
+      // Keyed by stage: the validation stage is two steps and a loop, but one line on the page.
+      const stageStarts = new Map<PlanStage, number>();
       for await (const chunk of stream.fullStream as AsyncIterable<WorkflowChunk>) {
         if (chunk.type === "workflow-step-start") {
           const step = stageOf(chunk.payload);
-          if (step && !stepStarts.has(step.id)) {
-            stepStarts.set(step.id, performance.now());
+          if (step && !stageStarts.has(step.stage)) {
+            stageStarts.set(step.stage, performance.now());
             publish({ type: "stage.started", stage: step.stage });
           }
         } else if (chunk.type === "workflow-step-output") {
@@ -348,7 +349,7 @@ export class PlanRunService {
           const summary = step && payload.status === "success" ? stageSummary(step.id, payload.output) : null;
           if (step && summary) {
             publish({ type: "stage.finished", stage: summary.stage,
-              ms: Math.round(performance.now() - (stepStarts.get(step.id) ?? performance.now())), summary: summary.summary });
+              ms: Math.round(performance.now() - (stageStarts.get(step.stage) ?? performance.now())), summary: summary.summary });
           }
         }
       }

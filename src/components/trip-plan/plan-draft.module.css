@@ -204,6 +204,23 @@
 }
 .mapBadge[data-located="true"] { color: var(--green); background: var(--green-soft); }
 
+/* The second round on a stop: open that day, partly or fully closed, booking, moved. */
+.checkBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 1px 7px;
+  border-radius: 6px;
+  color: var(--soft);
+  background: var(--paper-deep);
+  font-size: 10px;
+  font-weight: 600;
+}
+.checkBadge[data-status="open"] { color: var(--green); background: var(--green-soft); }
+.checkBadge[data-status="partial"], .checkBadge[data-status="uncertain"], .checkBadge[data-status="booking"] { color: #8a5a12; background: #f6ecd8; }
+.checkBadge[data-status="closed"] { color: var(--accent); background: var(--accent-soft); }
+.checkBadge[data-status="moved"] { color: var(--ink); background: var(--paper-deep); border: 1px dashed var(--line); }
+
 .facts { display: grid; gap: 4px; margin-top: 8px; }
 .facts > div { display: grid; grid-template-columns: 64px minmax(0, 1fr); gap: 8px; font-size: 13px; line-height: 1.6; }
 .facts dt { color: var(--soft); }

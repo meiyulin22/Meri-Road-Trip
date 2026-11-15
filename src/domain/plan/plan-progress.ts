@@ -1,13 +1,13 @@
 import { z } from "zod";
 
 import { maxPreferenceLabelLength, preferenceKinds } from "./trip-preference";
-import { placeImageSchema, planDaySchema, planRouteSchema, spotCardSchema } from "./plan-draft-response";
+import { placeImageSchema, planDaySchema, planRouteSchema, spotCardSchema, stopCheckSchema } from "./plan-draft-response";
 
 /**
  * The stages of a plan run, in the order the plan page shows them. Each is one step of
  * the plan-generation workflow; the page renders its own words for them, in zh or en.
  */
-export const planStages = ["scope", "research", "map", "route", "days", "photos", "save"] as const;
+export const planStages = ["scope", "research", "map", "route", "days", "verify", "photos", "save"] as const;
 export type PlanStage = (typeof planStages)[number];
 
 const count = z.number().int().nonnegative();
@@ -26,6 +26,8 @@ export const planActivitySchema = z.discriminatedUnion("kind", [
   z.strictObject({ kind: z.literal("locating"), city: name, spot: name, done: count, total: count }),
   z.strictObject({ kind: z.literal("routing"), cities: count, days: count, attempt: count }),
   z.strictObject({ kind: z.literal("drafting"), city: name, days: z.array(z.number().int().positive()), attempt: count }),
+  z.strictObject({ kind: z.literal("verifying"), city: name, spot: name, done: count, total: count }),
+  z.strictObject({ kind: z.literal("repairing"), days: z.array(z.number().int().positive()), round: count }),
 ]);
 export type PlanActivity = z.output<typeof planActivitySchema>;
 
@@ -76,6 +78,8 @@ export const planProgressEventSchema = z.discriminatedUnion("type", [
   /** One day as soon as its city is drafted, with the cards its stops refer to. */
   z.strictObject({ type: z.literal("day.ready"), day: planDaySchema, spots: z.array(spotCardSchema) }),
   z.strictObject({ type: z.literal("day.photo"), day: z.number().int().positive(), image: placeImageSchema }),
+  /** The second round's verdict for one stop where it now is; sent again when a repair moves it. */
+  z.strictObject({ type: z.literal("spot.checked"), check: stopCheckSchema }),
   /** The run is paused until the traveller answers; it is saved and survives a restart. */
   z.strictObject({ type: z.literal("run.waiting"), question: planQuestionSchema }),
   /** The traveller's choice, or null for "you decide"; the run goes on from the route. */

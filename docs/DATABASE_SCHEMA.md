@@ -193,6 +193,8 @@ Trip 不再保存 name、origin、destination 或日期列，避免与 TripState
 
 `plan_run_events`：一次运行的进度事件，主键 `(run_id, seq)`；`type` 是事件类型，`payload` 是完整事件（读取时按 [plan-progress](../src/domain/plan/plan-progress.ts) 校验），`at` 是服务器时间。运行中的事件先推给页面，再按顺序写入这里；页面断线重连或运行结束后再来，从这里补读。
 
+`plan_versions.plan` 的 JSON 自 1.2013 起：景点卡可带 `availability`（营业时间、每周闭馆日、关闭日期范围、预约、模糊通知，每条带出处），草稿可带 `checks`（每站的核实结果、预约、从哪天换来），冲突多一种 `closed_on_day`。旧版本没有这些字段，照样能读。
+
 `plan_versions`：生成好的计划。`version` 按旅程从 1 递增（`unique(trip_id, version)`），`run_id` 唯一；`trip_state` 和 `preferences` 是生成时依据的 TripState 和偏好，`plan` 是页面显示的完整计划（草稿、用到的景点卡、各城调研状态、待定省份、每天照片、天地图核实状态）。三个 JSONB 列读取时都会校验。计划不写回 TripState；是否过期在读取时把 `trip_state` 和当前 TripState 按键排序后比较。
 
 ### 3.6 `mastra` schema：Mastra 的工作流快照（1.2011，不归 Drizzle 管）
