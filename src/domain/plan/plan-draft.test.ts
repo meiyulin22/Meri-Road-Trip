@@ -3,7 +3,17 @@ import test from "node:test";
 
 import type { TripState } from "@/domain/trip-state/trip-state";
 
-import { fallbackRoute, finishDraft, planScope, reviewProposal, reviewRoute, type DayFrame, type RouteCityInput } from "./plan-draft";
+import {
+  fallbackRoute,
+  finishDraft,
+  isAreaName,
+  planScope,
+  reviewProposal,
+  reviewRoute,
+  splitRequested,
+  type DayFrame,
+  type RouteCityInput,
+} from "./plan-draft";
 import type { SpotCard, SpotEvidence } from "./spot-card";
 
 function tripState(places: readonly string[], duration: TripState["duration"], startDate: TripState["startDate"] = { state: "missing" }): TripState {
@@ -91,7 +101,7 @@ test("a route that misses a city, miscounts days, leaves a city out needlessly o
   }).errors, ["c9 is not one of the trip's cities.", "大理白族自治州 is neither routed nor left out with a reason."]);
   assert.deepEqual(reviewRoute(twoCityScope, routeCities, {
     cities: [{ id: "c1", days: 4, reason: "…" }], days: [], omitted: [{ id: "c2", reason: "太远" }],
-  }).errors, ["There are enough days for every city that has candidates; leave none of those out.", "The routed days add up to 4, not 5."]);
+  }).errors, ["There are 5 days for 2 cities: route every city that has candidates, at least one day each, and give any extra days to the cities that deserve them. If the trip is tight, say so in the reasons; do not leave a city out.", "The routed days add up to 4, not 5."]);
   // A city where research found nothing may be left out, with its days going elsewhere.
   const empty = [routeCities[0], { ...routeCities[1], candidates: 0, districts: [] }];
   const review = reviewRoute(twoCityScope, empty, {
@@ -189,4 +199,19 @@ test("a transfer day takes one stop fewer", () => {
   ] });
   assert.equal(review.days[0].stops.length, 3);
   assert.deepEqual(review.errors, ["Day 1 has more than 3 stops."]);
+});
+
+test("a county-level name under another city is an area, not a spot to visit", () => {
+  assert.equal(isAreaName("大理市", "大理白族自治州"), true);
+  assert.equal(isAreaName("香格里拉市", "迪庆藏族自治州"), true);
+  assert.equal(isAreaName("玉龙纳西族自治县", "丽江市"), true);
+  assert.equal(isAreaName("额尔古纳市", "呼伦贝尔市"), true);
+  assert.equal(isAreaName("阿尔山市", "兴安盟"), true);
+  // The city itself, scenic areas and plain spots stay spots.
+  assert.equal(isAreaName("丽江市", "丽江市"), false);
+  assert.equal(isAreaName("玉龙雪山景区", "丽江市"), false);
+  assert.equal(isAreaName("古城区", "丽江市"), false);
+  assert.equal(isAreaName("洱海", "大理白族自治州"), false);
+  assert.deepEqual(splitRequested(["大理市", "洱海", "崇圣寺三塔"], "大理白族自治州"),
+    { spots: ["洱海", "崇圣寺三塔"], areas: ["大理市"] });
 });

@@ -288,6 +288,12 @@ routing, and the workflow pauses until the traveller answers on the plan page.
   the answer to the run's preferences (and so to the saved version), writes
   `question.answered`, and routes again without the option to ask. Events go on numbering
   from the last; the page reconnects with `?after=` its last event.
+- **A tight trip is asked, not decided (1.2012).** With a day for every city, the route must
+  keep every city; code refuses a route that leaves one out unless the traveller chose that
+  city when asked. If the trip feels too tight, the question offers concrete trips: each
+  option names the city it leaves out and carries it as `leaveOut`, plus at most one option
+  keeping every city. Options never add days or change dates (locked facts). Answering a
+  leave-out option lets the resumed route drop exactly that city.
 - **Version pin.** `@mastra/pg` is pinned at 1.29.0, released with `@mastra/core` 1.74.0. Its
   1.30.0 declares support for core ≥1.68 but reads seven trace-query exports that core 1.74 does
   not have, and Next refused to build it. Upgrade both together.
@@ -301,6 +307,21 @@ trekking. In a Kimi-only check of the route call, an empty preference list asked
 6; with interests and pace preferences, once in 3. Before the prompt named these cases, Kimi
 never asked. The same check found Kimi sometimes writes an empty city reason, which used to
 fail the whole route answer; an empty reason is now just a missing one.
+
+**Areas the traveller named (1.2012).** A Workspace "spot" that is really a county-level area
+of its city (大理市 under 大理白族自治州, 香格里拉市 under 迪庆; names ending in 市, 县 or 旗,
+not 区, which scenic areas share) is not a place to visit: [isAreaName](../domain/plan/plan-draft.ts)
+separates it. Research does not search or schedule it but nominates attractions there, and
+the route call sees it as `travellerAreas`, to make it the focus of that city's days. Before,
+大理市 became a stop of its own with no source and no map location.
+
+Measured on 2026-11-15 with Kimi only (route call, no search, no Tianditu), 大理, 丽江 and 迪庆:
+four days with interests and pace preferences routed all three cities in 4 tries of 4 on the
+first attempt (before: a city left out twice, then the automatic fallback). Two days and no
+preferences asked in 4 of 4, three of them with one option per city to drop and no extra-day
+option. An answer with a question once took Kimi past the route's 30 s, so the route budget is
+now 60 s. Research for 大理州 with 大理市 named nominated 洱海, 苍山, 大理古城, 崇圣寺三塔, 喜洲 and
+双廊, all in 大理市, and made no 大理市 card.
 
 Run the workflow from the command line, printing each event as it arrives:
 

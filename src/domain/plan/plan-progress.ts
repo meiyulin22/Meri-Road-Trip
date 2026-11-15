@@ -41,6 +41,8 @@ export const planQuestionSchema = z.strictObject({
   options: z.array(z.strictObject({
     label: z.string().trim().min(1).max(maxPreferenceLabelLength),
     kind: z.enum(preferenceKinds),
+    /** The city this option leaves out, when choosing it means a smaller trip. Older questions have none. */
+    leaveOut: z.string().min(1).nullable().optional(),
   })).min(2).max(3),
 });
 export type PlanQuestion = z.output<typeof planQuestionSchema>;

@@ -4,7 +4,7 @@ import test from "node:test";
 import type { PlanHandoff } from "@/domain/plan/plan-handoff";
 import { createMoonshotChatModel } from "@/platform/llm/moonshot-chat-model";
 
-import { runFirstRoundResearch } from "./research-agent";
+import { researchTasks, runFirstRoundResearch } from "./research-agent";
 
 const handoff: PlanHandoff = {
   tripState: {
@@ -232,4 +232,19 @@ test("researches ten cities with their own deadlines and defers cities beyond th
   assert.equal(peak, 2);
   assert.deepEqual(result.cities.map(({ searchCalls }) => searchCalls), [...Array(10).fill(1), 0]);
   assert.equal(result.cities[10].status, "deferred");
+});
+
+test("an area the traveller named, such as 大理市, steers research instead of being searched as a spot", () => {
+  const { tasks } = researchTasks({
+    tripState: {
+      name: { state: "missing" }, origin: { state: "missing" },
+      destination: { state: "known", source: "user", areas: [{ province: "云南省", places: [
+        { name: "大理白族自治州", spots: ["大理市", "崇圣寺三塔"] }] }] },
+      startDate: { state: "missing" }, endDate: { state: "missing" },
+      duration: { state: "known", value: "2天", source: "user" }, transportPreference: { state: "missing" },
+    },
+    referenceDate: "2026-11-15", timezone: "Asia/Shanghai", locale: "zh", preferences: [], preferenceStatus: "ready",
+  });
+  assert.deepEqual(tasks.map(({ city, requested, areas }) => [city, requested, areas]),
+    [["大理白族自治州", ["崇圣寺三塔"], ["大理市"]]]);
 });

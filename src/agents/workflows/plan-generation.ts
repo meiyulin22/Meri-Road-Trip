@@ -239,7 +239,14 @@ export function createPlanGenerationWorkflow(deps: PlanGenerationDependencies) {
       const result = await planRoute(handoff, scope, inputData.cities, deps.planModel,
         ({ attempt }) => emit({ type: "stage.activity", stage: "route",
           activity: { kind: "routing", cities: scope.cities.length, days: scope.dates.length, attempt } }),
-        { allowQuestion });
+        {
+          allowQuestion,
+          // The city the traveller chose to leave out when asked, if the answer was that.
+          leaveOut: resumeData && suspendData
+            ? suspendData.question.options.filter(({ label, leaveOut }) => label === resumeData.choice && leaveOut)
+              .map(({ leaveOut }) => leaveOut as string)
+            : [],
+        });
       if (result.status === "unavailable") throw new Error(plannerUnavailable);
       if (result.status === "question") {
         const question: PlanQuestion = { id: randomUUID(), ...result.question };

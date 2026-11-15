@@ -57,7 +57,7 @@ export type ProposedDay = { day: number; stops: { spotId: string; slot: string; 
 
 export type RouteAnswer = { cities: { id: string; days: number; reason: string }[];
   days: { day: number; focus: string | null; theme: string | null }[]; omitted: { id: string; reason: string }[];
-  question?: { text: string; options: { label: string; kind: string }[] } | null };
+  question?: { text: string; options: { label: string; kind: string; leaveOut?: string | null }[] } | null };
 
 function answer(content: unknown) {
   return Response.json({

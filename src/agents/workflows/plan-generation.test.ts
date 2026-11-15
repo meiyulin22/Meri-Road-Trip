@@ -239,3 +239,23 @@ test("a single city, or a resumed route, is never asked about", async () => {
   assert.equal(events.at(-1)?.event.type, "run.finished");
   assert.match(routeSystems[0], /question is always null/u);
 });
+
+test("answering leave-one-out lets the resumed route drop exactly that city", async () => {
+  const tight = { cities: [{ id: "c1", days: 5, reason: "雪山" }], days: [], omitted: [{ id: "c2", reason: "太赶" }] };
+  const { repository, service } = setup({
+    planModel: { model: modelAnswering({
+      routes: [{ ...route, question: { text: "五天两城会赶，怎么安排？", options: [
+        { label: "两座都去", kind: "pace", leaveOut: null }, { label: "只去丽江", kind: "pace", leaveOut: "c2" }] } }, tight],
+      days: [[day(1, "s1"), day(2, "s2"), day(3, "s3"), day(4, "s4"), day(5, "s5")]],
+    }) },
+  });
+  const started = await service.start(tripId, trip);
+  const waiting = (await followToEnd(service, repository, started.runId)).at(-1)?.event;
+  assert.equal(waiting?.type, "run.waiting");
+  if (waiting?.type !== "run.waiting") return;
+  assert.equal(await service.answer(tripId, started.runId, { questionId: waiting.question.id, choice: "只去丽江" }), "resumed");
+  await followToEnd(service, repository, started.runId, 1);
+  const plan = repository.versions[0].plan;
+  assert.equal(plan.draft.route.source, "agent");
+  assert.deepEqual(plan.draft.route.omitted.map(({ city }) => city), ["大理白族自治州"]);
+});

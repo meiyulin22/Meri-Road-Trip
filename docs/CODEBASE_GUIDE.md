@@ -418,7 +418,7 @@ Generate plan 背后的计划页先用示例数据做出完整页面（设计决
 | [src/domain/plan/plan-handoff.ts](../src/domain/plan/plan-handoff.ts) | 领域层 | 交接快照与响应契约，校验 TripState、参考日期、语言和当前有效的偏好。 |
 | [src/domain/plan/trip-preference.ts](../src/domain/plan/trip-preference.ts) | 领域层 | 旅程偏好：标签、类型、原话、来源、状态；类型、来源与上限常量；原话比较；体力和同行人类偏好把每天上限降到 3。 |
 | [src/domain/plan/spot-card.ts](../src/domain/plan/spot-card.ts) | 领域层 | 景点卡、原文证据、天地图定位结果和单城调研结果的类型，未知字段可以为空。 |
-| [src/domain/plan/plan-draft.ts](../src/domain/plan/plan-draft.ts) | 领域层 | 计划草稿与路线类型；规划范围（示范日或全部城市与日期）；校验 Plan Agent 的路线（覆盖、放弃条件、天数、区县）并生成每天的城市、转场、重点区县和主题；按添加顺序兜底分天；校验选点提案（候选、所在城市、跨天重复、每天上限与转场日少 1、有原文支持的时间锚点、点名景点），整理冲突和待核实字段。 |
+| [src/domain/plan/plan-draft.ts](../src/domain/plan/plan-draft.ts) | 领域层 | 计划草稿与路线类型；规划范围（示范日或全部城市与日期）；校验 Plan Agent 的路线（覆盖、放弃条件、天数、区县）并生成每天的城市、转场、重点区县和主题；按添加顺序兜底分天；校验选点提案（候选、所在城市、跨天重复、每天上限与转场日少 1、有原文支持的时间锚点、点名景点），整理冲突和待核实字段；识别用户点名的区域（以市、县、旗结尾的区县名）；用户选择放弃的城市才允许在天数够时放弃。 |
 | [src/domain/plan/plan-draft.test.ts](../src/domain/plan/plan-draft.test.ts) | 测试（对应模块边界） | 验证规划范围、路线生成转场日和区县、路线错误被退回、天数不够时放弃城市与兜底、选点校验、转场日少一个景点和冲突整理。 |
 | [src/domain/plan/plan-draft-response.ts](../src/domain/plan/plan-draft-response.ts) | 领域层 | 景点卡、调研结果、路线、每日安排、计划草稿、照片和完整计划（ReadyPlan）的运行时 schema，供接口、页面、事件、数据库读取和验证脚本共用。 |
 | [src/domain/plan/plan-progress.ts](../src/domain/plan/plan-progress.ts) | 领域层 | 计划运行的进度事件格式（服务端和页面共用）：七个阶段、当前活动、阶段完成摘要、城市调研完成、定位结果、路线、某一天、照片、等待回答（问题）、已回答、运行结束及错误码；问题的格式；外层带 runId、seq 和服务器时间。 |
@@ -559,18 +559,18 @@ Generate plan 背后的计划页先用示例数据做出完整页面（设计决
 | [src/agents/README.md](../src/agents/README.md) | 文档（Agent 设计约定） | Agent 的主文档（英文）：已实现与计划分开写；试验结果与四条发现、Planner 的输入/运行/输出/代码校验/版本与过期、工具、预算、追踪与评估计划、部署与决策记录。docs 只链接到这里。 |
 | [src/agents/index.ts](../src/agents/index.ts) | Agent 层 | Mastra 实例：注册 Scout Agent 和 plan-generation 工作流（真实提供方，用到时才创建；天地图客户端不重试）；`planGenerationDependencies` 供验证脚本替换部分依赖；存储用组合存储，只有工作流快照经 `@mastra/pg` 的 WorkflowsPG 存进 Neon 的 `mastra` schema，其余在内存，没有 DATABASE_URL 时全在内存；默认关闭发往 PostHog 的使用统计。 |
 | [src/agents/scout-agent.ts](../src/agents/scout-agent.ts) | Agent 层 | 1.0300 试验 Agent：用两个现有工具回答一个关于中国地点的问题，只为验证 Kimi 经 Mastra 调用工具；将被规划 Agent 取代，不在其上扩建。模型首次使用时才读取环境变量。 |
-| [src/agents/planner/research-agent.ts](../src/agents/planner/research-agent.ts) | Agent 层 | 按已选城市进行首轮景点调研。Kimi 先按天数提名城市代表景点（只是提案），与点名景点每 3 个一组并行搜索核实，再由 Mastra 工具补查一次。单独结构化候选并核对来源和原文摘录，没有出处的提名不成卡。 |
+| [src/agents/planner/research-agent.ts](../src/agents/planner/research-agent.ts) | Agent 层 | 按已选城市进行首轮景点调研。Kimi 先按天数提名城市代表景点（只是提案），与点名景点每 3 个一组并行搜索核实，再由 Mastra 工具补查一次。单独结构化候选并核对来源和原文摘录，没有出处的提名不成卡。 用户点名的区域（如大理市）不当景点搜索，而是让提名集中在那里（1.2012）。 |
 | [src/agents/planner/research-agent.test.ts](../src/agents/planner/research-agent.test.ts) | 测试（对应模块边界） | 用模拟模型和搜索结果验证提名与点名景点分组搜索、无出处提名被丢弃、模型不可用时的退路、只补查一次、10 城范围和证据校验。 |
 | [src/agents/planner/map-check.ts](../src/agents/planner/map-check.ts) | Agent 层（固定步骤） | 景点卡的天地图定位：每个有出处的景点查一次（每城最多 12 个），只认本市同名结果并记区县；第一次失败即停止、不重试，其余保持未核实；使用定位缓存。 |
 | [src/agents/planner/map-check.test.ts](../src/agents/planner/map-check.test.ts) | 测试 | 验证别省同名不算、景区后缀、停车场不算、失败即停、缓存命中、每城上限和缓存过期。 |
-| [src/agents/planner/plan-route.ts](../src/agents/planner/plan-route.ts) | Agent 层 | Plan Agent 路线：一次 Kimi 调用规划城市顺序、天数、每天重点区县和主题、放弃的城市，代码校验、重试一次、再按添加顺序兜底；允许时可以返回一个带选项的问题（只在第一次尝试、格式合法时采用）；空的理由当作没有理由；每次尝试报告进度。 |
-| [src/agents/planner/plan-route.test.ts](../src/agents/planner/plan-route.test.ts) | 测试（对应模块边界） | 用模拟模型验证丽江大理 5 天的路线与转场日、两次不通过后的兜底、模型建不起来时不可用、问题只在允许且格式合法时返回、空理由不让路线失败。 |
+| [src/agents/planner/plan-route.ts](../src/agents/planner/plan-route.ts) | Agent 层 | Plan Agent 路线：一次 Kimi 调用规划城市顺序、天数、每天重点区县和主题、放弃的城市，代码校验、重试一次、再按添加顺序兜底；允许时可以返回一个带选项的问题（只在第一次尝试、格式合法时采用；选项可写明放弃哪座城）；天数够时不许自行放弃城市，只有用户选了才可以；用户点名的区域（如大理市）作为重点区域交给模型；空的理由当作没有理由；两次尝试共 60 秒；每次尝试报告进度。 |
+| [src/agents/planner/plan-route.test.ts](../src/agents/planner/plan-route.test.ts) | 测试（对应模块边界） | 用模拟模型验证丽江大理 5 天的路线与转场日、两次不通过后的兜底、模型建不起来时不可用、问题只在允许且格式合法时返回、空理由不让路线失败、放弃城市的选项与用户选择、用户点名的区域进入提示。 |
 | [src/agents/planner/plan-days.ts](../src/agents/planner/plan-days.ts) | Agent 层 | Plan Agent 选点：一城的各天一次 Kimi 调用，按短 ID 选景点、时段和时间锚点，代码校验、重试一次；没有候选的城市不调模型。 |
 | [src/agents/planner/plan-days.test.ts](../src/agents/planner/plan-days.test.ts) | 测试（对应模块边界） | 验证示范第一天和模型看到的定位信息、单城 7 天、带问题重试、保留第一次可用结果、模型不可用、转场日只排下午和没有候选。 |
 | [src/agents/planner/day-photos.ts](../src/agents/planner/day-photos.ts) | Agent 层（固定步骤） | 每天一张照片：先当天景点再所在城市，尽量不重复；选好一张就报告。 |
 | [src/agents/planner/plan-test-fixtures.ts](../src/agents/planner/plan-test-fixtures.ts) | 测试辅助 | Plan Agent 与工作流测试共用的云南交接、丽江大理景点卡和按 schema 名应答的模拟模型（记录路线调用的提示和系统提示）。 |
 | [src/agents/workflows/plan-generation.ts](../src/agents/workflows/plan-generation.ts) | Agent 层/工作流 | Generate plan 的 Mastra 工作流：读取范围 → 每城调研（foreach 两城并行）→ 天地图定位 → 路线（可暂停提问，恢复时把答案加进偏好再规划）→ 逐城选点 → 配图 → 保存版本；只导入和编排 planner 函数，用 writer 写进度事件；阶段摘要从步骤输出计算。 |
-| [src/agents/workflows/plan-generation.test.ts](../src/agents/workflows/plan-generation.test.ts) | 测试 | 用 Mastra 和内存 repository 真跑工作流：事件顺序与编号、逐城推送的天、天地图第一次失败即停、保存版本与用量、断线补发、同一交接共用运行和读取已存计划、模型不可用、超时、重启后标为中断；提问时暂停、错误回答被拒、只有一个回答生效、恢复后不重做调研、答案存为偏好并进入版本，单城不提问。 |
+| [src/agents/workflows/plan-generation.test.ts](../src/agents/workflows/plan-generation.test.ts) | 测试 | 用 Mastra 和内存 repository 真跑工作流：事件顺序与编号、逐城推送的天、天地图第一次失败即停、保存版本与用量、断线补发、同一交接共用运行和读取已存计划、模型不可用、超时、重启后标为中断；提问时暂停、错误回答被拒、只有一个回答生效、恢复后不重做调研、答案存为偏好并进入版本，单城不提问。；选了「放弃某城」后恢复的路线只能放弃那一座。 |
 | [src/agents/tools/resolve-place.ts](../src/agents/tools/resolve-place.ts) | Agent 工具 | 用工作区同一套地点核验（天地图）查一个中文地名，返回匹配地点（省/市/区、GCJ-02 坐标、是否景点）、最多 5 个候选或整省；不代表开放或可达。 |
 | [src/agents/tools/web-search.ts](../src/agents/tools/web-search.ts) | Agent 工具 | 经 Bocha 搜索近期公告（封闭、预约、季节通行），最多 5 条，每条带来源和发布日期；结果只是线索，提供方失败只返回 unavailable，不暴露带密钥的 URL。 |
 | [src/agents/tools/tools.test.ts](../src/agents/tools/tools.test.ts) | 测试（对应模块边界） | 验证地点结果的映射与 5 条上限、整省与失败状态，以及搜索 5 条上限、日期透传和失败降级。 |

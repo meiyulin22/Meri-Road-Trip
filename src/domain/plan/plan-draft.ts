@@ -88,6 +88,25 @@ export type PlanScope =
 const dayMs = 24 * 60 * 60 * 1000;
 
 /**
+ * A "spot" that is really a county-level area of its city, such as 大理市 under
+ * 大理白族自治州 or 香格里拉市 under 迪庆藏族自治州: the traveller means "around there", not a
+ * place to visit. County-level names end in 市, 县 or 旗 (自治县 and 自治旗 included). Names
+ * ending in 区 are left alone, because scenic areas (玉龙雪山景区) end in 区 too.
+ */
+export function isAreaName(spot: string, city: string): boolean {
+  const name = spot.trim();
+  return name !== city && name.length >= 2 && /(市|县|旗)$/u.test(name);
+}
+
+/** A city's selected spots split into places to visit and areas the traveller named. */
+export function splitRequested(spots: readonly string[], city: string): { spots: string[]; areas: string[] } {
+  return {
+    spots: spots.filter((spot) => !isAreaName(spot, city)),
+    areas: spots.filter((spot) => isAreaName(spot, city)),
+  };
+}
+
+/**
  * Without a confirmed duration, one preview day in the first selected city; the rest stay
  * locked. With one, every selected city across every day, for the Plan Agent to route.
  */
@@ -159,6 +178,8 @@ export function reviewRoute(
   scope: Extract<PlanScope, { status: "ready" }>,
   cities: readonly RouteCityInput[],
   proposal: RouteProposal,
+  /** City IDs the traveller chose to leave out when asked; only they may go while days remain. */
+  leaveOutAllowed: ReadonlySet<string> = new Set(),
 ): { readonly plan: RoutedPlan | null; readonly errors: readonly string[] } {
   const errors: string[] = [];
   const byId = new Map(cities.map((city) => [city.id, city]));
@@ -174,9 +195,12 @@ export function reviewRoute(
   }
   // A city may be left out when the days cannot hold every city, or when research found
   // nothing there to plan: empty days would help no one.
-  const needlessOmissions = proposal.omitted.filter(({ id }) => (byId.get(id)?.candidates ?? 0) > 0);
+  // A tight trip is the traveller's call, not the model's: with a day for every city, a city
+  // goes only when the traveller chose that.
+  const needlessOmissions = proposal.omitted.filter(({ id }) => (byId.get(id)?.candidates ?? 0) > 0 && !leaveOutAllowed.has(id));
   if (needlessOmissions.length > 0 && cities.length <= totalDays) {
-    errors.push("There are enough days for every city that has candidates; leave none of those out.");
+    errors.push(`There are ${totalDays} days for ${cities.length} cities: route every city that has candidates, at least one day each, `
+      + "and give any extra days to the cities that deserve them. If the trip is tight, say so in the reasons; do not leave a city out.");
   }
   if (proposal.cities.length === 0) errors.push("The route has no city.");
   if (proposal.cities.some(({ days }) => !Number.isInteger(days) || days < 1)) errors.push("Every routed city needs at least one day.");

@@ -101,3 +101,50 @@ test("an empty reason is a missing reason, not a failed route", async () => {
   assert.equal(result.plan.route.source, "agent");
   assert.deepEqual(result.plan.route.cities.map(({ reason }) => reason), [null, "洱海"]);
 });
+
+test("a tight trip may ask to leave a city out, and only the city the traveller chose may go", async () => {
+  const trip = handoff(["丽江市", "大理白族自治州"], fiveDays);
+  const scope = ready(planScope(trip.tripState));
+  const asking = {
+    cities: [{ id: "c1", days: 5, reason: "雪山" }], days: [], omitted: [{ id: "c2", reason: "太赶" }],
+    question: { text: "五天去两座城会赶，怎么安排？", options: [
+      { label: "两座都去", kind: "pace", leaveOut: null },
+      { label: "只去丽江", kind: "pace", leaveOut: "c2" },
+    ] },
+  };
+  const asked = await planRoute(trip, scope, [lijiang, dali], { model: modelAnswering({ routes: [asking] }) }, () => {},
+    { allowQuestion: true });
+  assert.equal(asked.status, "question");
+  // The short ID becomes the city's own name, which survives the pause.
+  assert.deepEqual(asked.status === "question" && asked.question.options.map(({ leaveOut }) => leaveOut), [null, "大理白族自治州"]);
+
+  // An option that names an unknown city makes the question unusable.
+  const unknown = { ...asking, question: { ...asking.question, options: [
+    { label: "甲", kind: "pace", leaveOut: "c9" }, { label: "乙", kind: "pace", leaveOut: null }] } };
+  const ignored = await planRoute(trip, scope, [lijiang, dali], { model: modelAnswering({ routes: [unknown, unknown] }) }, () => {},
+    { allowQuestion: true });
+  assert.equal(ignored.status, "ready");
+
+  // Without the traveller's choice, leaving 大理 out is refused; with it, the Agent's route stands.
+  const routeOnly = { ...asking, question: null };
+  const refused = await planRoute(trip, scope, [lijiang, dali], { model: modelAnswering({ routes: [routeOnly, routeOnly] }) });
+  assert.equal(refused.status === "ready" && refused.plan.route.source, "fallback");
+  const chosen = await planRoute(trip, scope, [lijiang, dali], { model: modelAnswering({ routes: [routeOnly] }) }, () => {},
+    { leaveOut: ["大理白族自治州"] });
+  assert.equal(chosen.status === "ready" && chosen.plan.route.source, "agent");
+  assert.deepEqual(chosen.status === "ready" && chosen.plan.route.omitted.map(({ city }) => city), ["大理白族自治州"]);
+});
+
+test("a city's areas named by the traveller reach the route call", async () => {
+  const trip = handoff(["丽江市", "大理白族自治州"], fiveDays);
+  const destination = trip.tripState.destination;
+  if (destination.state !== "known") throw new Error("expected a destination");
+  const withArea = { ...trip, tripState: { ...trip.tripState, destination: { ...destination, areas: [{ province: "云南省", places: [
+    { name: "丽江市", spots: [] }, { name: "大理白族自治州", spots: ["大理市", "洱海"] }] }] } } };
+  const routePrompts: { cities: { city: string; travellerAreas: string[] }[] }[] = [];
+  await planRoute(withArea, ready(planScope(withArea.tripState)), [lijiang, dali], {
+    model: modelAnswering({ routePrompts, routes: [{ cities: [{ id: "c1", days: 3, reason: "雪山" }, { id: "c2", days: 2, reason: "洱海" }], days: [], omitted: [] }] }),
+  });
+  assert.deepEqual(routePrompts[0].cities.map(({ city, travellerAreas }) => [city, travellerAreas]),
+    [["丽江市", []], ["大理白族自治州", ["大理市"]]]);
+});
