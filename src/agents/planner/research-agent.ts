@@ -6,6 +6,7 @@ import { z } from "zod";
 import { namesSamePlace } from "@/capabilities/destination/resolve-destination-place";
 import { normalizeRecommendationName } from "@/domain/location/recommendation-identity";
 import type { PlanHandoff } from "@/domain/plan/plan-handoff";
+import type { PlanActivity } from "@/domain/plan/plan-progress";
 import type { CityResearch, SpotCard, SpotEvidence } from "@/domain/plan/spot-card";
 import { MAX_TRIP_DESTINATION_CITIES } from "@/domain/trip-state/destination-areas";
 import { parseExactDays } from "@/domain/trip-state/trip-dates";
@@ -14,7 +15,8 @@ import { logger } from "@/platform/observability/logger";
 import type { DiscoverySearchResult } from "@/platform/search/discovery-search";
 import { createKimiSearchProFromEnvironment } from "@/platform/search/kimi-search-pro";
 
-const cityConcurrency = 2;
+/** The plan workflow researches this many cities at once too. */
+export const cityConcurrency = 2;
 // Nominated and requested names are searched a few at a time, plus one follow-up.
 const namesPerSearch = 3;
 const maxNameSearches = 4;
@@ -80,11 +82,16 @@ const nominationSchema = z.object({
   spots: z.array(z.string().trim().min(1).max(40)).max(maxCardsPerCity),
 });
 
-type City = {
+/** One city to research: its user-named spots and how many candidates it needs. */
+export type ResearchTask = {
   readonly province: string;
   readonly city: string;
   readonly requested: readonly string[];
+  readonly target: number;
 };
+type City = Omit<ResearchTask, "target">;
+/** Hears what a city's research is doing, for the plan page's live line. */
+export type ResearchProgress = (activity: Extract<PlanActivity, { city: string }>) => void;
 type Source = {
   readonly id: number;
   readonly url: string;
@@ -93,7 +100,7 @@ type Source = {
   readonly checkedAt: string;
   readonly snippet: string;
 };
-type ResearchDependencies = {
+export type ResearchDependencies = {
   readonly search: (query: string, signal: AbortSignal) => Promise<readonly DiscoverySearchResult[]>;
   readonly model: typeof createMoonshotChatModelFromEnvironment;
 };
@@ -219,12 +226,17 @@ async function nominateSpots(
   return [...names.values()].slice(0, target);
 }
 
-async function researchCity(
-  city: City,
+/**
+ * Researches one city: nominate, search the names a few at a time, one follow-up search,
+ * then extract cards whose quotes code finds in the sources.
+ */
+export async function researchCity(
+  task: ResearchTask,
   handoff: PlanHandoff,
-  target: number,
-  deps: ResearchDependencies,
+  deps: ResearchDependencies = defaultDependencies,
+  onProgress: ResearchProgress = () => {},
 ): Promise<CityResearch> {
+  const { target, ...city } = task;
   const signal = AbortSignal.timeout(cityTimeoutMs);
   const sources: Source[] = [];
   let searchCalls = 0;
@@ -265,6 +277,7 @@ async function researchCity(
   let nominated: string[] = [];
   try {
     model = deps.model();
+    onProgress({ kind: "nominating", city: city.city });
     nominated = await nominateSpots(city, handoff, target, model, signal);
   } catch (error) {
     // Without nominations the requested spots are still searched, or the city as a whole.
@@ -275,8 +288,23 @@ async function researchCity(
   const names = [...city.requested, ...nominated];
   const groups = Array.from({ length: Math.ceil(names.length / namesPerSearch) }, (_, index) =>
     names.slice(index * namesPerSearch, (index + 1) * namesPerSearch)).slice(0, maxNameSearches);
-  if (groups.length > 0) await Promise.all(groups.map((group) => searchCity("景点 " + group.join(" "))));
-  else await searchCity("旅游 景点 推荐");
+  const searched = groups.flat();
+  let groupsDone = 0;
+  const searching = () => onProgress({
+    kind: "searching", city: city.city, names: searched, done: groupsDone, total: Math.max(groups.length, 1),
+  });
+  searching();
+  if (groups.length > 0) {
+    await Promise.all(groups.map(async (group) => {
+      await searchCity("景点 " + group.join(" "));
+      groupsDone += 1;
+      searching();
+    }));
+  } else {
+    await searchCity("旅游 景点 推荐");
+    groupsDone = 1;
+    searching();
+  }
 
   const scope = {
     province: city.province,
@@ -316,6 +344,7 @@ async function researchCity(
           ].join(" "),
           tools: { search },
         });
+        onProgress({ kind: "reviewing", city: city.city, sources: sources.length });
         try {
           await agent.generate(JSON.stringify({ scope, sources }), {
             abortSignal: signal,
@@ -329,6 +358,7 @@ async function researchCity(
       }
 
       if (sources.length > 0 && !signal.aborted) {
+        onProgress({ kind: "extracting", city: city.city, sources: sources.length });
         const { output } = await generateText({
           model,
           abortSignal: signal,
@@ -370,13 +400,18 @@ async function researchCity(
   return { province: city.province, city: city.city, status, searchCalls, spots };
 }
 
-/** First-round web research. The output keeps unverified user choices visible. */
-export async function runFirstRoundResearch(
-  handoff: PlanHandoff,
-  deps: ResearchDependencies = defaultDependencies,
-): Promise<{ cities: CityResearch[]; pendingProvinces: string[] }> {
+/**
+ * Which cities the first round researches, and with how many candidates each: every
+ * selected city with a confirmed duration, the first one without. The rest are deferred
+ * with their named spots kept; a province without a city waits for one.
+ */
+export function researchTasks(handoff: PlanHandoff): {
+  tasks: ResearchTask[];
+  deferred: CityResearch[];
+  pendingProvinces: string[];
+} {
   const destination = handoff.tripState.destination;
-  if (destination.state === "missing" || destination.legacyText) return { cities: [], pendingProvinces: [] };
+  if (destination.state === "missing" || destination.legacyText) return { tasks: [], deferred: [], pendingProvinces: [] };
 
   const allCities = destination.areas.flatMap(({ province, places }) =>
     places.map(({ name, spots }) => ({ province, city: name, requested: spots })));
@@ -387,22 +422,29 @@ export async function runFirstRoundResearch(
   // Days per city are not allocated yet, so each city gets an even share of the trip.
   const target = Math.min(maxCardsPerCity,
     Math.max(minCandidatesPerCity, Math.ceil(candidatesPerDay * (days ?? 1) / Math.max(included.length, 1))));
-  const cities: CityResearch[] = [];
-
-  for (let offset = 0; offset < included.length; offset += cityConcurrency) {
-    const batch = included.slice(offset, offset + cityConcurrency);
-    cities.push(...await Promise.all(batch.map((city) => researchCity(city, handoff, target, deps))));
-  }
-
-  for (const city of allCities.slice(cityLimit)) {
-    cities.push({
+  return {
+    tasks: included.map((city) => ({ ...city, target })),
+    deferred: allCities.slice(cityLimit).map((city) => ({
       province: city.province,
       city: city.city,
       status: "deferred",
       searchCalls: 0,
       spots: buildCards(city, [], []),
-    });
-  }
+    })),
+    pendingProvinces,
+  };
+}
 
-  return { cities, pendingProvinces };
+/** First-round web research, two cities at a time. The output keeps unverified user choices visible. */
+export async function runFirstRoundResearch(
+  handoff: PlanHandoff,
+  deps: ResearchDependencies = defaultDependencies,
+): Promise<{ cities: CityResearch[]; pendingProvinces: string[] }> {
+  const { tasks, deferred, pendingProvinces } = researchTasks(handoff);
+  const cities: CityResearch[] = [];
+  for (let offset = 0; offset < tasks.length; offset += cityConcurrency) {
+    const batch = tasks.slice(offset, offset + cityConcurrency);
+    cities.push(...await Promise.all(batch.map((task) => researchCity(task, handoff, deps))));
+  }
+  return { cities: [...cities, ...deferred], pendingProvinces };
 }

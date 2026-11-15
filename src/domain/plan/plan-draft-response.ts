@@ -2,7 +2,7 @@ import { z } from "zod";
 
 import { parsePlaceImage, type PlaceImage } from "@/domain/location/place-image";
 
-import { daySlots, spotFacts, type PlanDraft } from "./plan-draft";
+import { daySlots, spotFacts, type PlanDay, type PlanDraft, type PlanRoute } from "./plan-draft";
 import type { CityResearch, SpotCard, SpotEvidence, SpotMapCheck } from "./spot-card";
 
 export const spotEvidenceSchema: z.ZodType<SpotEvidence> = z.strictObject({
@@ -42,30 +42,34 @@ export const cityResearchSchema: z.ZodType<CityResearch> = z.strictObject({
   spots: z.array(spotCardSchema),
 });
 
-const planDraftSchema: z.ZodType<PlanDraft> = z.strictObject({
+export const planRouteSchema: z.ZodType<PlanRoute> = z.strictObject({
+  source: z.enum(["agent", "fallback"]),
+  cities: z.array(z.strictObject({
+    province: z.string().min(1), city: z.string().min(1), days: z.number().int().positive(), reason: z.string().min(1).nullable(),
+  })),
+  omitted: z.array(z.strictObject({ province: z.string().min(1), city: z.string().min(1), reason: z.string().min(1).nullable() })),
+});
+
+export const planDaySchema: z.ZodType<PlanDay> = z.strictObject({
+  day: z.number().int().positive(),
+  date: z.iso.date().nullable(),
+  province: z.string().min(1),
+  city: z.string().min(1),
+  arrivingFrom: z.string().min(1).nullable(),
+  focus: z.string().min(1).nullable(),
+  theme: z.string().min(1).nullable(),
+  stops: z.array(z.strictObject({
+    spotId: z.string().min(1),
+    slot: z.enum(daySlots),
+    anchor: z.strictObject({ time: z.string(), reason: z.string(), evidence: spotEvidenceSchema }).nullable(),
+  })),
+});
+
+export const planDraftSchema: z.ZodType<PlanDraft> = z.strictObject({
   mode: z.enum(["preview", "full"]),
   totalDays: z.number().int().positive().nullable(),
-  route: z.strictObject({
-    source: z.enum(["agent", "fallback"]),
-    cities: z.array(z.strictObject({
-      province: z.string().min(1), city: z.string().min(1), days: z.number().int().positive(), reason: z.string().min(1).nullable(),
-    })),
-    omitted: z.array(z.strictObject({ province: z.string().min(1), city: z.string().min(1), reason: z.string().min(1).nullable() })),
-  }),
-  days: z.array(z.strictObject({
-    day: z.number().int().positive(),
-    date: z.iso.date().nullable(),
-    province: z.string().min(1),
-    city: z.string().min(1),
-    arrivingFrom: z.string().min(1).nullable(),
-    focus: z.string().min(1).nullable(),
-    theme: z.string().min(1).nullable(),
-    stops: z.array(z.strictObject({
-      spotId: z.string().min(1),
-      slot: z.enum(daySlots),
-      anchor: z.strictObject({ time: z.string(), reason: z.string(), evidence: spotEvidenceSchema }).nullable(),
-    })),
-  })),
+  route: planRouteSchema,
+  days: z.array(planDaySchema),
   conflicts: z.array(z.discriminatedUnion("kind", [
     z.strictObject({ kind: z.literal("requested_unscheduled"), spotId: z.string().min(1) }),
     z.strictObject({ kind: z.literal("not_enough_candidates"), day: z.number().int().positive() }),
@@ -74,7 +78,7 @@ const planDraftSchema: z.ZodType<PlanDraft> = z.strictObject({
 });
 
 // The page renders this URL, so it passes the same checks as every other place photo.
-const placeImageSchema: z.ZodType<PlaceImage, unknown> = z.unknown().transform((value, context) => {
+export const placeImageSchema: z.ZodType<PlaceImage, unknown> = z.unknown().transform((value, context) => {
   const image = parsePlaceImage(value);
   if (image) return image;
   context.addIssue({ code: "custom", message: "Invalid place image." });
@@ -82,26 +86,24 @@ const placeImageSchema: z.ZodType<PlaceImage, unknown> = z.unknown().transform((
 });
 
 /**
- * What the plan page receives. A ready draft carries its route, the cards it refers to, so
- * the page can name each stop and show its sources, and each city's research status.
+ * A finished plan as the page shows it and a plan version stores it: the draft with its
+ * route, the cards it refers to, so the page can name each stop and show its sources,
+ * and each city's research status.
  */
-export const planDraftResponseSchema = z.discriminatedUnion("status", [
-  z.strictObject({
-    status: z.literal("ready"),
-    draft: planDraftSchema,
-    spots: z.array(spotCardSchema),
-    cities: z.array(z.strictObject({
-      province: z.string().min(1),
-      city: z.string().min(1),
-      status: z.enum(["ready", "partial", "unavailable", "deferred"]),
-    })),
-    pendingProvinces: z.array(z.string().min(1)),
-    /** A photo for each day where the local catalog has one: a stop of the day, or its city. */
-    dayPhotos: z.array(z.strictObject({ day: z.number().int().positive(), image: placeImageSchema })),
-    /** Stopped when a Tianditu call failed: the remaining spots stayed unchecked. */
-    mapCheck: z.enum(["complete", "stopped"]),
-  }),
-  z.strictObject({ status: z.literal("unsupported"), reason: z.literal("no_city") }),
-]);
+export const readyPlanSchema = z.strictObject({
+  status: z.literal("ready"),
+  draft: planDraftSchema,
+  spots: z.array(spotCardSchema),
+  cities: z.array(z.strictObject({
+    province: z.string().min(1),
+    city: z.string().min(1),
+    status: z.enum(["ready", "partial", "unavailable", "deferred"]),
+  })),
+  pendingProvinces: z.array(z.string().min(1)),
+  /** A photo for each day where the local catalog has one: a stop of the day, or its city. */
+  dayPhotos: z.array(z.strictObject({ day: z.number().int().positive(), image: placeImageSchema })),
+  /** Stopped when a Tianditu call failed: the remaining spots stayed unchecked. */
+  mapCheck: z.enum(["complete", "stopped"]),
+});
 
-export type PlanDraftResponse = z.output<typeof planDraftResponseSchema>;
+export type ReadyPlan = z.output<typeof readyPlanSchema>;

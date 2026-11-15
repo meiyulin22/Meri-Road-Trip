@@ -16,8 +16,9 @@ shapes the Planner — business, page, run, tools, memory — is kept in Chinese
 | Implemented (1.0300) | Mastra instance, a trial agent, two tools (`resolve-place`, `web-search`), a live verification script |
 | Implemented (Workspace) | The Generate plan action opens the real plan page with a saved TripState snapshot and source-checked preference quotes |
 | Implemented (standalone) | First-round Research Agent and Kimi Search Pro, runnable with a PlanHandoff JSON file |
-| Implemented (plan page) | Plan Agent draft for one city or a preview day: the plan page requests it after the handoff and shows the days, time anchors, sources and conflicts (1.2005); also runnable with a PlanHandoff and research JSON |
-| Planned | Multi-city allocation, second-round verification, route and weather tools, durable plan workflow with progress events, itinerary storage, tracing storage, evaluation |
+| Implemented (plan page) | Plan Agent route and days for every selected city (1.2009); the plan page shows the days, time anchors, sources and conflicts |
+| Implemented (1.2010) | The plan-generation Mastra workflow, its live progress over Server-Sent Events, and run records, progress events and plan versions in Postgres (section 3, "The plan workflow") |
+| Planned | Pausing to ask the user (suspend/resume, 1.2011), second-round verification, route and weather tools, a reviewer agent, tracing storage, evaluation |
 
 ## 1. Why an agent here
 
@@ -38,10 +39,11 @@ Two things keep it from becoming an open-ended loop:
 
 ```text
 src/agents/          Mastra instance, agents, and their tools          ← this directory
-  index.ts           Mastra instance for the Scout trial
+  index.ts           Mastra instance: the Scout trial and the plan-generation workflow with its real providers
   scout-agent.ts     1.0300 trial agent (to be removed when the planner lands)
   tools/             Thin wrappers over src/platform ports, one tool per file
-  planner/           First-round Research Agent, Plan Agent draft, and their tests
+  planner/           The planner's parts as plain functions: research, map check, route, days, day photos
+  workflows/         plan-generation.ts: imports the planner functions and orders them as Mastra steps
 src/domain/plan/     Handoff, spot cards, plan drafts and their validation — pure, no Mastra
 src/platform/        Ports and adapters the tools call (Tianditu, Bocha, Kimi, Postgres)
 ```
@@ -58,7 +60,7 @@ through Mastra, calling Meri's existing providers.
 
 | Piece | File | Behaviour |
 | --- | --- | --- |
-| Mastra instance | [index.ts](index.ts) | Registers the agents. Turns off Mastra's default usage telemetry to PostHog (`MASTRA_TELEMETRY_DISABLED`). No storage or trace exporter yet: run records live in memory. |
+| Mastra instance | [index.ts](index.ts) | Registers the agents and, since 1.2010, the plan-generation workflow. Turns off Mastra's default usage telemetry to PostHog (`MASTRA_TELEMETRY_DISABLED`). Mastra's storage is in memory and there is no trace exporter yet; Meri stores plan runs itself. |
 | Trial agent | [scout-agent.ts](scout-agent.ts) | Answers one question about places in China with the two tools. The model is built on first use, so importing never needs the API key. |
 | `resolve-place` | [tools/resolve-place.ts](tools/resolve-place.ts) | The Workspace's own place check (Tianditu since 1.0702) for one Chinese name: a match with province, city and coordinates (CGCS2000), up to five candidates, or a whole province. Says nothing about access. |
 | `web-search` | [tools/web-search.ts](tools/web-search.ts) | Bocha search for recent notices, five results at most, each with its source and publish date. A provider failure is `unavailable`, never an error carrying a keyed URL. |
@@ -129,7 +131,10 @@ is checked on its own, so one overlong quote drops that fact, not the city (1.20
 cities in parallel had timed out at 45 s and lost a whole city to one invalid field).
 A city that does not finish logs which step failed and how, by error name only. A trip without a confirmed
 duration researches its first selected city. A province without selected cities
-is reported separately.
+is reported separately. [researchTasks](planner/research-agent.ts) picks the cities and
+[researchCity](planner/research-agent.ts) researches one, reporting each step (nominating,
+searching n/m, reviewing, extracting) for the plan page's live line; the workflow runs it
+for each city, two at a time.
 
 Run the first round from the repository root:
 
@@ -138,8 +143,8 @@ node --env-file=.env.local --import tsx scripts/verify-plan-research.ts path/to/
 ```
 
 The script uses MOONSHOT_API_KEY for both the model and [Kimi Search
-Pro](../platform/search/kimi-search-pro.ts). The Generate plan button currently
-opens the handoff page. This script runs research independently of the page.
+Pro](../platform/search/kimi-search-pro.ts). It runs research on its own, without the
+workflow or the page.
 
 ### Map check (1.2006)
 
@@ -164,52 +169,101 @@ day 1, the 古城区 spots on day 2 and 狮子山 on day 3. A first prompt that 
 "prefer located" left day 3 empty rather than use 狮子山, so the prompt now also says
 every day needs a stop.
 
-### Plan Agent draft (single city)
+### Plan Agent: route and days
 
-[plan-agent.ts](planner/plan-agent.ts) turns research into a
-[PlanDraft](../domain/plan/plan-draft.ts). Code scopes the plan first: without a
-confirmed duration, one preview day in the first selected city; with one, every selected
-city across every day, dated from the start date when it is exact.
+The Plan Agent is two functions, so the plan page's future chat (routed by Jev) can call
+either on its own. Code scopes the plan first ([planScope](../domain/plan/plan-draft.ts)):
+without a confirmed duration, one preview day in the first selected city; with one, every
+selected city across every day, dated from the start date when it is exact.
 
-The Plan Agent then routes the trip, one city included (1.2009): one structured Kimi
-call orders the cities to avoid backtracking, gives each its days with a short reason,
-and gives every day a focus district and a theme. With fewer days than cities it may
-leave cities out, each with a reason. Code checks that every city appears exactly once,
-routed or left out, that cities are left out only when the days cannot hold them, that
-the days add up, and that each focus is a district the map located spots in for that
-city; it gives one more attempt with the problems, then shares the days out in the
-order the cities were added (marked as automatic). The first day in each later city is
-a transfer day: no morning stops, one stop fewer, travel time still unknown.
+[plan-route.ts](planner/plan-route.ts) routes the trip, one city included (1.2009): one
+structured Kimi call orders the cities to avoid backtracking, gives each its days with a
+short reason, and gives every day a focus district and a theme. With fewer days than
+cities it may leave cities out, each with a reason. Code checks that every city appears
+exactly once, routed or left out, that cities are left out only when the days cannot hold
+them, that the days add up, and that each focus is a district the map located spots in for
+that city; it gives one more attempt with the problems, then shares the days out in the
+order the cities were added (marked as automatic). The first day in each later city is a
+transfer day: no morning stops, one stop fewer, travel time still unknown.
 
-One structured Kimi call chooses each day's spots from the candidates, which it sees
-under short IDs (`s1`, `s2`…) with their quoted facts and the user's preferences: each
-preference's kind and the traveller's own words, never the short label shown on the
-page. A walking limit or companions lower the daily limit from four stops to three,
-decided in code from the kinds (1.2007). Each stop has a slot (morning, afternoon or evening) and an optional time
-anchor such as a last cable car. Code keeps a stop only if the spot is a candidate in
-that day's city and is not already scheduled, and allows four stops a day while the
-transport is unknown. An anchor stays only if one of the spot's quoted facts states
-that time. In a full plan every requested spot must be scheduled. When the review
-finds problems, the model gets one more attempt with them. Whatever still fails is
-dropped and reported: unscheduled requested spots and empty days become conflicts,
-and scheduled spots list their unknown facts as unverified.
+[plan-days.ts](planner/plan-days.ts) chooses one city's days at a time, in route order
+(1.2010; before, one call chose every day of the trip). It sees that city's candidates under
+short IDs (`s1`, `s2`…) with their quoted facts and the user's preferences: each preference's
+kind and the traveller's own words, never the short label shown on the page. A walking limit
+or companions lower the daily limit from four stops to three, decided in code from the kinds
+(1.2007). Each stop has a slot (morning, afternoon or evening) and an optional time anchor
+such as a last cable car. Code keeps a stop only if the spot is a candidate in that day's
+city and is not already scheduled. An anchor stays only if one of the spot's quoted facts
+states that time. In a full plan every requested spot must be scheduled. When the review
+finds problems, the model gets one more attempt with them. Whatever still fails is dropped,
+and [finishDraft](../domain/plan/plan-draft.ts) reports it: unscheduled requested spots and
+empty days become conflicts, and scheduled spots list their unknown facts as unverified.
+Choosing per city lets the page show each city's days as soon as they are drafted; a city's
+candidates never belong to another city, so nothing is lost by splitting.
+
+### The plan workflow (1.2010)
+
+[workflows/plan-generation.ts](workflows/plan-generation.ts) is Generate plan as a Mastra
+workflow (`@mastra/core` 1.74). It only imports the planner functions and orders them:
+
+```text
+plan-generation   input { runId, tripId, handoff }   state { handoff, scope, deferred, pendingProvinces }
+  .then(load-scope)                       planScope and the cities to research → one task per city
+  .foreach(research-city, concurrency 2)  researchCity: nominate → search → one follow-up → extract → check quotes
+  .then(map-check)                        Tianditu, one lookup a spot; the first failure stops it, no retry
+  .then(plan-route)                       planRoute
+  .then(plan-days)                        draftCityDays per city in route order, then finishDraft
+  .then(day-photos)                       dayPhotos from the local catalog only
+  .then(save-plan)                        a new plan version
+```
+
+Dependencies are injected (`createPlanGenerationWorkflow(deps)`): tests pass fakes, and
+[index.ts](index.ts) registers the workflow with the real providers, built on first use.
+
+**Progress.** Each step writes events with Mastra's step `writer`; they reach the run's
+stream as `workflow-step-output`. Mastra's own `workflow-step-start` and
+`workflow-step-result` become the stage start and finish events, with the step's real time
+and a summary of numbers taken from its output. The event format is Meri's, in
+[plan-progress.ts](../domain/plan/plan-progress.ts), shared by the server and the page: an
+envelope `{ runId, seq, at, event }` and events `stage.started`, `stage.activity` (what the
+stage does now, as data: a search sent, a spot looked up, a model call started),
+`stage.finished`, `scope.ready`, `city.researched`, `map.checked`, `route.ready`, `day.ready`
+(one day with the cards it uses), `day.photo` and `run.finished`. Only real work produces an
+event; a single long model call is one activity until it returns.
+
+**Runs.** [plan-run-service.ts](../capabilities/planning/plan-run-service.ts) starts a run
+in the background and returns at once; the run goes on when the page closes. It reads the
+workflow's stream, numbers each event, sends it to the pages following the run at once from
+memory, and saves it to `plan_run_events` behind it (waiting for each Neon write first put
+the page about eight seconds behind the run). A page follows a run with Server-Sent Events
+from `GET /api/trips/[id]/plan-runs/[runId]/events`; EventSource reconnects with
+Last-Event-ID and gets only what it missed. Two requests for the same handoff share one run,
+and a handoff that already has a plan answers with it. A run has an eight-minute backstop
+(each part has its own deadline; ten cities can need about seven minutes). A model that
+cannot be reached fails the run as `planner_unavailable`.
+
+**Storage.** Mastra's own state is in memory (`InMemoryStore`). Meri keeps the run record
+(`plan_runs`: handoff, status, error code, usage, time), every event, and each finished plan
+as a numbered version with the TripState and preferences it was built from
+(`plan_versions`; see [DATABASE_SCHEMA](../../docs/DATABASE_SCHEMA.md)). A run left running
+by a restart is not resumed: the first page that follows it marks it interrupted. Durable
+Mastra snapshots in Postgres come with suspend/resume (1.2011).
+
+**Measured on 2026-11-15** through the plan page, 丽江 and 大理 over five days from a
+development machine: 40 s and 43 s end to end. Research of both cities in parallel took
+25–28 s of that, the route 5–6 s, the days 8–9 s (two calls), and saving the version about
+1 s. The first run made one Tianditu lookup (it succeeded; the rest were cached), the second
+none. About 2,000 input and 450 output tokens for route and days; research tokens are not
+counted yet.
+
+Run the workflow from the command line, printing each event as it arrives:
 
 ```bash
 node --env-file=.env.local --import tsx scripts/verify-plan-draft.ts path/to/handoff.json [path/to/research.json]
 ```
 
-Without a research file the script runs the first round first. It prints the draft,
-the attempts, token usage and timings.
-
-The plan page reaches the same code through `POST /api/trips/[id]/plan-draft`
-([plan-draft-handler.ts](../capabilities/planning/plan-draft-handler.ts)). The browser
-sends the handoff it holds; the handler checks the owner, refuses a handoff that no
-longer matches the saved TripState (409), answers several cities with a confirmed
-duration as unsupported before spending any search, and otherwise runs research and
-the draft in one request. The response carries the draft, only the cards it uses, and
-each city's research status. The page keeps it beside the handoff in sessionStorage,
-so a refresh does not research again. There are no progress events yet: the page
-shows an honest waiting state for the whole request.
+With a research file, the saved cards stand in for research. The script keeps the run in
+memory and needs no database.
 
 ## 4. Planned: the Planner
 
@@ -248,9 +302,10 @@ city and keeps later days locked until the user provides or confirms the duratio
 See [the Planner notes](../../docs/agent-planner/README.md) for the planned allocation
 and research rules. Use a separate call to structure the results of a tool loop.
 
-The run is a **durable workflow**: each stage's result is stored, so a server restart
-resumes instead of starting over, and a later version can pause to ask the user a
-question (two possible routes, a closed trail) and continue from the answer.
+The run is a Mastra workflow (1.2010, above). Its events and results are stored; a run cut
+off by a restart is marked interrupted rather than resumed. Pausing to ask the user a
+question (two possible routes, a closed trail) and continuing from the answer is next
+(1.2011), with Mastra's snapshots stored durably.
 
 ### Output
 
@@ -323,3 +378,4 @@ measurement of the deployed app.
 | 2026-10-05 | Mastra's usage telemetry is off by default. |
 | 2026-11-12 | Research covers every selected city first; the Plan Agent then allocates days and selects spots, and code only validates. The Plan Agent may pause to ask the user. A reviewer agent checks last. |
 | 2026-11-12 | Deploy to a US VPS. Tianditu is integrated last, verified by hand on a whitelisted machine. |
+| 2026-11-15 | Generate plan runs as a Mastra workflow with live progress over SSE. Mastra's state stays in memory until suspend/resume needs durable snapshots; Meri stores runs, events and plan versions itself. The Plan Agent chooses days one city at a time, so each city's days reach the page as they are ready. A restarted run is marked interrupted, not resumed. |

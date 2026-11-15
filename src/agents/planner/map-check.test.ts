@@ -51,6 +51,7 @@ test("stops at the first failed lookup and leaves the rest unchecked", async () 
     spots: [card("洱海"), card("没有出处", { location: null }), card("苍山"), card("崇圣寺三塔")],
   }];
   const memory = new SpotLocationMemory(null);
+  const progress: string[] = [];
   const outcome = await checkSpotsOnMap(cities, {
     async search(name, areas) {
       searched.push(name);
@@ -58,9 +59,11 @@ test("stops at the first failed lookup and leaves the rest unchecked", async () 
       return answers[name] ?? assert.fail(`${name} should not be looked up`);
     },
     memory,
-  });
+  }, ({ spot, done, total }) => progress.push(`${spot} ${done}/${total}`));
 
   assert.deepEqual(searched, ["洱海", "苍山"]);
+  // The page counts every sourced spot, looked up or left unchecked after the stop.
+  assert.deepEqual(progress, ["洱海 1/3", "苍山 2/3", "崇圣寺三塔 3/3"]);
   assert.equal(outcome.status, "stopped");
   assert.equal(outcome.lookups, 2);
   assert.deepEqual(outcome.cities[0].spots.map(({ name, mapCheck }) => [name, mapCheck.status]),

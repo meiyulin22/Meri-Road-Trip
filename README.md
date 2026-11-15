@@ -125,8 +125,9 @@ src/capabilities/recommendation/  Turning preferences into validated, province-f
 fixed flow written in code; an agent gets a goal and tools and decides which tool
 to call from what the last call returned. Its tools are thin wrappers over
 `src/platform/` ports, and nothing an agent produces is saved before code has
-validated it. Today it holds a trial agent; the Planner behind Generate plan is
-designed in [src/agents/README.md](src/agents/README.md).
+validated it. It holds a trial agent and the Planner behind Generate plan: plain
+functions in `src/agents/planner/` and the Mastra workflow in `src/agents/workflows/`
+that orders them and streams their progress. See [src/agents/README.md](src/agents/README.md).
 
 ```text
 src/platform/llm/                Structured-output port, Moonshot adapter
@@ -174,4 +175,6 @@ is not supported yet: there is no service worker or offline cache.
   companion instead of answering as a general chatbot.
 - **Generate plan as the Planner agent.** A Mastra agent that researches the
   Journey with tools within a budget and returns a plan code validates before
-  saving. Only the 1.0300 trial exists; see [src/agents/README.md](src/agents/README.md).
+  saving. The workflow, live progress and plan versions exist since 1.2010; pausing
+  to ask the user, second-round verification and routes are next. See
+  [src/agents/README.md](src/agents/README.md).

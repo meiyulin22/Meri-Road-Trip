@@ -184,16 +184,15 @@ restricts them to settled provinces. Each place carries a representative landmar
 used only to pick its photo. Access checking and ranking are not connected to this
 workflow. Explicit selection and identity verification are required.
 
-**Generate Plan — the Planner agent:** The plan page currently receives the
-handoff. The planned Mastra workflow takes a snapshot of
-the current TripState, researches with tools (place identity, routes,
-weather, web notices) within a budget, and returns a plan of days, places
-and legs in which every fact carries its source and date and anything not
-found is listed as unknown. Code validates the plan against the snapshot
-and the tool results before saving it as a version; a later change to the
-Journey marks it stale. The run is a durable workflow that survives a
-restart and can pause for the user. The first round of research runs independently of the page.
-The design is in [the agents README](../src/agents/README.md).
+**Generate Plan — the Planner agent:** Since 1.2010 the plan page starts a
+Mastra workflow that takes a snapshot of the current TripState, researches
+every selected city with sourced spot cards, checks the spots on Tianditu,
+routes the trip and chooses each day's spots, then saves the plan as a
+version; a later change to the Journey marks it stale. Every fact carries its
+source and date, and anything not found is listed as unknown. Its real
+progress streams to the page. Pausing to ask the user, a second round of
+verification, routes and weather are next. The design is in
+[the agents README](../src/agents/README.md).
 
 The next planning input should come from current TripState, including city-level
 destination choices and their named spots. Deleted spots and unselected offers

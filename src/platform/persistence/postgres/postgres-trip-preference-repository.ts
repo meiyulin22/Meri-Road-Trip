@@ -25,9 +25,16 @@ function toRow(preference: TripPreference) {
   return { ...preference, updatedAt: preference.createdAt };
 }
 
+/** Postgres returns timestamptz as "2026-11-15 05:21:47.089+00"; the handoff requires ISO time. */
+function isoTime(value: string): string {
+  const time = new Date(value);
+  if (Number.isNaN(time.getTime())) throw new Error("PostgreSQL returned an invalid preference timestamp.");
+  return time.toISOString();
+}
+
 function toPreference(row: TripPreferenceRow): TripPreference {
   const { id, tripId, label, kind, quote, source, messageId, status, createdAt } = row;
-  return { id, tripId, label, kind, quote, source, messageId, status, createdAt };
+  return { id, tripId, label, kind, quote, source, messageId, status, createdAt: isoTime(createdAt) };
 }
 
 export class PostgresTripPreferenceRepository implements TripPreferenceRepository {

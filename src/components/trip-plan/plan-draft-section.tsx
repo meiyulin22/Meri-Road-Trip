@@ -3,35 +3,40 @@
 import { ArrowRight, ChevronDown, Clock, ExternalLink, Info, MapPin, MoonStar, RotateCw, Route, Sparkles, Star, Sun, Sunrise, TriangleAlert } from "lucide-react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import Image from "next/image";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useReducer, useState } from "react";
 
 import { useLocale } from "@/components/i18n/locale-context";
 import { creditsHref } from "@/components/trip-workspace/destination-choices-card";
 import { PhotoSourceCredit } from "@/components/trip-workspace/photo-source-dialog";
 import type { PlaceImage } from "@/domain/location/place-image";
 import type { Locale } from "@/domain/locale/locale";
-import type { DaySlot, PlanDay, SpotFact } from "@/domain/plan/plan-draft";
-import type { PlanDraftResponse } from "@/domain/plan/plan-draft-response";
+import type { DaySlot, PlanDay, PlanRoute, SpotFact } from "@/domain/plan/plan-draft";
+import type { ReadyPlan } from "@/domain/plan/plan-draft-response";
 import type { PlanHandoff } from "@/domain/plan/plan-handoff";
+import type { PlanRunStartResponse } from "@/domain/plan/plan-run";
 import type { SpotCard, SpotEvidence } from "@/domain/plan/spot-card";
 
 import {
+  parseProgressMessage,
   PlanDraftRequestError,
-  readPlanDraft,
-  requestPlanDraft,
-  savePlanDraft,
+  planRunEventsUrl,
+  readLatestPlan,
+  runFailure,
   sourceHost,
   sourcedFacts,
+  startPlanRun,
   stopsBySlot,
   type PlanDraftFailure,
 } from "./plan-draft-model";
+import { applyProgress, emptyProgress, pendingDays, type ProgressView } from "./plan-progress-view";
+import { PlanRunActivity } from "./plan-run-activity";
 import draftStyles from "./plan-draft.module.css";
 import styles from "./trip-plan.module.css";
 
 const copy = {
   en: {
-    working: "Meri is researching spots and arranging your days",
-    workingHint: "This usually takes 30 to 60 seconds. You can stay on this page.",
+    working: "Opening your plan",
+    workingHint: "If it isn't made yet, Meri starts it here and shows each step as it happens.",
     preview: "Preview day",
     dayLabel: (day: number) => `Day ${day}`,
     stopCount: (count: number) => `${count} ${count === 1 ? "stop" : "stops"}`,
@@ -62,12 +67,14 @@ const copy = {
       journey_changed: "Your journey changed after this plan was opened. Go back and choose Generate plan again.",
       unavailable: "The planner is busy right now. Try again in a moment.",
       failed: "Meri couldn’t arrange the days this time.",
+      time_limit: "This plan took too long and was stopped. Try again.",
+      interrupted: "The server restarted while planning, so this plan stopped. Try again.",
     } satisfies Record<PlanDraftFailure, string>,
     retry: "Try again",
   },
   zh: {
-    working: "Meri 正在调研景点、安排每一天",
-    workingHint: "通常需要 30 到 60 秒，可以留在这一页等待。",
+    working: "正在打开计划",
+    workingHint: "还没生成的话，Meri 会在这里开始规划，并实时显示每一步。",
     preview: "示范日",
     dayLabel: (day: number) => `第 ${day} 天`,
     stopCount: (count: number) => `${count} 个景点`,
@@ -98,6 +105,8 @@ const copy = {
       journey_changed: "打开计划后旅程有了变化。请回到旅程，再点一次 Generate plan。",
       unavailable: "规划服务暂时繁忙，请稍后再试。",
       failed: "这次没能排好行程。",
+      time_limit: "这次规划用时过长，已经停止，请重试。",
+      interrupted: "规划过程中服务器重启了，这次没有完成，请重试。",
     } satisfies Record<PlanDraftFailure, string>,
     retry: "重试",
   },
@@ -106,20 +115,21 @@ const copy = {
 type Copy = (typeof copy)[Locale];
 
 type DraftState =
-  | { readonly kind: "loading" }
-  | { readonly kind: "ready"; readonly response: PlanDraftResponse }
-  | { readonly kind: "failed"; readonly reason: PlanDraftFailure };
+  | { readonly kind: "starting" }
+  | { readonly kind: "running"; readonly runId: string }
+  | { readonly kind: "ready"; readonly plan: ReadyPlan; readonly progress: ProgressView | null }
+  | { readonly kind: "unsupported" }
+  | { readonly kind: "failed"; readonly reason: PlanDraftFailure; readonly progress: ProgressView | null };
 
-// Research costs searches and model calls, so a remount (or React's development double
-// effect) joins the request already running instead of starting another.
-const inFlight = new Map<string, Promise<PlanDraftResponse>>();
+// React's development double effect and a remount join the request already sent; the
+// server also joins requests for the same handoff to one run.
+const inFlight = new Map<string, Promise<PlanRunStartResponse>>();
 
-function draftFor(tripId: string, handoff: PlanHandoff): Promise<PlanDraftResponse> {
+function startFor(tripId: string, handoff: PlanHandoff): Promise<PlanRunStartResponse> {
   const key = tripId + JSON.stringify(handoff);
   const running = inFlight.get(key);
   if (running) return running;
-  const request = requestPlanDraft(tripId, handoff, new AbortController().signal)
-    .finally(() => inFlight.delete(key));
+  const request = startPlanRun(tripId, handoff, new AbortController().signal).finally(() => inFlight.delete(key));
   inFlight.set(key, request);
   return request;
 }
@@ -135,49 +145,61 @@ function checkedDate(evidence: SpotEvidence, locale: Locale): string {
     .format(new Date(evidence.checkedAt));
 }
 
-/** The drafted days, fetched once per handoff and kept in this tab. */
+/**
+ * The plan for the handoff this tab holds. The server either has it saved, is making it,
+ * or starts a run; a running plan streams its real progress and its days as they come.
+ */
 export function PlanDraftSection({ tripId, handoff }: { readonly tripId: string; readonly handoff: PlanHandoff }) {
   const locale = useLocale();
   const text = copy[locale];
   const [attempt, setAttempt] = useState(0);
-  const [state, setState] = useState<DraftState>(() => {
-    const stored = readPlanDraft(tripId, handoff);
-    return stored ? { kind: "ready", response: stored } : { kind: "loading" };
-  });
+  const [state, setState] = useState<DraftState>({ kind: "starting" });
 
   useEffect(() => {
-    if (state.kind !== "loading") return;
+    if (state.kind !== "starting") return;
     let active = true;
-    draftFor(tripId, handoff)
+    startFor(tripId, handoff)
       .then((response) => {
-        savePlanDraft(tripId, handoff, response);
-        if (active) setState({ kind: "ready", response });
+        if (!active) return;
+        if (response.status === "ready") setState({ kind: "ready", plan: response.plan, progress: null });
+        else if (response.status === "running") setState({ kind: "running", runId: response.runId });
+        else setState({ kind: "unsupported" });
       })
       .catch((error: unknown) => {
-        if (active) setState({ kind: "failed", reason: error instanceof PlanDraftRequestError ? error.reason : "failed" });
+        if (active) setState({ kind: "failed", reason: error instanceof PlanDraftRequestError ? error.reason : "failed", progress: null });
       });
     return () => { active = false; };
   }, [attempt, handoff, state.kind, tripId]);
 
-  if (state.kind === "loading") return <DraftLoading text={text} />;
-  if (state.kind === "failed") {
+  const retry = () => { setState({ kind: "starting" }); setAttempt(attempt + 1); };
+
+  if (state.kind === "starting") return <DraftLoading text={text} />;
+  if (state.kind === "running") {
     return (
-      <section className={draftStyles.notice} data-tone="error" role="alert">
-        <TriangleAlert aria-hidden="true" size={18} />
-        <div>
-          <p>{text.failed[state.reason]}</p>
-          {state.reason === "journey_changed" ? null : (
-            <button type="button" className={draftStyles.retry}
-              onClick={() => { setState({ kind: "loading" }); setAttempt(attempt + 1); }}>
-              <RotateCw aria-hidden="true" size={14} />{text.retry}
-            </button>
-          )}
-        </div>
-      </section>
+      <LiveRun key={state.runId} tripId={tripId} runId={state.runId} text={text} locale={locale}
+        onDone={(plan, progress) => setState({ kind: "ready", plan, progress })}
+        onFailed={(reason, progress) => setState({ kind: "failed", reason, progress })} />
     );
   }
-  const { response } = state;
-  if (response.status === "unsupported") {
+  if (state.kind === "failed") {
+    return (
+      <div className={draftStyles.draft}>
+        {state.progress ? <PlanRunActivity view={state.progress} /> : null}
+        <section className={draftStyles.notice} data-tone="error" role="alert">
+          <TriangleAlert aria-hidden="true" size={18} />
+          <div>
+            <p>{text.failed[state.reason]}</p>
+            {state.reason === "journey_changed" ? null : (
+              <button type="button" className={draftStyles.retry} onClick={retry}>
+                <RotateCw aria-hidden="true" size={14} />{text.retry}
+              </button>
+            )}
+          </div>
+        </section>
+      </div>
+    );
+  }
+  if (state.kind === "unsupported") {
     return (
       <section className={draftStyles.notice} role="status">
         <Info aria-hidden="true" size={18} />
@@ -185,7 +207,85 @@ export function PlanDraftSection({ tripId, handoff }: { readonly tripId: string;
       </section>
     );
   }
-  return <DraftDays response={response} text={text} locale={locale} />;
+  return (
+    <div className={draftStyles.draft}>
+      {state.progress ? <PlanRunActivity view={state.progress} /> : null}
+      <DraftDays response={state.plan} text={text} locale={locale} />
+    </div>
+  );
+}
+
+/**
+ * Follows a run over Server-Sent Events. EventSource reconnects by itself with the last
+ * event id, so a dropped connection resumes where it stopped. When the run ends, the
+ * saved version replaces the streamed days.
+ */
+function LiveRun({ tripId, runId, text, locale, onDone, onFailed }: {
+  readonly tripId: string;
+  readonly runId: string;
+  readonly text: Copy;
+  readonly locale: Locale;
+  readonly onDone: (plan: ReadyPlan, progress: ProgressView) => void;
+  readonly onFailed: (reason: PlanDraftFailure, progress: ProgressView) => void;
+}) {
+  const [view, dispatch] = useReducer(applyProgress, emptyProgress);
+  // The first day opens by itself when it arrives, until the reader opens or closes one.
+  const [openDay, setOpenDay] = useState<number | null | "first">("first");
+
+  useEffect(() => {
+    const source = new EventSource(planRunEventsUrl(tripId, runId));
+    source.onmessage = (message: MessageEvent<string>) => {
+      const envelope = parseProgressMessage(message.data, runId);
+      if (!envelope) return;
+      dispatch(envelope);
+      // The run is over: no reconnect after its last event.
+      if (envelope.event.type === "run.finished") source.close();
+    };
+    return () => source.close();
+  }, [runId, tripId]);
+
+  const finished = view.finished;
+  useEffect(() => {
+    if (!finished) return;
+    if (finished.status !== "succeeded") {
+      onFailed(runFailure(finished.errorCode), view);
+      return;
+    }
+    const controller = new AbortController();
+    readLatestPlan(tripId, controller.signal)
+      .then(({ version }) => {
+        if (version && version.runId === runId) onDone(version.plan, view);
+        else onFailed("failed", view);
+      })
+      .catch(() => { if (!controller.signal.aborted) onFailed("failed", view); });
+    return () => controller.abort();
+    // The view at the moment the run finished is the one kept.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [finished]);
+
+  const cards = useMemo(() => new Map(Object.entries(view.spots)), [view.spots]);
+  const shownOpen = openDay === "first" ? view.days[0]?.day ?? null : openDay;
+  return (
+    <section className={draftStyles.draft} aria-busy="true">
+      <PlanRunActivity view={view} />
+      {view.route ? <RouteStrip route={view.route} text={text} /> : null}
+      {view.days.length > 0 || view.route ? (
+        <div className={draftStyles.days}>
+          {view.days.map((day, index) => (
+            <DraftDay key={day.day} day={day} cards={cards} text={text} locale={locale} index={index}
+              photo={view.photos[day.day] ?? null} preview={view.scope?.mode === "preview"} unverified={new Map()}
+              open={shownOpen === day.day} onOpen={() => setOpenDay(shownOpen === day.day ? null : day.day)} />
+          ))}
+          {pendingDays(view).map((day) => (
+            <div key={day} className={draftStyles.skeletonCard} aria-hidden="true">
+              <span className={draftStyles.skeletonBadge} />
+              <span className={draftStyles.skeletonLines}><span /><span /></span>
+            </div>
+          ))}
+        </div>
+      ) : null}
+    </section>
+  );
 }
 
 function DraftLoading({ text }: { readonly text: Copy }) {
@@ -198,18 +298,12 @@ function DraftLoading({ text }: { readonly text: Copy }) {
           <small>{text.workingHint}</small>
         </div>
       </div>
-      {[0, 1].map((index) => (
-        <div key={index} className={draftStyles.skeletonCard} aria-hidden="true">
-          <span className={draftStyles.skeletonBadge} />
-          <span className={draftStyles.skeletonLines}><span /><span /></span>
-        </div>
-      ))}
     </section>
   );
 }
 
 function DraftDays({ response, text, locale }: {
-  readonly response: Extract<PlanDraftResponse, { status: "ready" }>;
+  readonly response: ReadyPlan;
   readonly text: Copy;
   readonly locale: Locale;
 }) {
@@ -451,7 +545,7 @@ function DayPhoto({ photo }: { readonly photo: PlaceImage }) {
 
 /** The cities in route order with their days; hovering a city shows why it got them. */
 function RouteStrip({ route, text }: {
-  readonly route: Extract<PlanDraftResponse, { status: "ready" }>["draft"]["route"];
+  readonly route: PlanRoute;
   readonly text: Copy;
 }) {
   return (

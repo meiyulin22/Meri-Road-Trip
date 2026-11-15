@@ -1,0 +1,135 @@
+/*
+ * The live log of a plan run. It reads like a terminal: one row a stage, a turning mark
+ * and a clock on the running one, a ⎿ line for what it does right now, and a quiet ✓
+ * line with numbers once it is done. Colours come from the page tokens in trip-plan.module.css.
+ */
+.feed {
+  display: grid;
+  gap: 10px;
+  padding: 14px 16px 12px;
+  border: 1px solid rgba(79, 131, 107, .22);
+  border-radius: 16px;
+  background: #fffdf8;
+  font-variant-numeric: tabular-nums;
+}
+.feed[data-state="failed"], .feed[data-state="interrupted"] { border-color: rgba(201, 95, 61, .32); }
+
+.head { display: flex; align-items: baseline; gap: 10px; }
+.title { font-size: 14px; font-weight: 700; }
+.clock {
+  margin-left: auto;
+  color: var(--muted);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 12px;
+}
+
+.stages { display: grid; gap: 2px; list-style: none; }
+
+.row {
+  display: grid;
+  grid-template-columns: 18px minmax(0, 1fr) auto;
+  align-items: baseline;
+  column-gap: 8px;
+  min-height: 26px;
+  padding: 3px 0;
+  font-size: 13px;
+}
+.mark {
+  display: inline-grid;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  align-self: center;
+  font-size: 13px;
+  line-height: 1;
+}
+.row[data-status="pending"] { color: var(--soft); }
+.row[data-status="pending"] .mark { font-size: 11px; }
+.row[data-status="running"] .label { font-weight: 650; }
+.row[data-status="running"] .mark { color: var(--accent); }
+.row[data-status="stopped"] .mark { color: var(--accent); font-weight: 700; }
+.row[data-status="done"] .mark { color: var(--green); }
+
+.spinner { display: inline-block; animation: turn 1.6s linear infinite; }
+
+.label { white-space: nowrap; }
+.time {
+  grid-column: 3;
+  color: var(--muted);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 12px;
+}
+
+.toggle {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  color: inherit;
+  background: none;
+  font: inherit;
+  text-align: left;
+}
+button.toggle { cursor: pointer; }
+button.toggle:hover .summary { color: var(--ink); }
+button.toggle:focus-visible { outline: 2px solid var(--green); outline-offset: 2px; border-radius: 4px; }
+.summary {
+  overflow: hidden;
+  color: var(--muted);
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  transition: color .15s ease;
+}
+.chevron { flex: none; align-self: center; color: var(--soft); transition: transform .18s ease; }
+.row[data-open="true"] .chevron { transform: rotate(90deg); }
+
+/* What the running stage does now, and what a finished one opens to: indented under its label. */
+.activity, .details {
+  grid-column: 2 / 4;
+  display: grid;
+  gap: 2px;
+  margin-top: 3px;
+  list-style: none;
+  color: var(--muted);
+  font-size: 12px;
+}
+.activity li, .details li {
+  position: relative;
+  padding-left: 18px;
+  overflow-wrap: anywhere;
+}
+.activity li::before, .details li::before {
+  content: "⎿";
+  position: absolute;
+  left: 2px;
+  color: var(--soft);
+}
+/* A changed line flashes its colour once; it never starts hidden, even in a background tab. */
+.activity li { animation: arrive .6s ease-out; }
+
+.srOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+@keyframes turn { to { transform: rotate(360deg); } }
+@keyframes arrive { from { color: var(--ink); } to { color: var(--muted); } }
+
+@media (prefers-reduced-motion: reduce) {
+  .spinner { animation: none; }
+  .activity li { animation: none; }
+  .chevron, .summary { transition: none; }
+}
+
+@media (max-width: 640px) {
+  .feed { padding: 12px; }
+  .summary { white-space: normal; }
+  .toggle { flex-wrap: wrap; row-gap: 0; }
+}

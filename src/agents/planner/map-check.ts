@@ -9,7 +9,7 @@ import type { RememberedSpotLocation } from "@/platform/tianditu/spot-location-m
 /** Enough for about four days in one city; the rest stay unchecked rather than wait. */
 const maxChecksPerCity = 12;
 
-type MapCheckDependencies = {
+export type MapCheckDependencies = {
   /** One Tianditu lookup, with the trip's province and 市 as hints. It must not retry. */
   readonly search: (name: string, areas: readonly string[]) => Promise<LocationSearchResult>;
   readonly memory: {
@@ -17,6 +17,9 @@ type MapCheckDependencies = {
     set(key: string, location: RememberedSpotLocation): void;
   };
 };
+
+/** Hears each spot as its check finishes, cached or looked up, for the plan page's live line. */
+export type MapCheckProgress = (progress: { city: string; spot: string; done: number; total: number }) => void;
 
 export type MapCheckOutcome = {
   readonly cities: CityResearch[];
@@ -59,9 +62,19 @@ function asMapCheck(location: RememberedSpotLocation): SpotMapCheck {
 export async function checkSpotsOnMap(
   cities: readonly CityResearch[],
   deps: MapCheckDependencies,
+  onProgress: MapCheckProgress = () => {},
 ): Promise<MapCheckOutcome> {
   let stopped = false;
   let lookups = 0;
+  const checkable = (city: CityResearch) => city.status === "deferred"
+    ? 0
+    : Math.min(maxChecksPerCity, city.spots.filter(({ location }) => location !== null).length);
+  const total = cities.reduce((sum, city) => sum + checkable(city), 0);
+  let done = 0;
+  const finished = (card: SpotCard) => {
+    done += 1;
+    onProgress({ city: card.city, spot: card.name, done, total });
+  };
   const checked: CityResearch[] = [];
   for (const city of cities) {
     const spots: SpotCard[] = [];
@@ -77,10 +90,12 @@ export async function checkSpotsOnMap(
       const remembered = deps.memory.get(key);
       if (remembered) {
         spots.push({ ...card, mapCheck: asMapCheck(remembered) });
+        finished(card);
         continue;
       }
       if (stopped) {
         spots.push(card);
+        finished(card);
         continue;
       }
       lookups += 1;
@@ -90,11 +105,13 @@ export async function checkSpotsOnMap(
         logger.warn({ spot: card.name, city: card.city, reason: result.reason, lookups },
           "Tianditu spot check stopped at a failed lookup");
         spots.push(card);
+        finished(card);
         continue;
       }
       const location = locateSpot(card, result.candidates);
       deps.memory.set(key, location);
       spots.push({ ...card, mapCheck: asMapCheck(location) });
+      finished(card);
     }
     checked.push({ ...city, spots });
   }

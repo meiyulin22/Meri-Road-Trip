@@ -542,32 +542,47 @@ add/set 使用 Promise.all 查询表达。解析层保留不同 provider ID，�
 
 [交接 UI 模型](../src/components/trip-workspace/planning-handoff-model.ts) 校验响应，将快照放在当前标签页的 sessionStorage，再打开 [真实计划页](../src/app/trips/%5Bid%5D/plan/page.tsx)。页面单独校验旅程归属，刷新只读快照。若当前标签页没有快照，返回 Workspace 再点 Generate plan。原 GET 准备度接口仍可单独查询。
 
-**计划页生成行程（1.2005）：**计划页拿到交接快照后，由 [PlanDraftSection](../src/components/trip-plan/plan-draft-section.tsx) 发出 `POST /api/trips/{id}/plan-draft`，请求体是交接快照。
+**计划页生成行程（1.2005；1.2010 起是 Mastra 工作流，实时推送进度并保存计划）：**计划页拿到交接快照后，由 [PlanDraftSection](../src/components/trip-plan/plan-draft-section.tsx) 发出 `POST /api/trips/{id}/plan-runs`，请求体是交接快照。服务端在后台启动一次运行就立即返回，关掉页面运行也不停。
 
 | 步骤 | 谁做 | 数据变化 |
 | --- | --- | --- |
-| 1. 校验请求体、访客归属 | [plan-draft-handler](../src/capabilities/planning/plan-draft-handler.ts) | 无 |
-| 2. 重新读取已保存 TripState，与快照逐字段比对 | 同上 | 不一致返回 409 `journey_changed`，不做调研 |
-| 3. 确定范围：无确切天数 → 第一个城市示范第 1 天；有天数 → 所有已选城市、全部天数（1.2009 起多城也支持） | [planScope](../src/domain/plan/plan-draft.ts) | 无 |
-| 4. 第一轮调研：Kimi 提名、搜索核实、提取景点卡（1.2009 起每城 70 秒期限；提取逐张校验，一张卡出错只丢这一张；未完成时记录失败的步骤和错误名） | [research-agent](../src/agents/planner/research-agent.ts) | 无持久化 |
-| 4b. 天地图定位（1.2006）：有出处的景点每个查一次天地图（每城最多 12 个），以省、市为提示，名称允许带景区后缀，只算本市的结果；找到记区县，找不到标「位置未核实」但保留。**第一次失败就停止，不重试（429 也不重试）**，其余景点保持未核实，计划照常生成 | [map-check](../src/agents/planner/map-check.ts) | 判断结果写进 `.cache/tianditu-spot-locations.json`（找到 30 天、没找到 7 天、上限 2000 条；失败不写） |
-| 5. Plan Agent 先规划路线（1.2009，单城也走这一步）：城市顺序（少走回头路）、每城天数和理由、每天的重点区县和一句主题；天数少于城市数时可以放弃城市并写明原因。代码校验：每个城市恰好出现一次（排入或放弃）、只有天数不够时才能放弃、每城至少 1 天、天数加起来正好、重点区县必须是天地图在该城定位到的区县；不通过带问题重试一次，仍不通过则按添加顺序平均分天（页面标「自动分配」）。换城市的第一天是转场日：上午留给路上（不排景点），少排 1 个景点，标「车程待核实」。然后按天选点、时段和时间锚点（优先当天重点区县和已定位的景点、每天至少一个景点；偏好以「类型 + 原话」交给模型，有体力或同行人类偏好时每天上限从 4 降到 3），代码校验、最多重试一次 | [plan-agent](../src/agents/planner/plan-agent.ts) | 无持久化 |
-| 6. 每天配一张照片：先找当天景点的照片，再找所在城市的，尽量不和前几天重复；只查本地图集和已下载的照片，不调用远程照片服务 | handler 的 `dayPhotos` + [findPlaceImage](../src/capabilities/destination/place-images.ts) | 无 |
-| 7. 返回草稿、草稿用到的景点卡、各城调研状态、未选城市的省、每天的照片 | handler | 浏览器把结果和交接快照一起存进 sessionStorage |
+| 1. 校验请求体、访客归属 | [plan-run-handler](../src/capabilities/planning/plan-run-handler.ts) | 无 |
+| 2. 重新读取已保存 TripState，与快照比对（按键排序比较，不受 jsonb 键顺序影响） | 同上 | 不一致返回 409 `journey_changed`，不建运行 |
+| 3. 确定范围：没有城市 → 200 `unsupported`，不建运行；无确切天数 → 第一个城市示范第 1 天；有天数 → 所有已选城市、全部天数 | [planScope](../src/domain/plan/plan-draft.ts) | 无 |
+| 4. 同一份交接（按内容摘要 `handoff_key`）已有保存的计划 → 200 `ready` 直接带计划；正在运行 → 202 带同一个 runId；两个请求同时到也只建一个运行。否则建运行、后台启动工作流，返回 202 `running` 和 runId | [plan-run-service](../src/capabilities/planning/plan-run-service.ts) | 写 `plan_runs` 一行（状态 running、交接快照、摘要、开始时间） |
+| 5. 工作流 `load-scope`：算出要调研的城市（超过上限的城市延后）和只有省的待定省份 | [plan-generation](../src/agents/workflows/plan-generation.ts) | 无 |
+| 6. `research-city`：每城一步，两城并行（Mastra `foreach`）。Kimi 提名、搜索核实、补查一次、提取景点卡；每城 70 秒期限，一张卡出错只丢这一张 | [researchCity](../src/agents/planner/research-agent.ts) | 无 |
+| 7. `map-check` 天地图定位（1.2006）：有出处的景点每个查一次（每城最多 12 个），只算本市的结果；找到记区县，找不到标「位置未核实」但保留。**第一次失败就停止，不重试（429 也不重试）**，其余景点保持未核实，计划照常生成 | [map-check](../src/agents/planner/map-check.ts) | 判断结果写进 `.cache/tianditu-spot-locations.json`（找到 30 天、没找到 7 天；失败不写） |
+| 8. `plan-route`：Plan Agent 规划路线（城市顺序、每城天数和理由、每天重点区县和主题，可放弃城市并写原因）；代码校验，不通过重试一次，仍不通过按添加顺序平均分天（「自动分配」）。换城市的第一天是转场日 | [plan-route](../src/agents/planner/plan-route.ts) | 无 |
+| 9. `plan-days`：按路线顺序**逐城**选点、时段和时间锚点（1.2010 起每城一次调用，排好一城就推送这一城的每一天）；代码校验、最多重试一次；最后汇总冲突和待核实字段。模型完全连不上时运行失败（`planner_unavailable`） | [plan-days](../src/agents/planner/plan-days.ts)、[finishDraft](../src/domain/plan/plan-draft.ts) | 无 |
+| 10. `day-photos`：每天一张照片（先当天景点、再所在城市，尽量不重复），只查本地图集和已下载的照片 | [day-photos](../src/agents/planner/day-photos.ts) | 无 |
+| 11. `save-plan`：保存为这个旅程的下一个计划版本，连同生成时的 TripState 和偏好 | 同工作流 | 写 `plan_versions` 一行（版本号按旅程递增） |
+| 12. 运行结束：记状态（succeeded / failed）、错误码、用量（模型 token、搜索次数、天地图查询次数）和用时 | plan-run-service | 更新 `plan_runs` |
 
-页面显示：顶部统计（天数、景点数、有出处的景点、待处理）；路线条「大理 2 天 → 丽江市 3 天」，悬停看 Meri 的理由，代码兜底时标「自动分配」；有被放弃的城市时显示「这次没排入」和原因；每天标题优先用路线给的主题，元信息里有重点区县，转场日带「大理 → 丽江市」标记；冲突提示；每天一张可展开的卡片，展开时顶部是当天照片（标注拍的是什么和作者，作者链接先确认再打开来源），收起时右侧是缩略图（窄屏隐藏）；景点名旁标「已定位 · 区县」或「位置未核实」，顶部统计多一项「已定位」，天地图核实中途失败时显示「位置核实暂时不可用」；景点按上午、下午、晚上分组；时间锚点用描边胶囊显示时间并附理由；景点卡里有出处的事实逐条列出，缺少的字段标「待核实」，「N 条出处」展开后显示原文、来源网站和查询日期。天数未知时下面保留「剩下的几天」锁定卡。等待期间显示说明和骨架卡，不显示假进度；刷新页面直接读缓存，不重新调研；重新点 Generate plan 会写入新快照，旧草稿不再匹配。
+每一步的进度都是真实事件：工作流的步骤用 Mastra 的 `writer` 写事件，Mastra 自己的步骤开始/结束事件变成阶段开始/完成（带真实用时和数字摘要）。事件格式在 [plan-progress](../src/domain/plan/plan-progress.ts)，服务端和页面共用：外层 `{ runId, seq, at, event }`，`seq` 在一次运行内递增。服务端收到事件后**立即**推给正在看的页面（运行中的事件在内存里），同时依次写进 `plan_run_events`；页面通过 `GET /api/trips/{id}/plan-runs/{runId}/events`（Server-Sent Events）接收，每条事件的 `id` 是 `seq`，断线后浏览器自动带 `Last-Event-ID` 重连，只补发漏掉的；每 15 秒发一行心跳注释；`run.finished` 之后关闭。
 
-| 错误 | HTTP | 页面 |
+页面显示：
+
+- **实时活动流**（[PlanRunActivity](../src/components/trip-plan/plan-run-activity.tsx)，状态由 [plan-progress-view](../src/components/trip-plan/plan-progress-view.ts) 按事件推出）：七个阶段（读取行程范围、调研景点、天地图定位、规划路线、按天选景点、配图、保存计划）。正在进行的阶段有转动的 ✻ 和计时，下面用 ⎿ 显示一行实时小字：调研时每个城市一行（提名代表景点、搜索哪些景点 几/几、检查结果、摘录出处），定位时「景点 几/几」，路线和选点时显示城市和天数，重试时标「第 2 次」。完成的阶段收成 ✓ 一行，带数字和用时（例如「13 张卡 · 12 条有出处 · 8 次搜索 28s」），调研、定位、路线三行可以展开看每城明细、未定位数量和路线理由。没有百分比进度条。系统开启「减少动态效果」时 ✻ 不转、不做颜色提示，计时照常。
+- 路线一出来就显示路线条；每天的卡片随 `day.ready` 逐块出现，路线已定但还没排好的天显示占位卡；照片随 `day.photo` 补上。
+- 运行成功后读取 `GET /api/trips/{id}/plan`，用保存的版本替换流式内容，并加上顶部统计、冲突和待核实标记（与 1.2005 起的展示相同：路线条、转场日、重点区县、已定位标记、时间锚点、出处展开）。活动流保留在上方，标题变为「计划已生成」。
+- 刷新页面：同一份交接直接拿到保存的计划，不重新调研；运行中的则接着看同一个运行。不再使用 sessionStorage 缓存草稿（交接快照仍在 sessionStorage）。重新点 Generate plan 并且交接内容变了（例如计划页加了偏好）才会生成新版本。
+
+| 错误 | HTTP / 事件 | 页面 |
 | --- | --- | --- |
 | 无访客、旅程不存在 | 404 | 失败提示和重试 |
 | 请求体不是合法交接快照 | 400 | 同上 |
 | 快照与已保存旅程不一致 | 409 | 请回旅程重新 Generate plan，不提供重试 |
-| 模型不可用 | 503 | 稍后再试，提供重试 |
-| 其他 | 500 | 失败提示和重试 |
+| 模型连不上 | `run.finished` failed，`planner_unavailable` | 稍后再试，提供重试；已经推送的阶段保留显示 |
+| 超过 8 分钟兜底时限 | failed，`time_limit` | 说明用时过长，提供重试 |
+| 服务器重启时还在运行 | 第一个来看的页面把运行标为 `interrupted` | 说明服务器重启，提供重试（不自动续跑，避免没人看着时重新花搜索和天地图请求） |
+| 其他 | failed，`internal_error`；接口 500 | 失败提示和重试 |
+
+运行记录只在本进程内存里广播，部署按单个 `next start` 进程设计（美国 VPS）。Mastra 自己的工作流状态也只在内存（`InMemoryStore`）；暂停提问（1.2011）时再接入持久化快照。
 
 **Meri 记得（1.2005，1.2007 起存进数据库）：**[PlanMemories](../src/components/trip-plan/plan-memories.tsx) 显示每条偏好的短标签，悬停显示用户原话；来自对话的为绿色，计划页添加的为米色并标「你添加的」，每条都可以删除。打开页面时先显示交接里的偏好，再通过 `GET /api/trips/{id}/preferences` 读取最新列表。「＋ 添加」打开和设计预览相同的面板：点「带小孩」「少走路」等常用选项时类型已知、标签就是选项本身；自己写的一句话由 `POST /api/trips/{id}/preferences` 调一次 Kimi 生成标签和类型，模型不可用时这句话本身作标签、类型为「其他」。同一句话不重复保存，每个旅程最多 30 条有效偏好。删除走 `DELETE /api/trips/{id}/preferences/{preferenceId}`，只把状态改为 removed。这三个接口都先按 cookie 检查旅程归属，不属于当前访客返回 404。添加的偏好**不改交接快照，也不触发重新规划**，下方提示「新加的偏好不会改动下面的行程，下次调整行程时 Meri 会用上」。计划页修改对话尚未实现；下一次点 Generate plan 时，这些偏好会随交接一起交给规划。
 
-偏好摘录取自浏览器的快照：交接时已在服务端核对过原话，模型只把它当数据读。整次请求在一个 HTTP 调用里完成（实测单城约 30–45 秒），没有进度事件、断点续跑和计划存储；同一标签页里重复挂载会复用正在进行的请求。
+偏好摘录取自浏览器的快照：交接时已在服务端核对过原话，模型只把它当数据读。实测（2026-11-15，开发机，丽江、大理 5 天）整次运行 40–43 秒：两城调研并行约 25–28 秒，路线约 5 秒，逐城选点约 8–9 秒，保存约 1 秒。
 
 **计划页设计预览（1.1000）：** [/plan-preview](../src/app/plan-preview/page.tsx)（[PlanPreview](../src/components/trip-plan/plan-preview.tsx)）是独立展示页，使用示例数据，不保存、不调用规划接口。页面标"示例数据"，右下角的预览开关切换三种状态：
 - **生成中：**进度按步骤点亮（核实地点 → 找景点 → 核实开放时间 → 算车程 → 查天气 → 排好第 1 天 → 查机票高铁 → 找住处 → 排剩下几天），区块从骨架依次填进内容，完成后收成一行"用时 · 调用工具次数 · 花费"。
@@ -913,6 +928,7 @@ add/set 使用 Promise.all 查询表达。解析层保留不同 provider ID，�
 - TripMessage：真实用户/助手文本，助手可带受限 presentation，刷新重读。
 - 推荐操作：只从聊天触发（source=conversation），未定义独立持久化实体；历史 `trip_user_actions` 表由 [0007](../drizzle/0007_trip_user_actions.sql) 创建、[0009](../drizzle/0009_drop_trip_user_actions.sql) 定义删除，当前 schema 不包含该表。具体环境是否执行迁移需另行检查。
 - JourneySummary：列表投影，不能作为修改基底。
+- 计划运行与计划版本（1.2010）：`plan_runs` 记每次 Generate plan 的交接快照、状态、错误码、用量和用时；`plan_run_events` 按顺序记它的进度事件；`plan_versions` 存生成好的计划和当时的 TripState、偏好。计划不写回 TripState；旅程之后变了，`GET /api/trips/{id}/plan` 把该版本标为过期（stale）。
 
 当前的短期上下文来自最近 5 轮/6000 字符（推荐上下文最多 10 条/6000 字符）和当前 TripState。数据库里的完整聊天记录可刷新恢复，但并非每次全部发送给模型；尚未实现跨旅程长期偏好记忆、对话摘要记忆或检索式 memory。本轮国内范围变更未扩大历史窗口。
 
@@ -948,7 +964,7 @@ add/set 使用 Promise.all 查询表达。解析层保留不同 provider ID，�
 
 当前交接从已保存 TripState 取得省范围、已选城市、spots 偏好和日期、交通。偏好摘录来自本旅程用户消息，不能把未提交候选当作已选，也不能恢复历史里已删除的景点。只有省时可交接省范围，首个城市的规划方式待定。
 
-生成前重新核验 POI，保存证据和新鲜度，再研究交通、天气、开放/访问与风险。准备度通过不代表这些事实已成立。执行、失败恢复、研究预算及持久化规划产物尚未接入。
+生成前重新核验 POI，保存证据和新鲜度，再研究交通、天气、开放/访问与风险。准备度通过不代表这些事实已成立。1.2010 起生成以 Mastra 工作流在后台执行，运行记录、进度事件和计划版本存进数据库（见 5.4）；暂停提问、第二轮精查、交通和天气尚未接入。
 
 单城和示范第一天已在计划页生成（见 5.4）。正式计划页的设计是，天数未知时只给示范第一天，「剩下的几天」锁住，等用户提供或确认总天数后才规划。调研按城市准备景点卡。多城市的天数先由 Plan Agent 分配，代码校验后由 Jev 按天打分，再由同一个 Plan Agent 排每日行程。细节见 [Planner 实施交接](agent-planner/implementation-plan.md)。
 

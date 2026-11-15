@@ -1,28 +1,40 @@
-import { z } from "zod";
-
 import { daySlots, type DaySlot, type PlanDay, type PlanStop, type SpotFact } from "@/domain/plan/plan-draft";
-import { planDraftResponseSchema, type PlanDraftResponse } from "@/domain/plan/plan-draft-response";
 import type { PlanHandoff } from "@/domain/plan/plan-handoff";
+import { planProgressEnvelopeSchema, type PlanProgressEnvelope, type PlanRunErrorCode } from "@/domain/plan/plan-progress";
+import {
+  latestPlanResponseSchema,
+  planRunStartResponseSchema,
+  type LatestPlanResponse,
+  type PlanRunStartResponse,
+} from "@/domain/plan/plan-run";
 import type { SpotCard } from "@/domain/plan/spot-card";
 
 type Fetcher = (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>;
 
-export type PlanDraftFailure = "journey_changed" | "unavailable" | "failed";
+export type PlanDraftFailure = "journey_changed" | "unavailable" | "failed" | "time_limit" | "interrupted";
 
 export class PlanDraftRequestError extends Error {
   constructor(readonly reason: PlanDraftFailure) {
-    super(`Plan draft request failed: ${reason}`);
+    super(`Plan request failed: ${reason}`);
     this.name = "PlanDraftRequestError";
   }
 }
 
-export async function requestPlanDraft(
+function tripPath(tripId: string): string {
+  return `/api/trips/${encodeURIComponent(tripId)}`;
+}
+
+/**
+ * Asks for the plan of this handoff: the saved one, the run making it, or a new run.
+ * The server keeps both, so a refresh asks again instead of reading this tab's storage.
+ */
+export async function startPlanRun(
   tripId: string,
   handoff: PlanHandoff,
   signal: AbortSignal,
   fetcher: Fetcher = fetch,
-): Promise<PlanDraftResponse> {
-  const response = await fetcher(`/api/trips/${encodeURIComponent(tripId)}/plan-draft`, {
+): Promise<PlanRunStartResponse> {
+  const response = await fetcher(`${tripPath(tripId)}/plan-runs`, {
     method: "POST",
     cache: "no-store",
     headers: { "Content-Type": "application/json" },
@@ -30,40 +42,37 @@ export async function requestPlanDraft(
     signal,
   });
   if (response.status === 409) throw new PlanDraftRequestError("journey_changed");
-  if (response.status === 503 || response.status === 504) throw new PlanDraftRequestError("unavailable");
   if (!response.ok) throw new PlanDraftRequestError("failed");
-  return planDraftResponseSchema.parse(await response.json());
+  return planRunStartResponseSchema.parse(await response.json());
 }
 
-const storedDraftSchema = z.object({ handoff: z.string(), draft: z.unknown() });
-
-function storageKey(tripId: string): string {
-  return `meri:plan-draft:v1:${tripId}`;
+/** The trip's newest saved plan, read after a run finishes. */
+export async function readLatestPlan(tripId: string, signal: AbortSignal, fetcher: Fetcher = fetch): Promise<LatestPlanResponse> {
+  const response = await fetcher(`${tripPath(tripId)}/plan`, { cache: "no-store", signal });
+  if (!response.ok) throw new PlanDraftRequestError("failed");
+  return latestPlanResponseSchema.parse(await response.json());
 }
 
-/**
- * The draft lives beside its handoff in this tab, so a refresh shows it again without
- * another research run. A new Generate plan writes a new handoff, which the stored draft
- * no longer matches.
- */
-export function savePlanDraft(tripId: string, handoff: PlanHandoff, draft: PlanDraftResponse): void {
+export function planRunEventsUrl(tripId: string, runId: string): string {
+  return `${tripPath(tripId)}/plan-runs/${encodeURIComponent(runId)}/events`;
+}
+
+/** One Server-Sent Event's data, or null when it is not a progress event of this run. */
+export function parseProgressMessage(data: string, runId: string): PlanProgressEnvelope | null {
   try {
-    window.sessionStorage.setItem(storageKey(tripId), JSON.stringify({ handoff: JSON.stringify(handoff), draft }));
-  } catch {
-    // A full or blocked storage only costs a new run after a refresh.
-  }
-}
-
-export function readPlanDraft(tripId: string, handoff: PlanHandoff): PlanDraftResponse | null {
-  try {
-    const value = window.sessionStorage.getItem(storageKey(tripId));
-    if (value === null) return null;
-    const stored = storedDraftSchema.parse(JSON.parse(value));
-    if (stored.handoff !== JSON.stringify(handoff)) return null;
-    return planDraftResponseSchema.parse(stored.draft);
+    const parsed = planProgressEnvelopeSchema.safeParse(JSON.parse(data));
+    return parsed.success && parsed.data.runId === runId ? parsed.data : null;
   } catch {
     return null;
   }
+}
+
+/** How a run that ended without a plan is explained on the page. */
+export function runFailure(errorCode: PlanRunErrorCode | null): PlanDraftFailure {
+  if (errorCode === "planner_unavailable") return "unavailable";
+  if (errorCode === "time_limit") return "time_limit";
+  if (errorCode === "interrupted") return "interrupted";
+  return "failed";
 }
 
 export type SlotGroup = { readonly slot: DaySlot; readonly stops: readonly PlanStop[] };

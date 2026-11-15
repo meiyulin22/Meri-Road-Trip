@@ -1,6 +1,6 @@
 # Meri 数据库结构与关系目录
 
-> 核对日期：2026-10-01。根据当前 Drizzle schema、repository 和迁移文件整理，供 AI 定位代码及向用户讲解。本文记录仓库定义，不代表已检查某个在线数据库的实际表或迁移执行状态；本次没有连接数据库或执行迁移。
+> 核对日期：2026-10-01；计划运行三张表 2026-11-15。根据当前 Drizzle schema、repository 和迁移文件整理，供 AI 定位代码及向用户讲解。本文记录仓库定义，不代表已检查某个在线数据库的实际表或迁移执行状态；本次没有连接数据库或执行迁移。
 
 阅读顺序：数据库代码目录 → 表关系 → 字段字典 → JSONB 内容 → 操作与代码映射 → 迁移历史。总体分层见 [ARCHITECTURE.md](ARCHITECTURE.md)，完整业务与失败边界见 [USER_FLOW_CURRENT.md](USER_FLOW_CURRENT.md)。
 
@@ -12,13 +12,14 @@
 | --- | --- | --- |
 | [drizzle.config.ts](../drizzle.config.ts) | Drizzle Kit 配置：schema 来源、SQL 输出目录及连接配置 | 读取 `DATABASE_URL`；管理生成/执行迁移 |
 | [database/db.ts](../src/platform/persistence/database/db.ts) | 创建 Neon HTTP + Drizzle 客户端 | 将当前 schema 装配到 `db`，供生产 repository 使用 |
-| [database/schema/index.ts](../src/platform/persistence/database/schema/index.ts) | 导出三张当前表 | 供数据库客户端和 schema 工具加载 |
+| [database/schema/index.ts](../src/platform/persistence/database/schema/index.ts) | 导出当前全部表 | 供数据库客户端和 schema 工具加载 |
 | [database/schema/trips.ts](../src/platform/persistence/database/schema/trips.ts) | Trip 根表及 status enum | 状态和消息通过外键指向它 |
 | [database/schema/trip-states.ts](../src/platform/persistence/database/schema/trip-states.ts) | 权威状态 JSONB 表 | 一个 Trip 最多一条状态记录 |
 | [database/schema/trip-messages.ts](../src/platform/persistence/database/schema/trip-messages.ts) | 消息及 presentation 表、role enum | 一个 Trip 可以有多条消息 |
 | [database/schema/trip-preferences.ts](../src/platform/persistence/database/schema/trip-preferences.ts) | 旅程偏好表、kind/source/status 三个 enum、(trip_id, status) 索引 | 一个 Trip 可以有多条偏好 |
+| [database/schema/plan-runs.ts](../src/platform/persistence/database/schema/plan-runs.ts) | 计划运行、运行事件、计划版本三张表及 plan_run_status enum（1.2010） | 一个 Trip 可以有多次运行和多个版本；一次运行最多一个版本 |
 | `src/platform/persistence/*.ts` | repository 接口和 JourneySummary 读模型 | 应用服务依赖的存储能力契约，不是 SQL 本身 |
-| `src/platform/persistence/postgres/` | 生产查询、写入、数据映射、CAS 和错误包装 | 通过 Drizzle 操作四张表 |
+| `src/platform/persistence/postgres/` | 生产查询、写入、数据映射、CAS 和错误包装 | 通过 Drizzle 操作七张表 |
 | `src/platform/persistence/in-memory/` | 测试用内存实现 | 替代数据库做规则/状态测试，不是生产存储 |
 | `drizzle/*.sql` | 历史迁移序列 | 将数据库逐步演进到当前 schema |
 | [drizzle/meta/_journal.json](../drizzle/meta/_journal.json) 与 `*_snapshot.json` | 迁移顺序与历史结构快照 | 工具元数据，不是当前用户数据 |
@@ -31,6 +32,10 @@ erDiagram
   TRIPS ||--o{ TRIP_MESSAGES : "trip_id：多条消息"
   TRIPS ||--o{ TRIP_PREFERENCES : "trip_id：多条偏好"
   TRIP_MESSAGES |o--o{ TRIP_PREFERENCES : "message_id：原话出处"
+  TRIPS ||--o{ PLAN_RUNS : "trip_id：多次运行"
+  PLAN_RUNS ||--o{ PLAN_RUN_EVENTS : "run_id：按 seq 排序的事件"
+  TRIPS ||--o{ PLAN_VERSIONS : "trip_id：多个计划版本"
+  PLAN_RUNS ||--o| PLAN_VERSIONS : "run_id：最多一个版本"
   TRIPS {
     uuid id PK
     uuid owner_guest_id
@@ -64,6 +69,35 @@ erDiagram
     timestamptz created_at
     timestamptz updated_at
   }
+  PLAN_RUNS {
+    uuid id PK
+    uuid trip_id FK
+    plan_run_status status
+    jsonb handoff
+    text handoff_key
+    text error_code
+    jsonb usage
+    timestamptz started_at
+    timestamptz finished_at
+    integer duration_ms
+  }
+  PLAN_RUN_EVENTS {
+    uuid run_id PK, FK
+    integer seq PK
+    text type
+    jsonb payload
+    timestamptz at
+  }
+  PLAN_VERSIONS {
+    uuid id PK
+    uuid trip_id FK
+    uuid run_id FK, UK
+    integer version
+    jsonb trip_state
+    jsonb preferences
+    jsonb plan
+    timestamptz created_at
+  }
 ```
 
 | 关系 | 约束 | 业务含义 |
@@ -72,11 +106,15 @@ erDiagram
 | `trip_messages.trip_id → trips.id` | 非空外键；`ON DELETE CASCADE` | 每条消息属于一个 Trip，同一个 Trip 可有多条消息 |
 | `trip_preferences.trip_id → trips.id` | 非空外键；`ON DELETE CASCADE` | 每条偏好属于一个 Trip，删除 Journey 时一起删除 |
 | `trip_preferences.message_id → trip_messages.id` | 可空外键；`ON DELETE SET NULL` | 来自对话的偏好指向原话所在的用户消息；计划页添加的为空 |
+| `plan_runs.trip_id → trips.id` | 非空外键；`ON DELETE CASCADE` | 每次 Generate plan 运行属于一个 Trip |
+| `plan_run_events.run_id → plan_runs.id` | 主键 (run_id, seq) 的一部分；`ON DELETE CASCADE` | 一次运行的进度事件，seq 从 1 递增 |
+| `plan_versions.trip_id → trips.id` | 非空外键；`ON DELETE CASCADE`；`unique(trip_id, version)` | 旅程的计划按版本号递增 |
+| `plan_versions.run_id → plan_runs.id` | 非空、唯一外键；`ON DELETE CASCADE` | 一次成功的运行保存一个版本；失败或中断的运行没有版本 |
 | `trips.owner_guest_id → 访客 cookie` | 普通非空 UUID 列，没有 guest/user 表外键 | 所有权由应用按 cookie 中的 guest ID 检查；当前没有账户关系表 |
 
 图中 Trip 到状态是“1 对 0..1”：业务要求完整 Journey 有状态，但外键不能强制父表必须有子记录，创建中间步骤或异常可能留下缺状态 Trip。Workspace 单独处理状态缺失，列表查询使用 inner join，只列有状态的 Trip。
 
-删除整个 Journey 时删除 Trip，数据库级联清理它的状态、消息和偏好。删除省/市/spot 则只更新 `trip_states.state` 的 JSON，属于领域规则，不是删除数据库子表。
+删除整个 Journey 时删除 Trip，数据库级联清理它的状态、消息、偏好、计划运行（连同事件）和计划版本。删除省/市/spot 则只更新 `trip_states.state` 的 JSON，属于领域规则，不是删除数据库子表。
 
 ## 3. 表与字段字典
 
@@ -135,9 +173,31 @@ Trip 不再保存 name、origin、destination 或日期列，避免与 TripState
 
 索引 `trip_preferences_trip_status_idx (trip_id, status)`：计划页按旅程读取有效偏好。每个旅程最多 30 条有效偏好，由应用限制。
 
-### 3.5 索引与约束范围
+### 3.5 计划运行三张表（1.2010）
 
-各表主键提供唯一性及对应索引；除 trip_preferences 的 (trip_id, status) 外，当前 schema 未声明额外的 owner、消息时间或 JSONB 查询索引。外键保证归属对象存在，不代替 owner 授权，也不会自动为外键列建立额外索引。这里只记录现状，不提前增加索引或新表。
+`plan_runs`：每次 Generate plan 一行。
+
+| 数据库列 | TypeScript 属性 | 类型 | 约束 | 用途 |
+| --- | --- | --- | --- | --- |
+| `id` | `id` | uuid | 主键 | 运行身份，同时是 Mastra 工作流的 runId |
+| `trip_id` | `tripId` | uuid | 非空、外键→trips.id，级联删除 | 所属 Journey |
+| `status` | `status` | `plan_run_status` enum | 非空 | `running`、`succeeded`、`failed`、`interrupted`（服务器重启时还在运行，被第一个来看的页面标记） |
+| `handoff` | `handoff` | jsonb | 非空 | 本次运行收到的交接快照（TripState、偏好、参考日期、语言）；读取时按 PlanHandoff 校验 |
+| `handoff_key` | `handoffKey` | text | 非空 | 交接快照按键排序后的 SHA-256；同一份交接复用已有运行或已保存的计划 |
+| `error_code` | `errorCode` | text | 可空 | `planner_unavailable`、`time_limit`、`internal_error`、`interrupted`；不存提供方的错误原文 |
+| `usage` | `usage` | jsonb | 可空 | `{inputTokens, outputTokens, searches, mapLookups}`；模型 token 只算路线和选点，调研的 token 暂未统计 |
+| `started_at` / `finished_at` | `startedAt` / `finishedAt` | timestamptz | 开始非空，结束可空 | 起止时间 |
+| `duration_ms` | `durationMs` | integer | 可空 | 用时 |
+
+索引 `plan_runs_trip_started_idx (trip_id, started_at)`：找旅程最近一次运行。
+
+`plan_run_events`：一次运行的进度事件，主键 `(run_id, seq)`；`type` 是事件类型，`payload` 是完整事件（读取时按 [plan-progress](../src/domain/plan/plan-progress.ts) 校验），`at` 是服务器时间。运行中的事件先推给页面，再按顺序写入这里；页面断线重连或运行结束后再来，从这里补读。
+
+`plan_versions`：生成好的计划。`version` 按旅程从 1 递增（`unique(trip_id, version)`），`run_id` 唯一；`trip_state` 和 `preferences` 是生成时依据的 TripState 和偏好，`plan` 是页面显示的完整计划（草稿、用到的景点卡、各城调研状态、待定省份、每天照片、天地图核实状态）。三个 JSONB 列读取时都会校验。计划不写回 TripState；是否过期在读取时把 `trip_state` 和当前 TripState 按键排序后比较。
+
+### 3.6 索引与约束范围
+
+各表主键提供唯一性及对应索引；除 trip_preferences 的 (trip_id, status) 和 plan_runs 的 (trip_id, started_at) 外，当前 schema 未声明额外的 owner、消息时间或 JSONB 查询索引。外键保证归属对象存在，不代替 owner 授权，也不会自动为外键列建立额外索引。这里只记录现状，不提前增加索引或新表。
 
 ## 4. JSONB 内部结构
 
@@ -205,7 +265,10 @@ pending 标记只保存推荐范围，不保存要推荐什么：卡片请求从
 | 列表摘要 | trips INNER JOIN trip_states | [摘要 repository](../src/platform/persistence/postgres/postgres-journey-summary-repository.ts) | owner 过滤，按两张表最新更新时间等排序；JourneySummary 不是独立表 |
 | 交接时保存偏好 | trip_preferences | [交接 handler](../src/capabilities/planning/planning-handoff-handler.ts)、[偏好 repository](../src/platform/persistence/postgres/postgres-trip-preference-repository.ts) | 删除该旅程有效的对话偏好，再插入新提取的；用户删除过的同一句原话不再插入；两步没有事务（Neon HTTP 驱动不支持），中途失败下次交接重建 |
 | 计划页增删偏好 | trip_preferences | [偏好 handler](../src/capabilities/planning/trip-preferences-handler.ts) | 先按 cookie 检查 Trip 归属；新增前查重；删除只把 status 改为 removed |
-| 删除 Journey | trips，级联另外三表 | [Trip repository](../src/platform/persistence/postgres/postgres-trip-repository.ts) | DELETE 同时带 Trip ID/owner 条件，依赖外键级联 |
+| 开始 Generate plan | plan_runs、plan_versions | [plan-run-service](../src/capabilities/planning/plan-run-service.ts)、[运行 repository](../src/platform/persistence/postgres/postgres-plan-run-repository.ts) | 先按 handoff_key 找最近运行：有版本直接返回，运行中复用；否则插入 running 行 |
+| 运行进度与结束 | plan_run_events、plan_runs | 同上 | 事件按 seq 逐条插入；结束时只更新仍是 running 的行（`WHERE status = 'running'`），防止中断标记和正常结束互相覆盖 |
+| 保存计划版本 | plan_versions | [plan-generation](../src/agents/workflows/plan-generation.ts) 的 save-plan 步骤 | 先查该旅程最大版本号再插入下一个；唯一约束拒绝并发重复 |
+| 删除 Journey | trips，级联其余六表 | [Trip repository](../src/platform/persistence/postgres/postgres-trip-repository.ts) | DELETE 同时带 Trip ID/owner 条件，依赖外键级联 |
 
 状态和消息 repository 按 tripId 读写，owner 授权主要由上层 Trip/Journey/Message 服务负责。不要因为子表没有 owner 列就跳过根记录授权，也不要把外键当成访客权限检查。
 
@@ -224,6 +287,8 @@ pending 标记只保存推荐范围，不保存要推荐什么：卡片请求从
 | [0008_trip_message_presentation.sql](../drizzle/0008_trip_message_presentation.sql) | 消息表增加 presentation JSONB |
 | [0009_drop_trip_user_actions.sql](../drizzle/0009_drop_trip_user_actions.sql) | 定义删除旧 action 表，当前 schema 不再包含它 |
 | [0010_trip_preferences.sql](../drizzle/0010_trip_preferences.sql) | 创建 trip_preferences 表、三个 enum、两个外键和 (trip_id, status) 索引。0007–0009 是手写迁移、没有快照，drizzle-kit 生成时多出一句已存在的 `trip_messages.presentation`，已手动删掉；0010 快照是当前完整 schema |
+
+| [0011_plan_runs.sql](../drizzle/0011_plan_runs.sql) | 创建 plan_runs、plan_run_events、plan_versions 和 plan_run_status enum，四个级联外键、唯一约束和 (trip_id, started_at) 索引（drizzle-kit 生成，没有多余语句） |
 
 `_journal.json` 记录仓库迁移顺序；历史 snapshots 只覆盖已有快照，不应拿最后一份历史 snapshot 当完整当前 schema。执行状态需针对实际环境另行确认，本文件不授权清库或执行 DROP。
 

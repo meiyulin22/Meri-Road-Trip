@@ -44,8 +44,9 @@ flowchart TB
 | --- | --- |
 | 已实现 | 访客所属 Journey、自然语言创建、持久化会话、普通字段编辑、目的地省/市/spot、显式多选确认、推荐与准备度检查 |
 | 已实现但有范围限制 | PWA manifest/图标，无离线缓存；推荐使用搜索启发，无访问检查或排序；地点照片只作装饰 |
-| 试验阶段 | Scout 验证 Mastra 工具调用。第一轮 Research Agent 可用 PlanHandoff JSON 独立运行，以 Kimi 搜索产出带来源的景点卡。见 [src/agents/README.md](../src/agents/README.md) |
-| 未实现 | 真正 Generate Plan（Planner Agent）、实时天气/路线研究、证据系统、Agent 运行追踪与评估、后台监控、Adaptive Workspace |
+| 已实现（Generate plan 首版） | 计划页由 Mastra 工作流生成全部日程：各城调研（带来源的景点卡）→ 天地图定位 → Plan Agent 路线与逐城选点 → 配图 → 保存计划版本；进度以 SSE 实时推送，运行记录与事件存库（1.2010）。见 [src/agents/README.md](../src/agents/README.md) |
+| 试验阶段 | Scout 验证 Mastra 工具调用 |
+| 未实现 | 生成中暂停提问（suspend/resume）、第二轮精查与审核 Agent、实时天气/路线研究、Agent 运行追踪与评估、后台监控、Adaptive Workspace |
 
 ## 2. 技术栈与接入位置
 
@@ -86,7 +87,7 @@ flowchart TB
 | 表现层 | 渲染、编辑、暂选、pending/error、同步保存结果 | `src/components/` | 领域类型、展示纯函数、本应用 API | UI 提示不能替代服务端资格检查 |
 | 领域层 | Trip/State/Message 等契约，合法状态和纯规则 | `src/domain/` | 不调用网络或数据库；输出规范对象/状态变换 | 不解释未知提供方身份，不生成 UI 代码 |
 | 应用层 | 为一次用户操作编排校验、查询、保存及回复 | `src/capabilities/` | 领域规则和外部端口 | 固定流程，不是 Agent |
-| Agent 层 | 给定目标和工具，由模型决定下一步调用哪个工具 | `src/agents/` | 工具包装 platform 端口；第一轮调研在预算内输出经引用核对的景点卡 | 排程、可恢复工作流及追踪待实现，见 `src/agents/README.md` |
+| Agent 层 | 给定目标和工具，由模型决定下一步调用哪个工具 | `src/agents/` | 工具包装 platform 端口；planner 函数（调研、定位、路线、选点）由 `src/agents/workflows/` 的 Mastra 工作流编排 | 暂停提问、可恢复快照及追踪待实现，见 `src/agents/README.md` |
 | 基础设施层 | 模型、地图、搜索、身份、日志、数据库适配 | `src/platform/` | provider SDK/HTTP、Neon/Drizzle；返回规范化结果 | 端口和实现目前同属 platform，并非完全强制隔离 |
 
 ### 3.1 应用能力模块
@@ -243,7 +244,7 @@ flowchart LR
 
 最多 12 个建议地点；Discovery 失败降级为空搜索上下文，模型失败仍报错（卡片请求返回 502，界面可重试）。推荐分两个请求：聊天请求只保存模型的简短引导和 `destination_recommendations_pending` 标记，客户端再调用 `POST /api/trips/[id]/destination-recommendations`；该接口从保存的对话还原触发原话，只为仍是最新消息的 pending 生成卡片，卡片消息 ID 由 pending 消息派生，重复请求返回同一条。推荐只从聊天触发，使用真实原话；没有推荐按钮入口，不另存 action、不伪造 user 消息。未接通访问检查或排序，workflow 是普通确定性编排，不是 Vercel Workflow runtime 或 Agent 循环。卡片不等照片：每张卡带配图用的地标先保存返回，客户端再调用 `POST /api/trips/[id]/destination-recommendation-photos`，服务器每查到一张照片就以 NDJSON 流式推一行，全部查完后写回该卡片消息的 presentation（消息唯一的更新），卡片在照片到达前显示骨架块。
 
-Generate plan 只有一个，位于聊天下方：missing→按钮不可用并在悬停/聚焦时说明添加目的地的途径，有 legacyText→重新确认/清除，其余（包括只有省、没有市）→服务端检查归属并读取已保存 TripState 与用户偏好，交给同一标签页的真实计划页。出发地、日期、时长和交通目前不是硬门槛，交接后仍待生成日程。
+Generate plan 只有一个，位于聊天下方：missing→按钮不可用并在悬停/聚焦时说明添加目的地的途径，有 legacyText→重新确认/清除，其余（包括只有省、没有市）→服务端检查归属并读取已保存 TripState 与用户偏好，交给同一标签页的真实计划页。出发地、日期、时长和交通目前不是硬门槛。计划页随后通过 `POST /api/trips/{id}/plan-runs` 在后台启动生成工作流，并用 SSE 跟随进度（见 USER_FLOW 5.4）。
 
 ## 6. 一致性、错误与可恢复性
 

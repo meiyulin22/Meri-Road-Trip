@@ -1,20 +1,24 @@
 import { readFile } from "node:fs/promises";
 
+import { Mastra } from "@mastra/core";
+import { InMemoryStore } from "@mastra/core/storage";
 import { z } from "zod";
 
-import { checkSpotsOnMap } from "@/agents/planner/map-check";
-import { draftPlan } from "@/agents/planner/plan-agent";
-import { runFirstRoundResearch } from "@/agents/planner/research-agent";
+import { planGenerationDependencies } from "@/agents";
+import { createPlanGenerationWorkflow } from "@/agents/workflows/plan-generation";
+import { PlanRunService } from "@/capabilities/planning/plan-run-service";
 import { cityResearchSchema } from "@/domain/plan/plan-draft-response";
 import { planHandoffSchema } from "@/domain/plan/plan-handoff";
-import type { CityResearch } from "@/domain/plan/spot-card";
-import { createTiandituClient } from "@/platform/tianditu/tianditu-fetch";
-import { TiandituLocationProvider } from "@/platform/tianditu/tianditu-location-provider";
-import { sharedSpotLocationMemory } from "@/platform/tianditu/spot-location-memory";
+import { InMemoryPlanRunRepository } from "@/platform/persistence/in-memory/in-memory-plan-run-repository";
 
-// The JSON printed by verify-plan-research.ts, so a draft can be rerun without searching again.
+// The JSON printed by verify-plan-research.ts, so a plan can be rerun without searching again.
 const researchFileSchema = z.object({ cities: z.array(cityResearchSchema) });
 
+/**
+ * Runs the plan-generation workflow once against the real providers, as the plan page
+ * would, but keeps the run and its version in memory. Each progress event is printed as
+ * one JSON line the moment it arrives, then the saved plan.
+ */
 async function main(): Promise<void> {
   const [handoffPath, researchPath] = process.argv.slice(2);
   if (!handoffPath) {
@@ -23,32 +27,38 @@ async function main(): Promise<void> {
     return;
   }
   const handoff = planHandoffSchema.parse(JSON.parse(await readFile(handoffPath, "utf8")));
-  const startedAt = performance.now();
-  const research: CityResearch[] = researchPath
-    ? researchFileSchema.parse(JSON.parse(await readFile(researchPath, "utf8"))).cities
-    : (await runFirstRoundResearch(handoff)).cities;
-  const researchMs = Math.round(performance.now() - startedAt);
-  // Stops at the first failed Tianditu lookup, with no retry; the draft still runs.
-  const map = new TiandituLocationProvider(createTiandituClient(fetch, { retryRateLimit: false }));
-  const mapCheck = await checkSpotsOnMap(research, {
-    search: (name, areas) => map.searchByKeyword(name, areas),
-    memory: sharedSpotLocationMemory,
+  const saved = researchPath ? researchFileSchema.parse(JSON.parse(await readFile(researchPath, "utf8"))).cities : null;
+
+  const repository = new InMemoryPlanRunRepository();
+  const workflow = createPlanGenerationWorkflow(planGenerationDependencies({
+    saveVersion: (version) => repository.createVersion(version),
+    ...(saved ? {
+      researchCity: async (task) => {
+        const city = saved.find(({ province, city: name }) => province === task.province && name === task.city);
+        if (!city) throw new Error(`No saved research for ${task.city}.`);
+        return city;
+      },
+    } : {}),
+  }));
+  const mastra = new Mastra({ workflows: { planGeneration: workflow }, storage: new InMemoryStore(), logger: false });
+  const service = new PlanRunService({
+    repository,
+    workflow: async () => ({ workflow: mastra.getWorkflow("planGeneration") }),
   });
-  const mapMs = Math.round(performance.now() - startedAt) - researchMs;
-  const result = await draftPlan(handoff, mapCheck.cities);
-  process.stdout.write(JSON.stringify({
-    ...result,
-    mapCheck: mapCheck.status,
-    mapLookups: mapCheck.lookups,
-    located: mapCheck.cities.flatMap(({ spots }) => spots.map(({ name, mapCheck: check }) => [name, check])),
-    researchMs,
-    mapMs,
-    draftMs: Math.round(performance.now() - startedAt) - researchMs - mapMs,
-  }, null, 2) + "\n");
-  if (result.status !== "ready") process.exitCode = 1;
+
+  const tripId = "00000000-0000-4000-8000-00000000f00d";
+  const started = await service.start(tripId, handoff);
+  const run = await repository.findRun(tripId, started.runId);
+  if (!run) throw new Error("The run was not recorded.");
+  for await (const { seq, at, event } of service.follow(run, 0, new AbortController().signal)) {
+    process.stdout.write(JSON.stringify({ seq, at, ...event }) + "\n");
+  }
+  const finished = repository.runs.get(started.runId);
+  process.stdout.write(JSON.stringify({ run: finished && { ...finished, handoff: undefined }, plan: repository.versions[0]?.plan ?? null }, null, 2) + "\n");
+  if (finished?.status !== "succeeded") process.exitCode = 1;
 }
 
 void main().catch((error: unknown) => {
-  process.stderr.write("Plan draft check failed (" + (error instanceof Error ? error.name : "unknown error") + ").\n");
+  process.stderr.write("Plan workflow check failed (" + (error instanceof Error ? error.name : "unknown error") + ").\n");
   process.exitCode = 1;
 });

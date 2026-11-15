@@ -68,3 +68,12 @@ test("marks a preference removed instead of deleting it, and names the failed op
   await assert.rejects(new PostgresTripPreferenceRepository(databaseDouble({ failInsert: true }).database).create(preference),
     (error) => error instanceof PostgresTripPreferenceRepositoryError && error.operation === "create");
 });
+
+test("reads Postgres timestamps back as ISO time, which the plan handoff requires", async () => {
+  const row = { ...preference, createdAt: "2026-11-15 05:21:47.089+00", updatedAt: "2026-11-15 05:21:47.089+00" };
+  const database = {
+    select: () => ({ from: () => ({ where: () => ({ orderBy: async () => [row] }) }) }),
+  } as unknown as Database;
+  const [read] = await new PostgresTripPreferenceRepository(database).listByTripId(preference.tripId);
+  assert.equal(read.createdAt, "2026-11-15T05:21:47.089Z");
+});
