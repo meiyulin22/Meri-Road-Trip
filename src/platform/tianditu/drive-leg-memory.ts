@@ -1,7 +1,7 @@
 import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 
-import type { DriveRoute, LonLat } from "./tianditu-drive";
+import type { DriveRoute, LonLat, TravelMode } from "./tianditu-drive";
 
 type Entry = DriveRoute & { readonly at: number };
 
@@ -11,19 +11,23 @@ const ttlMs = 30 * dayMs;
 const maxEntries = 2_000;
 const cacheFile = join(process.cwd(), ".cache", "tianditu-drive-legs.json");
 
-/** The two points, rounded to about a metre, as one key. */
-export function driveLegKey(from: LonLat, to: LonLat): string {
+/** The mode and the two points, rounded to about a metre, as one key. */
+export function driveLegKey(from: LonLat, to: LonLat, mode: TravelMode): string {
   const point = ({ longitude, latitude }: LonLat) => `${longitude.toFixed(5)},${latitude.toFixed(5)}`;
-  return `${point(from)}>${point(to)}`;
+  return `${mode}:${point(from)}>${point(to)}`;
 }
 
 function parseEntry(value: unknown): Entry | null {
   if (typeof value !== "object" || value === null) return null;
-  const { at, distanceKm, durationSeconds, path } = value as Record<string, unknown>;
+  const { at, distanceKm, durationSeconds, path, offRoadStartMeters, offRoadEndMeters } = value as Record<string, unknown>;
   if (typeof at !== "number" || typeof distanceKm !== "number" || typeof durationSeconds !== "number" || !Array.isArray(path)) return null;
+  // Legs saved before 1.2103 have no off-road measures: forgotten, so they are asked once more.
+  if (typeof offRoadStartMeters !== "number" || typeof offRoadEndMeters !== "number") return null;
   const points = path.filter((point): point is [number, number] =>
     Array.isArray(point) && point.length === 2 && point.every((number) => typeof number === "number"));
-  return points.length === path.length && points.length >= 2 ? { at, distanceKm, durationSeconds, path: points } : null;
+  return points.length === path.length && points.length >= 2
+    ? { at, distanceKm, durationSeconds, path: points, offRoadStartMeters, offRoadEndMeters }
+    : null;
 }
 
 /**
@@ -46,7 +50,8 @@ export class DriveLegMemory {
       this.load().delete(key);
       return null;
     }
-    return { distanceKm: hit.distanceKm, durationSeconds: hit.durationSeconds, path: hit.path };
+    const { distanceKm, durationSeconds, path, offRoadStartMeters, offRoadEndMeters } = hit;
+    return { distanceKm, durationSeconds, path, offRoadStartMeters, offRoadEndMeters };
   }
 
   set(key: string, route: DriveRoute): void {

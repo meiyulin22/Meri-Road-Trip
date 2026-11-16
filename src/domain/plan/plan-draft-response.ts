@@ -114,9 +114,12 @@ export const planDraftSchema: z.ZodType<PlanDraft> = z.strictObject({
     day: z.number().int().positive(),
     fromSpotId: z.string().min(1),
     toSpotId: z.string().min(1),
+    mode: z.enum(["walk", "drive", "none"]).optional(),
     distanceKm: z.number().nonnegative(),
     durationMinutes: z.number().int().nonnegative(),
     path: z.array(z.tuple([z.number().min(-180).max(180), z.number().min(-90).max(90)])).min(2).max(200),
+    offRoadStartMeters: z.number().int().nonnegative().optional(),
+    offRoadEndMeters: z.number().int().nonnegative().optional(),
   })).optional(),
 });
 

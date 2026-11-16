@@ -79,6 +79,10 @@ test("a day's line follows the road where a leg was planned, and is straight and
   const road = [[100.2, 26.8], [100.205, 26.805], [100.21, 26.81]] as [number, number][];
   const lines = dayLines(stops, [{ day: 1, fromSpotId: "木府", toSpotId: "狮子山", distanceKm: 1.2, durationMinutes: 5, path: road }], 1);
   assert.deepEqual(lines.map(({ kind, path }) => [kind, path.length]), [["road", 3], ["straight", 2]]);
+  // The road stops 650 m short of an island: that stretch is dashed (1.2103).
+  const island = dayLines(stops, [{ day: 1, fromSpotId: "木府", toSpotId: "狮子山", mode: "drive", distanceKm: 0.7, durationMinutes: 1,
+    path: road, offRoadStartMeters: 0, offRoadEndMeters: 650 }], 1);
+  assert.deepEqual(island.slice(0, 2).map(({ kind, path }) => [kind, path.length]), [["road", 2], ["straight", 2]]);
   // With 狮子山 not located, 木府 and 黑龙潭 are not neighbours: no line between them.
   const broken = mapStops(plan([card("木府", located(100.2, 26.8)), card("狮子山", { status: "not_located" }), card("黑龙潭", located(100.22, 26.88))]));
   assert.deepEqual(dayLines(broken, [], 1), []);

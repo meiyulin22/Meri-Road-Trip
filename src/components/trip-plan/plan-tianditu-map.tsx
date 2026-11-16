@@ -150,10 +150,12 @@ function drawStops(T: TiandituApi, map: TiandituMap, stops: readonly MapStop[], 
   for (const number of shownDays) {
     for (const line of dayLines(stops, legs, number)) {
       const path = line.path.map(([longitude, latitude]) => new T.LngLat(longitude, latitude));
-      // The road, where Tianditu planned it; otherwise a faint dashed line for the order only.
+      // The road or footpath where Tianditu planned it; a faint dashed line where the map has no way.
       map.addOverLay(line.kind === "road"
         ? new T.Polyline(path, { color: "#2f5d46", weight: 3, opacity: 0.75, lineStyle: "solid" })
-        : new T.Polyline(path, { color: "#2f5d46", weight: 2, opacity: 0.55, lineStyle: "dashed" }));
+        : line.kind === "walk"
+          ? new T.Polyline(path, { color: "#2f5d46", weight: 2, opacity: 0.7, lineStyle: "solid" })
+          : new T.Polyline(path, { color: "#2f5d46", weight: 2, opacity: 0.55, lineStyle: "dashed" }));
     }
   }
   const framed = [...highlighted].map(point);

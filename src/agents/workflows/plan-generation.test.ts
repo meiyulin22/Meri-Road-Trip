@@ -53,13 +53,14 @@ function setup(overrides: Partial<PlanGenerationDependencies> = {}, timeLimitMs?
       },
       memory: { get: () => null, set: () => {} },
     },
-    // Every located pair drives ten minutes, three kilometres.
+    // Every located pair takes ten minutes over three kilometres.
     drive: {
       drive: async (from, to) => ({ status: "success", route: {
         distanceKm: 3, durationSeconds: 600, path: [[from.longitude, from.latitude], [to.longitude, to.latitude]],
+        offRoadStartMeters: 0, offRoadEndMeters: 0,
       } }),
       memory: { get: () => null, set: () => {} },
-      key: (from, to) => `${from.longitude},${from.latitude}>${to.longitude},${to.latitude}`,
+      key: (from, to, mode) => `${mode}:${from.longitude},${from.latitude}>${to.longitude},${to.latitude}`,
     },
     // No facts by default: every stop stays unchecked and the loop has nothing to repair.
     verifySpots: async () => ({ availability: new Map(), searches: 0, usage: { inputTokens: 0, outputTokens: 0 } }),
@@ -128,10 +129,13 @@ test("streams real progress city by city, stops the map at its first failure, an
   assert.equal(finished?.type === "run.finished" && finished.versionId, version.id);
   assert.equal(version.version, 1);
   assert.deepEqual(version.plan.draft.days.map(({ day: dayNumber, stops }) => [dayNumber, stops.length]), [[1, 2], [2, 1], [3, 1], [4, 1], [5, 1]]);
-  assert.deepEqual(version.plan.dayPhotos.map(({ day: dayNumber }) => dayNumber), [1, 2, 3, 4, 5]);
+  // Only city photos exist here: each city's goes to its first day, and no photo repeats (1.2103).
+  assert.deepEqual(version.plan.dayPhotos.map(({ day: dayNumber }) => dayNumber), [1, 4]);
   assert.equal(version.plan.mapCheck, "stopped");
-  // Day 1's two located stops get a drive leg (1.2102); its lookup counts toward the map's.
-  assert.deepEqual(version.plan.draft.legs?.map(({ day: dayNumber, durationMinutes, distanceKm }) => [dayNumber, durationMinutes, distanceKm]), [[1, 10, 3]]);
+  // Day 1's two located stops get a leg; its lookup counts toward the map's. Both sit on the same
+  // point here, so they are walked, and the minutes come from the distance at walking pace (1.2103).
+  assert.deepEqual(version.plan.draft.legs?.map(({ day: dayNumber, mode, durationMinutes, distanceKm }) => [dayNumber, mode, durationMinutes, distanceKm]),
+    [[1, "walk", 40, 3]]);
 
   const run = repository.runs.get(started.runId);
   assert.equal(run?.status, "succeeded");

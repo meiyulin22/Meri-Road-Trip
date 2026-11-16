@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowRight, CalendarCheck, Car, ChevronDown, Clock, ExternalLink, Info, MapPin, MoonStar, RotateCw, Route, Sparkles, Star, Sun, Sunrise, TriangleAlert } from "lucide-react";
+import { ArrowRight, CalendarCheck, Car, ChevronDown, Footprints, Clock, ExternalLink, Info, MapPin, MoonStar, RotateCw, Route, Sparkles, Star, Sun, Sunrise, TriangleAlert } from "lucide-react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import Image from "next/image";
 import { useEffect, useMemo, useReducer, useState } from "react";
@@ -13,6 +13,7 @@ import type { Locale } from "@/domain/locale/locale";
 import type { DaySlot, DriveLeg, PlanDay, PlanRoute, SpotFact, StopCheck } from "@/domain/plan/plan-draft";
 import type { ReadyPlan } from "@/domain/plan/plan-draft-response";
 import type { PlanHandoff } from "@/domain/plan/plan-handoff";
+import type { TransportPreference } from "@/domain/trip-draft/trip-draft";
 import type { PlanRunStartResponse } from "@/domain/plan/plan-run";
 import type { SpotCard, SpotEvidence } from "@/domain/plan/spot-card";
 
@@ -31,6 +32,7 @@ import {
 } from "./plan-draft-model";
 import { applyProgress, emptyProgress, pendingDays, type ProgressView } from "./plan-progress-view";
 import { PlanQuestionCard, PlanRunActivity, type QuestionAnswer } from "./plan-run-activity";
+import { legText } from "./plan-leg-text";
 import { PlanTiandituMap } from "./plan-tianditu-map";
 import draftStyles from "./plan-draft.module.css";
 import styles from "./trip-plan.module.css";
@@ -240,7 +242,8 @@ export function PlanDraftSection({ tripId, handoff, onPreferenceSaved = () => {}
   return (
     <div className={draftStyles.draft}>
       {state.progress ? <PlanRunActivity view={state.progress} /> : null}
-      <DraftDays response={state.plan} text={text} locale={locale} />
+      <DraftDays response={state.plan} text={text} locale={locale}
+        transport={handoff.tripState.transportPreference.state === "known" ? handoff.tripState.transportPreference.value : null} />
     </div>
   );
 }
@@ -350,10 +353,12 @@ function DraftLoading({ text }: { readonly text: Copy }) {
   );
 }
 
-function DraftDays({ response, text, locale }: {
+function DraftDays({ response, text, locale, transport }: {
   readonly response: ReadyPlan;
   readonly text: Copy;
   readonly locale: Locale;
+  /** How the traveller gets around, for the wording of road legs (1.2103). */
+  readonly transport: TransportPreference | null;
 }) {
   const { draft } = response;
   const cards = useMemo(() => new Map(response.spots.map((card) => [card.id, card])), [response.spots]);
@@ -426,7 +431,7 @@ function DraftDays({ response, text, locale }: {
             preview={draft.mode === "preview"}
             unverified={new Map(draft.unverified.map(({ spotId, fields }) => [spotId, fields]))}
             checks={new Map((draft.checks ?? []).filter(({ day: number }) => number === day.day).map((check) => [check.spotId, check]))}
-            arriving={arrivingLegs(day, draft.legs ?? [])}
+            arriving={arrivingLegs(day, draft.legs ?? [])} transport={transport}
             open={openDay === day.day} onOpen={() => setOpenDay(openDay === day.day ? null : day.day)} />
         ))}
       </div>
@@ -451,12 +456,8 @@ function arrivingLegs(day: PlanDay, legs: readonly DriveLeg[]): ReadonlyMap<stri
   }));
 }
 
-const driveCopy = {
-  zh: (minutes: number, km: number) => `开车约 ${minutes} 分钟 · ${km} 公里`,
-  en: (minutes: number, km: number) => `About ${minutes} min by car · ${km} km`,
-} as const;
-
-function DraftDay({ day, cards, unverified, checks, arriving, text, locale, preview, open, onOpen, index, photo }: {
+function DraftDay({ day, cards, unverified, checks, arriving, transport = null, text, locale, preview, open, onOpen, index, photo }: {
+  readonly transport?: TransportPreference | null;
   /** Each stop's drive from the stop before it, by spot ID; absent where none was planned. */
   readonly arriving: ReadonlyMap<string, DriveLeg>;
   /** The second round's verdict per stop of this day, by spot ID. */
@@ -526,7 +527,8 @@ function DraftDay({ day, cards, unverified, checks, arriving, text, locale, prev
                           <li key={stop.spotId} className={draftStyles.stop}>
                             {leg ? (
                               <p className={draftStyles.driveLine}>
-                                <Car aria-hidden="true" size={12} />{driveCopy[locale](leg.durationMinutes, leg.distanceKm)}
+                                {leg.mode === "walk" ? <Footprints aria-hidden="true" size={12} /> : <Car aria-hidden="true" size={12} />}
+                                {legText(leg, transport, locale)}
                               </p>
                             ) : null}
                             <div className={draftStyles.stopHead}>

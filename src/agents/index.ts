@@ -52,7 +52,7 @@ export function planGenerationDependencies(
     },
     drive: {
       // One lookup a leg; the first failure stops the rest, rate limits included, with no retry.
-      drive: (from, to) => (drive ??= createTiandituDrive(createTiandituClient(fetch, { retryRateLimit: false })))(from, to),
+      drive: (from, to, mode) => (drive ??= createTiandituDrive(createTiandituClient(fetch, { retryRateLimit: false })))(from, to, mode),
       memory: sharedDriveLegMemory,
       key: driveLegKey,
     },

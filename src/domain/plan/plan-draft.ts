@@ -56,18 +56,30 @@ export type StopCheck = {
   readonly movedFrom: number | null;
 };
 
+/** Two stops closer than this are walked rather than driven (1.2103). */
+export const walkWithinKm = 1.2;
+/** An off-road stretch longer than this is shown: the road stops short of the stop. */
+export const offRoadNoticeMeters = 300;
+
 /**
- * Driving between two stops next to each other in one day, as Tianditu planned it (1.2102):
- * the fastest road, how far and how long, and the road's points for the map.
+ * Getting between two stops next to each other in one day, as Tianditu planned it (1.2102):
+ * on foot or by road, how far and how long, and the way's points for the map. `none` is a
+ * pair Tianditu found no way between, such as an island; its path is the straight line.
  */
 export type DriveLeg = {
   readonly day: number;
   readonly fromSpotId: string;
   readonly toSpotId: string;
+  /** Absent on plans made in 1.2102, which all drove. */
+  readonly mode?: "walk" | "drive" | "none";
   readonly distanceKm: number;
+  /** 0 when the mode is none. */
   readonly durationMinutes: number;
-  /** Longitude, latitude pairs along the road, at most 200. */
+  /** Longitude, latitude pairs along the way, at most 200. */
   readonly path: readonly (readonly [number, number])[];
+  /** The straight stretches at either end where the map has no road (1.2103). */
+  readonly offRoadStartMeters?: number;
+  readonly offRoadEndMeters?: number;
 };
 
 export type PlanMode = "preview" | "full";

@@ -1,5 +1,5 @@
 import type { Locale } from "@/domain/locale/locale";
-import type { DriveLeg } from "@/domain/plan/plan-draft";
+import { type DriveLeg, offRoadNoticeMeters } from "@/domain/plan/plan-draft";
 import type { ReadyPlan } from "@/domain/plan/plan-draft-response";
 
 /** One stop the map can draw: its day, its number within the day, and where Tianditu put it. */
@@ -53,21 +53,33 @@ export function dayOnMap(plan: ReadyPlan, stops: readonly MapStop[], day: number
   };
 }
 
+type Line = { readonly kind: "road" | "walk" | "straight"; readonly path: readonly (readonly [number, number])[] };
+
 /**
- * The lines between one day's neighbouring stops: along the road where Tianditu planned the
- * leg (1.2102), otherwise straight and dashed, which shows only the order. A stop that is not
- * located breaks the line, as it is not on the map.
+ * The lines between one day's neighbouring stops: along the road or footpath where Tianditu
+ * planned the leg, otherwise straight and dashed, which shows only the order (1.2102). Where
+ * the way stops short of a stop by more than a short walk, that stretch is dashed too, as the
+ * map has no road there (1.2103). A stop that is not located breaks the line.
  */
-export function dayLines(stops: readonly MapStop[], legs: readonly DriveLeg[], day: number):
-  { readonly kind: "road" | "straight"; readonly path: readonly (readonly [number, number])[] }[] {
+export function dayLines(stops: readonly MapStop[], legs: readonly DriveLeg[], day: number): Line[] {
   const own = stops.filter((stop) => stop.day === day).sort((left, right) => left.number - right.number);
-  return own.slice(1).flatMap((to, index) => {
+  return own.slice(1).flatMap((to, index): Line[] => {
     const from = own[index];
     if (to.number !== from.number + 1) return [];
     const leg = legs.find((item) => item.day === day && item.fromSpotId === from.spotId && item.toSpotId === to.spotId);
-    return [leg
-      ? { kind: "road" as const, path: leg.path }
-      : { kind: "straight" as const, path: [[from.longitude, from.latitude], [to.longitude, to.latitude]] as const }];
+    if (!leg || leg.mode === "none") {
+      return [{ kind: "straight", path: [[from.longitude, from.latitude], [to.longitude, to.latitude]] }];
+    }
+    const kind = leg.mode === "walk" ? "walk" : "road";
+    const path = leg.path;
+    const startGap = (leg.offRoadStartMeters ?? 0) > offRoadNoticeMeters && path.length > 2;
+    const endGap = (leg.offRoadEndMeters ?? 0) > offRoadNoticeMeters && path.length > 2;
+    const body = path.slice(startGap ? 1 : 0, endGap ? -1 : undefined);
+    return [
+      ...(startGap ? [{ kind: "straight" as const, path: path.slice(0, 2) }] : []),
+      { kind, path: body },
+      ...(endGap ? [{ kind: "straight" as const, path: path.slice(-2) }] : []),
+    ];
   });
 }
 

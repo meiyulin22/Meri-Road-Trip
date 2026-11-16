@@ -4,7 +4,7 @@ import { createStep, createWorkflow } from "@mastra/core/workflows";
 import { z } from "zod";
 
 import { dayPhotos, type FindDayImage } from "@/agents/planner/day-photos";
-import { type DriveLegDependencies, planDriveLegs } from "@/agents/planner/drive-legs";
+import { type DriveLegDependencies, planDriveLegs } from "@/agents/transport/legs";
 import { maxVerifySearches, type VerifyProgress, type VerifyResult } from "@/agents/planner/verify-spots";
 import { checkSpotsOnMap, type MapCheckDependencies } from "@/agents/planner/map-check";
 import { draftCityDays } from "@/agents/planner/plan-days";

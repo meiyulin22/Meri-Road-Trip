@@ -220,7 +220,7 @@ plan-generation   input { runId, tripId, handoff }   state { handoff, scope, def
   .then(plan-route)                       planRoute
   .then(plan-days)                        draftCityDays per city in route order, then finishDraft
   (validation stage: verify-facts, dountil verify-repair; see below)
-  .then(drive-legs)                       Tianditu drive lookups between neighbouring stops (1.2102)
+  .then(drive-legs)                       transport/legs.ts: walk or drive between neighbouring stops (1.2102–1.2103)
   .then(day-photos)                       dayPhotos from the local catalog only
   .then(save-plan)                        a new plan version
 ```
@@ -424,7 +424,7 @@ failing the run.
 
 The map check keeps each located spot's coordinates (1.2100), and the plan page draws the stops
 on a Tianditu JS API map with a public browser key; a day with no located stop shows its city
-(1.2101). After the validation stage, [drive-legs.ts](planner/drive-legs.ts) asks Tianditu's drive
+(1.2101). After the validation stage, [transport/legs.ts](transport/legs.ts) asks Tianditu's drive
 service (`/drive`, style 0, fastest) for each pair of neighbouring located stops in a day (1.2102):
 its distance in km, duration in seconds and the road as `lng,lat;…` (an XML answer labelled
 text/html, read in [tianditu-drive.ts](../platform/tianditu/tianditu-drive.ts) and thinned to 200
@@ -432,8 +432,20 @@ points). Legs are kept 30 days in `.cache/tianditu-drive-legs.json`, at most 20 
 and the first failure stops the rest with no retry; their lookups count as map lookups. The plan
 saves them as `draft.legs`; the map follows the road where a leg exists and draws a dashed straight
 line otherwise, and each day card shows "about 7 min by car · 4.8 km" before a stop. Measured
-2026-11-16: 崇圣寺三塔 → 大理古城, 4.76 km, 448 s, about 80 road points. Driving between cities and
-using the times to re-plan a day are not done yet.
+2026-11-16: 崇圣寺三塔 → 大理古城, 4.76 km, 448 s, about 80 road points.
+
+**Walking and ways the road does not reach (1.2103).** The legs moved to `src/agents/transport/`, where
+the transport agent (trains, flights) will live. Code decides the mode from the straight distance:
+1.2 km or less is walked (style 3), farther is driven. Tianditu's walking time is not a walking pace
+(1.03 km in 261 s, measured 2026-11-16), so a walk's minutes come from its distance at 4.5 km/h. On
+foot from 双廊 to 南诏风情岛 Tianditu answered distance 0 with only the two points: zero is no way,
+saved as a `none` leg (straight line, no time). By road it reached the shore and drew a straight line
+across the water; since every answer starts and ends at the points asked, the first and last segments,
+measured before thinning, are the stretches with no road. Over 300 m, the card says so ("最后约 650 米
+地图上没有路（可能要坐船、索道或步行）") and the map dashes it. The card says drive, taxi or "by road" from
+the trip's transport preference. Nothing here asks the model why a way is missing; finding the ferry
+or cable car with a sourced search is a later checker. Driving between cities and using the times to
+re-plan a day are not done yet. Two days no longer share a photo: a day with nothing new goes without.
 
 ### Evaluation (1.2014)
 

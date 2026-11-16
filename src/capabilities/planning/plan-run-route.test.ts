@@ -248,7 +248,7 @@ test("the page groups a day by slot and shows each sourced fact once", () => {
   assert.equal(sourceHost("not a url"), "not a url");
 });
 
-test("two days in one city prefer different photos and share the city's when nothing else is left", async () => {
+test("two days in one city use different photos, and a day with nothing new goes without (1.2103)", async () => {
   const days = [1, 2, 3].map((day) => ({ day, date: null, province: "云南省", city: "丽江市", arrivingFrom: null, focus: null, theme: null,
     stops: [{ spotId: day === 1 ? "玉龙雪山" : "丽江古城", slot: "morning" as const, anchor: null }] }));
   const reported: number[] = [];
@@ -256,8 +256,8 @@ test("two days in one city prefer different photos and share the city's when not
     subject.spot === "玉龙雪山" ? { url: "/photos/yulong.jpg", caption: "玉龙雪山" }
       : subject.spot === null ? { url: "/photos/lijiang.jpg", caption: "丽江市" } : null, ({ day }) => reported.push(day));
   assert.deepEqual(photos.map(({ day, image }) => [day, image.url]),
-    [[1, "/photos/yulong.jpg"], [2, "/photos/lijiang.jpg"], [3, "/photos/lijiang.jpg"]]);
-  assert.deepEqual(reported, [1, 2, 3]);
+    [[1, "/photos/yulong.jpg"], [2, "/photos/lijiang.jpg"]]);
+  assert.deepEqual(reported, [1, 2]);
 });
 
 test("answers a waiting run's question, and refuses answers it cannot take", async () => {

@@ -28,7 +28,7 @@ const copy = {
     answered: (question: string, choice: string | null) => `${question} → ${choice ?? "left to Meri"}`,
     stages: {
       scope: "Read the trip", research: "Research spots", map: "Locate on Tianditu", route: "Plan the route",
-      days: "Choose each day's spots", verify: "Check opening and booking", drive: "Drive times", photos: "Pick day photos", save: "Save the plan",
+      days: "Choose each day's spots", verify: "Check opening and booking", drive: "Getting around", photos: "Pick day photos", save: "Save the plan",
     } satisfies Record<PlanStage, string>,
     summary: (stage: PlanStage, s: Readonly<Record<string, number>>): string => {
       switch (stage) {
@@ -39,7 +39,7 @@ const copy = {
         case "days": return `${s.stops} stops over ${s.days} ${s.days === 1 ? "day" : "days"}` + (s.conflicts ? ` · ${s.conflicts} to resolve` : "");
         case "verify": return `checked ${s.checked}/${s.stops}` + (s.reservations ? ` · ${s.reservations} need booking` : "")
           + (s.moved ? ` · ${s.moved} moved` : "") + (s.closed ? ` · ${s.closed} closed` : "");
-        case "drive": return `${s.legs} drive ${s.legs === 1 ? "time" : "times"}` + (s.lookups ? ` · ${s.lookups} lookups` : "");
+        case "drive": return `${s.legs} ${s.legs === 1 ? "leg" : "legs"}` + (s.lookups ? ` · ${s.lookups} lookups` : "");
         case "photos": return `${s.photos} ${s.photos === 1 ? "photo" : "photos"}`;
         case "save": return `version ${s.version}`;
       }
@@ -74,7 +74,7 @@ const copy = {
     answered: (question: string, choice: string | null) => `${question} → ${choice ?? "交给 Meri 决定"}`,
     stages: {
       scope: "读取行程范围", research: "调研景点", map: "天地图定位", route: "规划路线",
-      days: "按天选景点", verify: "核实开放与预约", drive: "查车程", photos: "配图", save: "保存计划",
+      days: "按天选景点", verify: "核实开放与预约", drive: "查交通", photos: "配图", save: "保存计划",
     } satisfies Record<PlanStage, string>,
     summary: (stage: PlanStage, s: Readonly<Record<string, number>>): string => {
       switch (stage) {
@@ -85,7 +85,7 @@ const copy = {
         case "days": return `${s.days} 天 · ${s.stops} 个景点` + (s.conflicts ? ` · ${s.conflicts} 项待处理` : "");
         case "verify": return `核实 ${s.checked}/${s.stops}` + (s.reservations ? ` · ${s.reservations} 处需预约` : "")
           + (s.moved ? ` · ${s.moved} 处换日` : "") + (s.closed ? ` · ${s.closed} 处关闭` : "");
-        case "drive": return `${s.legs} 段车程` + (s.lookups ? ` · 查询 ${s.lookups} 次` : "");
+        case "drive": return `${s.legs} 段路程` + (s.lookups ? ` · 查询 ${s.lookups} 次` : "");
         case "photos": return `${s.photos} 张`;
         case "save": return `第 ${s.version} 版`;
       }

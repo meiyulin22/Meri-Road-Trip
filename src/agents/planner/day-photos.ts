@@ -5,9 +5,9 @@ import type { PlanDay } from "@/domain/plan/plan-draft";
 export type FindDayImage = (subject: PhotoSubject) => Promise<PlaceImage | null>;
 
 /**
- * One photo per day: a stop of that day first, then its city, preferring a photo no
- * earlier day shows. Two days in one city may share the city's photo rather than go
- * without one. Each photo is reported as soon as it is chosen.
+ * One photo per day: a stop of that day first, then its city, never a photo an earlier day
+ * already shows. A day with nothing new goes without a photo rather than repeat one (1.2103:
+ * two 大理 days both showed 洱海). Each photo is reported as soon as it is chosen.
  */
 export async function dayPhotos(
   days: readonly PlanDay[],
@@ -25,18 +25,14 @@ export async function dayPhotos(
       }),
       { province: day.province, place: day.city, spot: null },
     ];
-    let fallback: PlaceImage | null = null;
-    let chosen: PlaceImage | null = null;
+    let image: PlaceImage | null = null;
     for (const subject of subjects) {
-      const image = await findImage(subject);
-      if (!image) continue;
-      fallback ??= image;
-      if (!used.has(image.url)) {
-        chosen = image;
+      const found = await findImage(subject);
+      if (found && !used.has(found.url)) {
+        image = found;
         break;
       }
     }
-    const image = chosen ?? fallback;
     if (!image) continue;
     used.add(image.url);
     photos.push({ day: day.day, image });
