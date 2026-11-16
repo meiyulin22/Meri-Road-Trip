@@ -4,6 +4,7 @@ import type { ReadyPlan } from "@/domain/plan/plan-draft-response";
 /** One stop the map can draw: its day, its number within the day, and where Tianditu put it. */
 export type MapStop = {
   readonly day: number;
+  readonly city: string;
   /** The stop's place in its day, from 1, as the day card lists it; an unlocated stop keeps its number. */
   readonly number: number;
   readonly name: string;
@@ -18,11 +19,36 @@ export type MapStop = {
  */
 export function mapStops(plan: ReadyPlan): MapStop[] {
   const cards = new Map(plan.spots.map((card) => [card.id, card]));
-  return plan.draft.days.flatMap(({ day, stops }) => stops.flatMap(({ spotId }, index) => {
+  return plan.draft.days.flatMap(({ day, city, stops }) => stops.flatMap(({ spotId }, index) => {
     const card = cards.get(spotId);
     const point = card?.mapCheck.status === "located" ? card.mapCheck.point : null;
-    return card && point ? [{ day, number: index + 1, name: card.name, longitude: point.longitude, latitude: point.latitude }] : [];
+    return card && point ? [{ day, city, number: index + 1, name: card.name, longitude: point.longitude, latitude: point.latitude }] : [];
   }));
+}
+
+/**
+ * What the map shows for one day: its located stops, or, when it has none, roughly where its
+ * city is, from the stops located in that city on other days (1.2101). With neither, the day
+ * cannot be placed and the map shows the whole trip.
+ */
+export type DayOnMap =
+  | { readonly kind: "stops"; readonly stops: readonly MapStop[] }
+  | { readonly kind: "city"; readonly name: string; readonly longitude: number; readonly latitude: number }
+  | { readonly kind: "unplaced" };
+
+export function dayOnMap(plan: ReadyPlan, stops: readonly MapStop[], day: number): DayOnMap {
+  const own = stops.filter((stop) => stop.day === day);
+  if (own.length > 0) return { kind: "stops", stops: own };
+  const city = plan.draft.days.find((item) => item.day === day)?.city;
+  const sameCity = stops.filter((stop) => stop.city === city);
+  if (!city || sameCity.length === 0) return { kind: "unplaced" };
+  const mean = (values: number[]) => values.reduce((sum, value) => sum + value, 0) / values.length;
+  return {
+    kind: "city",
+    name: city,
+    longitude: mean(sameCity.map(({ longitude }) => longitude)),
+    latitude: mean(sameCity.map(({ latitude }) => latitude)),
+  };
 }
 
 /** The stops one view shows in colour: the chosen day's, or every day's for the whole trip. */
@@ -58,5 +84,14 @@ export function markerIcon(number: number, active: boolean): { url: string; size
     : "";
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 ${size} ${size}">`
     + `<circle cx="${half}" cy="${half}" r="${half - 1.5}" fill="${fill}" stroke="#fff" stroke-width="2"/>${label}</svg>`;
+  return { url: `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`, size };
+}
+
+/** The pin for a day placed only by its city: a ring, so it does not read as a stop. */
+export function cityIcon(): { url: string; size: number } {
+  const size = 30;
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 ${size} ${size}">`
+    + `<circle cx="15" cy="15" r="11" fill="rgba(47,93,70,.12)" stroke="#2f5d46" stroke-width="2.5" stroke-dasharray="4 3"/>`
+    + `<circle cx="15" cy="15" r="3" fill="#2f5d46"/></svg>`;
   return { url: `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`, size };
 }

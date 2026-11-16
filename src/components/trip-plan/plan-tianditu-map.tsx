@@ -6,7 +6,7 @@ import { useEffect, useRef, useState } from "react";
 import type { Locale } from "@/domain/locale/locale";
 import type { ReadyPlan } from "@/domain/plan/plan-draft-response";
 
-import { highlightedStops, labelLayer, mapStops, markerIcon, type MapStop, tileUrl } from "./plan-tianditu-map-model";
+import { cityIcon, dayOnMap, type DayOnMap, highlightedStops, labelLayer, mapStops, markerIcon, type MapStop, tileUrl } from "./plan-tianditu-map-model";
 import draftStyles from "./plan-draft.module.css";
 
 /** The few parts of the Tianditu JS API 4.0 this map uses; the script defines them on `window.T`. */
@@ -36,8 +36,16 @@ declare global {
 const browserKey = process.env.NEXT_PUBLIC_TIANDITU_BROWSER_KEY?.trim() ?? "";
 
 const copy = {
-  zh: { title: "地图", wholeTrip: "全程", day: (day: number) => `第 ${day} 天`, unconfigured: "地图还没有配置。", failed: "地图没有加载出来。", none: "这份计划里的景点还没有坐标，暂时没有地图。" },
-  en: { title: "Map", wholeTrip: "Whole trip", day: (day: number) => `Day ${day}`, unconfigured: "The map is not set up yet.", failed: "The map didn’t load.", none: "This plan’s stops have no coordinates yet, so there is no map." },
+  zh: {
+    title: "地图", wholeTrip: "全程", day: (day: number) => `第 ${day} 天`, unconfigured: "地图还没有配置。", failed: "地图没有加载出来。",
+    cityOnly: (day: number, city: string) => `第 ${day} 天的景点还没在地图上找到，先显示它所在的${city}。`,
+    unplaced: (day: number) => `第 ${day} 天的景点还没在地图上找到，这里显示全程。`,
+  },
+  en: {
+    title: "Map", wholeTrip: "Whole trip", day: (day: number) => `Day ${day}`, unconfigured: "The map is not set up yet.", failed: "The map didn’t load.",
+    cityOnly: (day: number, city: string) => `Day ${day}'s stops aren't on the map yet, so it shows where ${city} is.`,
+    unplaced: (day: number) => `Day ${day}'s stops aren't on the map yet, so it shows the whole trip.`,
+  },
 } as const;
 
 /**
@@ -54,12 +62,16 @@ export function PlanTiandituMap({ plan, locale, selectedDay, onSelectDay }: {
 }) {
   const text = copy[locale];
   const stops = mapStops(plan);
-  const days = [...new Set(stops.map(({ day }) => day))];
+  // Every day has a tab: a day without located stops still shows where it is (1.2101).
+  const days = plan.draft.days.map(({ day }) => day);
   const container = useRef<HTMLDivElement>(null);
   const map = useRef<TiandituMap | null>(null);
   const [ready, setReady] = useState(false);
   const [failed, setFailed] = useState(false);
   const chosen = selectedDay !== null && days.includes(selectedDay) ? selectedDay : null;
+  const view: DayOnMap | null = chosen === null ? null : dayOnMap(plan, stops, chosen);
+  const note = view?.kind === "city" && chosen !== null ? text.cityOnly(chosen, view.name)
+    : view?.kind === "unplaced" && chosen !== null ? text.unplaced(chosen) : null;
 
   // Built once the script is ready, with the street map and labels in the page's language.
   useEffect(() => {
@@ -74,7 +86,8 @@ export function PlanTiandituMap({ plan, locale, selectedDay, onSelectDay }: {
     const current = map.current;
     if (!T || !current || stops.length === 0) return;
     current.clearOverLays();
-    drawStops(T, current, stops, chosen);
+    if (view?.kind === "city") drawCity(T, current, stops, view);
+    else drawStops(T, current, stops, view?.kind === "stops" ? chosen : null);
     // stops are rebuilt each render from the plan; the plan and the chosen day decide them.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ready, plan, chosen]);
@@ -96,11 +109,30 @@ export function PlanTiandituMap({ plan, locale, selectedDay, onSelectDay }: {
           <Script src={`https://api.tianditu.gov.cn/api?v=4.0&tk=${encodeURIComponent(browserKey)}`}
             onReady={() => setReady(true)} onError={() => setFailed(true)} />
           <div className={draftStyles.mapCanvas} ref={container} lang={locale === "zh" ? "zh-CN" : "en"} />
+          {note ? <p className={draftStyles.mapNote} role="status">{note}</p> : null}
           {failed ? <p className={draftStyles.mapNote} role="status">{text.failed}</p> : null}
         </>
       ) : <p className={draftStyles.mapNote} role="status">{text.unconfigured}</p>}
     </section>
   );
+}
+
+/** A day placed only by its city: every stop faint, and a ring where the city's stops are. */
+function drawCity(T: TiandituApi, map: TiandituMap, stops: readonly MapStop[], city: Extract<DayOnMap, { kind: "city" }>): void {
+  for (const stop of stops) {
+    const icon = markerIcon(stop.number, false);
+    map.addOverLay(new T.Marker(new T.LngLat(stop.longitude, stop.latitude), {
+      title: stop.name,
+      icon: new T.Icon({ iconUrl: icon.url, iconSize: new T.Point(icon.size, icon.size), iconAnchor: new T.Point(icon.size / 2, icon.size / 2) }),
+    }));
+  }
+  const ring = cityIcon();
+  const centre = new T.LngLat(city.longitude, city.latitude);
+  map.addOverLay(new T.Marker(centre, {
+    title: city.name,
+    icon: new T.Icon({ iconUrl: ring.url, iconSize: new T.Point(ring.size, ring.size), iconAnchor: new T.Point(ring.size / 2, ring.size / 2) }),
+  }));
+  map.centerAndZoom(centre, 11);
 }
 
 function drawStops(T: TiandituApi, map: TiandituMap, stops: readonly MapStop[], day: number | null): void {

@@ -4,7 +4,7 @@ import test from "node:test";
 import type { ReadyPlan } from "@/domain/plan/plan-draft-response";
 import type { SpotCard } from "@/domain/plan/spot-card";
 
-import { highlightedStops, labelLayer, mapStops, markerIcon, tileUrl } from "./plan-tianditu-map-model";
+import { dayOnMap, highlightedStops, labelLayer, mapStops, markerIcon, tileUrl } from "./plan-tianditu-map-model";
 
 function card(id: string, mapCheck: SpotCard["mapCheck"]): SpotCard {
   return { id, province: "云南省", city: "丽江市", name: id, requested: false, location: null, opening: null, reservation: null,
@@ -52,4 +52,23 @@ test("the chosen day's pins are numbered; the others are small and plain", () =>
   const faint = markerIcon(3, false);
   assert.equal(faint.size, 18);
   assert.doesNotMatch(decodeURIComponent(faint.url), /<text/u);
+});
+
+test("a day with no located stop is placed by its city's stops on other days, or not at all (1.2101)", () => {
+  const trip: ReadyPlan = {
+    ...plan([card("木府", located(100.2, 26.8)), card("玉龙雪山", located(100.4, 27.0)), card("苍山", { status: "not_located" })]),
+  };
+  const days = (city: string, number: number, ids: string[]) => ({ day: number, date: null, province: "云南省", city, arrivingFrom: null,
+    focus: null, theme: null, stops: ids.map((spotId) => ({ spotId, slot: "morning" as const, anchor: null })) });
+  const withDays = { ...trip, draft: { ...trip.draft, days: [days("丽江市", 1, ["木府", "玉龙雪山"]), days("丽江市", 2, ["苍山"]), days("迪庆藏族自治州", 3, ["苍山"])] } };
+  const stops = mapStops(withDays);
+  assert.equal(dayOnMap(withDays, stops, 1).kind, "stops");
+  const second = dayOnMap(withDays, stops, 2);
+  assert.equal(second.kind, "city");
+  if (second.kind === "city") {
+    assert.equal(second.name, "丽江市");
+    assert.ok(Math.abs(second.longitude - 100.3) < 1e-9 && Math.abs(second.latitude - 26.9) < 1e-9);
+  }
+  // 迪庆 has no located stop anywhere in the trip: the day cannot be placed.
+  assert.equal(dayOnMap(withDays, stops, 3).kind, "unplaced");
 });
