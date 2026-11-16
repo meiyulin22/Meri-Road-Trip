@@ -28,6 +28,7 @@ function client(answers: (path: string, postStr: Record<string, unknown>) => Tia
       calls.push(`${path}:${String(postStr.queryType ?? "geocode")}`);
       return answers(path, postStr);
     },
+    getXml: async () => ({ ok: false, reason: "http_error" }),
   };
 }
 

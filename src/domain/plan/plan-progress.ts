@@ -7,7 +7,7 @@ import { placeImageSchema, planDaySchema, planRouteSchema, spotCardSchema, stopC
  * The stages of a plan run, in the order the plan page shows them. Each is one step of
  * the plan-generation workflow; the page renders its own words for them, in zh or en.
  */
-export const planStages = ["scope", "research", "map", "route", "days", "verify", "photos", "save"] as const;
+export const planStages = ["scope", "research", "map", "route", "days", "verify", "drive", "photos", "save"] as const;
 export type PlanStage = (typeof planStages)[number];
 
 const count = z.number().int().nonnegative();
@@ -28,6 +28,8 @@ export const planActivitySchema = z.discriminatedUnion("kind", [
   z.strictObject({ kind: z.literal("drafting"), city: name, days: z.array(z.number().int().positive()), attempt: count }),
   z.strictObject({ kind: z.literal("verifying"), city: name, spot: name, done: count, total: count }),
   z.strictObject({ kind: z.literal("repairing"), days: z.array(z.number().int().positive()), round: count }),
+  /** One drive leg looked up or remembered (1.2102). */
+  z.strictObject({ kind: z.literal("driving"), from: name, to: name, done: count, total: count }),
 ]);
 export type PlanActivity = z.output<typeof planActivitySchema>;
 

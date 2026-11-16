@@ -5,7 +5,7 @@ import type { TiandituAnswer, TiandituClient } from "./tianditu-fetch";
 import { suggestionFromTianditu, TiandituInputTipsProvider } from "./tianditu-input-tips-provider";
 
 function client(answer: TiandituAnswer): TiandituClient {
-  return { get: async () => answer };
+  return { get: async () => answer, getXml: async () => ({ ok: false, reason: "http_error" }) };
 }
 
 test("a Tianditu suggestion becomes a Meri suggestion with a six-digit adcode and CGCS2000 point", () => {

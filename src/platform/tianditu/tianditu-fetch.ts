@@ -32,9 +32,15 @@ export type TiandituAnswer =
   | { readonly ok: true; readonly body: Record<string, unknown> }
   | { readonly ok: false; readonly reason: TiandituFailure };
 
+export type TiandituXmlAnswer =
+  | { readonly ok: true; readonly xml: string }
+  | { readonly ok: false; readonly reason: TiandituFailure };
+
 export interface TiandituClient {
   /** Never throws; a failure says why in a fixed reason that holds no URL or key. */
   get(path: "/v2/search" | "/geocoder", params: Readonly<Record<string, string>>): Promise<TiandituAnswer>;
+  /** The drive service answers XML (labelled text/html); the same queue and refusal rules (1.2102). */
+  getXml(path: "/drive", params: Readonly<Record<string, string>>): Promise<TiandituXmlAnswer>;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -54,6 +60,15 @@ function isRefusal(status: number, text: string): boolean {
   return status === 418 || /^\s*</u.test(text);
 }
 
+/** For XML services: the block page is HTML, while an answer starts with an XML declaration or element. */
+function isXmlRefusal(status: number, text: string): boolean {
+  return status === 418 || /^\s*<(!doctype|html)/iu.test(text);
+}
+
+type Body =
+  | { readonly ok: true; readonly text: string }
+  | { readonly ok: false; readonly reason: TiandituFailure };
+
 export function createTiandituClient(
   fetcher: typeof fetch = fetch,
   options: {
@@ -66,46 +81,60 @@ export function createTiandituClient(
   const gate = options.gate ?? sharedGate;
   const timeoutMs = options.timeoutMs ?? 8_000;
   const retries = options.retryRateLimit === false ? 0 : maxRetries;
+
+  async function request(path: string, params: Readonly<Record<string, string>>, refused: typeof isRefusal): Promise<Body> {
+    const key = process.env.TIANDITU_API_KEY?.trim();
+    if (!key) return { ok: false, reason: "missing_configuration" };
+    const url = `${apiBase}${path}?${new URLSearchParams({ ...params, tk: key })}`;
+    for (let attempt = 0; ; attempt += 1) {
+      try {
+        // The timeout starts when the request leaves the queue, as with Amap.
+        const response = await gate.run(() => fetcher(url, {
+          // Tianditu's firewall refuses requests without a browser-like User-Agent.
+          headers: { "User-Agent": "Mozilla/5.0 (compatible; Meri)" },
+          cache: "no-store",
+          signal: AbortSignal.timeout(timeoutMs),
+        }), { first: attempt > 0 });
+        const text = await response.text();
+        // 429 is a rate limit that lifts by itself: measured 2026-10-23, six requests in a
+        // row lost the last two and the same request answered 200 eight seconds later. The
+        // queue cools down and the refused call goes first when it does — unlike 418, which
+        // is the firewall's block and only gets worse with retries.
+        if (response.status === 429) {
+          const retrying = attempt < retries;
+          logger.warn({ event: logEvents.tiandituRateLimited, path, attempt: attempt + 1, retrying },
+            "Tianditu refused a request for exceeding its rate limit");
+          if (!retrying) return { ok: false, reason: "rate_limited" };
+          gate.pause(cooldownMs);
+          continue;
+        }
+        if (refused(response.status, text)) {
+          logger.warn({ event: logEvents.tiandituRefused, path, statusCode: response.status }, "Tianditu refused a request");
+          return { ok: false, reason: "refused" };
+        }
+        if (!response.ok) return { ok: false, reason: "http_error" };
+        return { ok: true, text };
+      } catch (error) {
+        // Fetch errors can include the request URL, which carries the key; keep only a reason.
+        return { ok: false, reason: isTimeout(error) ? "timeout" : "network_error" };
+      }
+    }
+  }
+
   return {
     async get(path, params) {
-      const key = process.env.TIANDITU_API_KEY?.trim();
-      if (!key) return { ok: false, reason: "missing_configuration" };
-      const url = `${apiBase}${path}?${new URLSearchParams({ ...params, tk: key })}`;
-      for (let attempt = 0; ; attempt += 1) {
-        try {
-          // The timeout starts when the request leaves the queue, as with Amap.
-          const response = await gate.run(() => fetcher(url, {
-            // Tianditu's firewall refuses requests without a browser-like User-Agent.
-            headers: { "User-Agent": "Mozilla/5.0 (compatible; Meri)" },
-            cache: "no-store",
-            signal: AbortSignal.timeout(timeoutMs),
-          }), { first: attempt > 0 });
-          const text = await response.text();
-          // 429 is a rate limit that lifts by itself: measured 2026-10-23, six requests in a
-          // row lost the last two and the same request answered 200 eight seconds later. The
-          // queue cools down and the refused call goes first when it does — unlike 418, which
-          // is the firewall's block and only gets worse with retries.
-          if (response.status === 429) {
-            const retrying = attempt < retries;
-            logger.warn({ event: logEvents.tiandituRateLimited, path, attempt: attempt + 1, retrying },
-              "Tianditu refused a request for exceeding its rate limit");
-            if (!retrying) return { ok: false, reason: "rate_limited" };
-            gate.pause(cooldownMs);
-            continue;
-          }
-          if (isRefusal(response.status, text)) {
-            logger.warn({ event: logEvents.tiandituRefused, path, statusCode: response.status }, "Tianditu refused a request");
-            return { ok: false, reason: "refused" };
-          }
-          if (!response.ok) return { ok: false, reason: "http_error" };
-          const body: unknown = JSON.parse(text);
-          return isRecord(body) ? { ok: true, body } : { ok: false, reason: "malformed_response" };
-        } catch (error) {
-          // Fetch errors can include the request URL, which carries the key; keep only a reason.
-          if (error instanceof SyntaxError) return { ok: false, reason: "malformed_response" };
-          return { ok: false, reason: isTimeout(error) ? "timeout" : "network_error" };
-        }
+      const answer = await request(path, params, isRefusal);
+      if (!answer.ok) return answer;
+      try {
+        const body: unknown = JSON.parse(answer.text);
+        return isRecord(body) ? { ok: true, body } : { ok: false, reason: "malformed_response" };
+      } catch {
+        return { ok: false, reason: "malformed_response" };
       }
+    },
+    async getXml(path, params) {
+      const answer = await request(path, params, isXmlRefusal);
+      return answer.ok ? { ok: true, xml: answer.text } : answer;
     },
   };
 }

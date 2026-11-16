@@ -48,6 +48,8 @@
 .mapTabs button:focus-visible { outline: 2px solid var(--green); outline-offset: 1px; }
 .mapCanvas { position: relative; height: 380px; border-radius: 12px; overflow: hidden; background: #eaf0e1; }
 .mapNote { color: var(--muted); font-size: 12px; }
+/* The drive from the stop before (1.2102). */
+.driveLine { display: inline-flex; align-items: center; gap: 5px; margin-bottom: 4px; color: var(--muted); font-size: 12px; }
 @media (max-width: 720px) {
   .mapCanvas { height: 280px; }
 }

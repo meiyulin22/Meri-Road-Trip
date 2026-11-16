@@ -8,7 +8,9 @@ import { createPlacePhotoProvider } from "@/platform/map-providers";
 import { createKimiSearchProFromEnvironment } from "@/platform/search/kimi-search-pro";
 import { createTiandituClient } from "@/platform/tianditu/tianditu-fetch";
 import { TiandituLocationProvider } from "@/platform/tianditu/tianditu-location-provider";
+import { driveLegKey, sharedDriveLegMemory } from "@/platform/tianditu/drive-leg-memory";
 import { sharedSpotLocationMemory } from "@/platform/tianditu/spot-location-memory";
+import { createTiandituDrive } from "@/platform/tianditu/tianditu-drive";
 
 import { researchCity } from "./planner/research-agent";
 import { verifySpots } from "./planner/verify-spots";
@@ -20,6 +22,7 @@ import { createPlanGenerationWorkflow, type PlanGenerationDependencies } from ".
 process.env.MASTRA_TELEMETRY_DISABLED ??= "1";
 
 let map: TiandituLocationProvider | null = null;
+let drive: ReturnType<typeof createTiandituDrive> | null = null;
 let photos: ReturnType<typeof createPlacePhotoProvider> | null = null;
 
 /**
@@ -46,6 +49,12 @@ export function planGenerationDependencies(
         return map.searchByKeyword(name, areas);
       },
       memory: sharedSpotLocationMemory,
+    },
+    drive: {
+      // One lookup a leg; the first failure stops the rest, rate limits included, with no retry.
+      drive: (from, to) => (drive ??= createTiandituDrive(createTiandituClient(fetch, { retryRateLimit: false })))(from, to),
+      memory: sharedDriveLegMemory,
+      key: driveLegKey,
     },
     // The local catalog and photos already downloaded: no remote photo service is asked.
     findImage: (subject) => findPlaceImage(subject, photos ??= createPlacePhotoProvider()),

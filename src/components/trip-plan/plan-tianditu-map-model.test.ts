@@ -4,7 +4,7 @@ import test from "node:test";
 import type { ReadyPlan } from "@/domain/plan/plan-draft-response";
 import type { SpotCard } from "@/domain/plan/spot-card";
 
-import { dayOnMap, highlightedStops, labelLayer, mapStops, markerIcon, tileUrl } from "./plan-tianditu-map-model";
+import { dayLines, dayOnMap, highlightedStops, labelLayer, mapStops, markerIcon, tileUrl } from "./plan-tianditu-map-model";
 
 function card(id: string, mapCheck: SpotCard["mapCheck"]): SpotCard {
   return { id, province: "云南省", city: "丽江市", name: id, requested: false, location: null, opening: null, reservation: null,
@@ -71,4 +71,15 @@ test("a day with no located stop is placed by its city's stops on other days, or
   }
   // 迪庆 has no located stop anywhere in the trip: the day cannot be placed.
   assert.equal(dayOnMap(withDays, stops, 3).kind, "unplaced");
+});
+
+test("a day's line follows the road where a leg was planned, and is straight and dashed elsewhere (1.2102)", () => {
+  const trip = plan([card("木府", located(100.2, 26.8)), card("狮子山", located(100.21, 26.81)), card("黑龙潭", located(100.22, 26.88))]);
+  const stops = mapStops(trip);
+  const road = [[100.2, 26.8], [100.205, 26.805], [100.21, 26.81]] as [number, number][];
+  const lines = dayLines(stops, [{ day: 1, fromSpotId: "木府", toSpotId: "狮子山", distanceKm: 1.2, durationMinutes: 5, path: road }], 1);
+  assert.deepEqual(lines.map(({ kind, path }) => [kind, path.length]), [["road", 3], ["straight", 2]]);
+  // With 狮子山 not located, 木府 and 黑龙潭 are not neighbours: no line between them.
+  const broken = mapStops(plan([card("木府", located(100.2, 26.8)), card("狮子山", { status: "not_located" }), card("黑龙潭", located(100.22, 26.88))]));
+  assert.deepEqual(dayLines(broken, [], 1), []);
 });

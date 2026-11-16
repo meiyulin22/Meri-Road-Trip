@@ -53,6 +53,14 @@ function setup(overrides: Partial<PlanGenerationDependencies> = {}, timeLimitMs?
       },
       memory: { get: () => null, set: () => {} },
     },
+    // Every located pair drives ten minutes, three kilometres.
+    drive: {
+      drive: async (from, to) => ({ status: "success", route: {
+        distanceKm: 3, durationSeconds: 600, path: [[from.longitude, from.latitude], [to.longitude, to.latitude]],
+      } }),
+      memory: { get: () => null, set: () => {} },
+      key: (from, to) => `${from.longitude},${from.latitude}>${to.longitude},${to.latitude}`,
+    },
     // No facts by default: every stop stays unchecked and the loop has nothing to repair.
     verifySpots: async () => ({ availability: new Map(), searches: 0, usage: { inputTokens: 0, outputTokens: 0 } }),
     findImage: async (subject) => subject.spot ? null : { url: `/photos/${subject.place}.jpg`, caption: subject.place ?? "城市" },
@@ -98,7 +106,7 @@ test("streams real progress city by city, stops the map at its first failure, an
   // Sequence numbers have no gaps, and the page sees the stages in workflow order.
   assert.deepEqual(events.map(({ seq }) => seq), events.map((_, index) => index + 1));
   assert.deepEqual(events.filter(({ event }) => event.type === "stage.started").map(({ event }) => "stage" in event && event.stage),
-    ["scope", "research", "map", "route", "days", "verify", "photos", "save"]);
+    ["scope", "research", "map", "route", "days", "verify", "drive", "photos", "save"]);
   assert.equal(types[0], "stage.started");
   assert.equal(types.at(-1), "run.finished");
   // Route before any day, and each day as its city is drafted.
@@ -122,10 +130,12 @@ test("streams real progress city by city, stops the map at its first failure, an
   assert.deepEqual(version.plan.draft.days.map(({ day: dayNumber, stops }) => [dayNumber, stops.length]), [[1, 2], [2, 1], [3, 1], [4, 1], [5, 1]]);
   assert.deepEqual(version.plan.dayPhotos.map(({ day: dayNumber }) => dayNumber), [1, 2, 3, 4, 5]);
   assert.equal(version.plan.mapCheck, "stopped");
+  // Day 1's two located stops get a drive leg (1.2102); its lookup counts toward the map's.
+  assert.deepEqual(version.plan.draft.legs?.map(({ day: dayNumber, durationMinutes, distanceKm }) => [dayNumber, durationMinutes, distanceKm]), [[1, 10, 3]]);
 
   const run = repository.runs.get(started.runId);
   assert.equal(run?.status, "succeeded");
-  assert.deepEqual(run?.usage, { inputTokens: 300, outputTokens: 60, searches: 4, mapLookups: 4 });
+  assert.deepEqual(run?.usage, { inputTokens: 300, outputTokens: 60, searches: 4, mapLookups: 5 });
 
   // A page that reconnects gets only what it missed; the same handoff reads the saved plan.
   const missed = await followToEnd(service, repository, started.runId, events.length - 2);

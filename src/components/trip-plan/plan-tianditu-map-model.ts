@@ -1,10 +1,12 @@
 import type { Locale } from "@/domain/locale/locale";
+import type { DriveLeg } from "@/domain/plan/plan-draft";
 import type { ReadyPlan } from "@/domain/plan/plan-draft-response";
 
 /** One stop the map can draw: its day, its number within the day, and where Tianditu put it. */
 export type MapStop = {
   readonly day: number;
   readonly city: string;
+  readonly spotId: string;
   /** The stop's place in its day, from 1, as the day card lists it; an unlocated stop keeps its number. */
   readonly number: number;
   readonly name: string;
@@ -22,7 +24,7 @@ export function mapStops(plan: ReadyPlan): MapStop[] {
   return plan.draft.days.flatMap(({ day, city, stops }) => stops.flatMap(({ spotId }, index) => {
     const card = cards.get(spotId);
     const point = card?.mapCheck.status === "located" ? card.mapCheck.point : null;
-    return card && point ? [{ day, city, number: index + 1, name: card.name, longitude: point.longitude, latitude: point.latitude }] : [];
+    return card && point ? [{ day, city, spotId, number: index + 1, name: card.name, longitude: point.longitude, latitude: point.latitude }] : [];
   }));
 }
 
@@ -49,6 +51,24 @@ export function dayOnMap(plan: ReadyPlan, stops: readonly MapStop[], day: number
     longitude: mean(sameCity.map(({ longitude }) => longitude)),
     latitude: mean(sameCity.map(({ latitude }) => latitude)),
   };
+}
+
+/**
+ * The lines between one day's neighbouring stops: along the road where Tianditu planned the
+ * leg (1.2102), otherwise straight and dashed, which shows only the order. A stop that is not
+ * located breaks the line, as it is not on the map.
+ */
+export function dayLines(stops: readonly MapStop[], legs: readonly DriveLeg[], day: number):
+  { readonly kind: "road" | "straight"; readonly path: readonly (readonly [number, number])[] }[] {
+  const own = stops.filter((stop) => stop.day === day).sort((left, right) => left.number - right.number);
+  return own.slice(1).flatMap((to, index) => {
+    const from = own[index];
+    if (to.number !== from.number + 1) return [];
+    const leg = legs.find((item) => item.day === day && item.fromSpotId === from.spotId && item.toSpotId === to.spotId);
+    return [leg
+      ? { kind: "road" as const, path: leg.path }
+      : { kind: "straight" as const, path: [[from.longitude, from.latitude], [to.longitude, to.latitude]] as const }];
+  });
 }
 
 /** The stops one view shows in colour: the chosen day's, or every day's for the whole trip. */

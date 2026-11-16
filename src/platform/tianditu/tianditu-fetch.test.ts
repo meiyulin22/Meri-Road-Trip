@@ -98,3 +98,15 @@ test("the key is only sent to Tianditu, and a missing key is a configuration fai
     else process.env.TIANDITU_API_KEY = original;
   }
 });
+
+test("the drive service's XML is an answer, while the firewall's HTML page is still a refusal (1.2102)", async () => {
+  await withKey(async () => {
+    // As Tianditu answered on 2026-11-16: an XML document labelled text/html.
+    const xml = `<?xml version="1.0" encoding="UTF-8" ?><result orig='100.146,25.719'><distance>4.76</distance></result>`;
+    const answered = answering([() => new Response(xml, { status: 200, headers: { "content-type": "text/html; charset=UTF-8" } })]);
+    assert.deepEqual(await createTiandituClient(answered, { gate: gate() }).getXml("/drive", { type: "search", postStr: "{}" }),
+      { ok: true, xml });
+    const page = answering([firewallPage]);
+    assert.deepEqual(await createTiandituClient(page, { gate: gate() }).getXml("/drive", {}), { ok: false, reason: "refused" });
+  });
+});

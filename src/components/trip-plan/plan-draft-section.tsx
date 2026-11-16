@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowRight, CalendarCheck, ChevronDown, Clock, ExternalLink, Info, MapPin, MoonStar, RotateCw, Route, Sparkles, Star, Sun, Sunrise, TriangleAlert } from "lucide-react";
+import { ArrowRight, CalendarCheck, Car, ChevronDown, Clock, ExternalLink, Info, MapPin, MoonStar, RotateCw, Route, Sparkles, Star, Sun, Sunrise, TriangleAlert } from "lucide-react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import Image from "next/image";
 import { useEffect, useMemo, useReducer, useState } from "react";
@@ -10,7 +10,7 @@ import { creditsHref } from "@/components/trip-workspace/destination-choices-car
 import { PhotoSourceCredit } from "@/components/trip-workspace/photo-source-dialog";
 import type { PlaceImage } from "@/domain/location/place-image";
 import type { Locale } from "@/domain/locale/locale";
-import type { DaySlot, PlanDay, PlanRoute, SpotFact, StopCheck } from "@/domain/plan/plan-draft";
+import type { DaySlot, DriveLeg, PlanDay, PlanRoute, SpotFact, StopCheck } from "@/domain/plan/plan-draft";
 import type { ReadyPlan } from "@/domain/plan/plan-draft-response";
 import type { PlanHandoff } from "@/domain/plan/plan-handoff";
 import type { PlanRunStartResponse } from "@/domain/plan/plan-run";
@@ -316,6 +316,8 @@ function LiveRun({ tripId, runId, text, locale, onDone, onFailed, onAnswered }: 
           {view.days.map((day, index) => (
             <DraftDay key={day.day} day={day} cards={cards} text={text} locale={locale} index={index}
               photo={view.photos[day.day] ?? null} preview={view.scope?.mode === "preview"} unverified={new Map()}
+              // Drive times arrive with the saved plan; the live view shows the days without them.
+              arriving={new Map()}
               checks={new Map(day.stops.flatMap(({ spotId }) => {
                 const check = view.checks[`${day.day}|${spotId}`];
                 return check ? [[spotId, check] as const] : [];
@@ -424,6 +426,7 @@ function DraftDays({ response, text, locale }: {
             preview={draft.mode === "preview"}
             unverified={new Map(draft.unverified.map(({ spotId, fields }) => [spotId, fields]))}
             checks={new Map((draft.checks ?? []).filter(({ day: number }) => number === day.day).map((check) => [check.spotId, check]))}
+            arriving={arrivingLegs(day, draft.legs ?? [])}
             open={openDay === day.day} onOpen={() => setOpenDay(openDay === day.day ? null : day.day)} />
         ))}
       </div>
@@ -440,7 +443,22 @@ function DraftDays({ response, text, locale }: {
 
 const slotIcon = { morning: Sunrise, afternoon: Sun, evening: MoonStar } satisfies Record<DaySlot, typeof Sun>;
 
-function DraftDay({ day, cards, unverified, checks, text, locale, preview, open, onOpen, index, photo }: {
+/** Each stop's drive from the stop before it in the day, where Tianditu planned one (1.2102). */
+function arrivingLegs(day: PlanDay, legs: readonly DriveLeg[]): ReadonlyMap<string, DriveLeg> {
+  return new Map(day.stops.slice(1).flatMap(({ spotId }, index) => {
+    const leg = legs.find((item) => item.day === day.day && item.fromSpotId === day.stops[index].spotId && item.toSpotId === spotId);
+    return leg ? [[spotId, leg] as const] : [];
+  }));
+}
+
+const driveCopy = {
+  zh: (minutes: number, km: number) => `开车约 ${minutes} 分钟 · ${km} 公里`,
+  en: (minutes: number, km: number) => `About ${minutes} min by car · ${km} km`,
+} as const;
+
+function DraftDay({ day, cards, unverified, checks, arriving, text, locale, preview, open, onOpen, index, photo }: {
+  /** Each stop's drive from the stop before it, by spot ID; absent where none was planned. */
+  readonly arriving: ReadonlyMap<string, DriveLeg>;
   /** The second round's verdict per stop of this day, by spot ID. */
   readonly checks: ReadonlyMap<string, StopCheck>;
   readonly day: PlanDay;
@@ -503,8 +521,14 @@ function DraftDay({ day, cards, unverified, checks, text, locale, preview, open,
                       {stops.map((stop) => {
                         const card = cards.get(stop.spotId);
                         const missing = unverified.get(stop.spotId) ?? [];
+                        const leg = arriving.get(stop.spotId);
                         return (
                           <li key={stop.spotId} className={draftStyles.stop}>
+                            {leg ? (
+                              <p className={draftStyles.driveLine}>
+                                <Car aria-hidden="true" size={12} />{driveCopy[locale](leg.durationMinutes, leg.distanceKm)}
+                              </p>
+                            ) : null}
                             <div className={draftStyles.stopHead}>
                               {stop.anchor ? (
                                 <span className={draftStyles.anchor} title={stop.anchor.evidence.quote}>

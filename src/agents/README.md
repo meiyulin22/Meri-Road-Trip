@@ -219,6 +219,8 @@ plan-generation   input { runId, tripId, handoff }   state { handoff, scope, def
   .then(map-check)                        Tianditu, one lookup a spot; the first failure stops it, no retry
   .then(plan-route)                       planRoute
   .then(plan-days)                        draftCityDays per city in route order, then finishDraft
+  (validation stage: verify-facts, dountil verify-repair; see below)
+  .then(drive-legs)                       Tianditu drive lookups between neighbouring stops (1.2102)
   .then(day-photos)                       dayPhotos from the local catalog only
   .then(save-plan)                        a new plan version
 ```
@@ -378,7 +380,7 @@ repaired before it is saved. The stage has room for more checkers (weather and d
 next) and, later, a reviewer agent; today it has one checker.
 
 ```text
-plan-days → verify-facts → dountil(verify-repair, until nothing is closed or 2 rounds) → day-photos
+plan-days → verify-facts → dountil(verify-repair, until nothing is closed or 2 rounds) → drive-legs → day-photos
 ```
 
 1. **Collect facts** ([verify-spots.ts](planner/verify-spots.ts)). Every scheduled stop, then two
@@ -417,6 +419,21 @@ usable found used to read "open that day"; it is unchecked.
 The same live check found the day-planning call failing when Kimi wrote a time anchor as a bare
 string: that answer shape is now read, and a malformed answer gets the second attempt instead of
 failing the run.
+
+### Drive times and the map (1.2100–1.2102)
+
+The map check keeps each located spot's coordinates (1.2100), and the plan page draws the stops
+on a Tianditu JS API map with a public browser key; a day with no located stop shows its city
+(1.2101). After the validation stage, [drive-legs.ts](planner/drive-legs.ts) asks Tianditu's drive
+service (`/drive`, style 0, fastest) for each pair of neighbouring located stops in a day (1.2102):
+its distance in km, duration in seconds and the road as `lng,lat;…` (an XML answer labelled
+text/html, read in [tianditu-drive.ts](../platform/tianditu/tianditu-drive.ts) and thinned to 200
+points). Legs are kept 30 days in `.cache/tianditu-drive-legs.json`, at most 20 lookups a run,
+and the first failure stops the rest with no retry; their lookups count as map lookups. The plan
+saves them as `draft.legs`; the map follows the road where a leg exists and draws a dashed straight
+line otherwise, and each day card shows "about 7 min by car · 4.8 km" before a stop. Measured
+2026-11-16: 崇圣寺三塔 → 大理古城, 4.76 km, 448 s, about 80 road points. Driving between cities and
+using the times to re-plan a day are not done yet.
 
 ### Evaluation (1.2014)
 

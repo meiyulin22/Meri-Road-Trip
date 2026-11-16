@@ -56,6 +56,20 @@ export type StopCheck = {
   readonly movedFrom: number | null;
 };
 
+/**
+ * Driving between two stops next to each other in one day, as Tianditu planned it (1.2102):
+ * the fastest road, how far and how long, and the road's points for the map.
+ */
+export type DriveLeg = {
+  readonly day: number;
+  readonly fromSpotId: string;
+  readonly toSpotId: string;
+  readonly distanceKm: number;
+  readonly durationMinutes: number;
+  /** Longitude, latitude pairs along the road, at most 200. */
+  readonly path: readonly (readonly [number, number])[];
+};
+
 export type PlanMode = "preview" | "full";
 
 export type RouteCity = {
@@ -83,6 +97,8 @@ export type PlanDraft = {
   readonly unverified: readonly { readonly spotId: string; readonly fields: readonly SpotFact[] }[];
   /** The second round's verdict for each stop; absent on plans made before it (1.2013). */
   readonly checks?: readonly StopCheck[];
+  /** Driving between neighbouring located stops; absent on plans made before 1.2102. */
+  readonly legs?: readonly DriveLeg[];
 };
 
 export type TripCity = { readonly province: string; readonly city: string };

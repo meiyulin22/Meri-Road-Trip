@@ -110,6 +110,14 @@ export const planDraftSchema: z.ZodType<PlanDraft> = z.strictObject({
   ])),
   unverified: z.array(z.strictObject({ spotId: z.string().min(1), fields: z.array(z.enum(spotFacts)) })),
   checks: z.array(stopCheckSchema).optional(),
+  legs: z.array(z.strictObject({
+    day: z.number().int().positive(),
+    fromSpotId: z.string().min(1),
+    toSpotId: z.string().min(1),
+    distanceKm: z.number().nonnegative(),
+    durationMinutes: z.number().int().nonnegative(),
+    path: z.array(z.tuple([z.number().min(-180).max(180), z.number().min(-90).max(90)])).min(2).max(200),
+  })).optional(),
 });
 
 // The page renders this URL, so it passes the same checks as every other place photo.

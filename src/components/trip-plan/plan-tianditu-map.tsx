@@ -6,7 +6,7 @@ import { useEffect, useRef, useState } from "react";
 import type { Locale } from "@/domain/locale/locale";
 import type { ReadyPlan } from "@/domain/plan/plan-draft-response";
 
-import { cityIcon, dayOnMap, type DayOnMap, highlightedStops, labelLayer, mapStops, markerIcon, type MapStop, tileUrl } from "./plan-tianditu-map-model";
+import { cityIcon, dayLines, dayOnMap, type DayOnMap, highlightedStops, labelLayer, mapStops, markerIcon, type MapStop, tileUrl } from "./plan-tianditu-map-model";
 import draftStyles from "./plan-draft.module.css";
 
 /** The few parts of the Tianditu JS API 4.0 this map uses; the script defines them on `window.T`. */
@@ -87,7 +87,7 @@ export function PlanTiandituMap({ plan, locale, selectedDay, onSelectDay }: {
     if (!T || !current || stops.length === 0) return;
     current.clearOverLays();
     if (view?.kind === "city") drawCity(T, current, stops, view);
-    else drawStops(T, current, stops, view?.kind === "stops" ? chosen : null);
+    else drawStops(T, current, stops, view?.kind === "stops" ? chosen : null, plan.draft.legs ?? []);
     // stops are rebuilt each render from the plan; the plan and the chosen day decide them.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ready, plan, chosen]);
@@ -135,7 +135,7 @@ function drawCity(T: TiandituApi, map: TiandituMap, stops: readonly MapStop[], c
   map.centerAndZoom(centre, 11);
 }
 
-function drawStops(T: TiandituApi, map: TiandituMap, stops: readonly MapStop[], day: number | null): void {
+function drawStops(T: TiandituApi, map: TiandituMap, stops: readonly MapStop[], day: number | null, legs: Parameters<typeof dayLines>[1]): void {
   const highlighted = new Set(highlightedStops(stops, day));
   const point = (stop: MapStop) => new T.LngLat(stop.longitude, stop.latitude);
   // Faint pins first, so the chosen day's sit on top of them.
@@ -148,8 +148,13 @@ function drawStops(T: TiandituApi, map: TiandituMap, stops: readonly MapStop[], 
   }
   const shownDays = [...new Set([...highlighted].map(({ day: number }) => number))];
   for (const number of shownDays) {
-    const line = stops.filter((stop) => stop.day === number).map(point);
-    if (line.length > 1) map.addOverLay(new T.Polyline(line, { color: "#2f5d46", weight: 2, opacity: 0.55, lineStyle: "dashed" }));
+    for (const line of dayLines(stops, legs, number)) {
+      const path = line.path.map(([longitude, latitude]) => new T.LngLat(longitude, latitude));
+      // The road, where Tianditu planned it; otherwise a faint dashed line for the order only.
+      map.addOverLay(line.kind === "road"
+        ? new T.Polyline(path, { color: "#2f5d46", weight: 3, opacity: 0.75, lineStyle: "solid" })
+        : new T.Polyline(path, { color: "#2f5d46", weight: 2, opacity: 0.55, lineStyle: "dashed" }));
+    }
   }
   const framed = [...highlighted].map(point);
   if (framed.length === 1) map.centerAndZoom(framed[0], 13);

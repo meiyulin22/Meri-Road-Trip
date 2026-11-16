@@ -4,6 +4,7 @@ import { createStep, createWorkflow } from "@mastra/core/workflows";
 import { z } from "zod";
 
 import { dayPhotos, type FindDayImage } from "@/agents/planner/day-photos";
+import { type DriveLegDependencies, planDriveLegs } from "@/agents/planner/drive-legs";
 import { maxVerifySearches, type VerifyProgress, type VerifyResult } from "@/agents/planner/verify-spots";
 import { checkSpotsOnMap, type MapCheckDependencies } from "@/agents/planner/map-check";
 import { draftCityDays } from "@/agents/planner/plan-days";
@@ -31,6 +32,8 @@ export type PlanGenerationDependencies = {
   readonly researchCity: (task: ResearchTask, handoff: PlanHandoff, onProgress: ResearchProgress) => Promise<CityResearch>;
   readonly planModel: PlanModelDependencies;
   readonly map: MapCheckDependencies;
+  /** Tianditu drive lookups between neighbouring stops (1.2102); the first failure stops them. */
+  readonly drive: DriveLegDependencies;
   /** The second round on these cards; the real one is verifySpots with Kimi search and model. */
   readonly verifySpots: (
     cards: readonly SpotCard[],
@@ -64,7 +67,9 @@ type DaysResult = MapResult & { draft: PlanDraft; usage: PlanUsage };
 type VerifyResultState = DaysResult & {
   verify: { round: number; done: boolean; moved: Moved[]; dropped: { day: number; spotId: string }[]; searches: number; checked: string[] };
 };
-type PhotosResult = VerifyResultState & { dayPhotos: { day: number; image: PlaceImage }[] };
+/** After the drive step: the draft carries its legs, and the lookups count toward the map's. */
+type DriveResultState = VerifyResultState & { driveLookups: number };
+type PhotosResult = DriveResultState & { dayPhotos: { day: number; image: PlaceImage }[] };
 
 /** Repair rounds after the first check; a conflict still left after them is shown, not hidden. */
 export const maxRepairRounds = 2;
@@ -91,6 +96,7 @@ export const stepStages = {
   "plan-days": "days",
   "verify-facts": "verify",
   "verify-repair": "verify",
+  "drive-legs": "drive",
   "day-photos": "photos",
   "save-plan": "save",
 } as const satisfies Record<string, PlanStage>;
@@ -172,6 +178,10 @@ export function stageSummary(stepId: string, output: unknown): { stage: PlanStag
         closed: draft.conflicts.filter(({ kind }) => kind === "closed_on_day").length,
         rounds: verify.round,
       } };
+    }
+    case "drive": {
+      const { draft, driveLookups } = output as DriveResultState;
+      return { stage, summary: { legs: draft.legs?.length ?? 0, lookups: driveLookups } };
     }
     case "photos":
       return { stage, summary: { photos: (output as PhotosResult).dayPhotos.length } };
@@ -503,9 +513,26 @@ export function createPlanGenerationWorkflow(deps: PlanGenerationDependencies) {
     },
   });
 
+  /**
+   * Driving between neighbouring stops, once the days are final (1.2102): the road for the
+   * map and the time for the day cards. A failed lookup leaves the rest as straight lines.
+   */
+  const driveStep = createStep({
+    id: "drive-legs",
+    inputSchema: z.custom<VerifyResultState>(),
+    outputSchema: z.custom<DriveResultState>(),
+    execute: async ({ inputData, writer }) => {
+      const { emit, flush } = emitter(writer);
+      const outcome = await planDriveLegs(inputData.draft.days, cardsOf(inputData.cities), deps.drive,
+        ({ from, to, done, total }) => emit({ type: "stage.activity", stage: "drive", activity: { kind: "driving", from, to, done, total } }));
+      await flush();
+      return { ...inputData, draft: { ...inputData.draft, legs: outcome.legs }, driveLookups: outcome.lookups };
+    },
+  });
+
   const photosStep = createStep({
     id: "day-photos",
-    inputSchema: z.custom<VerifyResultState>(),
+    inputSchema: z.custom<DriveResultState>(),
     outputSchema: z.custom<PhotosResult>(),
     execute: async ({ inputData, writer }) => {
       const { emit, flush } = emitter(writer);
@@ -547,7 +574,7 @@ export function createPlanGenerationWorkflow(deps: PlanGenerationDependencies) {
           inputTokens: usage.inputTokens + cities.reduce((sum, city) => sum + (city.usage?.inputTokens ?? 0), 0),
           outputTokens: usage.outputTokens + cities.reduce((sum, city) => sum + (city.usage?.outputTokens ?? 0), 0),
           searches: cities.reduce((sum, { searchCalls }) => sum + searchCalls, 0) + inputData.verify.searches,
-          mapLookups: lookups,
+          mapLookups: lookups + inputData.driveLookups,
         },
       };
     },
@@ -567,6 +594,7 @@ export function createPlanGenerationWorkflow(deps: PlanGenerationDependencies) {
     .then(verifyFactsStep)
     // The validation loop: repair and re-check until nothing is closed, at most maxRepairRounds rounds.
     .dountil(verifyRepairStep, async ({ inputData }) => inputData.verify.done)
+    .then(driveStep)
     .then(photosStep)
     .then(saveStep)
     .commit();
