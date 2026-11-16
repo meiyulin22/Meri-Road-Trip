@@ -421,7 +421,11 @@ What it found:
    spot, even where the quote reads 迪庆藏族自治州香格里拉市. Code accepts only names of the assigned
    市 itself, so the city came back unavailable and the route, rightly with no cards, left it out
    of a four-day trip. Some quotes were also in traditional characters (松贊林寺), which the name
-   check does not match.
+   check does not match. **Fixed in 1.2015** (the location quote may name the city instead):
+   rerunning cases 3 and 4 (`2026-11-16-1.2015.json`), 迪庆 had cards in every run and case 4
+   kept all three cities 3 times in 3. It also showed two things still open: with 迪庆 back,
+   case 4 asked "keep all three cities?" 2 times in 3 although the traveller said a tight trip
+   is fine, and once a 迪庆 day stayed empty for want of candidates.
 2. **The question is not certain** (case 3): two days for three cities asked 2 times in 3.
 3. **Half the stops stay unchecked**: the fixed verification search found nothing usable for 41
    of 80 stops (8 of 9 in case 5).
