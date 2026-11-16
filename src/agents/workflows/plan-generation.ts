@@ -52,6 +52,8 @@ export const routeResumeSchema = z.object({
   choice: z.string().nullable(),
   /** The answer saved as a preference; null for "you decide". */
   preference: z.custom<PlanPreference>().nullable(),
+  /** The city a written answer says to leave out, checked against the trip (1.2018); older runs have none. */
+  leaveOut: z.string().nullable().optional(),
 });
 export type RouteResume = z.infer<typeof routeResumeSchema>;
 
@@ -277,8 +279,11 @@ export function createPlanGenerationWorkflow(deps: PlanGenerationDependencies) {
           allowQuestion,
           // The city the traveller chose to leave out when asked, if the answer was that.
           leaveOut: resumeData && suspendData
-            ? suspendData.question.options.filter(({ label, leaveOut }) => label === resumeData.choice && leaveOut)
-              .map(({ leaveOut }) => leaveOut as string)
+            ? [
+              ...suspendData.question.options.filter(({ label, leaveOut }) => label === resumeData.choice && leaveOut)
+                .map(({ leaveOut }) => leaveOut as string),
+              ...(resumeData.leaveOut ? [resumeData.leaveOut] : []),
+            ]
             : [],
         });
       if (result.status === "unavailable") throw new Error(plannerUnavailable);

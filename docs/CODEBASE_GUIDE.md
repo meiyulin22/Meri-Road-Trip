@@ -352,7 +352,7 @@ Generate plan 背后的计划页先用示例数据做出完整页面（设计决
 | [src/components/trip-plan/plan-preferences-model.ts](../src/components/trip-plan/plan-preferences-model.ts) | 表现层模型 | 调用偏好接口读取、添加、删除；常用选项按顺序对应类型。 |
 | [src/components/trip-plan/plan-draft-model.ts](../src/components/trip-plan/plan-draft-model.ts) | 表现层模型 | 调用 plan-runs、回答与 plan 接口并映射错误；SSE 地址（可带 after）和事件解析（只认本次运行）；运行错误码到页面说明；按时段分组和列出有出处的事实。 |
 | [src/components/trip-plan/plan-progress-view.ts](../src/components/trip-plan/plan-progress-view.ts) | 表现层纯函数 | 把进度事件逐条推成页面状态：七个阶段的状态、计时起点、摘要和当前活动（调研按城市各一行，其他阶段只留最新一行），路线、已到的天、景点卡、照片、等待中的问题、等待时长和已回答的问题、结束状态；重复事件不改变状态；路线已定但未到的天；记下每站的核实结果（spot.checked） |
-| [src/components/trip-plan/plan-run-activity.tsx](../src/components/trip-plan/plan-run-activity.tsx) | 表现层 | 实时活动流：运行中的阶段转动 ✻、计时，⎿ 显示正在做什么；等待回答时显示「?」和标签、总计时停住；完成的阶段收成 ✓ 一行带数字和用时，调研、定位、路线（含问答）可展开明细；问题卡（选项和「你来定」）；中英文案。 |
+| [src/components/trip-plan/plan-run-activity.tsx](../src/components/trip-plan/plan-run-activity.tsx) | 表现层 | 实时活动流：运行中的阶段转动 ✻、计时，⎿ 显示正在做什么；等待回答时显示「?」和标签、总计时停住；完成的阶段收成 ✓ 一行带数字和用时，调研、定位、路线（含问答）可展开明细；问题卡（选项、「你来定」，1.2018 起还有写自己想法的输入框）；中英文案。 |
 | [src/components/trip-plan/plan-run-activity.module.css](../src/components/trip-plan/plan-run-activity.module.css) | 样式 | 活动流的终端式排版、等宽计时、⎿ 缩进行、等待标签、问题卡和选项按钮、减少动态效果时停止转动和动画、窄屏换行。 |
 | [src/components/trip-plan/plan-preview.tsx](../src/components/trip-plan/plan-preview.tsx) | 表现层 | 预览页的编排：右下角预览开关切换三种状态（生成中：按定时的假事件逐步点亮进度、区块从骨架填进内容；只有目的地：第 1 天排好、其余锁住；全部填好）；在页面上点选天数、日期、出发地、交通方式后，只让依赖它的区块"重新规划"一下；顶部事实点"修改"会重新锁住对应区块；修改对话框带小熊猫，提交后显示"修改还没接上"的示例回复。1.1001 起：天气按出发日期分预报 / 往年同期；手动添加偏好后出现"按新偏好重新规划"，点了只重排各天；导出菜单下载日历、打印时所有天展开。 |
 | [src/components/trip-plan/plan-view.ts](../src/components/trip-plan/plan-view.ts) | 表现层纯函数 | 计划页的数据形状（日程、景点、路程、核实来源、天气、住宿、交通选项、记忆、运行统计），以及规则：每个区块需要哪些事实、某个事实影响哪些区块、一次运行有哪些步骤（第 1 天先排）、某步完成后哪个区块就绪、时长文字、核实计数、日期推算。 |
@@ -417,7 +417,7 @@ Generate plan 背后的计划页先用示例数据做出完整页面（设计决
 | [src/domain/trip-state/destination-edit.ts](../src/domain/trip-state/destination-edit.ts) | 领域层 | none/add/set/remove 契约、严格模型 JSON Schema、表达数量/长度/去重校验。 |
 | [src/domain/trip-state/destination-legacy-read.test.ts](../src/domain/trip-state/destination-legacy-read.test.ts) | 测试（对应模块边界） | 验证旧自由文本保留为 legacyText，不把未核验名称假装成市。 |
 | [src/domain/plan/plan-handoff.ts](../src/domain/plan/plan-handoff.ts) | 领域层 | 交接快照与响应契约，校验 TripState、参考日期、语言和当前有效的偏好。 |
-| [src/domain/plan/trip-preference.ts](../src/domain/plan/trip-preference.ts) | 领域层 | 旅程偏好：标签、类型、原话、来源、状态；类型、来源与上限常量；原话比较；体力和同行人类偏好把每天上限降到 3。1.2017：节奏偏好的隐藏方向 `pace`（packed/relaxed，只在 kind 为 pace 时有值，`paceFor` 去掉其他类型的方向），relaxed 也把上限降到 3，`wantsPackedPace` 供路线判断；旧数据缺这个字段读作 null。 |
+| [src/domain/plan/trip-preference.ts](../src/domain/plan/trip-preference.ts) | 领域层 | 旅程偏好：标签、类型、原话、来源、状态；类型、来源与上限常量；原话比较；体力和同行人类偏好把每天上限降到 3。1.2017：节奏偏好的隐藏方向 `pace`（packed/relaxed，只在 kind 为 pace 时有值，`paceFor` 去掉其他类型的方向），relaxed 也把上限降到 3，`wantsPackedPace`、`wantsRelaxedPace`（1.2018）供路线判断；旧数据缺这个字段读作 null。 |
 | [src/domain/plan/spot-card.ts](../src/domain/plan/spot-card.ts) | 领域层 | 景点卡、原文证据、天地图定位结果和单城调研结果的类型，未知字段可以为空；1.2013 起景点卡可带第二轮查到的 availability |
 | [src/domain/plan/plan-draft.ts](../src/domain/plan/plan-draft.ts) | 领域层 | 计划草稿与路线类型；规划范围（示范日或全部城市与日期）；校验 Plan Agent 的路线（覆盖、放弃条件、天数、区县）并生成每天的城市、转场、重点区县和主题；按添加顺序兜底分天；校验选点提案（候选、所在城市、跨天重复、每天上限与转场日少 1、有原文支持的时间锚点、点名景点），整理冲突和待核实字段；识别用户点名的区域（以市、县、旗结尾的区县名）；用户选择放弃的城市才允许在天数够时放弃。 |
 | [src/domain/plan/availability.ts](../src/domain/plan/availability.ts) | 领域层 | 第二轮精查的判断规则（1.2013）：值必须出现在原文里（周几、时刻、月日、天数）、日期算星期几和跨年范围、通知是否过期（一年）；按每站的日期和时段得出 开放 / 部分关闭 / 关闭 / 待确认 / 未核实。 |
@@ -427,7 +427,7 @@ Generate plan 背后的计划页先用示例数据做出完整页面（设计决
 | [src/domain/plan/plan-draft.test.ts](../src/domain/plan/plan-draft.test.ts) | 测试（对应模块边界） | 验证规划范围、路线生成转场日和区县、路线错误被退回、天数不够时放弃城市与兜底、选点校验、转场日少一个景点和冲突整理。 |
 | [src/domain/plan/plan-draft-response.ts](../src/domain/plan/plan-draft-response.ts) | 领域层 | 景点卡、调研结果、路线、每日安排、计划草稿、照片和完整计划（ReadyPlan）的运行时 schema，供接口、页面、事件、数据库读取和验证脚本共用。 |
 | [src/domain/plan/plan-progress.ts](../src/domain/plan/plan-progress.ts) | 领域层 | 计划运行的进度事件格式（服务端和页面共用）：七个阶段、当前活动、阶段完成摘要、城市调研完成、定位结果、路线、某一天、照片、等待回答（问题）、已回答、运行结束及错误码；问题的格式；外层带 runId、seq 和服务器时间；1.2013 加验证阶段、核实与重排的活动、spot.checked 事件 |
-| [src/domain/plan/plan-run.ts](../src/domain/plan/plan-run.ts) | 领域层 | 计划运行（状态含等待回答、交接、摘要、错误码、用量）和计划版本的类型，以及 plan-runs、回答与 plan 接口的请求和响应 schema。 |
+| [src/domain/plan/plan-run.ts](../src/domain/plan/plan-run.ts) | 领域层 | 计划运行（状态含等待回答、交接、摘要、错误码、用量）和计划版本的类型，以及 plan-runs、回答（选项、「你来定」或 1.2018 起的自写答案）与 plan 接口的请求和响应 schema。 |
 | [src/domain/trip-state/planning-readiness.test.ts](../src/domain/trip-state/planning-readiness.test.ts) | 测试（对应模块边界） | 验证缺目的地、只有省、省市混合、旧文本和已选城市的准备度；其他字段不是硬门槛。 |
 | [src/domain/trip-state/planning-readiness.ts](../src/domain/trip-state/planning-readiness.ts) | 领域层 | 纯准备度规则：missing、unverified 或 selected（只有省也算 selected）；仅检查状态，不研究可行性。 |
 | [src/domain/trip-state/trip-dates.test.ts](../src/domain/trip-state/trip-dates.test.ts) | 测试（对应模块边界） | 验证含首尾计数、任意两项补算第三项、修改哪项决定补算哪项、跨月跨年/闰日，以及近似/非法值不参与。 |
@@ -544,7 +544,7 @@ Generate plan 背后的计划页先用示例数据做出完整页面（设计决
 
 | 文件地址 | 层/类别 | 做什么 |
 | --- | --- | --- |
-| [src/capabilities/planning/extract-plan-preferences.ts](../src/capabilities/planning/extract-plan-preferences.ts) | 应用层 | 读整段对话（30 条、12,000 字符，保留第一条）提取偏好，每条带原话、短标签和类型，以消息 ID 核对原话；另给计划页写的一句话生成标签和类型。 |
+| [src/capabilities/planning/extract-plan-preferences.ts](../src/capabilities/planning/extract-plan-preferences.ts) | 应用层 | 读整段对话（30 条、12,000 字符，保留第一条）提取偏好，每条带原话、短标签和类型，以消息 ID 核对原话；另给计划页写的一句话生成标签和类型；`labelAnswer`（1.2018）给问题卡里自写的答案生成标签、类型、节奏方向和要放弃的城市，城市必须是行程里的才保留。 |
 | [src/capabilities/planning/extract-plan-preferences.test.ts](../src/capabilities/planning/extract-plan-preferences.test.ts) | 测试 | 验证原话来源、标签和类型、30 条与第一条的截取、标签降级和不可用降级。 |
 | [src/capabilities/planning/trip-preferences-handler.ts](../src/capabilities/planning/trip-preferences-handler.ts) | 应用层 | 偏好接口：归属检查后列出有效偏好、添加（查重、上限、常用选项或模型标签）、删除（改为 removed）。 |
 | [src/capabilities/planning/trip-preferences-route.test.ts](../src/capabilities/planning/trip-preferences-route.test.ts) | 测试 | 经客户端模型验证列出、添加、去重、删除、归属和输入校验，以及每天上限。 |
@@ -552,7 +552,7 @@ Generate plan 背后的计划页先用示例数据做出完整页面（设计决
 | [src/capabilities/planning/planning-handoff-handler.ts](../src/capabilities/planning/planning-handoff-handler.ts) | 应用层 | 组织归属检查后的状态读取、准备度和偏好提取，保存偏好（替换上次的对话提取、跳过用户删除过的），返回禁止缓存的交接结果。 |
 | [src/capabilities/planning/planning-handoff-route.test.ts](../src/capabilities/planning/planning-handoff-route.test.ts) | 测试 | 验证归属、准备度、偏好保存与替换、删除过的不回来、提取不可用时保留已存的、快照传递和客户端响应解析。 |
 | [src/capabilities/planning/plan-run-handler.ts](../src/capabilities/planning/plan-run-handler.ts) | 应用层 | 四个接口的处理：校验交接和归属、与已保存 TripState 比对（409）、没有城市不建运行；开始或复用运行；回答问题（404/409/400 映射）；读取最新版本并判断是否过期；把运行事件写成 SSE（id 为 seq、心跳、重连间隔，运行开始等待回答时结束）。 |
-| [src/capabilities/planning/plan-run-service.ts](../src/capabilities/planning/plan-run-service.ts) | 应用层 | 在后台运行 plan-generation 工作流：同一份交接复用运行、等待中的运行或已保存的计划；把 Mastra 事件流转成进度事件、编号、立即推给页面并依次写库；运行暂停时标为 suspended；回答时认领、把答案存成偏好、用 resumeStream 从快照恢复并接着编号；8 分钟兜底时限（每段分别计时）；结束时记状态、错误码、用量和不含等待的用时；服务器重启留下的运行标为中断。 |
+| [src/capabilities/planning/plan-run-service.ts](../src/capabilities/planning/plan-run-service.ts) | 应用层 | 在后台运行 plan-generation 工作流：同一份交接复用运行、等待中的运行或已保存的计划；把 Mastra 事件流转成进度事件、编号、立即推给页面并依次写库；运行暂停时标为 suspended；回答时认领、把答案存成偏好、用 resumeStream 从快照恢复并接着编号；8 分钟兜底时限（每段分别计时）；结束时记状态、错误码、用量和不含等待的用时；服务器重启留下的运行标为中断。1.2018：自写的答案先经 `labelAnswer`，原话存成偏好，要放弃的城市随恢复数据交给路线。 |
 | [src/capabilities/planning/plan-run-service-instance.ts](../src/capabilities/planning/plan-run-service-instance.ts) | 装配 | 用 Postgres 的运行和偏好 repository、Mastra 注册的工作流组装 PlanRunService（第一次运行时才加载 Agent）。 |
 | [src/capabilities/planning/plan-run-repository-instance.ts](../src/capabilities/planning/plan-run-repository-instance.ts) | 装配 | 计划运行 repository 的 Postgres 实例。 |
 | [src/capabilities/planning/plan-run-route.test.ts](../src/capabilities/planning/plan-run-route.test.ts) | 测试 | 经客户端模型验证开始运行与已保存计划、旅程变化 409、没有城市、错误映射、版本过期判断、SSE 按 Last-Event-ID 续传及页面按事件推出状态、调研每城一行而选点只留一行、每天照片的选择，以及时段分组和出处列表。 |
@@ -568,7 +568,7 @@ Generate plan 背后的计划页先用示例数据做出完整页面（设计决
 | [src/agents/planner/research-agent.test.ts](../src/agents/planner/research-agent.test.ts) | 测试（对应模块边界） | 用模拟模型和搜索结果验证提名与点名景点分组搜索、无出处提名被丢弃、模型不可用时的退路、只补查一次、10 城范围和证据校验。 |
 | [src/agents/planner/map-check.ts](../src/agents/planner/map-check.ts) | Agent 层（固定步骤） | 景点卡的天地图定位：每个有出处的景点查一次（每城最多 12 个），只认本市同名结果并记区县；第一次失败即停止、不重试，其余保持未核实；使用定位缓存。 |
 | [src/agents/planner/map-check.test.ts](../src/agents/planner/map-check.test.ts) | 测试 | 验证别省同名不算、景区后缀、停车场不算、失败即停、缓存命中、每城上限和缓存过期。 |
-| [src/agents/planner/plan-route.ts](../src/agents/planner/plan-route.ts) | Agent 层 | Plan Agent 路线：一次 Kimi 调用规划城市顺序、天数、每天重点区县和主题、放弃的城市，代码校验、重试一次、再按添加顺序兜底；允许时可以返回一个带选项的问题（只在第一次尝试、格式合法时采用；选项可写明放弃哪座城）；天数够时不许自行放弃城市，只有用户选了才可以；用户点名的区域（如大理市）作为重点区域交给模型；空的理由当作没有理由；两次尝试共 60 秒；每次尝试报告进度。1.2016：天数少于城市且没有兴趣或节奏偏好时必须提问，第一次没问就退回再答一次（仍不问则用第一次的路线）；偏好已说明想多看、能接受紧凑时不问「是否保留全部城市」；放弃同一城市的重复选项只留第一个。 |
+| [src/agents/planner/plan-route.ts](../src/agents/planner/plan-route.ts) | Agent 层 | Plan Agent 路线：一次 Kimi 调用规划城市顺序、天数、每天重点区县和主题、放弃的城市，代码校验、重试一次、再按添加顺序兜底；允许时可以返回一个带选项的问题（只在第一次尝试、格式合法时采用；选项可写明放弃哪座城）；天数够时不许自行放弃城市，只有用户选了才可以；用户点名的区域（如大理市）作为重点区域交给模型；空的理由当作没有理由；两次尝试共 60 秒；每次尝试报告进度。1.2016：天数少于城市且没有兴趣或节奏偏好时必须提问，第一次没问就退回再答一次（仍不问则用第一次的路线）；偏好已说明想多看、能接受紧凑时不问「是否保留全部城市」；放弃同一城市的重复选项只留第一个。1.2018：想轻松（relaxed）且每城都排得下，但扣掉转场日后不用赶路的天少于城市数（3 城 3 天、3 城 4 天）时也必须提问，同样退回一次；退回后仍不问，由 `fallbackQuestion` 按模板自己提问（候选最少的城市排前面，中英文）。 |
 | [src/agents/planner/plan-route.test.ts](../src/agents/planner/plan-route.test.ts) | 测试（对应模块边界） | 用模拟模型验证丽江大理 5 天的路线与转场日、两次不通过后的兜底、模型建不起来时不可用、问题只在允许且格式合法时返回、空理由不让路线失败、放弃城市的选项与用户选择、用户点名的区域进入提示。 |
 | [src/agents/planner/plan-days.ts](../src/agents/planner/plan-days.ts) | Agent 层 | Plan Agent 选点：一城的各天一次 Kimi 调用，按短 ID 选景点、时段和时间锚点，代码校验、重试一次；没有候选的城市不调模型；模型把时间锚点写成单独的字符串也能读，格式不对的回答会再试一次（1.2013） |
 | [src/agents/planner/plan-days.test.ts](../src/agents/planner/plan-days.test.ts) | 测试（对应模块边界） | 验证示范第一天和模型看到的定位信息、单城 7 天、带问题重试、保留第一次可用结果、模型不可用、转场日只排下午和没有候选。 |

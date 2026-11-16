@@ -8,6 +8,7 @@ import { InMemoryStore } from "@mastra/core/storage";
 
 import { planGenerationDependencies } from "@/agents";
 import { createPlanGenerationWorkflow } from "@/agents/workflows/plan-generation";
+import { labelAnswer } from "@/capabilities/planning/extract-plan-preferences";
 import { PlanRunService } from "@/capabilities/planning/plan-run-service";
 import type { PlanHandoff } from "@/domain/plan/plan-handoff";
 import type { PlanProgressEvent } from "@/domain/plan/plan-progress";
@@ -47,6 +48,7 @@ async function runOnce(evalCase: EvalCase, handoff: PlanHandoff): Promise<{ capt
   const service = new PlanRunService({
     repository,
     preferences: { listByTripId: async () => [], create: async () => {} },
+    labelAnswer: (text, question, cities) => labelAnswer(text, question, cities, crypto.randomUUID()),
     workflow: async () => ({ workflow: mastra.getWorkflow("planGeneration") }),
   });
 

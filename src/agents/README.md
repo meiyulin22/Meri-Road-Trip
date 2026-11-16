@@ -340,6 +340,22 @@ direction. Live extraction gave 紧凑多看 → packed, 不想太赶 → relaxe
 and 11 at most three stops a day. Case 11 (relaxed, three days for three cities) asked 1 of 3, one
 run having no 迪庆 cards to choose about: asking there is still the model's call.
 
+**Code asks when the model will not, and the traveller may answer in their own words (1.2018).**
+A relaxed traveller is also rushed when, with every city kept, the transfer days leave fewer
+travel-free days than cities (three cities in three or four days): one city is left the day they
+arrive. Code sees that from the route's transfer days, so it is a second case that must ask, sent
+back once like the first. Sent back once, Kimi still sometimes did not ask (1 in 3 for case 11), so
+code now builds the question itself: "2天去不了3座城，放弃哪一座？" or "3天去3座城，几乎每天都在换地方",
+offering first the cities with the fewest candidates, in Chinese or English. Under the options the
+question card has a box for the traveller's own answer. `labelAnswer` reads it once (label, kind,
+pace, and a city to leave out, kept only if it is one of the trip's), the words are saved as the
+preference, and the city goes to the resumed route as a chosen omission. Whether to ask on a roomy
+relaxed trip (case 2, a question about 泸沽湖's distance) is left to the model, as different models
+will judge it differently. Live on the plan page: 大理, 丽江, 迪庆 over two days, Kimi did not ask
+twice and code asked; the answer 这次不去大理了，丽江和香格里拉各一天 became the preference 不去大理 and
+the plan dropped 大理. Rerun (`2026-11-16-1.2018.json`): case 3 asked 3 of 3, case 11 3 of 3 (one
+built by code), case 4 0 of 3; case 4 left an empty 迪庆 day twice, from too few 迪庆 cards.
+
 **Areas the traveller named (1.2012).** A Workspace "spot" that is really a county-level area
 of its city (大理市 under 大理白族自治州, 香格里拉市 under 迪庆; names ending in 市, 县 or 旗,
 not 区, which scenic areas share) is not a place to visit: [isAreaName](../domain/plan/plan-draft.ts)

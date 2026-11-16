@@ -1,7 +1,7 @@
 {
   "id": "02-lijiang-dali",
   "title": "丽江 + 大理 5 天，带偏好",
-  "covers": "两城路线基线（1.2010 实测 40–43 秒）",
+  "covers": "两城路线基线（1.2010 实测 40–43 秒）；是否提问交给模型自己判断（1.2018 起不算断言）",
   "areas": [
     {
       "province": "云南省",
@@ -35,7 +35,6 @@
   "expect": {
     "mode": "full",
     "keepsAllCities": true,
-    "asks": false,
     "noEmptyDays": true,
     "maxStopsPerDay": 3
   }

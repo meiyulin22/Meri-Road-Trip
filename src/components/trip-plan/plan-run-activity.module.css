@@ -159,6 +159,34 @@ button.toggle:focus-visible { outline: 2px solid var(--green); outline-offset: 2
 .option:disabled { cursor: default; opacity: .6; }
 .option[data-skip="true"] { color: var(--muted); border-style: dashed; }
 .questionError { color: var(--accent); font-size: 12px; }
+/* The traveller's own answer, under the options (1.2018). */
+.ownAnswer { display: grid; gap: 6px; }
+.ownLabel { color: var(--muted); font-size: 12px; }
+.ownRow { display: flex; gap: 8px; min-width: 0; }
+.ownInput {
+  flex: 1;
+  min-width: 0;
+  padding: 8px 12px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  color: var(--ink);
+  background: #fff;
+  font: inherit;
+  font-size: 13px;
+}
+.ownInput:focus-visible { outline: 2px solid var(--green); outline-offset: 1px; }
+.ownSend {
+  padding: 8px 14px;
+  border: 0;
+  border-radius: 999px;
+  color: #fff;
+  background: var(--green);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 650;
+  cursor: pointer;
+}
+.ownSend:disabled { cursor: default; opacity: .5; }
 
 @keyframes settle { from { transform: translateY(4px); } to { transform: none; } }
 @keyframes turn { to { transform: rotate(360deg); } }

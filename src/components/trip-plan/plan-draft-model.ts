@@ -60,7 +60,7 @@ export function planRunEventsUrl(tripId: string, runId: string, after = 0): stri
   return after > 0 ? `${url}?after=${after}` : url;
 }
 
-/** Answers the question a run waits on: an option's label, or null to let Meri decide. */
+/** Answers the question a run waits on: an option's label, null to let Meri decide, or the traveller's own words. */
 export async function answerPlanQuestion(
   tripId: string,
   runId: string,

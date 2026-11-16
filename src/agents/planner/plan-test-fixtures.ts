@@ -53,6 +53,14 @@ export const dali: CityResearch = {
   })),
 };
 
+export const diqing: CityResearch = {
+  province: "云南省", city: "迪庆藏族自治州", status: "ready", searchCalls: 2,
+  spots: ["独克宗古城", "松赞林寺"].map((name, index) => ({
+    ...card(name, false, index), id: JSON.stringify(["云南省", "迪庆藏族自治州", name]), city: "迪庆藏族自治州",
+    mapCheck: { status: "located" as const, district: "香格里拉市" },
+  })),
+};
+
 export type ProposedDay = { day: number; stops: { spotId: string; slot: string; anchor: null }[] };
 
 export type RouteAnswer = { cities: { id: string; days: number; reason: string }[];

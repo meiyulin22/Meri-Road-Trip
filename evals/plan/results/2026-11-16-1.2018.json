@@ -1,0 +1,1228 @@
+{
+  "label": "1.2018",
+  "commit": "12149b1",
+  "referenceDate": "2026-11-16",
+  "startedAt": "2026-11-16T10:48:58.541Z",
+  "finishedAt": "2026-11-16T10:59:13.358Z",
+  "stopped": null,
+  "cases": [
+    "02-lijiang-dali",
+    "03-three-cities-tight",
+    "04-three-cities-preferences",
+    "11-three-cities-relaxed"
+  ],
+  "runs": [
+    {
+      "caseId": "02-lijiang-dali",
+      "attempt": 1,
+      "metrics": {
+        "status": "succeeded",
+        "errorCode": null,
+        "durationMs": 67546,
+        "stageMs": {
+          "scope": 2,
+          "research": 29724,
+          "map": 3,
+          "route": 5091,
+          "days": 10946,
+          "verify": 21758,
+          "photos": 14,
+          "save": 1
+        },
+        "inputTokens": 29531,
+        "outputTokens": 2696,
+        "searches": {
+          "research": 7,
+          "verify": 13
+        },
+        "mapLookups": 0,
+        "mapStopped": false,
+        "routeAttempts": 1,
+        "dayRetries": 0,
+        "routeSource": "agent",
+        "asked": false,
+        "cities": {
+          "selected": 2,
+          "routed": 2,
+          "omitted": 0
+        },
+        "cards": {
+          "total": 13,
+          "sourced": 13
+        },
+        "requested": {
+          "total": 0,
+          "scheduled": 0
+        },
+        "days": {
+          "total": 5,
+          "empty": 0,
+          "stops": 11
+        },
+        "checks": {
+          "open": 3,
+          "partial": 0,
+          "closed": 0,
+          "uncertain": 0,
+          "unchecked": 8
+        },
+        "reservations": 2,
+        "conflicts": {},
+        "unverifiedFields": 52,
+        "repair": {
+          "rounds": 1,
+          "moved": 0
+        }
+      },
+      "expectations": [
+        {
+          "name": "mode",
+          "passed": true,
+          "detail": "full"
+        },
+        {
+          "name": "keeps all cities",
+          "passed": true,
+          "detail": "routed 大理白族自治州、丽江市; left out none"
+        },
+        {
+          "name": "at most 3 stops a day",
+          "passed": true,
+          "detail": "most 3"
+        },
+        {
+          "name": "no empty days",
+          "passed": true,
+          "detail": "none empty"
+        }
+      ],
+      "question": null,
+      "days": [
+        {
+          "day": 1,
+          "date": "2026-12-14",
+          "city": "大理白族自治州",
+          "stops": [
+            "洱海 (morning)",
+            "龙龛码头 (afternoon)",
+            "才村码头 (evening)"
+          ]
+        },
+        {
+          "day": 2,
+          "date": "2026-12-15",
+          "city": "大理白族自治州",
+          "stops": [
+            "喜洲古镇 (morning)",
+            "大理古城 (afternoon)",
+            "崇圣寺三塔 (afternoon)"
+          ]
+        },
+        {
+          "day": 3,
+          "date": "2026-12-16",
+          "city": "丽江市",
+          "stops": [
+            "黑龙潭公园 (afternoon)",
+            "丽江古城 (afternoon)"
+          ]
+        },
+        {
+          "day": 4,
+          "date": "2026-12-17",
+          "city": "丽江市",
+          "stops": [
+            "白沙古镇 (morning)",
+            "拉市海 (afternoon)"
+          ]
+        },
+        {
+          "day": 5,
+          "date": "2026-12-18",
+          "city": "丽江市",
+          "stops": [
+            "泸沽湖 (morning)"
+          ]
+        }
+      ]
+    },
+    {
+      "caseId": "03-three-cities-tight",
+      "attempt": 1,
+      "metrics": {
+        "status": "succeeded",
+        "errorCode": null,
+        "durationMs": 66870,
+        "stageMs": {
+          "scope": 0,
+          "research": 33847,
+          "map": 1,
+          "route": 4457,
+          "days": 5232,
+          "verify": 16097,
+          "photos": 1,
+          "save": 0
+        },
+        "inputTokens": 26716,
+        "outputTokens": 2367,
+        "searches": {
+          "research": 8,
+          "verify": 8
+        },
+        "mapLookups": 0,
+        "mapStopped": false,
+        "routeAttempts": 2,
+        "dayRetries": 0,
+        "routeSource": "agent",
+        "asked": true,
+        "cities": {
+          "selected": 3,
+          "routed": 2,
+          "omitted": 1
+        },
+        "cards": {
+          "total": 12,
+          "sourced": 12
+        },
+        "requested": {
+          "total": 0,
+          "scheduled": 0
+        },
+        "days": {
+          "total": 2,
+          "empty": 0,
+          "stops": 7
+        },
+        "checks": {
+          "open": 3,
+          "partial": 0,
+          "closed": 0,
+          "uncertain": 0,
+          "unchecked": 4
+        },
+        "reservations": 1,
+        "conflicts": {},
+        "unverifiedFields": 35,
+        "repair": {
+          "rounds": 0,
+          "moved": 0
+        }
+      },
+      "expectations": [
+        {
+          "name": "mode",
+          "passed": true,
+          "detail": "full"
+        },
+        {
+          "name": "asks",
+          "passed": true,
+          "detail": "asked: 2天时间非常紧张，大理、丽江、迪庆三地各有特色且相距较远。您希望如何取舍？"
+        },
+        {
+          "name": "leave-out options name a city",
+          "passed": true,
+          "detail": "保留大理+丽江，舍去迪庆 → 迪庆藏族自治州 | 保留丽江+迪庆，舍去大理 → 大理白族自治州 | 保留大理+迪庆，舍去丽江 → 丽江市"
+        },
+        {
+          "name": "no empty days",
+          "passed": true,
+          "detail": "none empty"
+        }
+      ],
+      "question": {
+        "text": "2天时间非常紧张，大理、丽江、迪庆三地各有特色且相距较远。您希望如何取舍？",
+        "options": [
+          "保留大理+丽江，舍去迪庆",
+          "保留丽江+迪庆，舍去大理",
+          "保留大理+迪庆，舍去丽江"
+        ],
+        "answer": "保留大理+丽江，舍去迪庆"
+      },
+      "days": [
+        {
+          "day": 1,
+          "date": "2026-12-14",
+          "city": "大理白族自治州",
+          "stops": [
+            "洱海 (morning)",
+            "大理古城 (afternoon)",
+            "崇圣寺三塔 (afternoon)",
+            "苍山 (evening)"
+          ]
+        },
+        {
+          "day": 2,
+          "date": "2026-12-15",
+          "city": "丽江市",
+          "stops": [
+            "丽江古城 (afternoon)",
+            "束河古镇 (afternoon)",
+            "黑龙潭公园 (evening)"
+          ]
+        }
+      ]
+    },
+    {
+      "caseId": "03-three-cities-tight",
+      "attempt": 2,
+      "metrics": {
+        "status": "succeeded",
+        "errorCode": null,
+        "durationMs": 61745,
+        "stageMs": {
+          "scope": 1,
+          "research": 34263,
+          "map": 1,
+          "route": 4571,
+          "days": 4260,
+          "verify": 12478,
+          "photos": 4,
+          "save": 0
+        },
+        "inputTokens": 24042,
+        "outputTokens": 2232,
+        "searches": {
+          "research": 7,
+          "verify": 6
+        },
+        "mapLookups": 0,
+        "mapStopped": false,
+        "routeAttempts": 2,
+        "dayRetries": 0,
+        "routeSource": "agent",
+        "asked": true,
+        "cities": {
+          "selected": 3,
+          "routed": 2,
+          "omitted": 1
+        },
+        "cards": {
+          "total": 8,
+          "sourced": 8
+        },
+        "requested": {
+          "total": 0,
+          "scheduled": 0
+        },
+        "days": {
+          "total": 2,
+          "empty": 0,
+          "stops": 4
+        },
+        "checks": {
+          "open": 1,
+          "partial": 0,
+          "closed": 0,
+          "uncertain": 1,
+          "unchecked": 2
+        },
+        "reservations": 0,
+        "conflicts": {},
+        "unverifiedFields": 20,
+        "repair": {
+          "rounds": 0,
+          "moved": 0
+        }
+      },
+      "expectations": [
+        {
+          "name": "mode",
+          "passed": true,
+          "detail": "full"
+        },
+        {
+          "name": "asks",
+          "passed": true,
+          "detail": "asked: 2天时间非常紧凑，您希望如何安排？"
+        },
+        {
+          "name": "leave-out options name a city",
+          "passed": true,
+          "detail": "保持丽江+香格里拉，紧凑行程 | 改走丽江+大理，轻松一些 → 迪庆藏族自治州"
+        },
+        {
+          "name": "no empty days",
+          "passed": true,
+          "detail": "none empty"
+        }
+      ],
+      "question": {
+        "text": "2天时间非常紧凑，您希望如何安排？",
+        "options": [
+          "保持丽江+香格里拉，紧凑行程",
+          "改走丽江+大理，轻松一些"
+        ],
+        "answer": "保持丽江+香格里拉，紧凑行程"
+      },
+      "days": [
+        {
+          "day": 1,
+          "date": "2026-12-14",
+          "city": "丽江市",
+          "stops": [
+            "束河古镇 (morning)",
+            "黑龙潭公园 (afternoon)"
+          ]
+        },
+        {
+          "day": 2,
+          "date": "2026-12-15",
+          "city": "迪庆藏族自治州",
+          "stops": [
+            "独克宗古城 (afternoon)",
+            "普达措国家公园 (afternoon)"
+          ]
+        }
+      ]
+    },
+    {
+      "caseId": "03-three-cities-tight",
+      "attempt": 3,
+      "metrics": {
+        "status": "succeeded",
+        "errorCode": null,
+        "durationMs": 65778,
+        "stageMs": {
+          "scope": 1,
+          "research": 30841,
+          "map": 1,
+          "route": 3844,
+          "days": 3859,
+          "verify": 16063,
+          "photos": 2,
+          "save": 0
+        },
+        "inputTokens": 28357,
+        "outputTokens": 2138,
+        "searches": {
+          "research": 8,
+          "verify": 8
+        },
+        "mapLookups": 0,
+        "mapStopped": false,
+        "routeAttempts": 3,
+        "dayRetries": 0,
+        "routeSource": "agent",
+        "asked": true,
+        "cities": {
+          "selected": 3,
+          "routed": 2,
+          "omitted": 1
+        },
+        "cards": {
+          "total": 8,
+          "sourced": 8
+        },
+        "requested": {
+          "total": 0,
+          "scheduled": 0
+        },
+        "days": {
+          "total": 2,
+          "empty": 0,
+          "stops": 5
+        },
+        "checks": {
+          "open": 2,
+          "partial": 0,
+          "closed": 0,
+          "uncertain": 0,
+          "unchecked": 3
+        },
+        "reservations": 2,
+        "conflicts": {
+          "closed_on_day": 1
+        },
+        "unverifiedFields": 25,
+        "repair": {
+          "rounds": 1,
+          "moved": 0
+        }
+      },
+      "expectations": [
+        {
+          "name": "mode",
+          "passed": true,
+          "detail": "full"
+        },
+        {
+          "name": "asks",
+          "passed": true,
+          "detail": "asked: 2天时间仅能深入大理、丽江两地，您希望如何分配节奏？"
+        },
+        {
+          "name": "leave-out options name a city",
+          "passed": true,
+          "detail": "紧凑走完两地各1天 | 只去大理深度慢游 → 丽江市 | 只去丽江深度慢游 → 大理白族自治州"
+        },
+        {
+          "name": "no empty days",
+          "passed": true,
+          "detail": "none empty"
+        }
+      ],
+      "question": {
+        "text": "2天时间仅能深入大理、丽江两地，您希望如何分配节奏？",
+        "options": [
+          "紧凑走完两地各1天",
+          "只去大理深度慢游",
+          "只去丽江深度慢游"
+        ],
+        "answer": "紧凑走完两地各1天"
+      },
+      "days": [
+        {
+          "day": 1,
+          "date": "2026-12-14",
+          "city": "大理白族自治州",
+          "stops": [
+            "洱海 (morning)",
+            "大理古城 (afternoon)",
+            "苍山 (evening)"
+          ]
+        },
+        {
+          "day": 2,
+          "date": "2026-12-15",
+          "city": "丽江市",
+          "stops": [
+            "玉龙雪山 (afternoon)",
+            "丽江古城 (evening)"
+          ]
+        }
+      ]
+    },
+    {
+      "caseId": "04-three-cities-preferences",
+      "attempt": 1,
+      "metrics": {
+        "status": "succeeded",
+        "errorCode": null,
+        "durationMs": 54222,
+        "stageMs": {
+          "scope": 0,
+          "research": 30484,
+          "map": 1,
+          "route": 4817,
+          "days": 9925,
+          "verify": 8983,
+          "photos": 7,
+          "save": 0
+        },
+        "inputTokens": 23952,
+        "outputTokens": 1606,
+        "searches": {
+          "research": 9,
+          "verify": 4
+        },
+        "mapLookups": 0,
+        "mapStopped": false,
+        "routeAttempts": 1,
+        "dayRetries": 1,
+        "routeSource": "agent",
+        "asked": false,
+        "cities": {
+          "selected": 3,
+          "routed": 3,
+          "omitted": 0
+        },
+        "cards": {
+          "total": 4,
+          "sourced": 4
+        },
+        "requested": {
+          "total": 0,
+          "scheduled": 0
+        },
+        "days": {
+          "total": 4,
+          "empty": 1,
+          "stops": 3
+        },
+        "checks": {
+          "open": 0,
+          "partial": 0,
+          "closed": 0,
+          "uncertain": 0,
+          "unchecked": 3
+        },
+        "reservations": 0,
+        "conflicts": {
+          "not_enough_candidates": 1
+        },
+        "unverifiedFields": 14,
+        "repair": {
+          "rounds": 0,
+          "moved": 0
+        }
+      },
+      "expectations": [
+        {
+          "name": "mode",
+          "passed": true,
+          "detail": "full"
+        },
+        {
+          "name": "keeps all cities",
+          "passed": true,
+          "detail": "routed 大理白族自治州、丽江市、迪庆藏族自治州; left out none"
+        },
+        {
+          "name": "asks",
+          "passed": true,
+          "detail": "did not ask"
+        },
+        {
+          "name": "no empty days",
+          "passed": false,
+          "detail": "empty: 4"
+        }
+      ],
+      "question": null,
+      "days": [
+        {
+          "day": 1,
+          "date": "2026-12-14",
+          "city": "大理白族自治州",
+          "stops": [
+            "石宝山 (afternoon)"
+          ]
+        },
+        {
+          "day": 2,
+          "date": "2026-12-15",
+          "city": "丽江市",
+          "stops": [
+            "黑龙潭公园 (afternoon)"
+          ]
+        },
+        {
+          "day": 3,
+          "date": "2026-12-16",
+          "city": "迪庆藏族自治州",
+          "stops": [
+            "独克宗古城 (afternoon)"
+          ]
+        },
+        {
+          "day": 4,
+          "date": "2026-12-17",
+          "city": "迪庆藏族自治州",
+          "stops": []
+        }
+      ]
+    },
+    {
+      "caseId": "04-three-cities-preferences",
+      "attempt": 2,
+      "metrics": {
+        "status": "succeeded",
+        "errorCode": null,
+        "durationMs": 54512,
+        "stageMs": {
+          "scope": 0,
+          "research": 34657,
+          "map": 0,
+          "route": 5344,
+          "days": 6020,
+          "verify": 8480,
+          "photos": 8,
+          "save": 0
+        },
+        "inputTokens": 23049,
+        "outputTokens": 1601,
+        "searches": {
+          "research": 8,
+          "verify": 4
+        },
+        "mapLookups": 0,
+        "mapStopped": false,
+        "routeAttempts": 1,
+        "dayRetries": 0,
+        "routeSource": "agent",
+        "asked": false,
+        "cities": {
+          "selected": 3,
+          "routed": 3,
+          "omitted": 0
+        },
+        "cards": {
+          "total": 4,
+          "sourced": 4
+        },
+        "requested": {
+          "total": 0,
+          "scheduled": 0
+        },
+        "days": {
+          "total": 4,
+          "empty": 1,
+          "stops": 3
+        },
+        "checks": {
+          "open": 0,
+          "partial": 0,
+          "closed": 0,
+          "uncertain": 0,
+          "unchecked": 3
+        },
+        "reservations": 0,
+        "conflicts": {
+          "not_enough_candidates": 1
+        },
+        "unverifiedFields": 13,
+        "repair": {
+          "rounds": 0,
+          "moved": 0
+        }
+      },
+      "expectations": [
+        {
+          "name": "mode",
+          "passed": true,
+          "detail": "full"
+        },
+        {
+          "name": "keeps all cities",
+          "passed": true,
+          "detail": "routed 迪庆藏族自治州、丽江市、大理白族自治州; left out none"
+        },
+        {
+          "name": "asks",
+          "passed": true,
+          "detail": "did not ask"
+        },
+        {
+          "name": "no empty days",
+          "passed": false,
+          "detail": "empty: 2"
+        }
+      ],
+      "question": null,
+      "days": [
+        {
+          "day": 1,
+          "date": "2026-12-14",
+          "city": "迪庆藏族自治州",
+          "stops": [
+            "独克宗古城 (morning)"
+          ]
+        },
+        {
+          "day": 2,
+          "date": "2026-12-15",
+          "city": "迪庆藏族自治州",
+          "stops": []
+        },
+        {
+          "day": 3,
+          "date": "2026-12-16",
+          "city": "丽江市",
+          "stops": [
+            "白沙古镇 (afternoon)"
+          ]
+        },
+        {
+          "day": 4,
+          "date": "2026-12-17",
+          "city": "大理白族自治州",
+          "stops": [
+            "巍宝山 (afternoon)"
+          ]
+        }
+      ]
+    },
+    {
+      "caseId": "04-three-cities-preferences",
+      "attempt": 3,
+      "metrics": {
+        "status": "succeeded",
+        "errorCode": null,
+        "durationMs": 51526,
+        "stageMs": {
+          "scope": 0,
+          "research": 31188,
+          "map": 2,
+          "route": 4758,
+          "days": 5897,
+          "verify": 9672,
+          "photos": 6,
+          "save": 0
+        },
+        "inputTokens": 25427,
+        "outputTokens": 1650,
+        "searches": {
+          "research": 9,
+          "verify": 6
+        },
+        "mapLookups": 0,
+        "mapStopped": false,
+        "routeAttempts": 1,
+        "dayRetries": 0,
+        "routeSource": "agent",
+        "asked": false,
+        "cities": {
+          "selected": 3,
+          "routed": 3,
+          "omitted": 0
+        },
+        "cards": {
+          "total": 6,
+          "sourced": 6
+        },
+        "requested": {
+          "total": 0,
+          "scheduled": 0
+        },
+        "days": {
+          "total": 4,
+          "empty": 0,
+          "stops": 6
+        },
+        "checks": {
+          "open": 3,
+          "partial": 0,
+          "closed": 0,
+          "uncertain": 0,
+          "unchecked": 3
+        },
+        "reservations": 1,
+        "conflicts": {},
+        "unverifiedFields": 30,
+        "repair": {
+          "rounds": 0,
+          "moved": 0
+        }
+      },
+      "expectations": [
+        {
+          "name": "mode",
+          "passed": true,
+          "detail": "full"
+        },
+        {
+          "name": "keeps all cities",
+          "passed": true,
+          "detail": "routed 丽江市、迪庆藏族自治州、大理白族自治州; left out none"
+        },
+        {
+          "name": "asks",
+          "passed": true,
+          "detail": "did not ask"
+        },
+        {
+          "name": "no empty days",
+          "passed": true,
+          "detail": "none empty"
+        }
+      ],
+      "question": null,
+      "days": [
+        {
+          "day": 1,
+          "date": "2026-12-14",
+          "city": "丽江市",
+          "stops": [
+            "玉龙雪山 (morning)"
+          ]
+        },
+        {
+          "day": 2,
+          "date": "2026-12-15",
+          "city": "丽江市",
+          "stops": [
+            "黑龙潭公园 (evening)"
+          ]
+        },
+        {
+          "day": 3,
+          "date": "2026-12-16",
+          "city": "迪庆藏族自治州",
+          "stops": [
+            "独克宗古城 (afternoon)"
+          ]
+        },
+        {
+          "day": 4,
+          "date": "2026-12-17",
+          "city": "大理白族自治州",
+          "stops": [
+            "大理古城 (afternoon)",
+            "崇圣寺三塔 (afternoon)",
+            "鸡足山 (evening)"
+          ]
+        }
+      ]
+    },
+    {
+      "caseId": "11-three-cities-relaxed",
+      "attempt": 1,
+      "metrics": {
+        "status": "succeeded",
+        "errorCode": null,
+        "durationMs": 65722,
+        "stageMs": {
+          "scope": 0,
+          "research": 29074,
+          "map": 2,
+          "route": 4797,
+          "days": 6133,
+          "verify": 19618,
+          "photos": 4,
+          "save": 0
+        },
+        "inputTokens": 30464,
+        "outputTokens": 2185,
+        "searches": {
+          "research": 9,
+          "verify": 11
+        },
+        "mapLookups": 0,
+        "mapStopped": false,
+        "routeAttempts": 2,
+        "dayRetries": 0,
+        "routeSource": "agent",
+        "asked": true,
+        "cities": {
+          "selected": 3,
+          "routed": 3,
+          "omitted": 0
+        },
+        "cards": {
+          "total": 11,
+          "sourced": 11
+        },
+        "requested": {
+          "total": 0,
+          "scheduled": 0
+        },
+        "days": {
+          "total": 3,
+          "empty": 0,
+          "stops": 7
+        },
+        "checks": {
+          "open": 4,
+          "partial": 0,
+          "closed": 0,
+          "uncertain": 0,
+          "unchecked": 3
+        },
+        "reservations": 2,
+        "conflicts": {},
+        "unverifiedFields": 35,
+        "repair": {
+          "rounds": 1,
+          "moved": 0
+        }
+      },
+      "expectations": [
+        {
+          "name": "mode",
+          "passed": true,
+          "detail": "full"
+        },
+        {
+          "name": "asks",
+          "passed": true,
+          "detail": "asked: 3天3城非常紧凑，您偏好哪种安排？"
+        },
+        {
+          "name": "at most 3 stops a day",
+          "passed": true,
+          "detail": "most 3"
+        },
+        {
+          "name": "no empty days",
+          "passed": true,
+          "detail": "none empty"
+        }
+      ],
+      "question": {
+        "text": "3天3城非常紧凑，您偏好哪种安排？",
+        "options": [
+          "保持三城，每天一城",
+          "放弃香格里拉，丽江大理各2天1天",
+          "放弃大理，丽江香格里拉各2天1天"
+        ],
+        "answer": "保持三城，每天一城"
+      },
+      "days": [
+        {
+          "day": 1,
+          "date": "2026-12-14",
+          "city": "大理白族自治州",
+          "stops": [
+            "洱海 (morning)",
+            "大理古城 (afternoon)",
+            "崇圣寺三塔 (afternoon)"
+          ]
+        },
+        {
+          "day": 2,
+          "date": "2026-12-15",
+          "city": "丽江市",
+          "stops": [
+            "黑龙潭公园 (afternoon)",
+            "丽江古城 (evening)"
+          ]
+        },
+        {
+          "day": 3,
+          "date": "2026-12-16",
+          "city": "迪庆藏族自治州",
+          "stops": [
+            "普达措国家公园 (afternoon)",
+            "独克宗古城 (evening)"
+          ]
+        }
+      ]
+    },
+    {
+      "caseId": "11-three-cities-relaxed",
+      "attempt": 2,
+      "metrics": {
+        "status": "succeeded",
+        "errorCode": null,
+        "durationMs": 61931,
+        "stageMs": {
+          "scope": 0,
+          "research": 28095,
+          "map": 1,
+          "route": 4804,
+          "days": 4759,
+          "verify": 11730,
+          "photos": 4,
+          "save": 0
+        },
+        "inputTokens": 27491,
+        "outputTokens": 2482,
+        "searches": {
+          "research": 8,
+          "verify": 8
+        },
+        "mapLookups": 0,
+        "mapStopped": false,
+        "routeAttempts": 3,
+        "dayRetries": 0,
+        "routeSource": "agent",
+        "asked": true,
+        "cities": {
+          "selected": 3,
+          "routed": 3,
+          "omitted": 0
+        },
+        "cards": {
+          "total": 8,
+          "sourced": 8
+        },
+        "requested": {
+          "total": 0,
+          "scheduled": 0
+        },
+        "days": {
+          "total": 3,
+          "empty": 0,
+          "stops": 6
+        },
+        "checks": {
+          "open": 1,
+          "partial": 0,
+          "closed": 0,
+          "uncertain": 1,
+          "unchecked": 4
+        },
+        "reservations": 1,
+        "conflicts": {},
+        "unverifiedFields": 30,
+        "repair": {
+          "rounds": 1,
+          "moved": 0
+        }
+      },
+      "expectations": [
+        {
+          "name": "mode",
+          "passed": true,
+          "detail": "full"
+        },
+        {
+          "name": "asks",
+          "passed": true,
+          "detail": "asked: 3天去3座城，几乎每天都在换地方。您想怎么安排？"
+        },
+        {
+          "name": "at most 3 stops a day",
+          "passed": true,
+          "detail": "most 2"
+        },
+        {
+          "name": "no empty days",
+          "passed": true,
+          "detail": "none empty"
+        }
+      ],
+      "question": {
+        "text": "3天去3座城，几乎每天都在换地方。您想怎么安排？",
+        "options": [
+          "3座城都去，每天换城",
+          "不去迪庆，慢慢玩",
+          "不去丽江，慢慢玩"
+        ],
+        "answer": "3座城都去，每天换城"
+      },
+      "days": [
+        {
+          "day": 1,
+          "date": "2026-12-14",
+          "city": "大理白族自治州",
+          "stops": [
+            "洱海 (morning)",
+            "大理古城 (afternoon)"
+          ]
+        },
+        {
+          "day": 2,
+          "date": "2026-12-15",
+          "city": "丽江市",
+          "stops": [
+            "丽江古城 (afternoon)",
+            "黑龙潭公园 (evening)"
+          ]
+        },
+        {
+          "day": 3,
+          "date": "2026-12-16",
+          "city": "迪庆藏族自治州",
+          "stops": [
+            "独克宗古城 (afternoon)",
+            "普达措国家公园 (afternoon)"
+          ]
+        }
+      ]
+    },
+    {
+      "caseId": "11-three-cities-relaxed",
+      "attempt": 3,
+      "metrics": {
+        "status": "succeeded",
+        "errorCode": null,
+        "durationMs": 64918,
+        "stageMs": {
+          "scope": 1,
+          "research": 25173,
+          "map": 2,
+          "route": 4857,
+          "days": 8398,
+          "verify": 18381,
+          "photos": 4,
+          "save": 0
+        },
+        "inputTokens": 27904,
+        "outputTokens": 2698,
+        "searches": {
+          "research": 7,
+          "verify": 10
+        },
+        "mapLookups": 0,
+        "mapStopped": false,
+        "routeAttempts": 2,
+        "dayRetries": 1,
+        "routeSource": "agent",
+        "asked": true,
+        "cities": {
+          "selected": 3,
+          "routed": 3,
+          "omitted": 0
+        },
+        "cards": {
+          "total": 10,
+          "sourced": 10
+        },
+        "requested": {
+          "total": 0,
+          "scheduled": 0
+        },
+        "days": {
+          "total": 3,
+          "empty": 0,
+          "stops": 5
+        },
+        "checks": {
+          "open": 1,
+          "partial": 0,
+          "closed": 0,
+          "uncertain": 0,
+          "unchecked": 4
+        },
+        "reservations": 1,
+        "conflicts": {},
+        "unverifiedFields": 25,
+        "repair": {
+          "rounds": 0,
+          "moved": 0
+        }
+      },
+      "expectations": [
+        {
+          "name": "mode",
+          "passed": true,
+          "detail": "full"
+        },
+        {
+          "name": "asks",
+          "passed": true,
+          "detail": "asked: 3天游览丽江、大理、香格里拉三地会非常紧凑，车程较长，与'慢慢玩'的期望有冲突。您希望如何安排？"
+        },
+        {
+          "name": "at most 3 stops a day",
+          "passed": true,
+          "detail": "most 2"
+        },
+        {
+          "name": "no empty days",
+          "passed": true,
+          "detail": "none empty"
+        }
+      ],
+      "question": {
+        "text": "3天游览丽江、大理、香格里拉三地会非常紧凑，车程较长，与'慢慢玩'的期望有冲突。您希望如何安排？",
+        "options": [
+          "保持三地，接受较赶的行程",
+          "放弃香格里拉，丽江大理各1.5天",
+          "放弃丽江，大理香格里拉各1.5天"
+        ],
+        "answer": "保持三地，接受较赶的行程"
+      },
+      "days": [
+        {
+          "day": 1,
+          "date": "2026-12-14",
+          "city": "丽江市",
+          "stops": [
+            "丽江古城 (morning)"
+          ]
+        },
+        {
+          "day": 2,
+          "date": "2026-12-15",
+          "city": "迪庆藏族自治州",
+          "stops": [
+            "独克宗古城 (afternoon)",
+            "纳帕海 (evening)"
+          ]
+        },
+        {
+          "day": 3,
+          "date": "2026-12-16",
+          "city": "大理白族自治州",
+          "stops": [
+            "洱海 (afternoon)",
+            "大理古城 (evening)"
+          ]
+        }
+      ]
+    }
+  ]
+}

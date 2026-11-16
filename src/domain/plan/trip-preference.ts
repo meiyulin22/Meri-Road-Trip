@@ -84,3 +84,8 @@ export function maxStopsForPreferences(
 export function wantsPackedPace(preferences: readonly { readonly pace?: PaceDirection | null }[]): boolean {
   return preferences.some(({ pace }) => pace === "packed");
 }
+
+/** The traveller wants an easy trip: fewer things and time to spare (1.2018). */
+export function wantsRelaxedPace(preferences: readonly { readonly pace?: PaceDirection | null }[]): boolean {
+  return preferences.some(({ pace }) => pace === "relaxed");
+}

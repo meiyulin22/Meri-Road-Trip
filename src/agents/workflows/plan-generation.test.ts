@@ -68,6 +68,11 @@ function setup(overrides: Partial<PlanGenerationDependencies> = {}, timeLimitMs?
       listByTripId: async () => preferences,
       create: async (preference) => { preferences.push(preference); },
     },
+    // A written answer naming 大理 leaves it out; anything else is a plain preference.
+    labelAnswer: async (text, _question, cities) => ({
+      label: text.slice(0, 10), kind: "interests", pace: null,
+      leaveOut: text.includes("大理") ? cities.find((city) => city.startsWith("大理")) ?? null : null,
+    }),
     workflow: async () => ({ workflow: mastra.getWorkflow("planGeneration") }),
     newId: () => `00000000-0000-4000-8000-${String(++id).padStart(12, "0")}`,
     timeLimitMs,
@@ -263,6 +268,27 @@ test("answering leave-one-out lets the resumed route drop exactly that city", as
   assert.deepEqual(plan.draft.route.omitted.map(({ city }) => city), ["大理白族自治州"]);
   // The option's direction is saved with the answer (1.2017).
   assert.deepEqual(preferences.map(({ label, kind, pace }) => [label, kind, pace]), [["只去丽江", "pace", "relaxed"]]);
+});
+
+test("a written answer is saved in the traveller's words and can leave a city out (1.2018)", async () => {
+  const tight = { cities: [{ id: "c1", days: 5, reason: "雪山" }], days: [], omitted: [{ id: "c2", reason: "按你说的不去" }] };
+  const { repository, service, preferences } = setup({
+    planModel: { model: modelAnswering({
+      routes: [{ ...route, question: { text: "五天两城会赶，怎么安排？", options: [
+        { label: "两座都去", kind: "pace", pace: "packed", leaveOut: null },
+        { label: "只去丽江", kind: "pace", pace: "relaxed", leaveOut: "c2" }] } }, tight],
+      days: [[day(1, "s1"), day(2, "s2"), day(3, "s3"), day(4, "s4"), day(5, "s5")]],
+    }) },
+  });
+  const started = await service.start(tripId, trip);
+  const waiting = (await followToEnd(service, repository, started.runId)).at(-1)?.event;
+  if (waiting?.type !== "run.waiting") throw new Error("expected a question");
+  assert.equal(await service.answer(tripId, started.runId, { questionId: waiting.question.id, text: "这次不去大理了" }), "resumed");
+  const after = await followToEnd(service, repository, started.runId, 1);
+  assert.ok(after.some(({ event }) => event.type === "question.answered" && event.choice === "这次不去大理了"));
+  assert.deepEqual(preferences.map(({ quote, source }) => [quote, source]), [["这次不去大理了", "question"]]);
+  // The written answer named 大理, so the resumed route may leave it out.
+  assert.deepEqual(repository.versions[0].plan.draft.route.omitted.map(({ city }) => city), ["大理白族自治州"]);
 });
 
 test("the validation loop moves a closed stop, re-plans a day it cannot fix, and reports the rest", async () => {

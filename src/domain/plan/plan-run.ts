@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import type { PlanPreference } from "@/domain/plan/trip-preference";
+import { maxPreferenceQuoteLength, type PlanPreference } from "@/domain/plan/trip-preference";
 import type { TripState } from "@/domain/trip-state/trip-state";
 
 import { readyPlanSchema, type ReadyPlan } from "./plan-draft-response";
@@ -62,11 +62,14 @@ export const planRunStartResponseSchema = z.discriminatedUnion("status", [
 ]);
 export type PlanRunStartResponse = z.output<typeof planRunStartResponseSchema>;
 
-/** What the plan page sends to answer a run's question: an option's label, or null for "you decide". */
-export const planAnswerSchema = z.strictObject({
-  questionId: z.uuid(),
-  choice: z.string().trim().min(1).max(40).nullable(),
-});
+/**
+ * What the plan page sends to answer a run's question: an option's label, null for "you decide",
+ * or, since 1.2018, the traveller's own words written in the question's box.
+ */
+export const planAnswerSchema = z.union([
+  z.strictObject({ questionId: z.uuid(), choice: z.string().trim().min(1).max(40).nullable() }),
+  z.strictObject({ questionId: z.uuid(), text: z.string().trim().min(1).max(maxPreferenceQuoteLength) }),
+]);
 export type PlanAnswer = z.output<typeof planAnswerSchema>;
 
 /** What GET plan answers: the newest saved plan, whether the trip changed since, and the newest run. */

@@ -30,7 +30,7 @@ import {
   type PlanDraftFailure,
 } from "./plan-draft-model";
 import { applyProgress, emptyProgress, pendingDays, type ProgressView } from "./plan-progress-view";
-import { PlanQuestionCard, PlanRunActivity } from "./plan-run-activity";
+import { PlanQuestionCard, PlanRunActivity, type QuestionAnswer } from "./plan-run-activity";
 import draftStyles from "./plan-draft.module.css";
 import styles from "./trip-plan.module.css";
 
@@ -276,11 +276,12 @@ function LiveRun({ tripId, runId, text, locale, onDone, onFailed, onAnswered }: 
     return () => source.close();
   }, [after, runId, tripId]);
 
-  const answer = async (choice: string | null) => {
+  const answer = async (reply: QuestionAnswer) => {
     if (!view.question) return;
-    await answerPlanQuestion(tripId, runId, { questionId: view.question.id, choice }, new AbortController().signal);
+    await answerPlanQuestion(tripId, runId, { questionId: view.question.id, ...reply }, new AbortController().signal);
     setAfter(view.lastSeq);
-    if (choice !== null) onAnswered();
+    // Any answer but "you decide" is saved as a preference, so the list above refreshes.
+    if (!("choice" in reply) || reply.choice !== null) onAnswered();
   };
 
   const finished = view.finished;

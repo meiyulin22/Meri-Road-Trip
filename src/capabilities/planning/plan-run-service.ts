@@ -17,6 +17,7 @@ import {
   type PlanRunErrorCode,
   type PlanStage,
 } from "@/domain/plan/plan-progress";
+import type { LabelledAnswer } from "@/capabilities/planning/extract-plan-preferences";
 import type { PlanAnswer, PlanRun, PlanRunUsage, PlanVersion } from "@/domain/plan/plan-run";
 import { maxActivePreferences, maxPreferenceQuoteLength, paceFor, type PlanPreference } from "@/domain/plan/trip-preference";
 import { logger } from "@/platform/observability/logger";
@@ -65,12 +66,20 @@ export type PlanRunServiceDependencies = {
   readonly repository: PlanRunRepository;
   /** Where an answer to the run's question is saved as a preference. */
   readonly preferences: Pick<TripPreferenceRepository, "listByTripId" | "create">;
+  /** Labels an answer the traveller wrote themselves and finds a city it says to skip (1.2018). */
+  readonly labelAnswer: (text: string, question: string, cities: readonly string[]) => Promise<LabelledAnswer>;
   /** Boxed: a workflow has a `then` method of its own, so a promise would try to resolve it. */
   readonly workflow: () => Promise<{ readonly workflow: PlanGenerationWorkflow }>;
   readonly now?: () => Date;
   readonly newId?: () => string;
   readonly timeLimitMs?: number;
 };
+
+/** The trip's selected cities, as a written answer may name one to leave out. */
+function tripCities(handoff: PlanHandoff): string[] {
+  const destination = handoff.tripState.destination;
+  return destination.state === "known" ? destination.areas.flatMap(({ places }) => places.map(({ name }) => name)) : [];
+}
 
 /** Key order is not kept by jsonb, so compare and digest objects with their keys sorted. */
 export function canonicalJson(value: unknown): string {
@@ -233,22 +242,33 @@ export class PlanRunService {
     const waiting = events.findLast(({ event }) => event.type === "run.waiting");
     const question = waiting?.event.type === "run.waiting" ? waiting.event.question : null;
     if (!waiting || !question || question.id !== answer.questionId) return "wrong_question";
-    const option = answer.choice === null ? null : question.options.find(({ label }) => label === answer.choice) ?? null;
-    if (answer.choice !== null && !option) return "wrong_question";
+    const choice = "choice" in answer ? answer.choice : null;
+    const option = choice === null ? null : question.options.find(({ label }) => label === choice) ?? null;
+    if (choice !== null && !option) return "wrong_question";
     // Claimed in the database, so a second answer or a second tab cannot resume it twice.
     if (!await this.deps.repository.moveRun(runId, "suspended", "running")) return "not_waiting";
 
     const answeredAt = this.now();
-    const preference: PlanPreference | null = option && {
+    let preference: PlanPreference | null = option && {
       id: this.newId(), label: option.label, kind: option.kind, pace: paceFor(option.kind, option.pace),
       quote: `${question.text} ${option.label}`.slice(0, maxPreferenceQuoteLength),
       source: "question", messageId: null, createdAt: answeredAt.toISOString(),
     };
+    let leaveOut: string | null = null;
+    if ("text" in answer) {
+      // The traveller's own words: the model labels them once, code keeps a city only if it is the trip's.
+      const labelled = await this.deps.labelAnswer(answer.text, question.text, tripCities(run.handoff));
+      leaveOut = labelled.leaveOut;
+      preference = {
+        id: this.newId(), label: labelled.label, kind: labelled.kind, pace: labelled.pace, quote: answer.text,
+        source: "question", messageId: null, createdAt: answeredAt.toISOString(),
+      };
+    }
     if (preference) await this.savePreference(tripId, preference);
     activeRuns.set(runId, { events: [...events], listeners: new Set() });
     void this.execute(run, {
       kind: "resume",
-      resume: { choice: option?.label ?? null, preference },
+      resume: { choice: option?.label ?? ("text" in answer ? answer.text : null), preference, leaveOut },
       lastSeq: events.at(-1)?.seq ?? 0,
       // The time already spent working, without the wait for the answer.
       activeMs: Math.max(0, waiting.at - Date.parse(run.startedAt)),

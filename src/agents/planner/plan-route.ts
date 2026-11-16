@@ -11,7 +11,8 @@ import {
 } from "@/domain/plan/plan-draft";
 import type { PlanHandoff } from "@/domain/plan/plan-handoff";
 import { type PlanQuestion, planQuestionSchema } from "@/domain/plan/plan-progress";
-import { maxPreferenceLabelLength, preferenceKinds, wantsPackedPace } from "@/domain/plan/trip-preference";
+import { maxPreferenceLabelLength, preferenceKinds, wantsPackedPace, wantsRelaxedPace } from "@/domain/plan/trip-preference";
+import { placeNameStem } from "@/capabilities/destination/resolve-destination-place";
 import type { CityResearch, SpotCard } from "@/domain/plan/spot-card";
 import { createMoonshotChatModelFromEnvironment } from "@/platform/llm/moonshot-chat-model";
 import { logger } from "@/platform/observability/logger";
@@ -71,6 +72,43 @@ function checkedQuestion(
   if (!parsed.success) return null;
   const labels = parsed.data.options.map(({ label }) => label);
   return new Set(labels).size === labels.length ? parsed.data : null;
+}
+
+type MustAsk = "too_few_days" | "relaxed_rushed";
+
+/**
+ * The question code asks itself when the traveller must choose and the model, sent back once,
+ * still did not ask (1.2018). It offers the cities with the fewest candidates to leave out, since
+ * they lose the least; the traveller can also write their own answer. Place names stay Chinese.
+ */
+export function fallbackQuestion(
+  reason: MustAsk,
+  cities: readonly Pick<RouteCityInput, "city" | "candidates">[],
+  days: number,
+  locale: PlanHandoff["locale"],
+): Omit<PlanQuestion, "id"> | null {
+  const count = cities.length;
+  const byFewest = cities.map((city, index) => ({ ...city, index }))
+    .sort((left, right) => left.candidates - right.candidates || right.index - left.index);
+  const zh = locale === "zh";
+  const options = reason === "too_few_days"
+    ? byFewest.slice(0, 3).map(({ city }) => ({
+      label: zh ? `不去${placeNameStem(city)}` : `Skip ${placeNameStem(city)}`,
+      kind: "interests" as const, pace: null, leaveOut: city,
+    }))
+    : [
+      { label: zh ? `${count}座城都去，每天换城` : `All ${count}, moving daily`, kind: "pace" as const, pace: "packed" as const, leaveOut: null },
+      ...byFewest.slice(0, 2).map(({ city }) => ({
+        label: zh ? `不去${placeNameStem(city)}，慢慢玩` : `Skip ${placeNameStem(city)}, go slow`,
+        kind: "pace" as const, pace: "relaxed" as const, leaveOut: city,
+      })),
+    ];
+  const text = reason === "too_few_days"
+    ? (zh ? `${days}天去不了${count}座城，放弃哪一座？` : `${days} days cannot fit ${count} cities. Which one should go?`)
+    : (zh ? `${days}天去${count}座城，几乎每天都在换地方。您想怎么安排？`
+      : `${days} days for ${count} cities means moving almost every day. How would you like it?`);
+  const parsed = planQuestionSchema.omit({ id: true }).safeParse({ text, options });
+  return parsed.success ? parsed.data : null;
 }
 
 export type PlanModelDependencies = {
@@ -174,8 +212,23 @@ export async function planRoute(
   // asked 2 times in 3.
   const mayAsk = Boolean(options.allowQuestion)
     && !(cities.length <= scope.dates.length && wantsPackedPace(handoff.preferences));
-  const mustAsk = mayAsk && cities.length > scope.dates.length
+  const days = scope.dates.length;
+  const tooFewDays = cities.length > days
     && !handoff.preferences.some(({ kind }) => kind === "interests" || kind === "pace");
+  // A relaxed traveller with every city kept: the first day in each later city is spent on the road,
+  // so with fewer travel-free days than cities at least one city is left the day they arrive. That is
+  // their choice to make (1.2018); the prompt alone missed it once in the three runs that had one.
+  const fullDays = days - (cities.length - 1);
+  const relaxedButRushed = wantsRelaxedPace(handoff.preferences) && cities.length <= days && fullDays < cities.length;
+  const mustAsk = mayAsk && (tooFewDays || relaxedButRushed);
+  // Sent back once and still no question: code asks it itself rather than deciding for the traveller.
+  const codeQuestion = () => mustAsk ? fallbackQuestion(tooFewDays ? "too_few_days" : "relaxed_rushed", cities, days, handoff.locale) : null;
+  const mustAskReason = tooFewDays
+    ? "There are fewer days than cities and no preference says which cities matter more, so the traveller must choose:"
+      + " set question with one option per city that could be left out, each naming that city and setting leaveOut to its id."
+    : `The traveller wants a relaxed pace, but with every city kept only ${fullDays} of ${days} days are free of travel,`
+      + " so at least one city is left the day they arrive: set question asking whether to keep every city or leave one out,"
+      + " one option per city that could go, each naming it and setting leaveOut to its id, plus one option keeping every city.";
   let askAgain = false;
   // The route that came back without a question, used if the second answer has no usable one either.
   let unaskedRoute: RoutedPlan | null = null;
@@ -237,13 +290,12 @@ export async function planRoute(
       if (mustAsk && attempts === 1) {
         unaskedRoute = review.plan;
         askAgain = true;
-        errors = [
-          "There are fewer days than cities and no preference says which cities matter more, so the traveller must choose:"
-          + " set question with one option per city that could be left out, each naming that city and setting leaveOut to its id.",
-        ];
+        errors = [mustAskReason];
         continue;
       }
       askAgain = false;
+      const built = codeQuestion();
+      if (built) return { status: "question", question: built, usage };
       if (review.plan) return { status: "ready", plan: review.plan, attempts, usage };
       if (unaskedRoute) return { status: "ready", plan: unaskedRoute, attempts, usage };
       errors = review.errors;
@@ -253,6 +305,9 @@ export async function planRoute(
       errors = ["The previous answer was not valid JSON in the requested shape. Keep reasons to one short sentence."];
     }
   }
+  // The traveller must choose even when the model gave no usable answer at all.
+  const built = codeQuestion();
+  if (built) return { status: "question", question: built, usage };
   logger.warn({ attempts, errors }, "Plan Agent route not usable; days shared out in order");
   return { status: "ready", plan: fallbackRoute(scope), attempts, usage };
 }

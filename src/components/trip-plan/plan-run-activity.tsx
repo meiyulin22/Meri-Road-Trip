@@ -258,30 +258,42 @@ function stageDetails(stage: PlanStage, view: ProgressView, text: Copy): string[
 }
 
 const questionCopy = {
-  en: { eyebrow: "A quick question first", skip: "You decide", failed: "That didn’t go through. Try again." },
-  zh: { eyebrow: "Meri 想先问一句", skip: "你来定", failed: "没有发送成功，请再试一次。" },
+  en: {
+    eyebrow: "A quick question first", skip: "You decide", failed: "That didn’t go through. Try again.",
+    own: "Or tell Meri what you’d like", ownPlaceholder: "e.g. less time in Dali, an extra day in Shangri-La", send: "Send",
+  },
+  zh: {
+    eyebrow: "Meri 想先问一句", skip: "你来定", failed: "没有发送成功，请再试一次。",
+    own: "或者告诉 Meri 你的想法", ownPlaceholder: "例：大理少待，香格里拉多一天", send: "发送",
+  },
 } as const;
 
+/** An option's label, null to let Meri decide, or the traveller's own words (1.2018). */
+export type QuestionAnswer = { readonly choice: string | null } | { readonly text: string };
+
 /**
- * The question a run waits on. Choosing an option, or letting Meri decide, resumes the
- * run; the answer is kept as a preference. Shown again after a refresh until answered.
+ * The question a run waits on. Choosing an option, letting Meri decide, or writing their own
+ * answer resumes the run; the answer is kept as a preference. Shown again after a refresh until
+ * answered.
  */
 export function PlanQuestionCard({ question, onAnswer }: {
   readonly question: PlanQuestion;
-  readonly onAnswer: (choice: string | null) => Promise<void>;
+  readonly onAnswer: (answer: QuestionAnswer) => Promise<void>;
 }) {
   const locale = useLocale();
   const text = questionCopy[locale];
   const [sending, setSending] = useState(false);
   const [failed, setFailed] = useState(false);
-  const choose = (choice: string | null) => {
+  const [own, setOwn] = useState("");
+  const send = (answer: QuestionAnswer) => {
     setSending(true);
     setFailed(false);
-    onAnswer(choice).catch(() => {
+    onAnswer(answer).catch(() => {
       setFailed(true);
       setSending(false);
     });
   };
+  const choose = (choice: string | null) => send({ choice });
   return (
     <section className={styles.question} aria-labelledby={`question-${question.id}`}>
       <span className={styles.questionEyebrow}>{text.eyebrow}</span>
@@ -292,6 +304,27 @@ export function PlanQuestionCard({ question, onAnswer }: {
         ))}
         <button type="button" className={styles.option} data-skip="true" disabled={sending} onClick={() => choose(null)}>{text.skip}</button>
       </div>
+      <form
+        className={styles.ownAnswer}
+        onSubmit={(event) => {
+          event.preventDefault();
+          if (own.trim()) send({ text: own.trim() });
+        }}
+      >
+        <label className={styles.ownLabel} htmlFor={`own-${question.id}`}>{text.own}</label>
+        <div className={styles.ownRow}>
+          <input
+            id={`own-${question.id}`}
+            className={styles.ownInput}
+            value={own}
+            maxLength={160}
+            placeholder={text.ownPlaceholder}
+            disabled={sending}
+            onChange={(event) => setOwn(event.target.value)}
+          />
+          <button type="submit" className={styles.ownSend} disabled={sending || !own.trim()}>{text.send}</button>
+        </div>
+      </form>
       {failed ? <p className={styles.questionError} role="alert">{text.failed}</p> : null}
     </section>
   );

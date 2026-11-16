@@ -4,7 +4,7 @@ import test from "node:test";
 import type { TripMessage } from "@/domain/trip-message/trip-message";
 import type { StructuredOutputModelClient, StructuredOutputModelRequest } from "@/platform/llm/kimi-client";
 
-import { extractPlanPreferences, labelPreference } from "./extract-plan-preferences";
+import { extractPlanPreferences, labelAnswer, labelPreference } from "./extract-plan-preferences";
 
 const tripId = "trip-1";
 const createdAt = "2026-11-09T16:00:00.000Z";
@@ -104,6 +104,23 @@ test("a pace preference keeps the direction the model gave it, and only a pace p
     { messageId: "m1", quote: "不吃辣", label: "不吃辣", kind: "diet", pace: "relaxed" },
   ] })));
   assert.deepEqual(result.preferences.map(({ kind, pace }) => [kind, pace]), [["pace", "packed"], ["diet", null]]);
+});
+
+test("a written answer keeps a city to skip only if it is one of the trip's (1.2018)", async () => {
+  const cities = ["大理白族自治州", "丽江市", "迪庆藏族自治州"];
+  const requests: StructuredOutputModelRequest[] = [];
+  assert.deepEqual(await labelAnswer("不去大理了，香格里拉多待", "怎么安排？", cities, "a1",
+    model(requests, '{"label":"不去大理","kind":"interests","pace":null,"leaveOut":"大理白族自治州"}')),
+  { label: "不去大理", kind: "interests", pace: null, leaveOut: "大理白族自治州" });
+  assert.deepEqual(JSON.parse(requests[0].userMessage!), { question: "怎么安排？", answer: "不去大理了，香格里拉多待", cities });
+  // A city that is not the trip's, or a short name, is not taken.
+  assert.equal((await labelAnswer("不去昆明", "怎么安排？", cities, "a2",
+    model(requests, '{"label":"不去昆明","kind":"avoid","pace":null,"leaveOut":"昆明市"}'))).leaveOut, null);
+  assert.equal((await labelAnswer("不去大理", "怎么安排？", cities, "a3",
+    model(requests, '{"label":"不去大理","kind":"avoid","pace":null,"leaveOut":"大理"}'))).leaveOut, null);
+  // Without the model the words are kept as they are and nothing is left out.
+  assert.deepEqual(await labelAnswer("慢慢玩就好", "怎么安排？", cities, "a4", model(requests, "not json")),
+    { label: "慢慢玩就好", kind: "other", pace: null, leaveOut: null });
 });
 
 test("distinguishes no preferences from unavailable extraction and skips a model call without user input", async () => {

@@ -6,6 +6,7 @@ import { z } from "zod";
 
 import { planGenerationDependencies } from "@/agents";
 import { createPlanGenerationWorkflow } from "@/agents/workflows/plan-generation";
+import { labelAnswer } from "@/capabilities/planning/extract-plan-preferences";
 import { PlanRunService } from "@/capabilities/planning/plan-run-service";
 import { cityResearchSchema } from "@/domain/plan/plan-draft-response";
 import { planHandoffSchema } from "@/domain/plan/plan-handoff";
@@ -45,6 +46,7 @@ async function main(): Promise<void> {
     repository,
     // The answer to a question is printed, not saved: this run has no trip in the database.
     preferences: { listByTripId: async () => [], create: async () => {} },
+    labelAnswer: (text, question, cities) => labelAnswer(text, question, cities, crypto.randomUUID()),
     workflow: async () => ({ workflow: mastra.getWorkflow("planGeneration") }),
   });
 
