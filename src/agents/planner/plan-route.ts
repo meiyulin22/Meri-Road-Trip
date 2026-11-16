@@ -48,17 +48,19 @@ const routeSchema = z.object({
 /**
  * A proposed question, or null when it is not one the page can show. An option that leaves a
  * city out names it by its short ID; it is kept by the city's own name, and an unknown ID
- * makes the question unusable.
+ * makes the question unusable. Two options leaving out the same city are the same trip worded
+ * twice (丽江+大理 and 大理+丽江, measured 2026-11-16), so only the first is kept.
  */
 function checkedQuestion(
   answer: z.infer<typeof routeSchema>["question"],
   cities: readonly RouteCityInput[],
 ): Omit<PlanQuestion, "id"> | null {
   if (!answer) return null;
-  const options = [];
+  const options: { label: string; kind: string; leaveOut: string | null }[] = [];
   for (const option of answer.options) {
     const leaveOut = option.leaveOut ? cities.find(({ id }) => id === option.leaveOut)?.city : null;
     if (option.leaveOut && !leaveOut) return null;
+    if (leaveOut && options.some((kept) => kept.leaveOut === leaveOut)) continue;
     options.push({ ...option, leaveOut: leaveOut ?? null });
   }
   const parsed = planQuestionSchema.omit({ id: true }).safeParse({ ...answer, options });
@@ -160,6 +162,15 @@ export async function planRoute(
     }),
   };
 
+  // Fewer days than cities and no preference saying which matter more: which city goes is the
+  // traveller's choice, so a route without a question is sent back once (1.2016). The prompt alone
+  // asked 0 times in 3 after it was told not to ask about what preferences already answer.
+  const mustAsk = Boolean(options.allowQuestion) && cities.length > scope.dates.length
+    && !handoff.preferences.some(({ kind }) => kind === "interests" || kind === "pace");
+  let askAgain = false;
+  // The route that came back without a question, used if the second answer has no usable one either.
+  let unaskedRoute: RoutedPlan | null = null;
+
   const signal = AbortSignal.timeout(routeTimeoutMs);
   let errors: readonly string[] = [];
   let attempts = 0;
@@ -184,12 +195,14 @@ export async function planRoute(
           "List every day from 1 to totalDays in route order. A focus is one of that day's city districts as given, or null. Keep a district's spots together on one day where you can.",
           `Write reasons and themes in ${handoff.locale === "zh" ? "Chinese" : "English"}. A theme is a few words; a reason is one short sentence.`,
           'Return {"cities":[{"id":"c1","days":2,"reason":"…"}],"days":[{"day":1,"focus":"古城区","theme":"…"}],"omitted":[],"question":null}.',
-          options.allowQuestion && errors.length === 0
+          options.allowQuestion && (errors.length === 0 || askAgain)
             ? [
               "Ask the traveller one question first when the route depends on a choice the preferences do not make:",
               "there are fewer days than cities and no preference says which cities matter more, or there are no preferences",
               "about interests or pace and the cities differ in character, so which gets more days is a matter of taste.",
-              "If every city fits but the trip feels too tight, ask too: whether to keep every city or leave one out, never leave it out yourself.",
+              "If every city fits but the trip feels too tight, ask whether to keep every city or leave one out, never leave it out yourself,",
+              "but only when no preference says how the traveller wants a full trip: a preference to see more places or to accept a packed schedule",
+              "means keep every city and do not ask; a preference for a relaxed pace with too little time is a real choice, so ask.",
               `Then set question to {"text":"…","options":[{"label":"…","kind":"interests","leaveOut":null}]} with 2 or 3 short options in ${handoff.locale === "zh" ? "Chinese" : "English"},`,
               `labels under ${maxPreferenceLabelLength} characters, each kind one of ${preferenceKinds.join(", ")}.`,
               "When a city has to go or might go, make each option one concrete trip: name in the label the city it leaves out and set leaveOut to that city's id, one option per city that could go, plus at most one option keeping every city when every city fits.",
@@ -203,14 +216,26 @@ export async function planRoute(
       });
       usage.inputTokens += callUsage.inputTokens ?? 0;
       usage.outputTokens += callUsage.outputTokens ?? 0;
-      const question = options.allowQuestion && attempts === 1 ? checkedQuestion(output.question, cities) : null;
+      const offered = options.allowQuestion && (attempts === 1 || askAgain);
+      const question = offered ? checkedQuestion(output.question, cities) : null;
       if (question) return { status: "question", question, usage };
       const review = reviewRoute(scope, cities, {
         ...output,
         cities: output.cities.map((city) => ({ ...city, reason: city.reason || null })),
         omitted: output.omitted.map((city) => ({ ...city, reason: city.reason || null })),
       }, leaveOutAllowed);
+      if (mustAsk && attempts === 1) {
+        unaskedRoute = review.plan;
+        askAgain = true;
+        errors = [
+          "There are fewer days than cities and no preference says which cities matter more, so the traveller must choose:"
+          + " set question with one option per city that could be left out, each naming that city and setting leaveOut to its id.",
+        ];
+        continue;
+      }
+      askAgain = false;
       if (review.plan) return { status: "ready", plan: review.plan, attempts, usage };
+      if (unaskedRoute) return { status: "ready", plan: unaskedRoute, attempts, usage };
       errors = review.errors;
     } catch (error) {
       // A malformed answer is one more attempt, like one that fails the checks.

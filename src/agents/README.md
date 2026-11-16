@@ -313,6 +313,20 @@ trekking. In a Kimi-only check of the route call, an empty preference list asked
 never asked. The same check found Kimi sometimes writes an empty city reason, which used to
 fail the whole route answer; an empty reason is now just a missing one.
 
+**Who decides to ask (1.2016).** The evaluation found the question going wrong both ways. With
+every city fitting and a preference to see more (case 4), Kimi still asked "keep all three cities?"
+2 times in 3, following the 1.2012 line about tight trips; the prompt now asks only when no
+preference says how the traveller wants a full trip, and a relaxed pace with too little time is still
+asked (case 11). Told that, Kimi then stopped asking where it must: two days for three cities with no
+preferences (case 3) asked 0 times in 3. That case code can see on its own, so code decides it: with
+fewer days than cities and no interests or pace preference, a route without a question is sent back
+once with that reason, and if the second answer still does not ask, the first route stands. Two
+options leaving out the same city (丽江+大理 and 大理+丽江) are one trip, so only the first is kept.
+Rerun (`2026-11-16-1.2016.json`, against `-prompt-only`): case 3 asked 3 of 3, case 4 0 of 3 with
+every city kept, case 11 2 of 3 (the third run's 迪庆 research found nothing, so there was no
+choice to make). Whether a preference such as 紧凑 answers the question is still read by the model
+each time; a hidden pace direction on preferences, set once when they are extracted, is next.
+
 **Areas the traveller named (1.2012).** A Workspace "spot" that is really a county-level area
 of its city (大理市 under 大理白族自治州, 香格里拉市 under 迪庆; names ending in 市, 县 or 旗,
 not 区, which scenic areas share) is not a place to visit: [isAreaName](../domain/plan/plan-draft.ts)

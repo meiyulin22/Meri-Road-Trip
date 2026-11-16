@@ -568,7 +568,7 @@ Generate plan 背后的计划页先用示例数据做出完整页面（设计决
 | [src/agents/planner/research-agent.test.ts](../src/agents/planner/research-agent.test.ts) | 测试（对应模块边界） | 用模拟模型和搜索结果验证提名与点名景点分组搜索、无出处提名被丢弃、模型不可用时的退路、只补查一次、10 城范围和证据校验。 |
 | [src/agents/planner/map-check.ts](../src/agents/planner/map-check.ts) | Agent 层（固定步骤） | 景点卡的天地图定位：每个有出处的景点查一次（每城最多 12 个），只认本市同名结果并记区县；第一次失败即停止、不重试，其余保持未核实；使用定位缓存。 |
 | [src/agents/planner/map-check.test.ts](../src/agents/planner/map-check.test.ts) | 测试 | 验证别省同名不算、景区后缀、停车场不算、失败即停、缓存命中、每城上限和缓存过期。 |
-| [src/agents/planner/plan-route.ts](../src/agents/planner/plan-route.ts) | Agent 层 | Plan Agent 路线：一次 Kimi 调用规划城市顺序、天数、每天重点区县和主题、放弃的城市，代码校验、重试一次、再按添加顺序兜底；允许时可以返回一个带选项的问题（只在第一次尝试、格式合法时采用；选项可写明放弃哪座城）；天数够时不许自行放弃城市，只有用户选了才可以；用户点名的区域（如大理市）作为重点区域交给模型；空的理由当作没有理由；两次尝试共 60 秒；每次尝试报告进度。 |
+| [src/agents/planner/plan-route.ts](../src/agents/planner/plan-route.ts) | Agent 层 | Plan Agent 路线：一次 Kimi 调用规划城市顺序、天数、每天重点区县和主题、放弃的城市，代码校验、重试一次、再按添加顺序兜底；允许时可以返回一个带选项的问题（只在第一次尝试、格式合法时采用；选项可写明放弃哪座城）；天数够时不许自行放弃城市，只有用户选了才可以；用户点名的区域（如大理市）作为重点区域交给模型；空的理由当作没有理由；两次尝试共 60 秒；每次尝试报告进度。1.2016：天数少于城市且没有兴趣或节奏偏好时必须提问，第一次没问就退回再答一次（仍不问则用第一次的路线）；偏好已说明想多看、能接受紧凑时不问「是否保留全部城市」；放弃同一城市的重复选项只留第一个。 |
 | [src/agents/planner/plan-route.test.ts](../src/agents/planner/plan-route.test.ts) | 测试（对应模块边界） | 用模拟模型验证丽江大理 5 天的路线与转场日、两次不通过后的兜底、模型建不起来时不可用、问题只在允许且格式合法时返回、空理由不让路线失败、放弃城市的选项与用户选择、用户点名的区域进入提示。 |
 | [src/agents/planner/plan-days.ts](../src/agents/planner/plan-days.ts) | Agent 层 | Plan Agent 选点：一城的各天一次 Kimi 调用，按短 ID 选景点、时段和时间锚点，代码校验、重试一次；没有候选的城市不调模型；模型把时间锚点写成单独的字符串也能读，格式不对的回答会再试一次（1.2013） |
 | [src/agents/planner/plan-days.test.ts](../src/agents/planner/plan-days.test.ts) | 测试（对应模块边界） | 验证示范第一天和模型看到的定位信息、单城 7 天、带问题重试、保留第一次可用结果、模型不可用、转场日只排下午和没有候选。 |
@@ -734,7 +734,7 @@ Generate plan 背后的计划页先用示例数据做出完整页面（设计决
 | [scripts/eval-plan.ts](../scripts/eval-plan.ts) | 评测工具 | 1.2014：读 `evals/plan/cases/` 的用例（可按 ID 前缀筛选，`--repeat N` 覆盖次数，`--label` 命名结果文件），按计划页的方式逐个跑真实 plan-generation 工作流（内存仓库和快照），提问按用例指定的选项回答；每次运行记下指标和断言结果，写入 `evals/plan/results/<日期>-<label>.json`。某次运行天地图定位停下（`map.checked` 为 stopped）或 Kimi 不可达就终止整批，不重试。 |
 | [scripts/eval-plan-score.ts](../scripts/eval-plan-score.ts) | 评测工具 | 用例格式（`evalCaseSchema`）、从用例生成 PlanHandoff、从事件和计划算指标（时长、各阶段耗时、token、调研/验证搜索、天地图查询、重试、覆盖、检查结果、预约、冲突、修复轮数），以及代码判定的断言；纯函数，无 IO。 |
 | [scripts/eval-plan-score.test.ts](../scripts/eval-plan-score.test.ts) | 测试 | 生成 handoff 的日期推算、指标来自事件和计划、周一闭馆/缺预约/空天各自判不通过、没有计划时给出原因。 |
-| [evals/plan/cases/](../evals/plan/cases/) | 评测用例 | 10 个典型旅程：单城、两城、三城天数不够、三城有偏好、点名区县、北京周一故宫、无天数预览、哈尔滨冬季、英文界面、跨省加步行上限；每个写明覆盖什么和断言。 |
+| [evals/plan/cases/](../evals/plan/cases/) | 评测用例 | 11 个典型旅程：单城、两城、三城天数不够、三城有偏好、点名区县、北京周一故宫、无天数预览、哈尔滨冬季、英文界面、跨省加步行上限、三城刚够但想慢玩（1.2016）；每个写明覆盖什么和断言。 |
 | [evals/plan/results/](../evals/plan/results/) | 评测结果 | 每次批量运行一个 JSON：提交、日期、每次运行的指标、断言、提问和每天的景点，用来做版本之间的对比。 |
 | [scripts/verify-workspace-location-tool.ts](../scripts/verify-workspace-location-tool.ts) | 开发验证工具 | 人工调用真实 Workspace 解释器，检查地点意图结构；文件名保留旧 tool 命名，当前不是开放式工具 Agent。 |
 

@@ -125,6 +125,16 @@ test("a tight trip may ask to leave a city out, and only the city the traveller 
     { allowQuestion: true });
   assert.equal(ignored.status, "ready");
 
+  // Two options leaving out the same city are one trip worded twice: the first is kept.
+  const repeated = { ...asking, question: { ...asking.question, options: [
+    { label: "丽江+大理", kind: "pace", leaveOut: "c2" },
+    { label: "大理+丽江", kind: "pace", leaveOut: "c2" },
+    { label: "两座都去", kind: "pace", leaveOut: null },
+  ] } };
+  const deduped = await planRoute(trip, scope, [lijiang, dali], { model: modelAnswering({ routes: [repeated] }) }, () => {},
+    { allowQuestion: true });
+  assert.deepEqual(deduped.status === "question" && deduped.question.options.map(({ label }) => label), ["丽江+大理", "两座都去"]);
+
   // Without the traveller's choice, leaving 大理 out is refused; with it, the Agent's route stands.
   const routeOnly = { ...asking, question: null };
   const refused = await planRoute(trip, scope, [lijiang, dali], { model: modelAnswering({ routes: [routeOnly, routeOnly] }) });
@@ -147,4 +157,41 @@ test("a city's areas named by the traveller reach the route call", async () => {
   });
   assert.deepEqual(routePrompts[0].cities.map(({ city, travellerAreas }) => [city, travellerAreas]),
     [["丽江市", []], ["大理白族自治州", ["大理市"]]]);
+});
+
+test("with fewer days than cities and no taste preference, a route without a question is sent back once (1.2016)", async () => {
+  const oneDay = { state: "known", value: "1天", source: "user" } as const;
+  const trip = handoff(["丽江市", "大理白族自治州"], oneDay);
+  const scope = ready(planScope(trip.tripState));
+  const unasked = { cities: [{ id: "c1", days: 1, reason: "雪山" }], days: [], omitted: [{ id: "c2", reason: "只有一天" }], question: null };
+  const asking = { ...unasked, question: { text: "一天只够一座城，去哪里？", options: [
+    { label: "去丽江，放弃大理", kind: "interests", leaveOut: "c2" },
+    { label: "去大理，放弃丽江", kind: "interests", leaveOut: "c1" },
+  ] } };
+
+  // The second answer asks: that question is used.
+  const systems: string[] = [];
+  const prompts: { problemsWithPreviousAnswer?: string[] }[] = [];
+  const asked = await planRoute(trip, scope, [lijiang, dali],
+    { model: modelAnswering({ routes: [unasked, asking], routeSystems: systems, routePrompts: prompts }) }, () => {}, { allowQuestion: true });
+  assert.equal(asked.status, "question");
+  assert.match(prompts[1].problemsWithPreviousAnswer?.[0] ?? "", /fewer days than cities/);
+  assert.match(systems[1], /Ask the traveller one question/);
+
+  // Neither answer asks: the first route stands rather than the automatic one.
+  const stood = await planRoute(trip, scope, [lijiang, dali],
+    { model: modelAnswering({ routes: [unasked, unasked] }) }, () => {}, { allowQuestion: true });
+  assert.equal(stood.status === "ready" && stood.plan.route.source, "agent");
+  assert.deepEqual(stood.status === "ready" && stood.plan.route.omitted.map(({ city }) => city), ["大理白族自治州"]);
+
+  // An interests or pace preference may settle it: the first route is taken as it is.
+  const withTaste = { ...trip, preferences: [...trip.preferences,
+    { ...trip.preferences[0], id: "p2", kind: "interests" as const, quote: "最想看雪山" }] };
+  const taken = await planRoute(withTaste, scope, [lijiang, dali],
+    { model: modelAnswering({ routes: [unasked] }) }, () => {}, { allowQuestion: true });
+  assert.equal(taken.status === "ready" && taken.attempts, 1);
+
+  // Without permission to ask (a resumed run), nothing is sent back.
+  const resumed = await planRoute(trip, scope, [lijiang, dali], { model: modelAnswering({ routes: [unasked] }) });
+  assert.equal(resumed.status === "ready" && resumed.attempts, 1);
 });
