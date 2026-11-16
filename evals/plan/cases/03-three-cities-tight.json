@@ -1,0 +1,33 @@
+{
+  "id": "03-three-cities-tight",
+  "title": "大理 + 丽江 + 迪庆 2 天，没有偏好",
+  "covers": "天数紧、没有偏好时要提问，选项写明放弃哪座城（1.2011/1.2012）",
+  "areas": [
+    {
+      "province": "云南省",
+      "cities": [
+        {
+          "city": "大理白族自治州",
+          "spots": []
+        },
+        {
+          "city": "丽江市",
+          "spots": []
+        },
+        {
+          "city": "迪庆藏族自治州",
+          "spots": []
+        }
+      ]
+    }
+  ],
+  "days": 2,
+  "startDate": "2026-12-14",
+  "repeat": 3,
+  "expect": {
+    "mode": "full",
+    "asks": true,
+    "leaveOutOptions": true,
+    "noEmptyDays": true
+  }
+}

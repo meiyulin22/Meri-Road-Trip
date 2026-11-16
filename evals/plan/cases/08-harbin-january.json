@@ -1,0 +1,27 @@
+{
+  "id": "08-harbin-january",
+  "title": "哈尔滨 3 天，1 月出发，点名冰雪大世界",
+  "covers": "季节性开放的景点",
+  "areas": [
+    {
+      "province": "黑龙江省",
+      "cities": [
+        {
+          "city": "哈尔滨市",
+          "spots": [
+            "冰雪大世界"
+          ]
+        }
+      ]
+    }
+  ],
+  "days": 3,
+  "startDate": "2027-01-11",
+  "expect": {
+    "mode": "full",
+    "scheduled": [
+      "冰雪大世界"
+    ],
+    "noEmptyDays": true
+  }
+}

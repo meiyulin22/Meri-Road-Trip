@@ -59,6 +59,7 @@ export const cityResearchSchema: z.ZodType<CityResearch> = z.strictObject({
   status: z.enum(["ready", "partial", "unavailable", "deferred"]),
   searchCalls: z.number().int().nonnegative(),
   spots: z.array(spotCardSchema),
+  usage: z.strictObject({ inputTokens: z.number().int().nonnegative(), outputTokens: z.number().int().nonnegative() }).optional(),
 });
 
 export const planRouteSchema: z.ZodType<PlanRoute> = z.strictObject({

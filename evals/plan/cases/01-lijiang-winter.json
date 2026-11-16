@@ -1,0 +1,32 @@
+{
+  "id": "01-lijiang-winter",
+  "title": "丽江 3 天，12 月 21 日出发",
+  "covers": "基线；玉龙雪山的预约规则（1.2013 回归）",
+  "areas": [
+    {
+      "province": "云南省",
+      "cities": [
+        {
+          "city": "丽江市",
+          "spots": [
+            "玉龙雪山"
+          ]
+        }
+      ]
+    }
+  ],
+  "days": 3,
+  "startDate": "2026-12-21",
+  "expect": {
+    "mode": "full",
+    "keepsAllCities": true,
+    "asks": false,
+    "scheduled": [
+      "玉龙雪山"
+    ],
+    "reservationFound": [
+      "玉龙雪山"
+    ],
+    "noEmptyDays": true
+  }
+}

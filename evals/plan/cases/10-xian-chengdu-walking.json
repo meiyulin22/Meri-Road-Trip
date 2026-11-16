@@ -1,0 +1,45 @@
+{
+  "id": "10-xian-chengdu-walking",
+  "title": "西安 + 成都 4 天，带步行上限",
+  "covers": "跨省两城；步行上限让每天最多 3 个景点（1.2007）",
+  "areas": [
+    {
+      "province": "陕西省",
+      "cities": [
+        {
+          "city": "西安市",
+          "spots": [
+            "兵马俑"
+          ]
+        }
+      ]
+    },
+    {
+      "province": "四川省",
+      "cities": [
+        {
+          "city": "成都市",
+          "spots": []
+        }
+      ]
+    }
+  ],
+  "days": 4,
+  "startDate": "2026-12-15",
+  "preferences": [
+    {
+      "kind": "walking",
+      "label": "少走路",
+      "quote": "膝盖不好，不能走太多路"
+    }
+  ],
+  "expect": {
+    "mode": "full",
+    "keepsAllCities": true,
+    "scheduled": [
+      "兵马俑"
+    ],
+    "maxStopsPerDay": 3,
+    "noEmptyDays": true
+  }
+}

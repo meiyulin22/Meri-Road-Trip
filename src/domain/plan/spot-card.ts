@@ -60,4 +60,6 @@ export type CityResearch = {
   readonly status: "ready" | "partial" | "unavailable" | "deferred";
   readonly searchCalls: number;
   readonly spots: readonly SpotCard[];
+  /** Model tokens the city's research spent; absent on research saved before 1.2014. */
+  readonly usage?: { readonly inputTokens: number; readonly outputTokens: number };
 };

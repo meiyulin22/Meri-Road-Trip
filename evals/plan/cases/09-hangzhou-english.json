@@ -1,0 +1,36 @@
+{
+  "id": "09-hangzhou-english",
+  "title": "Hangzhou 2 days, English, West Lake named",
+  "covers": "英文输出，地名保持中文",
+  "areas": [
+    {
+      "province": "浙江省",
+      "cities": [
+        {
+          "city": "杭州市",
+          "spots": [
+            "西湖"
+          ]
+        }
+      ]
+    }
+  ],
+  "days": 2,
+  "startDate": "2026-12-12",
+  "locale": "en",
+  "preferences": [
+    {
+      "kind": "pace",
+      "label": "Relaxed pace",
+      "quote": "I'd like a relaxed pace"
+    }
+  ],
+  "expect": {
+    "mode": "full",
+    "scheduled": [
+      "西湖"
+    ],
+    "englishText": true,
+    "noEmptyDays": true
+  }
+}

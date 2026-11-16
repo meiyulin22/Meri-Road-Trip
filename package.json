@@ -7,7 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "test": "tsx --test \"src/**/*.test.ts\" \"src/**/*.test.tsx\"",
+    "test": "tsx --test \"src/**/*.test.ts\" \"src/**/*.test.tsx\" \"scripts/**/*.test.ts\"",
     "typecheck": "tsc --noEmit",
     "db:local": "powershell -ExecutionPolicy Bypass -File scripts/db-local.ps1",
     "db:migrate": "drizzle-kit migrate"

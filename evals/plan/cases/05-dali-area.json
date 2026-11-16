@@ -1,0 +1,28 @@
+{
+  "id": "05-dali-area",
+  "title": "大理州 3 天，点名大理市",
+  "covers": "区县名当重点区域，不当作一站（1.2012）",
+  "areas": [
+    {
+      "province": "云南省",
+      "cities": [
+        {
+          "city": "大理白族自治州",
+          "spots": [
+            "大理市"
+          ]
+        }
+      ]
+    }
+  ],
+  "days": 3,
+  "startDate": "2026-12-14",
+  "expect": {
+    "mode": "full",
+    "keepsAllCities": true,
+    "notScheduled": [
+      "大理市"
+    ],
+    "noEmptyDays": true
+  }
+}

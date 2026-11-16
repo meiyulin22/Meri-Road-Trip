@@ -1,0 +1,45 @@
+{
+  "id": "04-three-cities-preferences",
+  "title": "大理 + 丽江 + 迪庆 4 天，带兴趣和节奏偏好",
+  "covers": "偏好够时不提问，三座城都保留（1.2012）",
+  "areas": [
+    {
+      "province": "云南省",
+      "cities": [
+        {
+          "city": "大理白族自治州",
+          "spots": []
+        },
+        {
+          "city": "丽江市",
+          "spots": []
+        },
+        {
+          "city": "迪庆藏族自治州",
+          "spots": []
+        }
+      ]
+    }
+  ],
+  "days": 4,
+  "startDate": "2026-12-14",
+  "preferences": [
+    {
+      "kind": "interests",
+      "label": "雪山和寺庙",
+      "quote": "最想看雪山和藏传寺庙"
+    },
+    {
+      "kind": "pace",
+      "label": "节奏紧凑",
+      "quote": "可以走得紧凑一点，多看几个地方"
+    }
+  ],
+  "repeat": 3,
+  "expect": {
+    "mode": "full",
+    "keepsAllCities": true,
+    "asks": false,
+    "noEmptyDays": true
+  }
+}

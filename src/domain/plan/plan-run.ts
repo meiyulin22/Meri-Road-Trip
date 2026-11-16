@@ -11,7 +11,7 @@ import { planRunErrorCodes, type PlanRunErrorCode } from "./plan-progress";
 export const planRunStatuses = ["running", "suspended", "succeeded", "failed", "interrupted"] as const;
 export type PlanRunStatus = (typeof planRunStatuses)[number];
 
-/** What one run spent, for the run record and later evaluation. Research model tokens are not counted yet. */
+/** What one run spent, for the run record and evaluation: model tokens of every stage, research included (1.2014). */
 export type PlanRunUsage = {
   readonly inputTokens: number;
   readonly outputTokens: number;

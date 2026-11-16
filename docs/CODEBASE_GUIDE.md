@@ -28,6 +28,7 @@
 | `drizzle/` | 按顺序执行的数据库迁移 SQL 及生成元数据 | 基础设施：数据库演进 |
 | `drizzle/meta/` | 迁移 journal 与历史 schema snapshot | Drizzle 工具元数据 |
 | `scripts/` | 人工运行的真实提供方/模型验证工具 | 开发工具，不是 Web API |
+| `evals/plan/` | Generate plan 评测集：用例 JSON（`cases/`）和每次批量运行的结果（`results/`） | 评测数据，不参与运行 |
 | 根目录配置文件 | npm、TypeScript、ESLint、Next.js、Drizzle 配置与 AI 入口 | 工程配置及开发约定 |
 
 ### 2.2 `src/` 内的分层
@@ -149,7 +150,7 @@ LLM 解释自然语言并提出受限 JSON；应用校验、决定是否执行�
 | 推荐生成与搜索降级 | recommendation context/generator/prompt/workflow/use case、Discovery Search/Bocha | 第 4.1 节 |
 | 日期/交通/出发地直接编辑 | brief panel、location editor/model、trip-state persistence model、state/suggestions routes | 第 5.1 节 |
 | Generate plan 交接 | planning-readiness、planning-handoff route/model、generate-plan action、真实计划页 | 第 5.4 节 |
-| Agent、工具、Planner | `src/agents/README.md`（先读）、`docs/agent-planner/README.md`（规划决定）、`src/agents/` 源码与测试、`src/agents/workflows/plan-generation.ts`、`src/capabilities/planning/plan-run-service.ts`、`scripts/verify-agent-tools.ts`、`scripts/verify-plan-research.ts`、`scripts/verify-plan-draft.ts` | 调研和整个工作流都可用脚本独立验证；计划页生成、进度事件和计划版本见 USER_FLOW 第 5.4 节 |
+| Agent、工具、Planner | `src/agents/README.md`（先读）、`docs/agent-planner/README.md`（规划决定）、`src/agents/` 源码与测试、`src/agents/workflows/plan-generation.ts`、`src/capabilities/planning/plan-run-service.ts`、`scripts/verify-agent-tools.ts`、`scripts/verify-plan-research.ts`、`scripts/verify-plan-draft.ts`、`scripts/eval-plan.ts`（评测集） | 调研和整个工作流都可用脚本独立验证，评测集批量跑固定用例；计划页生成、进度事件和计划版本见 USER_FLOW 第 5.4 节 |
 | 保存、并发、列表或删除 | Journey/Trip services、repository 接口、Postgres 实现、schema、my-journeys 和相关页面 | 第 1.1、2.3、7 节 |
 | 视觉或动画 | 对应 TSX/CSS、现有 UI 组件及引用的 public 资源 | 涉及操作变化时同步相应业务章节 |
 
@@ -178,7 +179,7 @@ LLM 解释自然语言并提出受限 JSON；应用校验、决定是否执行�
 | [next.config.ts](../next.config.ts) | 工程配置 | Next.js 配置入口：允许 next/image 从照片提供方的白名单主机取图；开发模式下 `images.dangerouslyAllowLocalIP`，因为本机 Mihomo TUN 的 fake-IP（198.18.x.x）会被优化器当内网地址拒绝，远端照片全部 400。 |
 | [.gitattributes](../.gitattributes) | 工程配置 | `* text=auto eol=lf`：所有文本文件在任何平台上都按 LF 检出（图片等二进制按 binary 处理）。没有它，Windows 上 `core.autocrlf=true` 会把快照转成 CRLF，中文 prompt 锁定测试因行尾不同而失败（2026-10-23）。 |
 | [package-lock.json](../package-lock.json) | 工程配置 | 锁定 npm 依赖解析结果，保证安装版本可重现。 |
-| [package.json](../package.json) | 工程配置 | 项目信息、依赖与 dev/build/start/lint/test/typecheck 命令。 |
+| [package.json](../package.json) | 工程配置 | 项目信息、依赖与 dev/build/start/lint/test/typecheck 命令；`test` 跑 `src/` 和 `scripts/` 下的测试。 |
 | [tsconfig.json](../tsconfig.json) | 工程配置 | TypeScript 编译/检查、路径别名及 Next.js 类型配置。 |
 
 ### 6.2 文档
@@ -730,6 +731,11 @@ Generate plan 背后的计划页先用示例数据做出完整页面（设计决
 | [scripts/verify-agent-tools.ts](../scripts/verify-agent-tools.ts) | 开发验证工具 | 用真模型和真提供方跑试验 Agent 的 4 个问题，打印每一步的工具调用与结果、耗时、token 用量和回复；第 4 个验证"工具 + 结构化输出"必须用单独的结构化步骤，需要模型、高德和 Bocha 配置。 |
 | [scripts/verify-plan-research.ts](../scripts/verify-plan-research.ts) | 开发验证工具 | 读入 PlanHandoff，用 Kimi 模型和联网搜索 Pro 跑首轮调研，输出各城市状态和景点卡 JSON。 |
 | [scripts/verify-plan-draft.ts](../scripts/verify-plan-draft.ts) | 开发验证工具 | 读入 PlanHandoff 和可选的调研结果 JSON（有则代替调研），用真实提供方跑一次 plan-generation 工作流（运行、版本和 Mastra 快照都在内存），每个进度事件到达时打印一行 JSON；遇到提问自动选第一个选项并恢复；最后输出运行记录和计划。 |
+| [scripts/eval-plan.ts](../scripts/eval-plan.ts) | 评测工具 | 1.2014：读 `evals/plan/cases/` 的用例（可按 ID 前缀筛选，`--repeat N` 覆盖次数，`--label` 命名结果文件），按计划页的方式逐个跑真实 plan-generation 工作流（内存仓库和快照），提问按用例指定的选项回答；每次运行记下指标和断言结果，写入 `evals/plan/results/<日期>-<label>.json`。某次运行天地图定位停下（`map.checked` 为 stopped）或 Kimi 不可达就终止整批，不重试。 |
+| [scripts/eval-plan-score.ts](../scripts/eval-plan-score.ts) | 评测工具 | 用例格式（`evalCaseSchema`）、从用例生成 PlanHandoff、从事件和计划算指标（时长、各阶段耗时、token、调研/验证搜索、天地图查询、重试、覆盖、检查结果、预约、冲突、修复轮数），以及代码判定的断言；纯函数，无 IO。 |
+| [scripts/eval-plan-score.test.ts](../scripts/eval-plan-score.test.ts) | 测试 | 生成 handoff 的日期推算、指标来自事件和计划、周一闭馆/缺预约/空天各自判不通过、没有计划时给出原因。 |
+| [evals/plan/cases/](../evals/plan/cases/) | 评测用例 | 10 个典型旅程：单城、两城、三城天数不够、三城有偏好、点名区县、北京周一故宫、无天数预览、哈尔滨冬季、英文界面、跨省加步行上限；每个写明覆盖什么和断言。 |
+| [evals/plan/results/](../evals/plan/results/) | 评测结果 | 每次批量运行一个 JSON：提交、日期、每次运行的指标、断言、提问和每天的景点，用来做版本之间的对比。 |
 | [scripts/verify-workspace-location-tool.ts](../scripts/verify-workspace-location-tool.ts) | 开发验证工具 | 人工调用真实 Workspace 解释器，检查地点意图结构；文件名保留旧 tool 命名，当前不是开放式工具 Agent。 |
 
 ### 6.16 网站静态资源

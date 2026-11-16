@@ -1,0 +1,35 @@
+{
+  "id": "06-beijing-monday",
+  "title": "北京 3 天，周一出发，点名故宫",
+  "covers": "周一闭馆：修复循环第一次真实运行，故宫不能排在周一",
+  "areas": [
+    {
+      "province": "北京市",
+      "cities": [
+        {
+          "city": "北京市",
+          "spots": [
+            "故宫"
+          ]
+        }
+      ]
+    }
+  ],
+  "days": 3,
+  "startDate": "2026-12-07",
+  "expect": {
+    "mode": "full",
+    "scheduled": [
+      "故宫"
+    ],
+    "notOnWeekdays": [
+      {
+        "spot": "故宫",
+        "weekdays": [
+          1
+        ]
+      }
+    ],
+    "noEmptyDays": true
+  }
+}

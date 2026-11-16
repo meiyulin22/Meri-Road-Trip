@@ -538,7 +538,9 @@ export function createPlanGenerationWorkflow(deps: PlanGenerationDependencies) {
         versionId: saved.id,
         version: saved.version,
         usage: {
-          ...usage,
+          // Research ran before the usage total was carried, so its tokens are added here.
+          inputTokens: usage.inputTokens + cities.reduce((sum, city) => sum + (city.usage?.inputTokens ?? 0), 0),
+          outputTokens: usage.outputTokens + cities.reduce((sum, city) => sum + (city.usage?.outputTokens ?? 0), 0),
           searches: cities.reduce((sum, { searchCalls }) => sum + searchCalls, 0) + inputData.verify.searches,
           mapLookups: lookups,
         },

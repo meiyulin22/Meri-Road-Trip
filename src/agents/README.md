@@ -20,7 +20,8 @@ shapes the Planner — business, page, run, tools, memory — is kept in Chinese
 | Implemented (1.2010) | The plan-generation Mastra workflow, its live progress over Server-Sent Events, and run records, progress events and plan versions in Postgres (section 3, "The plan workflow") |
 | Implemented (1.2011) | The Plan Agent may pause the run to ask one question; the answer becomes a preference and the run resumes from its snapshot in Postgres, also after a restart ("Asking the traveller") |
 | Implemented (1.2013) | The validation stage: the second round checks opening, closures and booking for the trip's dates; code moves a closed stop, the Plan Agent re-plans what code cannot fix, in a Mastra `dountil` loop ("The validation stage") |
-| Planned | Weather and route checkers in the validation stage, a reviewer agent, tracing storage, evaluation |
+| Implemented (1.2014) | The evaluation set: ten sample trips run through the real workflow, with numbers and code-judged expectations saved per version ("Evaluation") |
+| Planned | Weather and route checkers in the validation stage, a reviewer agent, tracing storage |
 
 ## 1. Why an agent here
 
@@ -256,8 +257,8 @@ resumes from its snapshot.
 development machine: 40 s and 43 s end to end. Research of both cities in parallel took
 25–28 s of that, the route 5–6 s, the days 8–9 s (two calls), and saving the version about
 1 s. The first run made one Tianditu lookup (it succeeded; the rest were cached), the second
-none. About 2,000 input and 450 output tokens for route and days; research tokens are not
-counted yet.
+none. About 2,000 input and 450 output tokens for route and days; research tokens were not
+counted then (they are since 1.2014, and are most of a run's tokens).
 
 ### Asking the traveller (1.2011)
 
@@ -371,6 +372,60 @@ The same live check found the day-planning call failing when Kimi wrote a time a
 string: that answer shape is now read, and a malformed answer gets the second attempt instead of
 failing the run.
 
+### Evaluation (1.2014)
+
+[scripts/eval-plan.ts](../../scripts/eval-plan.ts) runs the cases in
+[evals/plan/cases/](../../evals/plan/cases/) through the real workflow, one at a time, as the plan
+page would, but in memory. A case is a trip written short (cities and named spots, days, start date,
+language, preferences), which option answers a question, how many runs it gets, and what the plan
+must show. [eval-plan-score.ts](../../scripts/eval-plan-score.ts) builds the handoff, takes every
+number from the run's events and saved plan, and judges the expectations in code: mode, every city
+kept, a question asked (with options that name the city they leave out), spots scheduled or not, a
+booking rule found, a spot kept off given weekdays, stops a day, no empty day, English text. No
+model grades anything yet.
+
+Each run records its time and stage times, tokens (research included: `researchCity` now reports
+its three model calls), research and verification searches, Tianditu lookups, route and day
+retries, the route's source, the question, cities routed and left out, cards, requested spots
+scheduled, stops and empty days, the verdicts and booking rules, conflicts, unverified facts and
+repair rounds, plus each day's stops by name. A results file per evaluation goes to
+[evals/plan/results/](../../evals/plan/results/), named by date and label, so versions can be
+compared. A run whose map check stopped ends the whole evaluation: Tianditu is never retried.
+
+```bash
+node --env-file=.env.local --import tsx scripts/eval-plan.ts --label 1.2014 [case-id-prefix ...] [--repeat N]
+```
+
+**First evaluation, 2026-11-16** (`2026-11-16-1.2014.json`, 14 runs, cases 3 and 4 three times
+each), from a development machine:
+
+| Measure | Result |
+| --- | --- |
+| Runs finished | 14 of 14 |
+| Time | 35–86 s, median 62 s; research 28.5 s and verification 15.2 s are the median's largest stages |
+| Tokens | input 9.9k–26.3k (median 22.6k), output 0.5k–2.5k (median 1.8k) |
+| Searches | 91 research and 88 verification in all |
+| Tianditu | 34 lookups for the five new cities, no failure |
+| Expectations | 51 of 57 passed |
+| Verdicts on 80 stops | 36 open, 3 uncertain, **41 unchecked**, 0 closed at the end; 17 booking rules |
+| Stops a day | 80 on 42 days, about 1.9, under the limit of 4 |
+| Retries | the route needed its second attempt 3 times, a day 4 times; no fallback route |
+
+What it found:
+
+1. **迪庆 never gets a card** (case 4, 3 of 3; case 3 too). Research nominated 梅里雪山, 松赞林寺,
+   普达措 and 独克宗古城 and found sources, but the extraction gave `cityName: 香格里拉` for every
+   spot, even where the quote reads 迪庆藏族自治州香格里拉市. Code accepts only names of the assigned
+   市 itself, so the city came back unavailable and the route, rightly with no cards, left it out
+   of a four-day trip. Some quotes were also in traditional characters (松贊林寺), which the name
+   check does not match.
+2. **The question is not certain** (case 3): two days for three cities asked 2 times in 3.
+3. **Half the stops stay unchecked**: the fixed verification search found nothing usable for 41
+   of 80 stops (8 of 9 in case 5).
+4. **Days are light**: about two stops a day.
+
+The 北京 Monday case passed: 故宫 was moved off Monday in one repair round, the first live repair.
+
 Run the workflow from the command line, printing each event as it arrives:
 
 ```bash
@@ -464,13 +519,12 @@ Research reuses valid spot facts and stops when it has enough evidence and candi
 for the days being planned. Pass compact evidence to the model. Tune the limits
 against measured coverage, feasibility and cost.
 
-## 5. Planned: observability and evaluation
+## 5. Observability and evaluation
 
-Runs will be traced in the OpenTelemetry GenAI conventions and stored in Postgres, so
-an evaluation can read any run without depending on Mastra. The evaluation runs a set
-of sample Journeys and reports cost, latency (p50/p95), tool calls, completion rate
-and quality scores (destination scope, coverage of selected spots, factual evidence,
-and reported unknowns).
+The evaluation set runs today (1.2014, "Evaluation" above): sample trips, their cost, time,
+searches, coverage, evidence and code-judged expectations. Planned: runs traced in the
+OpenTelemetry GenAI conventions and stored in Postgres, so an evaluation can read any run
+without depending on Mastra, and model-graded quality scores for what has no rule.
 
 ## 6. Running and deploying
 

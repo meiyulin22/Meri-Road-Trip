@@ -201,8 +201,9 @@ async function nominateSpots(
   target: number,
   model: ReturnType<ResearchDependencies["model"]>,
   signal: AbortSignal,
+  countUsage: (usage: { inputTokens?: number; outputTokens?: number }) => void,
 ): Promise<string[]> {
-  const { output } = await generateText({
+  const { output, usage } = await generateText({
     model,
     abortSignal: signal,
     maxRetries: 0,
@@ -223,6 +224,7 @@ async function nominateSpots(
       preferences: handoff.preferences.slice(0, 10).map(({ quote }) => quote.slice(0, 160)),
     }),
   });
+  countUsage(usage);
   const requested = new Set(city.requested.map(normalizeRecommendationName));
   const names = new Map<string, string>();
   for (const name of output.spots) {
@@ -248,6 +250,11 @@ export async function researchCity(
   let searchCalls = 0;
   let searchFailed = false;
   const failures: string[] = [];
+  const usage = { inputTokens: 0, outputTokens: 0 };
+  const countUsage = (call: { inputTokens?: number; outputTokens?: number } | undefined) => {
+    usage.inputTokens += call?.inputTokens ?? 0;
+    usage.outputTokens += call?.outputTokens ?? 0;
+  };
 
   async function searchCity(keywords: string) {
     if (signal.aborted || searchCalls >= maxSearchesPerCity) return [];
@@ -284,7 +291,7 @@ export async function researchCity(
   try {
     model = deps.model();
     onProgress({ kind: "nominating", city: city.city });
-    nominated = await nominateSpots(city, areas, handoff, target, model, signal);
+    nominated = await nominateSpots(city, areas, handoff, target, model, signal, countUsage);
   } catch (error) {
     // Without nominations the requested spots are still searched, or the city as a whole.
     failures.push(`nominate:${error instanceof Error ? error.name : "unknown"}`);
@@ -352,11 +359,12 @@ export async function researchCity(
         });
         onProgress({ kind: "reviewing", city: city.city, sources: sources.length });
         try {
-          await agent.generate(JSON.stringify({ scope, sources }), {
+          const review = await agent.generate(JSON.stringify({ scope, sources }), {
             abortSignal: signal,
             maxSteps: 1,
             modelSettings: { maxOutputTokens: 200 },
           });
+          countUsage(review.totalUsage);
         } catch (error) {
           searchFailed = true;
           failures.push(`follow_up:${error instanceof Error ? error.name : "unknown"}`);
@@ -365,7 +373,7 @@ export async function researchCity(
 
       if (sources.length > 0 && !signal.aborted) {
         onProgress({ kind: "extracting", city: city.city, sources: sources.length });
-        const { output } = await generateText({
+        const { output, usage: extractUsage } = await generateText({
           model,
           abortSignal: signal,
           maxRetries: 0,
@@ -386,6 +394,7 @@ export async function researchCity(
           ].join(" "),
           prompt: JSON.stringify({ scope, preferences, sources }),
         });
+        countUsage(extractUsage);
         proposals = checkedProposals(output);
       }
     } catch (error) {
@@ -403,7 +412,7 @@ export async function researchCity(
     logger.warn({ city: city.city, status, searchCalls, sources: sources.length, nominated: nominated.length,
       proposals: proposals.length, timedOut: signal.aborted, failures }, "City research incomplete");
   }
-  return { province: city.province, city: city.city, status, searchCalls, spots };
+  return { province: city.province, city: city.city, status, searchCalls, spots, usage };
 }
 
 /**

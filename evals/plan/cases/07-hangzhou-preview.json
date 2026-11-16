@@ -1,0 +1,23 @@
+{
+  "id": "07-hangzhou-preview",
+  "title": "杭州，没有确认天数",
+  "covers": "preview 模式只生成第一天",
+  "areas": [
+    {
+      "province": "浙江省",
+      "cities": [
+        {
+          "city": "杭州市",
+          "spots": []
+        }
+      ]
+    }
+  ],
+  "days": null,
+  "startDate": null,
+  "expect": {
+    "mode": "preview",
+    "asks": false,
+    "noEmptyDays": true
+  }
+}

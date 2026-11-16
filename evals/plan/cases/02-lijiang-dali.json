@@ -1,0 +1,40 @@
+{
+  "id": "02-lijiang-dali",
+  "title": "丽江 + 大理 5 天，带偏好",
+  "covers": "两城路线基线（1.2010 实测 40–43 秒）",
+  "areas": [
+    {
+      "province": "云南省",
+      "cities": [
+        {
+          "city": "丽江市",
+          "spots": []
+        },
+        {
+          "city": "大理白族自治州",
+          "spots": []
+        }
+      ]
+    }
+  ],
+  "days": 5,
+  "startDate": "2026-12-14",
+  "preferences": [
+    {
+      "kind": "pace",
+      "label": "慢节奏",
+      "quote": "不想太赶，每天轻松一点"
+    },
+    {
+      "kind": "interests",
+      "label": "古镇和湖景",
+      "quote": "想看古镇和湖"
+    }
+  ],
+  "expect": {
+    "mode": "full",
+    "keepsAllCities": true,
+    "asks": false,
+    "noEmptyDays": true
+  }
+}
