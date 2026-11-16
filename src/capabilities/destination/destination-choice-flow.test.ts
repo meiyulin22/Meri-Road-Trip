@@ -3,7 +3,7 @@ import test from "node:test";
 
 import { applyDestinationEdit } from "./apply-destination-edit";
 import { verifyDestinationChoice } from "./verified-destination-choice";
-import { namesSamePlace, picksFromSearch, resolveDestinationPlace } from "./resolve-destination-place";
+import { namesSamePlace, picksFromSearch, resolveDestinationPlace, placeNameStem } from "./resolve-destination-place";
 import { resolveDestinationCandidates } from "@/domain/location/destination-resolution-policy";
 import { destinationPreferenceId } from "@/domain/trip-message/destination-choice-identity";
 
@@ -314,4 +314,14 @@ test("a scenic area that shares its city's name stays a distinct choice under it
   const resolution = await resolveDestinationPlace("黄山", async (expression) =>
     resolveDestinationCandidates(expression, [scenic]));
   assert.equal(resolution.status === "resolved" ? resolution.pick.spot : null, "黄山风景区");
+});
+
+test("placeNameStem is the shortest stem before the administrative suffix, for matching text", () => {
+  assert.equal(placeNameStem("迪庆藏族自治州"), "迪庆");
+  assert.equal(placeNameStem("大理白族自治州"), "大理");
+  // Cut short (版纳傣族 reads as an ethnic group), but every text naming 西双版纳 still contains it.
+  assert.equal(placeNameStem("西双版纳傣族自治州"), "西双");
+  assert.equal(placeNameStem("丽江市"), "丽江");
+  assert.equal(placeNameStem("北京市"), "北京");
+  assert.equal(placeNameStem("香格里拉"), "香格里拉");
 });

@@ -248,3 +248,49 @@ test("an area the traveller named, such as 大理市, steers research instead of
   assert.deepEqual(tasks.map(({ city, requested, areas }) => [city, requested, areas]),
     [["大理白族自治州", ["崇圣寺三塔"], ["大理市"]]]);
 });
+
+test("a card whose quote names the prefecture stays, though the model wrote the county as its city (迪庆, 1.2015)", async () => {
+  // From the live evaluation of 2026-11-16: every 迪庆 card came back with cityName 香格里拉 and was dropped.
+  const diqing: PlanHandoff = { ...handoff, tripState: { ...handoff.tripState, destination: {
+    state: "known", source: "user", areas: [{ province: "云南省", places: [{ name: "迪庆藏族自治州", spots: [] }] }],
+  } } };
+  const unknown = { opening: null, reservation: null, setting: null, walking: null, suggestedDuration: null };
+  const location = (sourceId: number, quote: string) => ({ sourceId, quote, cityName: "香格里拉" });
+  const model = createMoonshotChatModel({
+    apiKey: "test",
+    baseUrl: "https://model.test/v1",
+    model: "test",
+    fetch: async (_url, init) => {
+      const request = JSON.parse(String(init?.body)) as ChatRequest;
+      if (request.tools) return chatResponse(request, { content: "enough" });
+      if (schemaName(request) === "spot_nominations") {
+        return chatResponse(request, { content: JSON.stringify({ spots: ["独克宗古城", "松赞林寺", "梅里雪山"] }) });
+      }
+      return chatResponse(request, { content: JSON.stringify({ spots: [
+        { name: "独克宗古城", location: location(1, "独克宗古城位于云南省迪庆藏族自治州香格里拉市"), ...unknown },
+        { name: "松赞林寺", location: location(2, "松赞林寺位于迪庆州香格里拉市北郊"), ...unknown },
+        // The quote names no city: the model's 香格里拉 alone is not enough.
+        { name: "梅里雪山", location: location(3, "梅里雪山,并在附近饭店办理入住"), ...unknown },
+      ] }) });
+    },
+  });
+  const result = await runFirstRoundResearch(diqing, {
+    model: () => model,
+    async search() {
+      return [
+        { source: "example", title: "香格里拉市独克宗古城", snippet: "独克宗古城位于云南省迪庆藏族自治州香格里拉市，是茶马古道上的重镇",
+          url: "https://example.com/dukezong" },
+        { source: "example", title: "迪庆必去八大景点", snippet: "松赞林寺位于迪庆州香格里拉市北郊，被誉为小布达拉宫",
+          url: "https://example.com/songzanlin" },
+        { source: "example", title: "梅里雪山风景区", snippet: "梅里雪山,并在附近饭店办理入住", url: "https://example.com/meili" },
+      ];
+    },
+  });
+
+  const [city] = result.cities;
+  assert.equal(city.status, "ready");
+  assert.deepEqual(city.spots.map(({ name, location: evidence }) => [name, evidence?.url]), [
+    ["独克宗古城", "https://example.com/dukezong"],
+    ["松赞林寺", "https://example.com/songzanlin"],
+  ]);
+});

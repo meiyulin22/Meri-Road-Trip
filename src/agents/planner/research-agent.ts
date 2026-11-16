@@ -3,7 +3,7 @@ import { createTool } from "@mastra/core/tools";
 import { generateText, Output } from "ai";
 import { z } from "zod";
 
-import { namesSamePlace } from "@/capabilities/destination/resolve-destination-place";
+import { namesSamePlace, placeNameStem } from "@/capabilities/destination/resolve-destination-place";
 import { normalizeRecommendationName } from "@/domain/location/recommendation-identity";
 import type { PlanHandoff } from "@/domain/plan/plan-handoff";
 import type { PlanActivity } from "@/domain/plan/plan-progress";
@@ -156,12 +156,17 @@ function buildCards(
     const locationSource = sources[proposal.location.sourceId - 1];
     const cityName = proposal.location.cityName;
     if (previous?.location || !location || !normalizeRecommendationName(location.quote).includes(key)) continue;
-    // Sources often write the province and city together, for example 云南省大理市.
+    // Either the quoted sentence itself names the city (迪庆藏族自治州 or 迪庆), whatever the
+    // model wrote as cityName: it often writes the county instead, such as 香格里拉 (1.2015).
+    const quoteNamesCity = location.quote.includes(city.city) || location.quote.includes(placeNameStem(city.city));
+    // Or the model's cityName is this city and appears in the same source. Sources often write
+    // the province and city together, for example 云南省大理市.
     const shortCityName = cityName.startsWith(city.province) && cityName.length > city.province.length
       ? cityName.slice(city.province.length)
       : cityName;
-    if (!namesSamePlace(city.city, shortCityName.replace(/市$/u, "")) ||
-      (!locationSource.title.includes(cityName) && !locationSource.snippet.includes(cityName))) continue;
+    const cityNameMatches = namesSamePlace(city.city, shortCityName.replace(/市$/u, "")) &&
+      (locationSource.title.includes(cityName) || locationSource.snippet.includes(cityName));
+    if (!quoteNamesCity && !cityNameMatches) continue;
 
     function fact(reference: Citation | null): SpotEvidence | null {
       const evidence = readEvidence(sources, reference);
@@ -386,6 +391,7 @@ export async function researchCity(
             "Prioritize the requested spots, then the nominated spots. Copy the input name when a source supports it and prefer a title that explicitly names that spot and city.",
             "Keep the cited place distinct from similarly named trails, entrances, or transport. Include other city attractions when their evidence supports them.",
             "Use exact contiguous quotes from one source title or snippet, each as short as still says the fact, under 60 characters. The location quote must include the spot name, and cityName must appear verbatim in that same source.",
+            "For the location quote, choose the sentence that says where the spot is and names both the spot and the assigned city or prefecture, for example 独克宗古城位于云南省迪庆藏族自治州香格里拉市. Leave out a spot whose sources only mention it in passing, such as ads, hotels or a route through it.",
             "Attach a quote to a fact only if it supports that fact for this attraction and its title or quote names the attraction. Use null for unknown or conflicting details.",
             "Preserve qualifiers and dates. Treat seasonal and temporary notices as notices, not proof the spot will open on the trip date.",
             `Match preferences when selecting alternatives. Return short names in Chinese and at most ${Math.min(maxCardsPerCity, target + city.requested.length)} cards.`,

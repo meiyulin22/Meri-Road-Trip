@@ -117,7 +117,10 @@ names per search and up to four searches in parallel. A Mastra Agent then
 reviews the results and can make one follow-up search. A separate structured
 model call extracts candidates. Code matches citation IDs and exact quotes
 against that city's search results before building spot cards, so a nominated
-name without a quoted source never becomes a card. Unresolved user choices stay
+name without a quoted source never becomes a card. A card is in the city when its
+location quote names the city, in full or by its stem (迪庆 for 迪庆藏族自治州), or
+else when the model's `cityName` is the city and appears in the same source. The
+model picks the sentence; code only checks the strings (1.2015). Unresolved user choices stay
 in the output, and unknown fields are null. Without nominations, code searches
 the named attractions, or the city as a whole when there are none.
 

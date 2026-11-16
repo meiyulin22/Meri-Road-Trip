@@ -166,6 +166,21 @@ const administrativeSuffix = /^(?:[\p{Script=Han}]{1,3}?族)*(?:特别行政区|
 const scenicSuffix = /^(?:风景名胜区|风景区|景区|旅游区|国家公园|国家级自然保护区|自然保护区)$/u;
 
 /**
+ * The shortest stem of a place's name before an administrative suffix, for checking whether a
+ * text names the place: 迪庆藏族自治州 → 迪庆, 大理白族自治州 → 大理, 丽江市 → 丽江. It can cut a
+ * name short where the suffix rule reads part of it as an ethnic group (西双版纳傣族自治州 → 西双);
+ * a text naming the place still contains the stem, so use it only for matching, never to show.
+ * At least two characters stay; a name with no such suffix comes back whole.
+ */
+export function placeNameStem(name: string): string {
+  const full = normalize(name);
+  for (let length = 2; length < full.length; length += 1) {
+    if (administrativeSuffix.test(full.slice(length))) return full.slice(0, length);
+  }
+  return full;
+}
+
+/**
  * Whether a provider name is the user's expression and nothing more than a suffix
  * that does not change which place it is — or, when the record's own location is
  * given, its own 市 or 区县 in front (杭州西湖风景名胜区 for 西湖), which only says where
