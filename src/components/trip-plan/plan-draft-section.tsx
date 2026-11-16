@@ -31,6 +31,7 @@ import {
 } from "./plan-draft-model";
 import { applyProgress, emptyProgress, pendingDays, type ProgressView } from "./plan-progress-view";
 import { PlanQuestionCard, PlanRunActivity, type QuestionAnswer } from "./plan-run-activity";
+import { PlanTiandituMap } from "./plan-tianditu-map";
 import draftStyles from "./plan-draft.module.css";
 import styles from "./trip-plan.module.css";
 
@@ -414,6 +415,8 @@ function DraftDays({ response, text, locale }: {
           </div>
         </div>
       ) : null}
+
+      <PlanTiandituMap plan={response} locale={locale} selectedDay={openDay} onSelectDay={setOpenDay} />
 
       <div className={draftStyles.days}>
         {draft.days.map((day, index) => (

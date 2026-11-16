@@ -14,7 +14,12 @@ export const spotEvidenceSchema: z.ZodType<SpotEvidence> = z.strictObject({
 });
 
 const spotMapCheckSchema: z.ZodType<SpotMapCheck> = z.discriminatedUnion("status", [
-  z.strictObject({ status: z.literal("located"), district: z.string().min(1).nullable() }),
+  z.strictObject({
+    status: z.literal("located"),
+    district: z.string().min(1).nullable(),
+    // Plans saved before 1.2100 have none.
+    point: z.strictObject({ longitude: z.number().min(-180).max(180), latitude: z.number().min(-90).max(90) }).nullable().default(null),
+  }),
   z.strictObject({ status: z.literal("not_located") }),
   z.strictObject({ status: z.literal("unchecked") }),
 ]);

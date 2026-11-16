@@ -27,6 +27,31 @@
 
 .days { display: grid; gap: 10px; }
 
+/* The plan's stops on a Tianditu map (1.2100), above the day cards. */
+.mapCard { display: grid; gap: 10px; padding: 14px; border: 1px solid var(--line); border-radius: 18px; background: #fffdf8; }
+.mapHeader { display: flex; align-items: center; justify-content: space-between; gap: 10px; min-width: 0; }
+.mapHeader h3 { font-size: 14px; font-weight: 650; }
+.mapTabs { display: flex; flex-wrap: wrap; gap: 3px; padding: 3px; border-radius: 10px; background: rgba(23, 53, 44, .06); }
+.mapTabs button {
+  min-width: 30px;
+  padding: 4px 9px;
+  border: 0;
+  border-radius: 8px;
+  color: var(--muted);
+  background: transparent;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.mapTabs button[aria-selected="true"] { color: var(--ink); background: #fff; box-shadow: 0 1px 2px rgba(23, 53, 44, .12); }
+.mapTabs button:focus-visible { outline: 2px solid var(--green); outline-offset: 1px; }
+.mapCanvas { position: relative; height: 380px; border-radius: 12px; overflow: hidden; background: #eaf0e1; }
+.mapNote { color: var(--muted); font-size: 12px; }
+@media (max-width: 720px) {
+  .mapCanvas { height: 280px; }
+}
+
 /* The route: cities in order, each with its days, like a line on a ticket. */
 .route {
   display: flex;

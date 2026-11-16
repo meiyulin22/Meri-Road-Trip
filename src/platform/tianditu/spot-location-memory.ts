@@ -4,11 +4,18 @@ import { dirname, join } from "node:path";
 /**
  * What Tianditu said about one spot inside one 市, kept between server restarts so the
  * same spot is not looked up again for every plan. Only the judgement is kept, not the
- * page: whether the spot was found there, its district and the name Tianditu uses.
- * A failed lookup is never stored.
+ * page: whether the spot was found there, its district, the name Tianditu uses and, since
+ * 1.2100, its coordinates for the plan page's map. A failed lookup is never stored.
  */
 export type RememberedSpotLocation =
-  | { readonly status: "located"; readonly district: string | null; readonly mapName: string }
+  | {
+    readonly status: "located";
+    readonly district: string | null;
+    readonly mapName: string;
+    /** CGCS2000, as Tianditu gives it; the map draws in the same system. */
+    readonly longitude: number;
+    readonly latitude: number;
+  }
   | { readonly status: "not_located" };
 
 type Entry = RememberedSpotLocation & { readonly at: number };
@@ -28,8 +35,10 @@ function parseEntry(value: unknown): Entry | null {
   if (!isRecord(value) || typeof value.at !== "number") return null;
   if (value.status === "not_located") return { status: "not_located", at: value.at };
   if (value.status !== "located" || typeof value.mapName !== "string") return null;
+  // Entries saved before 1.2100 have no coordinates: forgotten, so the spot is looked up once more.
+  if (typeof value.longitude !== "number" || typeof value.latitude !== "number") return null;
   const district = typeof value.district === "string" ? value.district : null;
-  return { status: "located", district, mapName: value.mapName, at: value.at };
+  return { status: "located", district, mapName: value.mapName, longitude: value.longitude, latitude: value.latitude, at: value.at };
 }
 
 /** A file that cannot be read or parsed is an empty cache, never an error the caller sees. */
@@ -68,7 +77,7 @@ export class SpotLocationMemory {
       return null;
     }
     return hit.status === "located"
-      ? { status: "located", district: hit.district, mapName: hit.mapName }
+      ? { status: "located", district: hit.district, mapName: hit.mapName, longitude: hit.longitude, latitude: hit.latitude }
       : { status: "not_located" };
   }
 

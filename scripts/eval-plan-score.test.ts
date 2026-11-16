@@ -12,7 +12,7 @@ const booked: SpotAvailability = { checkedAt: "2026-11-16", hours: null, closedW
 
 function spot(name: string, requested = false, availability?: SpotAvailability): SpotCard {
   return { id: name, province: "北京市", city: "北京市", name, requested, location: evidence, opening: null, reservation: null,
-    setting: null, walking: null, suggestedDuration: null, mapCheck: { status: "located", district: "东城区" },
+    setting: null, walking: null, suggestedDuration: null, mapCheck: { status: "located", district: "东城区", point: null },
     ...(availability ? { availability } : {}) };
 }
 

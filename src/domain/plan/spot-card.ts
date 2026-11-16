@@ -12,7 +12,12 @@ export type SpotEvidence = {
  * or stopped at a failure.
  */
 export type SpotMapCheck =
-  | { readonly status: "located"; readonly district: string | null }
+  | {
+    readonly status: "located";
+    readonly district: string | null;
+    /** Where the map draws it (CGCS2000); null on plans saved before 1.2100. */
+    readonly point: { readonly longitude: number; readonly latitude: number } | null;
+  }
   | { readonly status: "not_located" }
   | { readonly status: "unchecked" };
 

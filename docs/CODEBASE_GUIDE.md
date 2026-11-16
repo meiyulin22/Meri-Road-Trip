@@ -345,7 +345,7 @@ Generate plan 背后的计划页先用示例数据做出完整页面（设计决
 | --- | --- | --- |
 | [src/components/trip-plan/plan-handoff-page.tsx](../src/components/trip-plan/plan-handoff-page.tsx) | 表现层 | 真实计划页，展示快照里的旅程事实，挂「Meri 记得」和行程区块（回答计划的问题后让「Meri 记得」重新读取），没有交接时提示回旅程。 |
 | [src/components/trip-plan/plan-handoff-page.module.css](../src/components/trip-plan/plan-handoff-page.module.css) | 样式 | 真实计划页的事实、偏好和行程区块布局。 |
-| [src/components/trip-plan/plan-draft-section.tsx](../src/components/trip-plan/plan-draft-section.tsx) | 表现层 | 开始或接上计划运行，用 EventSource 跟随进度：活动流、问题卡（回答后从最后一个事件重新连接，并通知刷新「Meri 记得」）、路线条和逐块出现的每日卡片；运行结束后换成保存的版本，显示统计、冲突、按时段分组的每日卡片、当天照片、时间锚点、待核实字段和出处；失败时按错误码说明并可重试；1.2013 起每站显示核实标签（当天开放、部分关闭、需预约、从第 N 天换来）、开放与预约的事实行和「当天关闭」冲突 |
+| [src/components/trip-plan/plan-draft-section.tsx](../src/components/trip-plan/plan-draft-section.tsx) | 表现层 | 开始或接上计划运行，用 EventSource 跟随进度：活动流、问题卡（回答后从最后一个事件重新连接，并通知刷新「Meri 记得」）、路线条和逐块出现的每日卡片；运行结束后换成保存的版本，显示统计、冲突、按时段分组的每日卡片、当天照片、时间锚点、待核实字段和出处；失败时按错误码说明并可重试；1.2013 起每站显示核实标签（当天开放、部分关闭、需预约、从第 N 天换来）、开放与预约的事实行和「当天关闭」冲突；1.2100 起在每天的卡片上面放天地图地图卡片，选中的天和展开的卡片联动。 |
 | [src/components/trip-plan/plan-draft.module.css](../src/components/trip-plan/plan-draft.module.css) | 样式 | 行程草稿的统计胶囊、时段时间轴、锚点、出处展开、提示卡和骨架加载。 |
 | [src/components/trip-plan/plan-memories.tsx](../src/components/trip-plan/plan-memories.tsx) | 表现层 | 「Meri 记得」：交接提取的偏好、用户在计划页添加的偏好和回答计划问题得到的偏好（后者算作已用于本次计划），添加面板复用 PreferenceSheet；新偏好不触发重新规划。 |
 | [src/components/trip-plan/plan-memories.module.css](../src/components/trip-plan/plan-memories.module.css) | 样式 | 偏好卡片、标签和提示。 |
@@ -364,7 +364,10 @@ Generate plan 背后的计划页先用示例数据做出完整页面（设计决
 | [src/components/trip-plan/plan-header.tsx](../src/components/trip-plan/plan-header.tsx) | 表现层 | 顶栏（Meri 标志、回到旅程、"示例数据"标记、语言切换）；标题和一句话总览、一眼概览（天数、城市、路上时长、核实数）、事实条（没填的虚线标出，点一下跳到对应区块；填了的可修改）、记忆标签（自动记下的悬停看原话，手动加的标"你添加的"，可删，末尾"＋ 添加"）、导出菜单（添加到日历、打印 / 存为 PDF，长图分享和离线保存标"即将推出"）。 |
 | [src/components/trip-plan/plan-sections.tsx](../src/components/trip-plan/plan-sections.tsx) | 表现层 | 生成进度（当前步骤、进度条、步骤列表，完成后收成一行运行统计）、规划中的骨架区块、锁住的区块（天数、出发日期、出发地 + 交通方式，各自写明要什么、就地点选）、怎么去（只展开推荐的一班，其余折叠；自驾时只给说明）、核实情况卡。 |
 | [src/components/trip-plan/day-card.tsx](../src/components/trip-plan/day-card.tsx) | 表现层 | 一天的卡片：收起时一行（第几天、日期、城市、标题、天气）；展开时照片、上午/下午天气、时间线（时间、景点、开放时间和核实标记及来源、提示、"我选了 X"的替换候选、两点之间的车程或步行）、可行性一句话、还不知道的事、住哪里和每晚价格；没日期时天气和价格显示锁住的说明；悬停景点会在地图上标亮。1.1001：天气块（预报：上午/下午、逐几小时温度、风、日出日落、因天气这样安排的理由；太远：往年同期加说明），每个景点名旁的导航按钮（选地图 App）。 |
-| [src/components/trip-plan/plan-map.tsx](../src/components/trip-plan/plan-map.tsx) | 表现层 | 示意地图（SVG）：湖、山脊、道路、城镇，当天景点按顺序编号并连线（步行虚线），其他天的点淡显；按天/全程切换，镜头平滑移过去；地名统一中文；正式版换成天地图。 |
+| [src/components/trip-plan/plan-map.tsx](../src/components/trip-plan/plan-map.tsx) | 表现层 | 示意地图（SVG）：湖、山脊、道路、城镇，当天景点按顺序编号并连线（步行虚线），其他天的点淡显；按天/全程切换，镜头平滑移过去；地名统一中文；只用于设计预览页，真实计划页的地图见 plan-tianditu-map.tsx（1.2100）。 |
+| [src/components/trip-plan/plan-tianditu-map.tsx](../src/components/trip-plan/plan-tianditu-map.tsx) | 表现层 | 1.2100：计划页的天地图地图。用 `next/script` 加载 JS API 4.0（浏览器端 key `NEXT_PUBLIC_TIANDITU_BROWSER_KEY`，公开在页面里），矢量底图加中文（cva）或英文（eva）注记；选中那天的景点为带编号的绿点并用淡虚线连起来（只表示顺序，不是行车路线），其他天为灰色小点，自动缩放到这些点；全程 / 第 N 天切换。没有坐标的计划不显示，key 未配置或脚本加载失败时显示提示。 |
+| [src/components/trip-plan/plan-tianditu-map-model.ts](../src/components/trip-plan/plan-tianditu-map-model.ts) | 表现层模型 | 从保存的计划取出有坐标的景点（保留它在当天的序号）、按天筛选、天地图 Web 墨卡托瓦片地址（vec/cva/eva）、编号图标的 SVG data URL；纯函数。 |
+| [src/components/trip-plan/plan-tianditu-map-model.test.ts](../src/components/trip-plan/plan-tianditu-map-model.test.ts) | 测试 | 未定位和旧计划的景点不画但保留序号、英文界面用英文注记、编号图标。 |
 | [src/components/trip-plan/plan-map-model.ts](../src/components/trip-plan/plan-map-model.ts) | 表现层纯函数 | 丽江—大理一带的平面投影、把一组点放进方框的取景、镜头插值，以及粗略画的湖泊、山脊和道路坐标。 |
 | [src/components/trip-plan/plan-map-model.test.ts](../src/components/trip-plan/plan-map-model.test.ts) | 测试（对应模块边界） | 验证北在上东在右、取景后所有点落在留白之内且单个点不会无限放大、镜头插值。 |
 | [src/components/trip-plan/trip-plan.module.css](../src/components/trip-plan/trip-plan.module.css) | 样式 | 和 Workspace 同一张纸张卡片和阿尔卑斯背景；桌面两栏（日程 + 固定的地图），手机单栏（进度、地图、日程）；页面自己滚动，地图才能固定；减少动态效果时不做过渡；偏好面板手机上从底部弹出；打印时去掉背景、地图和工具，所有天展开。 |
@@ -566,7 +569,7 @@ Generate plan 背后的计划页先用示例数据做出完整页面（设计决
 | [src/agents/scout-agent.ts](../src/agents/scout-agent.ts) | Agent 层 | 1.0300 试验 Agent：用两个现有工具回答一个关于中国地点的问题，只为验证 Kimi 经 Mastra 调用工具；将被规划 Agent 取代，不在其上扩建。模型首次使用时才读取环境变量。 |
 | [src/agents/planner/research-agent.ts](../src/agents/planner/research-agent.ts) | Agent 层 | 按已选城市进行首轮景点调研。Kimi 先按天数提名城市代表景点（只是提案），与点名景点每 3 个一组并行搜索核实，再由 Mastra 工具补查一次。单独结构化候选并核对来源和原文摘录，没有出处的提名不成卡。位置引用这一句写到了这座城市（全名或词干，如「迪庆」）就算在城里，模型填的城市名是区县（香格里拉）也不丢卡；否则模型填的城市名要是这座城市并出现在同一来源里（1.2015）。 用户点名的区域（如大理市）不当景点搜索，而是让提名集中在那里（1.2012）。 |
 | [src/agents/planner/research-agent.test.ts](../src/agents/planner/research-agent.test.ts) | 测试（对应模块边界） | 用模拟模型和搜索结果验证提名与点名景点分组搜索、无出处提名被丢弃、模型不可用时的退路、只补查一次、10 城范围和证据校验。 |
-| [src/agents/planner/map-check.ts](../src/agents/planner/map-check.ts) | Agent 层（固定步骤） | 景点卡的天地图定位：每个有出处的景点查一次（每城最多 12 个），只认本市同名结果并记区县；第一次失败即停止、不重试，其余保持未核实；使用定位缓存。 |
+| [src/agents/planner/map-check.ts](../src/agents/planner/map-check.ts) | Agent 层（固定步骤） | 景点卡的天地图定位：每个有出处的景点查一次（每城最多 12 个），只认本市同名结果并记区县；1.2100 起也记经纬度（`mapCheck.point`），旧计划为 null；第一次失败即停止、不重试，其余保持未核实；使用定位缓存。 |
 | [src/agents/planner/map-check.test.ts](../src/agents/planner/map-check.test.ts) | 测试 | 验证别省同名不算、景区后缀、停车场不算、失败即停、缓存命中、每城上限和缓存过期。 |
 | [src/agents/planner/plan-route.ts](../src/agents/planner/plan-route.ts) | Agent 层 | Plan Agent 路线：一次 Kimi 调用规划城市顺序、天数、每天重点区县和主题、放弃的城市，代码校验、重试一次、再按添加顺序兜底；允许时可以返回一个带选项的问题（只在第一次尝试、格式合法时采用；选项可写明放弃哪座城）；天数够时不许自行放弃城市，只有用户选了才可以；用户点名的区域（如大理市）作为重点区域交给模型；空的理由当作没有理由；两次尝试共 60 秒；每次尝试报告进度。1.2016：天数少于城市且没有兴趣或节奏偏好时必须提问，第一次没问就退回再答一次（仍不问则用第一次的路线）；偏好已说明想多看、能接受紧凑时不问「是否保留全部城市」；放弃同一城市的重复选项只留第一个。1.2018：想轻松（relaxed）且每城都排得下，但扣掉转场日后不用赶路的天少于城市数（3 城 3 天、3 城 4 天）时也必须提问，同样退回一次；退回后仍不问，由 `fallbackQuestion` 按模板自己提问（候选最少的城市排前面，中英文）。 |
 | [src/agents/planner/plan-route.test.ts](../src/agents/planner/plan-route.test.ts) | 测试（对应模块边界） | 用模拟模型验证丽江大理 5 天的路线与转场日、两次不通过后的兜底、模型建不起来时不可用、问题只在允许且格式合法时返回、空理由不让路线失败、放弃城市的选项与用户选择、用户点名的区域进入提示。 |
@@ -641,7 +644,7 @@ Generate plan 背后的计划页先用示例数据做出完整页面（设计决
 | [src/platform/http/request-pacer.ts](../src/platform/http/request-pacer.ts) | 基础设施/工具 | 给外部请求排队、按最小间隔放行（可暂停、可插队），天地图用它避开限流；原本写给高德，1.0702 移除高德时搬到这里。 |
 | [src/platform/http/request-pacer.test.ts](../src/platform/http/request-pacer.test.ts) | 测试（对应模块边界） | 验证按间隔依次放行、暂停会拦住已在排队的请求、插队的请求排第一。 |
 | [src/platform/tianditu/tianditu-fetch.ts](../src/platform/tianditu/tianditu-fetch.ts) | 基础设施/适配器 | 天地图请求客户端：独立排队（开始间隔 ≥300ms，复用 amap-fetch 的通用 pacer）、超时、key 只拼进天地图地址；418 或防火墙 HTML 页视为拒绝、不重试；**429 视为限流**，整队暂停 1 秒、被拒请求排队首、最多重试 3 次（`retryRateLimit: false` 时不重试，景点定位用）；失败只返回固定原因，不含 URL 和 key。 |
-| [src/platform/tianditu/spot-location-memory.ts](../src/platform/tianditu/spot-location-memory.ts) | 基础设施/缓存 | 景点定位缓存：按「省|市|景点」存天地图的判断（找到：区县和地图名，30 天；没找到：7 天），`.cache/tianditu-spot-locations.json`，上限 2000 条，失败不存。 |
+| [src/platform/tianditu/spot-location-memory.ts](../src/platform/tianditu/spot-location-memory.ts) | 基础设施/缓存 | 景点定位缓存：按「省|市|景点」存天地图的判断（找到：区县、地图名和 1.2100 起的经纬度，30 天，之前存的没有经纬度的条目读时作废、重查一次；没找到：7 天），`.cache/tianditu-spot-locations.json`，上限 2000 条，失败不存。 |
 | [src/platform/tianditu/classification-memory.ts](../src/platform/tianditu/classification-memory.ts) | 基础设施/缓存 | 分类搜索缓存：按「行政区 + 类别」把 `queryType 13` 的一页存到 `.cache/tianditu-classification.json`，7 天、上限 50 页、只存真实答案（拒绝和空结果不存）；文件损坏按空缓存处理；写入用临时文件 + 改名，写失败不影响本次查询。 |
 | [src/platform/tianditu/classification-memory.test.ts](../src/platform/tianditu/classification-memory.test.ts) | 测试（对应模块边界） | 验证只存真实答案、重启后仍在、7 天过期、超 50 页淘汰最旧、文件损坏当空缓存、统计顺序。 |
 | [scripts/cache-stats.ts](../scripts/cache-stats.ts) | 开发验证工具 | 打印分类缓存的每个键、条数、缓存时间和剩余天数；`--clear` 清空。不需要 key。 |

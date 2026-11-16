@@ -41,7 +41,9 @@ function inCity(candidate: LocationCandidate, card: SpotCard): boolean {
 export function locateSpot(card: SpotCard, candidates: readonly LocationCandidate[]): RememberedSpotLocation {
   const named = candidates.filter((candidate) => namesSamePlace(candidate.name, card.name, candidate));
   const match = named.find((candidate) => inCity(candidate, card));
-  if (match) return { status: "located", district: match.district, mapName: match.name };
+  if (match) {
+    return { status: "located", district: match.district, mapName: match.name, longitude: match.longitude, latitude: match.latitude };
+  }
   if (named.length > 0) {
     // Research checks the 市 against its source, so this should be rare; record it to see.
     logger.info({ spot: card.name, city: card.city, elsewhere: named.slice(0, 3).map(({ city }) => city) },
@@ -51,7 +53,9 @@ export function locateSpot(card: SpotCard, candidates: readonly LocationCandidat
 }
 
 function asMapCheck(location: RememberedSpotLocation): SpotMapCheck {
-  return location.status === "located" ? { status: "located", district: location.district } : { status: "not_located" };
+  return location.status === "located"
+    ? { status: "located", district: location.district, point: { longitude: location.longitude, latitude: location.latitude } }
+    : { status: "not_located" };
 }
 
 /**

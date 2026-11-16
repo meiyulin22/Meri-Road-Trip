@@ -34,7 +34,7 @@ export function card(name: string, requested = false, index = 0): SpotCard {
     id: JSON.stringify(["云南省", "丽江市", name]), province: "云南省", city: "丽江市", name, requested,
     location: { url: "https://example.com", title: name, publishedAt: null, checkedAt: "2026-11-12T08:00:00.000Z", quote: name + "位于丽江市" },
     opening: null, reservation: null, setting: null, walking: null, suggestedDuration: null,
-    mapCheck: index % 2 === 0 ? { status: "located", district: "古城区" } : { status: "not_located" },
+    mapCheck: index % 2 === 0 ? { status: "located", district: "古城区", point: null } : { status: "not_located" },
   };
 }
 
@@ -49,7 +49,7 @@ export const dali: CityResearch = {
   province: "云南省", city: "大理白族自治州", status: "ready", searchCalls: 2,
   spots: ["洱海", "崇圣寺三塔", "喜洲古镇"].map((name, index) => ({
     ...card(name, false, index), id: JSON.stringify(["云南省", "大理白族自治州", name]), city: "大理白族自治州",
-    mapCheck: { status: "located" as const, district: "大理市" },
+    mapCheck: { status: "located" as const, district: "大理市", point: null },
   })),
 };
 
@@ -57,7 +57,7 @@ export const diqing: CityResearch = {
   province: "云南省", city: "迪庆藏族自治州", status: "ready", searchCalls: 2,
   spots: ["独克宗古城", "松赞林寺"].map((name, index) => ({
     ...card(name, false, index), id: JSON.stringify(["云南省", "迪庆藏族自治州", name]), city: "迪庆藏族自治州",
-    mapCheck: { status: "located" as const, district: "香格里拉市" },
+    mapCheck: { status: "located" as const, district: "香格里拉市", point: null },
   })),
 };
 

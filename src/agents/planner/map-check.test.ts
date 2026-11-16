@@ -1,4 +1,7 @@
 import assert from "node:assert/strict";
+import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import test from "node:test";
 
 import type { LocationCandidate } from "@/domain/location/location";
@@ -31,9 +34,9 @@ const daliErhai = place("洱海", "云南省", "大理白族自治州", "大理�
 
 test("locates a spot only inside its own city, allowing the scenic-area suffix", () => {
   assert.deepEqual(locateSpot(card("洱海"), [gansuErhai, daliErhai]),
-    { status: "located", district: "大理市", mapName: "洱海" });
+    { status: "located", district: "大理市", mapName: "洱海", longitude: 100, latitude: 25 });
   assert.deepEqual(locateSpot(card("苍山"), [place("苍山风景区", "云南省", "大理白族自治州", "大理市")]),
-    { status: "located", district: "大理市", mapName: "苍山风景区" });
+    { status: "located", district: "大理市", mapName: "苍山风景区", longitude: 100, latitude: 25 });
   // Only the same-named place in 甘肃: not located, never moved to another city.
   assert.deepEqual(locateSpot(card("洱海"), [gansuErhai]), { status: "not_located" });
   assert.deepEqual(locateSpot(card("洱海"), [place("洱海公园停车场", "云南省", "大理白族自治州", "大理市")]),
@@ -76,7 +79,7 @@ test("stops at the first failed lookup and leaves the rest unchecked", async () 
 test("answers from memory without a lookup and checks at most twelve spots a city", async () => {
   let now = 0;
   const memory = new SpotLocationMemory(null, () => now);
-  memory.set("云南省|大理白族自治州|洱海", { status: "located", district: "大理市", mapName: "洱海" });
+  memory.set("云南省|大理白族自治州|洱海", { status: "located", district: "大理市", mapName: "洱海", longitude: 100.2, latitude: 25.8 });
   const spots = [card("洱海"), ...Array.from({ length: 13 }, (_, index) => card(`景点${index}`))];
   let lookups = 0;
   const outcome = await checkSpotsOnMap([{ province: "云南省", city: "大理白族自治州", status: "ready", searchCalls: 2, spots }], {
@@ -89,7 +92,9 @@ test("answers from memory without a lookup and checks at most twelve spots a cit
 
   assert.equal(lookups, 11);
   assert.equal(outcome.status, "complete");
-  assert.deepEqual(outcome.cities[0].spots[0].mapCheck, { status: "located", district: "大理市" });
+  // The remembered coordinates reach the card, for the plan page's map (1.2100).
+  assert.deepEqual(outcome.cities[0].spots[0].mapCheck,
+    { status: "located", district: "大理市", point: { longitude: 100.2, latitude: 25.8 } });
   assert.equal(outcome.cities[0].spots.filter(({ mapCheck }) => mapCheck.status === "not_located").length, 11);
   assert.equal(outcome.cities[0].spots.at(-1)?.mapCheck.status, "unchecked");
 
@@ -97,4 +102,18 @@ test("answers from memory without a lookup and checks at most twelve spots a cit
   now = 8 * 24 * 60 * 60 * 1_000;
   assert.equal(memory.get("云南省|大理白族自治州|景点0"), null);
   assert.equal(memory.get("云南省|大理白族自治州|洱海")?.status, "located");
+});
+
+test("a remembered spot saved before 1.2100 has no coordinates, so it is looked up once more", () => {
+  const folder = mkdtempSync(join(tmpdir(), "meri-spots-"));
+  const file = join(folder, "spots.json");
+  writeFileSync(file, JSON.stringify({ version: 1, entries: {
+    "云南省|丽江市|木府": { status: "located", district: "古城区", mapName: "木府", at: 0 },
+    "云南省|丽江市|黑龙潭": { status: "located", district: "古城区", mapName: "黑龙潭公园", longitude: 100.23, latitude: 26.88, at: 0 },
+  } }));
+  const memory = new SpotLocationMemory(file, () => 1);
+  assert.equal(memory.get("云南省|丽江市|木府"), null);
+  assert.deepEqual(memory.get("云南省|丽江市|黑龙潭"),
+    { status: "located", district: "古城区", mapName: "黑龙潭公园", longitude: 100.23, latitude: 26.88 });
+  rmSync(folder, { recursive: true, force: true });
 });
