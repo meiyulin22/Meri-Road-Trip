@@ -92,6 +92,13 @@
       "when": 1794743809670,
       "tag": "0012_plan_run_suspended",
       "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1794823370678,
+      "tag": "0013_trip_preference_pace",
+      "breakpoints": true
     }
   ]
 }

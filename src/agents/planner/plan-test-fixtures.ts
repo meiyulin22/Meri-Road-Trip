@@ -21,7 +21,7 @@ export function handoff(places: readonly string[], duration: TripState["duration
     timezone: "Asia/Shanghai",
     locale: "zh",
     preferenceStatus: "ready",
-    preferences: [{ id: "p1", label: "少爬台阶", kind: "walking", quote: "少走台阶", source: "conversation",
+    preferences: [{ id: "p1", label: "少爬台阶", kind: "walking", pace: null, quote: "少走台阶", source: "conversation",
       messageId: "message", createdAt: "2026-11-12T08:00:00.000Z" }],
   };
 }
@@ -57,7 +57,7 @@ export type ProposedDay = { day: number; stops: { spotId: string; slot: string; 
 
 export type RouteAnswer = { cities: { id: string; days: number; reason: string }[];
   days: { day: number; focus: string | null; theme: string | null }[]; omitted: { id: string; reason: string }[];
-  question?: { text: string; options: { label: string; kind: string; leaveOut?: string | null }[] } | null };
+  question?: { text: string; options: { label: string; kind: string; pace?: string | null; leaveOut?: string | null }[] } | null };
 
 function answer(content: unknown) {
   return Response.json({

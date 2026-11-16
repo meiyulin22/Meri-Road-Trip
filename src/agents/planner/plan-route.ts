@@ -11,7 +11,7 @@ import {
 } from "@/domain/plan/plan-draft";
 import type { PlanHandoff } from "@/domain/plan/plan-handoff";
 import { type PlanQuestion, planQuestionSchema } from "@/domain/plan/plan-progress";
-import { maxPreferenceLabelLength, preferenceKinds } from "@/domain/plan/trip-preference";
+import { maxPreferenceLabelLength, preferenceKinds, wantsPackedPace } from "@/domain/plan/trip-preference";
 import type { CityResearch, SpotCard } from "@/domain/plan/spot-card";
 import { createMoonshotChatModelFromEnvironment } from "@/platform/llm/moonshot-chat-model";
 import { logger } from "@/platform/observability/logger";
@@ -41,7 +41,9 @@ const routeSchema = z.object({
   // Loose here and checked on its own, so a malformed question never costs the route.
   question: z.object({
     text: z.string(),
-    options: z.array(z.object({ label: z.string(), kind: z.string(), leaveOut: z.string().nullable().optional() })),
+    options: z.array(z.object({
+      label: z.string(), kind: z.string(), pace: z.string().nullable().optional(), leaveOut: z.string().nullable().optional(),
+    })),
   }).nullable().optional(),
 });
 
@@ -56,12 +58,14 @@ function checkedQuestion(
   cities: readonly RouteCityInput[],
 ): Omit<PlanQuestion, "id"> | null {
   if (!answer) return null;
-  const options: { label: string; kind: string; leaveOut: string | null }[] = [];
+  const options: { label: string; kind: string; pace: string | null; leaveOut: string | null }[] = [];
   for (const option of answer.options) {
     const leaveOut = option.leaveOut ? cities.find(({ id }) => id === option.leaveOut)?.city : null;
     if (option.leaveOut && !leaveOut) return null;
     if (leaveOut && options.some((kept) => kept.leaveOut === leaveOut)) continue;
-    options.push({ ...option, leaveOut: leaveOut ?? null });
+    // A direction only on a pace option; anything else there is dropped rather than failing the question.
+    const pace = option.kind === "pace" && (option.pace === "packed" || option.pace === "relaxed") ? option.pace : null;
+    options.push({ ...option, pace, leaveOut: leaveOut ?? null });
   }
   const parsed = planQuestionSchema.omit({ id: true }).safeParse({ ...answer, options });
   if (!parsed.success) return null;
@@ -149,7 +153,7 @@ export async function planRoute(
   const input = {
     totalDays: scope.dates.length,
     mode: scope.mode,
-    preferences: handoff.preferences.map(({ kind, quote }) => ({ kind, quote })),
+    preferences: handoff.preferences.map(({ kind, pace, quote }) => ({ kind, pace, quote })),
     cities: cities.map(({ id, province, city, districts }) => {
       const cards = [...cardsOf(province, city)].sort((left, right) => Number(right.requested) - Number(left.requested));
       return {
@@ -165,7 +169,12 @@ export async function planRoute(
   // Fewer days than cities and no preference saying which matter more: which city goes is the
   // traveller's choice, so a route without a question is sent back once (1.2016). The prompt alone
   // asked 0 times in 3 after it was told not to ask about what preferences already answer.
-  const mustAsk = Boolean(options.allowQuestion) && cities.length > scope.dates.length
+  // Every city fits and the traveller wants a full trip: keeping every city is already their
+  // answer, so there is nothing to ask (1.2017). Before, the model read 紧凑 itself and still
+  // asked 2 times in 3.
+  const mayAsk = Boolean(options.allowQuestion)
+    && !(cities.length <= scope.dates.length && wantsPackedPace(handoff.preferences));
+  const mustAsk = mayAsk && cities.length > scope.dates.length
     && !handoff.preferences.some(({ kind }) => kind === "interests" || kind === "pace");
   let askAgain = false;
   // The route that came back without a question, used if the second answer has no usable one either.
@@ -195,7 +204,7 @@ export async function planRoute(
           "List every day from 1 to totalDays in route order. A focus is one of that day's city districts as given, or null. Keep a district's spots together on one day where you can.",
           `Write reasons and themes in ${handoff.locale === "zh" ? "Chinese" : "English"}. A theme is a few words; a reason is one short sentence.`,
           'Return {"cities":[{"id":"c1","days":2,"reason":"…"}],"days":[{"day":1,"focus":"古城区","theme":"…"}],"omitted":[],"question":null}.',
-          options.allowQuestion && (errors.length === 0 || askAgain)
+          mayAsk && (errors.length === 0 || askAgain)
             ? [
               "Ask the traveller one question first when the route depends on a choice the preferences do not make:",
               "there are fewer days than cities and no preference says which cities matter more, or there are no preferences",
@@ -203,8 +212,9 @@ export async function planRoute(
               "If every city fits but the trip feels too tight, ask whether to keep every city or leave one out, never leave it out yourself,",
               "but only when no preference says how the traveller wants a full trip: a preference to see more places or to accept a packed schedule",
               "means keep every city and do not ask; a preference for a relaxed pace with too little time is a real choice, so ask.",
-              `Then set question to {"text":"…","options":[{"label":"…","kind":"interests","leaveOut":null}]} with 2 or 3 short options in ${handoff.locale === "zh" ? "Chinese" : "English"},`,
+              `Then set question to {"text":"…","options":[{"label":"…","kind":"interests","pace":null,"leaveOut":null}]} with 2 or 3 short options in ${handoff.locale === "zh" ? "Chinese" : "English"},`,
               `labels under ${maxPreferenceLabelLength} characters, each kind one of ${preferenceKinds.join(", ")}.`,
+              "An option of kind pace also gives pace: packed for keeping more in the trip at a quicker pace, relaxed for doing less at an easier one; every other option has pace null.",
               "When a city has to go or might go, make each option one concrete trip: name in the label the city it leaves out and set leaveOut to that city's id, one option per city that could go, plus at most one option keeping every city when every city fits.",
               "Never write a vague option such as leave one city out without naming it. Every other option has leaveOut null.",
               "The number of days and the dates are fixed: never offer to add days, extend the trip or change dates.",
@@ -216,7 +226,7 @@ export async function planRoute(
       });
       usage.inputTokens += callUsage.inputTokens ?? 0;
       usage.outputTokens += callUsage.outputTokens ?? 0;
-      const offered = options.allowQuestion && (attempts === 1 || askAgain);
+      const offered = mayAsk && (attempts === 1 || askAgain);
       const question = offered ? checkedQuestion(output.question, cities) : null;
       if (question) return { status: "question", question, usage };
       const review = reviewRoute(scope, cities, {

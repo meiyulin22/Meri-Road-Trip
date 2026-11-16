@@ -25,13 +25,13 @@ const message: TripMessage = {
   id: "message-id", tripId: "trip-id", role: "user", content: "带父母，少走台阶。还想去苍山。",
   createdAt: "2026-11-10T10:00:00.000Z",
 };
-const extracted = { messageId: message.id, quote: "少走台阶", label: "少爬台阶", kind: "walking" as const, createdAt: message.createdAt };
+const extracted = { messageId: message.id, quote: "少走台阶", label: "少爬台阶", kind: "walking" as const, pace: null, createdAt: message.createdAt };
 const removedBefore: TripPreference = {
-  id: "removed-id", tripId: "trip-id", label: "不吃辣", kind: "diet", quote: "我不吃辣", source: "conversation",
+  id: "removed-id", tripId: "trip-id", label: "不吃辣", kind: "diet", pace: null, quote: "我不吃辣", source: "conversation",
   messageId: message.id, status: "removed", createdAt: "2026-11-09T10:00:00.000Z",
 };
 const addedOnPlanPage: TripPreference = {
-  id: "added-id", tripId: "trip-id", label: "喜欢拍照", kind: "interests", quote: "喜欢拍照", source: "plan_page",
+  id: "added-id", tripId: "trip-id", label: "喜欢拍照", kind: "interests", pace: null, quote: "喜欢拍照", source: "plan_page",
   messageId: null, status: "active", createdAt: "2026-11-10T11:00:00.000Z",
 };
 const oldExtraction: TripPreference = { ...removedBefore, id: "old-id", quote: "慢慢逛", label: "慢节奏", kind: "pace", status: "active" };
@@ -71,7 +71,7 @@ test("POST saves labelled preferences and hands the plan page the active ones", 
     assert.equal(response.headers.get("Cache-Control"), "no-store");
     return response;
   });
-  const saved = { id: "new-id", label: "少爬台阶", kind: "walking", quote: "少走台阶", source: "conversation",
+  const saved = { id: "new-id", label: "少爬台阶", kind: "walking", pace: null, quote: "少走台阶", source: "conversation",
     messageId: message.id, createdAt: message.createdAt } as const;
   assert.deepEqual(replaced, [{ ...saved, tripId: "trip-id", status: "active" }]);
   assert.deepEqual(result, {
@@ -81,7 +81,7 @@ test("POST saves labelled preferences and hands the plan page the active ones", 
       // The old extraction is replaced; the plan-page preference stays.
       preferences: [
         saved,
-        { id: "added-id", label: "喜欢拍照", kind: "interests", quote: "喜欢拍照", source: "plan_page", messageId: null, createdAt: "2026-11-10T11:00:00.000Z" },
+        { id: "added-id", label: "喜欢拍照", kind: "interests", pace: null, quote: "喜欢拍照", source: "plan_page", messageId: null, createdAt: "2026-11-10T11:00:00.000Z" },
       ],
     },
   });

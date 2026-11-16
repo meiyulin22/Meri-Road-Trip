@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import { maxPreferenceLabelLength, preferenceKinds } from "./trip-preference";
+import { maxPreferenceLabelLength, paceDirections, preferenceKinds } from "./trip-preference";
 import { placeImageSchema, planDaySchema, planRouteSchema, spotCardSchema, stopCheckSchema } from "./plan-draft-response";
 
 /**
@@ -43,6 +43,8 @@ export const planQuestionSchema = z.strictObject({
   options: z.array(z.strictObject({
     label: z.string().trim().min(1).max(maxPreferenceLabelLength),
     kind: z.enum(preferenceKinds),
+    /** Which way a pace option leans, saved with the answer (1.2017); older questions have none. */
+    pace: z.enum(paceDirections).nullable().optional(),
     /** The city this option leaves out, when choosing it means a smaller trip. Older questions have none. */
     leaveOut: z.string().min(1).nullable().optional(),
   })).min(2).max(3),

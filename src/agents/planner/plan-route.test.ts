@@ -159,6 +159,30 @@ test("a city's areas named by the traveller reach the route call", async () => {
     [["丽江市", []], ["大理白族自治州", ["大理市"]]]);
 });
 
+test("a traveller who wants a packed trip is not asked whether to keep every city when they all fit (1.2017)", async () => {
+  const trip = handoff(["丽江市", "大理白族自治州"], fiveDays);
+  const packed = { ...trip, preferences: [...trip.preferences,
+    { ...trip.preferences[0], id: "p2", kind: "pace" as const, pace: "packed" as const, quote: "可以紧凑一点" }] };
+  const scope = ready(planScope(packed.tripState));
+  const asking = { cities: [{ id: "c1", days: 3, reason: "雪山" }, { id: "c2", days: 2, reason: "洱海" }], days: [], omitted: [],
+    question: { text: "五天两城会赶，都去吗？", options: [
+      { label: "两座都去", kind: "pace", pace: "packed", leaveOut: null }, { label: "只去丽江", kind: "pace", pace: "relaxed", leaveOut: "c2" }] } };
+  const systems: string[] = [];
+  const prompts: { preferences: { kind: string; pace: string | null }[] }[] = [];
+  const result = await planRoute(packed, scope, [lijiang, dali],
+    { model: modelAnswering({ routes: [asking], routeSystems: systems, routePrompts: prompts }) }, () => {}, { allowQuestion: true });
+  assert.equal(result.status, "ready");
+  assert.match(systems[0], /question is always null/u);
+  assert.deepEqual(prompts[0].preferences.map(({ kind, pace }) => [kind, pace]), [["walking", null], ["pace", "packed"]]);
+
+  // A relaxed traveller with the same trip may still be asked.
+  const relaxed = { ...packed, preferences: packed.preferences.map((item) => item.id === "p2" ? { ...item, pace: "relaxed" as const } : item) };
+  const asked = await planRoute(relaxed, scope, [lijiang, dali], { model: modelAnswering({ routes: [asking] }) }, () => {}, { allowQuestion: true });
+  assert.equal(asked.status, "question");
+  // A direction is kept only on a pace option.
+  assert.deepEqual(asked.status === "question" && asked.question.options.map(({ pace }) => pace), ["packed", "relaxed"]);
+});
+
 test("with fewer days than cities and no taste preference, a route without a question is sent back once (1.2016)", async () => {
   const oneDay = { state: "known", value: "1天", source: "user" } as const;
   const trip = handoff(["丽江市", "大理白族自治州"], oneDay);

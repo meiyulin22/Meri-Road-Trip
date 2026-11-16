@@ -9,6 +9,7 @@ import {
   preferenceKinds,
   samePreferenceQuote,
   toPlanPreference,
+  type PaceDirection,
   type PreferenceKind,
   type TripPreference,
 } from "@/domain/plan/trip-preference";
@@ -22,7 +23,7 @@ type PreferenceDependencies = {
   readonly listPreferences: (tripId: string) => Promise<readonly TripPreference[]>;
   readonly create: (preference: TripPreference) => Promise<void>;
   readonly markRemoved: (tripId: string, preferenceId: string, at: string) => Promise<boolean>;
-  readonly labelPreference: (text: string, requestId: string) => Promise<{ label: string; kind: PreferenceKind }>;
+  readonly labelPreference: (text: string, requestId: string) => Promise<{ label: string; kind: PreferenceKind; pace: PaceDirection | null }>;
   readonly now: () => Date;
   readonly newId: () => string;
 };
@@ -87,9 +88,10 @@ export function handlePreferencesPost(
     if (same) return noStore({ preference: toPlanPreference(same) });
     if (active.length >= maxActivePreferences) return failure(409, "too_many_preferences", "This trip already remembers many preferences.");
 
-    const labelled = kind ? { label: text, kind } : await dependencies.labelPreference(text, randomUUID());
+    // A suggestion picked from the list knows its kind but not a direction; a written sentence gets both.
+    const labelled = kind ? { label: text, kind, pace: null } : await dependencies.labelPreference(text, randomUUID());
     const preference: TripPreference = {
-      id: dependencies.newId(), tripId, label: labelled.label, kind: labelled.kind, quote: text,
+      id: dependencies.newId(), tripId, label: labelled.label, kind: labelled.kind, pace: labelled.pace, quote: text,
       source: "plan_page", messageId: null, status: "active", createdAt: dependencies.now().toISOString(),
     };
     await dependencies.create(preference);

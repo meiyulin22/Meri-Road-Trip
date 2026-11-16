@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { addPreference, kindOfSuggestion, listPreferences, removePreference } from "@/components/trip-plan/plan-preferences-model";
-import { maxStopsForPreferences, type TripPreference } from "@/domain/plan/trip-preference";
+import { maxStopsForPreferences, paceFor, planPreferenceSchema, type TripPreference, wantsPackedPace } from "@/domain/plan/trip-preference";
 import { TripNotFoundError } from "@/domain/trip/trip-errors";
 
 import { handlePreferenceDelete, handlePreferencesGet, handlePreferencesPost } from "./trip-preferences-handler";
@@ -10,10 +10,10 @@ import { handlePreferenceDelete, handlePreferencesGet, handlePreferencesPost } f
 const tripId = "trip-id";
 const now = new Date("2026-11-14T09:00:00.000Z");
 const saved: TripPreference = {
-  id: "p1", tripId, label: "少爬台阶", kind: "walking", quote: "少走台阶", source: "conversation",
+  id: "p1", tripId, label: "少爬台阶", kind: "walking", pace: null, quote: "少走台阶", source: "conversation",
   messageId: "m1", status: "active", createdAt: "2026-11-13T09:00:00.000Z",
 };
-const removed: TripPreference = { ...saved, id: "p2", label: "不吃辣", kind: "diet", quote: "我不吃辣", status: "removed" };
+const removed: TripPreference = { ...saved, id: "p2", label: "不吃辣", kind: "diet", pace: null, quote: "我不吃辣", status: "removed" };
 
 function dependencies(rows: TripPreference[], labelled: string[] = []) {
   return {
@@ -31,7 +31,7 @@ function dependencies(rows: TripPreference[], labelled: string[] = []) {
     },
     labelPreference: async (text: string) => {
       labelled.push(text);
-      return { label: "喜欢自然景观", kind: "interests" as const };
+      return { label: "喜欢自然景观", kind: "interests" as const, pace: null };
     },
     now: () => now,
     newId: () => "new-id",
@@ -53,7 +53,7 @@ test("lists, adds and removes preferences through the plan page's client", async
 
   // A sentence the traveller wrote is labelled by the model; their words stay as the quote.
   const written = await addPreference(tripId, "我想去山川湖海", undefined, fetcher);
-  assert.deepEqual(written, { id: "new-id", label: "喜欢自然景观", kind: "interests", quote: "我想去山川湖海",
+  assert.deepEqual(written, { id: "new-id", label: "喜欢自然景观", kind: "interests", pace: null, quote: "我想去山川湖海",
     source: "plan_page", messageId: null, createdAt: now.toISOString() });
   assert.deepEqual(labelled, ["我想去山川湖海"]);
 
@@ -76,7 +76,18 @@ test("only the owner reaches preferences, and a preference needs words", async (
   assert.equal((await handlePreferencesPost(tripId, "owner-id", { text: "好", kind: "unknown" }, deps)).status, 400);
 });
 
-test("a walking limit or companions make every day lighter", () => {
+test("a direction is only on a pace preference, and plans saved before 1.2017 read as having none", () => {
+  const old = { id: "p1", label: "慢节奏", kind: "pace", quote: "不想太赶", source: "conversation", messageId: "m1", createdAt: "2026-11-12T08:00:00.000Z" };
+  assert.equal(planPreferenceSchema.parse(old).pace, null);
+  assert.equal(planPreferenceSchema.parse({ ...old, pace: "relaxed" }).pace, "relaxed");
+  assert.equal(planPreferenceSchema.safeParse({ ...old, kind: "diet", pace: "relaxed" }).success, false);
+  assert.equal(paceFor("diet", "packed"), null);
+  assert.equal(wantsPackedPace([{ pace: null }, { pace: "packed" }]), true);
+});
+
+test("a walking limit, companions or a relaxed pace make every day lighter", () => {
+  assert.equal(maxStopsForPreferences([{ kind: "pace", pace: "relaxed" }], 4), 3);
+  assert.equal(maxStopsForPreferences([{ kind: "pace", pace: "packed" }], 4), 4);
   assert.equal(maxStopsForPreferences([{ kind: "walking" }], 4), 3);
   assert.equal(maxStopsForPreferences([{ kind: "companions" }, { kind: "diet" }], 4), 3);
   assert.equal(maxStopsForPreferences([{ kind: "interests" }], 4), 4);

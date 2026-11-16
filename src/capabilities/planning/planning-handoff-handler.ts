@@ -40,8 +40,8 @@ async function savePreferences(
   const removed = saved.filter(({ status }) => status === "removed");
   const fresh: TripPreference[] = extraction.preferences
     .filter(({ quote }) => !removed.some((gone) => samePreferenceQuote(gone.quote, quote)))
-    .map(({ messageId, quote, label, kind, createdAt }) => ({
-      id: dependencies.newId(), tripId, label, kind, quote, source: "conversation", messageId, status: "active", createdAt,
+    .map(({ messageId, quote, label, kind, pace, createdAt }) => ({
+      id: dependencies.newId(), tripId, label, kind, pace, quote, source: "conversation", messageId, status: "active", createdAt,
     }));
   await dependencies.replaceConversationPreferences(tripId, fresh);
   return [...active.filter(({ source }) => source !== "conversation"), ...fresh]

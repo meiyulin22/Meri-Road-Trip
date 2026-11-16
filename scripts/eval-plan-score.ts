@@ -6,7 +6,7 @@ import type { ReadyPlan } from "@/domain/plan/plan-draft-response";
 import type { PlanHandoff } from "@/domain/plan/plan-handoff";
 import type { PlanProgressEvent } from "@/domain/plan/plan-progress";
 import type { PlanRun } from "@/domain/plan/plan-run";
-import { preferenceKinds } from "@/domain/plan/trip-preference";
+import { paceDirections, paceFor, preferenceKinds } from "@/domain/plan/trip-preference";
 import { locales } from "@/domain/locale/locale";
 import type { SpotCard } from "@/domain/plan/spot-card";
 
@@ -27,7 +27,11 @@ export const evalCaseSchema = z.strictObject({
   days: z.number().int().positive().nullable(),
   startDate: z.iso.date().nullable(),
   locale: z.enum(locales).default("zh"),
-  preferences: z.array(z.strictObject({ kind: z.enum(preferenceKinds), label: z.string().min(1).max(24), quote: z.string().min(1) })).default([]),
+  preferences: z.array(z.strictObject({
+    kind: z.enum(preferenceKinds), label: z.string().min(1).max(24), quote: z.string().min(1),
+    /** The hidden direction extraction would give a pace preference (1.2017). */
+    pace: z.enum(paceDirections).nullable().default(null),
+  })).default([]),
   /** Which option answers a question: its index, or "decide" for "you decide". */
   answer: z.union([z.number().int().nonnegative(), z.literal("decide")]).default(0),
   /** Runs of this case in one evaluation; the model's answers vary. */
@@ -89,8 +93,8 @@ export function buildHandoff(evalCase: EvalCase, referenceDate: string): PlanHan
     timezone: "Asia/Shanghai",
     locale: evalCase.locale,
     preferenceStatus: "ready",
-    preferences: evalCase.preferences.map(({ kind, label, quote }, index) => ({
-      id: `eval-${index + 1}`, label, kind, quote, source: "conversation", messageId: `eval-message-${index + 1}`,
+    preferences: evalCase.preferences.map(({ kind, pace, label, quote }, index) => ({
+      id: `eval-${index + 1}`, label, kind, pace: paceFor(kind, pace), quote, source: "conversation", messageId: `eval-message-${index + 1}`,
       createdAt: referenceDate + "T00:00:00.000Z",
     })),
   };

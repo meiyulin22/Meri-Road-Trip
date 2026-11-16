@@ -23,7 +23,8 @@
     {
       "kind": "pace",
       "label": "慢节奏",
-      "quote": "不想太赶，每天轻松一点"
+      "quote": "不想太赶，每天轻松一点",
+      "pace": "relaxed"
     },
     {
       "kind": "interests",
@@ -35,6 +36,7 @@
     "mode": "full",
     "keepsAllCities": true,
     "asks": false,
-    "noEmptyDays": true
+    "noEmptyDays": true,
+    "maxStopsPerDay": 3
   }
 }

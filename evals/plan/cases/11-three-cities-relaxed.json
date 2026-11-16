@@ -27,13 +27,15 @@
     {
       "kind": "pace",
       "label": "慢节奏",
-      "quote": "不想太赶，想每个地方慢慢玩"
+      "quote": "不想太赶，想每个地方慢慢玩",
+      "pace": "relaxed"
     }
   ],
   "repeat": 3,
   "expect": {
     "mode": "full",
     "asks": true,
-    "noEmptyDays": true
+    "noEmptyDays": true,
+    "maxStopsPerDay": 3
   }
 }

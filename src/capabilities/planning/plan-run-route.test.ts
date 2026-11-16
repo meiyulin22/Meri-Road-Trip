@@ -48,7 +48,7 @@ const tripState: TripState = {
 };
 const handoff: PlanHandoff = {
   tripState, referenceDate: "2026-11-12", timezone: "Asia/Shanghai", locale: "zh",
-  preferenceStatus: "ready", preferences: [{ id: "p1", label: "晚上逛古城", kind: "interests", quote: "晚上想逛古城", source: "conversation",
+  preferenceStatus: "ready", preferences: [{ id: "p1", label: "晚上逛古城", kind: "interests", pace: null, quote: "晚上想逛古城", source: "conversation",
     messageId: "m1", createdAt: "2026-11-12T08:00:00.000Z" }],
 };
 const evidence = { url: "https://www.example.com/a", title: "来源", publishedAt: null, checkedAt: "2026-11-12T08:00:00.000Z", quote: "索道末班16:00" };

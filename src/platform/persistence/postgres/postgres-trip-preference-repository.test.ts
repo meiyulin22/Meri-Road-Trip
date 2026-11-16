@@ -10,7 +10,7 @@ type Database = ConstructorParameters<typeof PostgresTripPreferenceRepository>[0
 
 const preference: TripPreference = {
   id: "00000000-0000-4000-8000-000000000011", tripId: "3d17d2c7-fd9b-4748-b751-3a76a9a920be",
-  label: "喜欢自然景观", kind: "interests", quote: "想去山川湖海", source: "conversation",
+  label: "喜欢自然景观", kind: "interests", pace: null, quote: "想去山川湖海", source: "conversation",
   messageId: "00000000-0000-4000-8000-000000000001", status: "active", createdAt: "2026-11-14T08:00:00.000Z",
 };
 

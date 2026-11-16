@@ -417,7 +417,7 @@ Generate plan 背后的计划页先用示例数据做出完整页面（设计决
 | [src/domain/trip-state/destination-edit.ts](../src/domain/trip-state/destination-edit.ts) | 领域层 | none/add/set/remove 契约、严格模型 JSON Schema、表达数量/长度/去重校验。 |
 | [src/domain/trip-state/destination-legacy-read.test.ts](../src/domain/trip-state/destination-legacy-read.test.ts) | 测试（对应模块边界） | 验证旧自由文本保留为 legacyText，不把未核验名称假装成市。 |
 | [src/domain/plan/plan-handoff.ts](../src/domain/plan/plan-handoff.ts) | 领域层 | 交接快照与响应契约，校验 TripState、参考日期、语言和当前有效的偏好。 |
-| [src/domain/plan/trip-preference.ts](../src/domain/plan/trip-preference.ts) | 领域层 | 旅程偏好：标签、类型、原话、来源、状态；类型、来源与上限常量；原话比较；体力和同行人类偏好把每天上限降到 3。 |
+| [src/domain/plan/trip-preference.ts](../src/domain/plan/trip-preference.ts) | 领域层 | 旅程偏好：标签、类型、原话、来源、状态；类型、来源与上限常量；原话比较；体力和同行人类偏好把每天上限降到 3。1.2017：节奏偏好的隐藏方向 `pace`（packed/relaxed，只在 kind 为 pace 时有值，`paceFor` 去掉其他类型的方向），relaxed 也把上限降到 3，`wantsPackedPace` 供路线判断；旧数据缺这个字段读作 null。 |
 | [src/domain/plan/spot-card.ts](../src/domain/plan/spot-card.ts) | 领域层 | 景点卡、原文证据、天地图定位结果和单城调研结果的类型，未知字段可以为空；1.2013 起景点卡可带第二轮查到的 availability |
 | [src/domain/plan/plan-draft.ts](../src/domain/plan/plan-draft.ts) | 领域层 | 计划草稿与路线类型；规划范围（示范日或全部城市与日期）；校验 Plan Agent 的路线（覆盖、放弃条件、天数、区县）并生成每天的城市、转场、重点区县和主题；按添加顺序兜底分天；校验选点提案（候选、所在城市、跨天重复、每天上限与转场日少 1、有原文支持的时间锚点、点名景点），整理冲突和待核实字段；识别用户点名的区域（以市、县、旗结尾的区县名）；用户选择放弃的城市才允许在天数够时放弃。 |
 | [src/domain/plan/availability.ts](../src/domain/plan/availability.ts) | 领域层 | 第二轮精查的判断规则（1.2013）：值必须出现在原文里（周几、时刻、月日、天数）、日期算星期几和跨年范围、通知是否过期（一年）；按每站的日期和时段得出 开放 / 部分关闭 / 关闭 / 待确认 / 未核实。 |
@@ -665,7 +665,7 @@ Generate plan 背后的计划页先用示例数据做出完整页面（设计决
 | [scripts/db-local.ps1](../scripts/db-local.ps1) | 开发验证工具 | `npm run db:local`：起容器 → 轮询就绪 → 强制用本地 URL 跑 `drizzle-kit migrate` → 打印 .env.local 要粘贴的连接串；`-Stop` 停容器并保留数据卷。 |
 | [src/platform/persistence/database/schema/index.ts](../src/platform/persistence/database/schema/index.ts) | 数据库基础设施 | 导出当前三张表的 schema，不包含旧 user actions 表。 |
 | [src/platform/persistence/database/schema/trip-messages.ts](../src/platform/persistence/database/schema/trip-messages.ts) | 数据库基础设施 | trip_messages 表和角色 enum，正文/presentation/时间戳及 Trip 外键级联。 |
-| [src/platform/persistence/database/schema/trip-preferences.ts](../src/platform/persistence/database/schema/trip-preferences.ts) | 基础设施/schema | trip_preferences 表、三个 enum 和 (trip_id, status) 索引。 |
+| [src/platform/persistence/database/schema/trip-preferences.ts](../src/platform/persistence/database/schema/trip-preferences.ts) | 基础设施/schema | trip_preferences 表、四个 enum（含 1.2017 的 pace）、(trip_id, status) 索引和「只有节奏偏好有方向」的 CHECK 约束。 |
 | [src/platform/persistence/database/schema/plan-runs.ts](../src/platform/persistence/database/schema/plan-runs.ts) | 基础设施/schema | plan_runs、plan_run_events、plan_versions 三张表和 plan_run_status enum、外键、唯一约束与索引。 |
 | [src/platform/persistence/database/schema/trip-states.ts](../src/platform/persistence/database/schema/trip-states.ts) | 数据库基础设施 | trip_states 表，以 Trip ID 为主键，JSONB 保存状态，删除 Trip 时级联。 |
 | [src/platform/persistence/database/schema/trips.ts](../src/platform/persistence/database/schema/trips.ts) | 数据库基础设施 | trips 表及 idea/planning enum，保存 ID/owner/status/时间戳。 |
@@ -711,6 +711,7 @@ Generate plan 背后的计划页先用示例数据做出完整页面（设计决
 | [drizzle/0010_trip_preferences.sql](../drizzle/0010_trip_preferences.sql) | 迁移 | 创建 trip_preferences 表、enum、外键和索引。 |
 | [drizzle/0011_plan_runs.sql](../drizzle/0011_plan_runs.sql) | 迁移 | 创建 plan_runs、plan_run_events、plan_versions 和 plan_run_status enum、外键、唯一约束和索引。 |
 | [drizzle/0012_plan_run_suspended.sql](../drizzle/0012_plan_run_suspended.sql) | 迁移 | `plan_run_status` 加 `suspended`。 |
+| [drizzle/0013_trip_preference_pace.sql](../drizzle/0013_trip_preference_pace.sql) | 迁移 | 1.2017：`trip_preference_pace` enum、`trip_preferences.pace` 可空列和 CHECK 约束。 |
 | [drizzle/meta/0000_snapshot.json](../drizzle/meta/0000_snapshot.json) | 数据库演进/工具元数据 | 第 0 次迁移生成的历史 schema 快照（public.trips），用于 Drizzle 差异计算，不是当前在线数据库状态。 |
 | [drizzle/meta/0001_snapshot.json](../drizzle/meta/0001_snapshot.json) | 数据库演进/工具元数据 | 第 1 次迁移生成的历史 schema 快照（public.trips），用于 Drizzle 差异计算，不是当前在线数据库状态。 |
 | [drizzle/meta/0002_snapshot.json](../drizzle/meta/0002_snapshot.json) | 数据库演进/工具元数据 | 第 2 次迁移生成的历史 schema 快照（public.trip_states、public.trips），用于 Drizzle 差异计算，不是当前在线数据库状态。 |

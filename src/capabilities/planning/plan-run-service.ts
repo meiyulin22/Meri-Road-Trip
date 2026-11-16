@@ -18,7 +18,7 @@ import {
   type PlanStage,
 } from "@/domain/plan/plan-progress";
 import type { PlanAnswer, PlanRun, PlanRunUsage, PlanVersion } from "@/domain/plan/plan-run";
-import { maxActivePreferences, maxPreferenceQuoteLength, type PlanPreference } from "@/domain/plan/trip-preference";
+import { maxActivePreferences, maxPreferenceQuoteLength, paceFor, type PlanPreference } from "@/domain/plan/trip-preference";
 import { logger } from "@/platform/observability/logger";
 import { serializeError } from "@/platform/observability/serialize-error";
 import type { PlanRunRepository } from "@/platform/persistence/plan-run-repository";
@@ -240,7 +240,7 @@ export class PlanRunService {
 
     const answeredAt = this.now();
     const preference: PlanPreference | null = option && {
-      id: this.newId(), label: option.label, kind: option.kind,
+      id: this.newId(), label: option.label, kind: option.kind, pace: paceFor(option.kind, option.pace),
       quote: `${question.text} ${option.label}`.slice(0, maxPreferenceQuoteLength),
       source: "question", messageId: null, createdAt: answeredAt.toISOString(),
     };

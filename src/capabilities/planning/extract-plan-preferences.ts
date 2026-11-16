@@ -3,6 +3,9 @@ import { z } from "zod";
 import {
   maxPreferenceLabelLength,
   maxPreferenceQuoteLength,
+  paceDirections,
+  paceFor,
+  type PaceDirection,
   preferenceKinds,
   type PreferenceKind,
 } from "@/domain/plan/trip-preference";
@@ -21,6 +24,8 @@ const outputSchema = z.strictObject({
     quote: z.string().min(1).max(maxPreferenceQuoteLength).refine((quote) => quote.trim() !== ""),
     label: z.string().trim().min(1).max(maxPreferenceLabelLength),
     kind: z.enum(preferenceKinds),
+    // Optional, so an answer that leaves it out keeps its preferences without a direction.
+    pace: z.enum(paceDirections).nullable().optional(),
   })).max(MAX_PREFERENCES),
 });
 
@@ -39,6 +44,7 @@ const systemPrompt = [
   "Also give a short label a traveller would read at a glance, in the language of the quote: about six Chinese characters or three English words, for example 喜欢自然景观 for 想去山川湖海.",
   "A label keeps the meaning and any negation in the traveller's key words, never a bare category: 不坐大巴 for 不想坐大巴, not 交通方式. An English quote gets an English label, such as Slow mornings.",
   "Give one kind: pace, walking (walking or climbing limits), companions (who travels along), budget, diet, interests, avoid (things not wanted), or other.",
+  "For a pace preference also give pace: packed when the traveller wants more in each day or accepts a tight trip (多看几个地方, 紧凑一点, 能接受赶), relaxed when they want fewer things and time to spare (不想太赶, 慢慢玩, 轻松一点), or null when it says neither (早上别太早). Every other kind has pace null.",
 ].join("\n");
 
 export type ExtractedPreference = {
@@ -46,6 +52,7 @@ export type ExtractedPreference = {
   readonly quote: string;
   readonly label: string;
   readonly kind: PreferenceKind;
+  readonly pace: PaceDirection | null;
   readonly createdAt: string;
 };
 
@@ -107,14 +114,14 @@ export async function extractPlanPreferences(
     const output = outputSchema.parse(JSON.parse(response.content));
     const sources = new Map(selected.map((message) => [message.id, message]));
     const byQuote = new Map<string, ExtractedPreference>();
-    for (const { messageId, quote, label, kind } of output.preferences) {
+    for (const { messageId, quote, label, kind, pace } of output.preferences) {
       const source = sources.get(messageId);
       // The quote must be the user's own words, verbatim, in the message it names.
       if (!source?.content.includes(quote)) continue;
 
       const previous = byQuote.get(quote);
       if (!previous || previous.createdAt < source.createdAt) {
-        byQuote.set(quote, { messageId, quote, label, kind, createdAt: source.createdAt });
+        byQuote.set(quote, { messageId, quote, label, kind, pace: paceFor(kind, pace), createdAt: source.createdAt });
       }
     }
 
@@ -128,6 +135,7 @@ export async function extractPlanPreferences(
 const labelSchema = z.strictObject({
   label: z.string().trim().min(1).max(maxPreferenceLabelLength),
   kind: z.enum(preferenceKinds),
+  pace: z.enum(paceDirections).nullable().optional(),
 });
 const labelJsonSchema = z.toJSONSchema(labelSchema, { target: "draft-7" });
 delete labelJsonSchema.$schema;
@@ -141,8 +149,8 @@ export async function labelPreference(
   requestId: string,
   createClient: () => StructuredOutputModelClient =
     () => createAiSdkKimiClientFromEnvironment({ debugRawOutput: false }),
-): Promise<{ label: string; kind: PreferenceKind }> {
-  const fallback = { label: text.slice(0, maxPreferenceLabelLength), kind: "other" as const };
+): Promise<{ label: string; kind: PreferenceKind; pace: PaceDirection | null }> {
+  const fallback = { label: text.slice(0, maxPreferenceLabelLength), kind: "other" as const, pace: null };
   try {
     const response = await createClient().generateStructuredOutput({
       requestId,
@@ -155,12 +163,14 @@ export async function labelPreference(
         "An English sentence gets an English label: With a toddler for We travel with a toddler.",
         "Kinds:",
         "pace, walking, companions, budget, diet, interests, avoid, or other.",
+        "For a pace preference also give pace: packed when the traveller wants more in each day or accepts a tight trip (多看几个地方, 紧凑一点, 能接受赶), relaxed when they want fewer things and time to spare (不想太赶, 慢慢玩, 轻松一点), or null when it says neither (早上别太早). Every other kind has pace null.",
       ].join("\n"),
       userMessage: JSON.stringify({ preference: text }),
       jsonSchema: labelJsonSchema,
     });
     if (response.finishReason !== "stop" || !response.content) return fallback;
-    return labelSchema.parse(JSON.parse(response.content));
+    const labelled = labelSchema.parse(JSON.parse(response.content));
+    return { ...labelled, pace: paceFor(labelled.kind, labelled.pace) };
   } catch {
     return fallback;
   }

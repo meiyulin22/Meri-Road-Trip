@@ -324,8 +324,21 @@ once with that reason, and if the second answer still does not ask, the first ro
 options leaving out the same city (丽江+大理 and 大理+丽江) are one trip, so only the first is kept.
 Rerun (`2026-11-16-1.2016.json`, against `-prompt-only`): case 3 asked 3 of 3, case 4 0 of 3 with
 every city kept, case 11 2 of 3 (the third run's 迪庆 research found nothing, so there was no
-choice to make). Whether a preference such as 紧凑 answers the question is still read by the model
-each time; a hidden pace direction on preferences, set once when they are extracted, is next.
+choice to make).
+
+**A hidden pace direction (1.2017).** Whether a preference such as 紧凑 answers the question is no
+longer read by the route call. A pace preference carries a direction the traveller never sees,
+`packed` (more in each day, a tight trip is fine) or `relaxed` (fewer things, time to spare), or none
+when it says neither (早上别太早). The model judges it once where the preference is made: extraction
+at the handoff, a sentence written on the plan page, and the options of a question ("保留三城，紧凑走完"
+is packed). It is stored in `trip_preferences.pace` (migration 0013, a CHECK keeps it on pace
+preferences only); preferences saved before read as none. Code then decides: with every city
+fitting and a packed preference, the route may not ask at all; a relaxed preference lowers the day
+to three stops, like a walking limit. The 1.2016 prompt line stays for preferences without a
+direction. Live extraction gave 紧凑多看 → packed, 不想太赶 → relaxed, 早上别太早 → none; a written
+早上睡个懒觉 → relaxed. Rerun (`2026-11-16-1.2017.json`): case 4 asked 0 of 3, case 3 3 of 3, cases 2
+and 11 at most three stops a day. Case 11 (relaxed, three days for three cities) asked 1 of 3, one
+run having no 迪庆 cards to choose about: asking there is still the model's call.
 
 **Areas the traveller named (1.2012).** A Workspace "spot" that is really a county-level area
 of its city (大理市 under 大理白族自治州, 香格里拉市 under 迪庆; names ending in 市, 县 or 旗,

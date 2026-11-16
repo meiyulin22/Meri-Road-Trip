@@ -46,8 +46,8 @@ test("extracts preferences once from saved user text and verifies their exact pr
 
   assert.deepEqual(result, {
     preferences: [
-      { messageId: "new", quote: "我不吃辣", label: "不吃辣", kind: "diet", createdAt: history[2].createdAt },
-      { messageId: "new", quote: "晚上想早点休息", label: "晚上早休息", kind: "pace", createdAt: history[2].createdAt },
+      { messageId: "new", quote: "我不吃辣", label: "不吃辣", kind: "diet", pace: null, createdAt: history[2].createdAt },
+      { messageId: "new", quote: "晚上想早点休息", label: "晚上早休息", kind: "pace", pace: null, createdAt: history[2].createdAt },
     ],
     preferenceStatus: "ready",
   });
@@ -87,9 +87,23 @@ test("reads up to thirty messages, keeps the first one, and rejects quotes outsi
 test("labels a preference written on the plan page, or keeps it as its own label", async () => {
   const requests: StructuredOutputModelRequest[] = [];
   assert.deepEqual(await labelPreference("我想去山川湖海", "label-1", model(requests, '{"label":"喜欢自然景观","kind":"interests"}')),
-    { label: "喜欢自然景观", kind: "interests" });
+    { label: "喜欢自然景观", kind: "interests", pace: null });
   assert.deepEqual(await labelPreference("早上不想太早", "label-2", model(requests, "not json")),
-    { label: "早上不想太早", kind: "other" });
+    { label: "早上不想太早", kind: "other", pace: null });
+  // A direction is kept on a pace preference only (1.2017).
+  assert.deepEqual(await labelPreference("不想太赶", "label-3", model(requests, '{"label":"慢节奏","kind":"pace","pace":"relaxed"}')),
+    { label: "慢节奏", kind: "pace", pace: "relaxed" });
+  assert.deepEqual(await labelPreference("想多拍日落", "label-4", model(requests, '{"label":"爱拍日落","kind":"interests","pace":"packed"}')),
+    { label: "爱拍日落", kind: "interests", pace: null });
+});
+
+test("a pace preference keeps the direction the model gave it, and only a pace preference (1.2017)", async () => {
+  const history = [message("m1", "可以走得紧凑一点，多看几个地方，不吃辣")];
+  const result = await extractPlanPreferences(history, "pace", model([], JSON.stringify({ preferences: [
+    { messageId: "m1", quote: "可以走得紧凑一点，多看几个地方", label: "节奏紧凑", kind: "pace", pace: "packed" },
+    { messageId: "m1", quote: "不吃辣", label: "不吃辣", kind: "diet", pace: "relaxed" },
+  ] })));
+  assert.deepEqual(result.preferences.map(({ kind, pace }) => [kind, pace]), [["pace", "packed"], ["diet", null]]);
 });
 
 test("distinguishes no preferences from unavailable extraction and skips a model call without user input", async () => {

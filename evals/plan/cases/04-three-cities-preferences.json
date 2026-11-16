@@ -32,7 +32,8 @@
     {
       "kind": "pace",
       "label": "节奏紧凑",
-      "quote": "可以走得紧凑一点，多看几个地方"
+      "quote": "可以走得紧凑一点，多看几个地方",
+      "pace": "packed"
     }
   ],
   "repeat": 3,

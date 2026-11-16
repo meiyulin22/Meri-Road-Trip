@@ -62,6 +62,7 @@ erDiagram
     uuid trip_id FK
     text label
     trip_preference_kind kind
+    trip_preference_pace pace
     text quote
     trip_preference_source source
     uuid message_id FK
@@ -164,6 +165,7 @@ Trip 不再保存 name、origin、destination 或日期列，避免与 TripState
 | `trip_id` | `tripId` | uuid | 非空、外键→trips.id，级联删除 | 所属 Journey |
 | `label` | `label` | text | 非空 | 给用户看的短标签（例如「喜欢自然景观」），模型生成，应用限 24 字 |
 | `kind` | `kind` | `trip_preference_kind` enum | 非空 | `pace`/`walking`/`companions`/`budget`/`diet`/`interests`/`avoid`/`other`；不显示，代码据此定规则（体力、同行人 → 每天最多 3 个景点） |
+| `pace` | `pace` | `trip_preference_pace` enum | 可空；CHECK：只有 `kind = 'pace'` 时可以有值 | 1.2017：节奏偏好的方向，不显示。`packed`（想多看、能接受紧凑）或 `relaxed`（想轻松、少安排）；方向不明（「早上别太早」）和其他类型为空。提取偏好、计划页手写和回答提问时由模型判断一次；代码据此定规则（packed 且每城都排得下 → 不问是否放弃城市；relaxed → 每天最多 3 个景点）。之前的行都为空 |
 | `quote` | `quote` | text | 非空 | 用户原话，交给规划模型的是这一句；来自对话的由应用逐字核对，应用限 160 字 |
 | `source` | `source` | `trip_preference_source` enum | 非空 | `conversation`（交接时从对话提取）、`plan_page`（计划页添加）、`question`（生成中提问的回答，预留） |
 | `message_id` | `messageId` | uuid | 可空、外键→trip_messages.id，删除时置空 | 原话出处 |
@@ -171,7 +173,7 @@ Trip 不再保存 name、origin、destination 或日期列，避免与 TripState
 | `created_at` | `createdAt` | timestamptz | 非空 | 来自对话的为原消息时间，计划页添加的为添加时间；排序用 |
 | `updated_at` | `updatedAt` | timestamptz | 非空 | 最后修改时间（删除时更新） |
 
-索引 `trip_preferences_trip_status_idx (trip_id, status)`：计划页按旅程读取有效偏好。每个旅程最多 30 条有效偏好，由应用限制。
+索引 `trip_preferences_trip_status_idx (trip_id, status)`：计划页按旅程读取有效偏好。约束 `trip_preferences_pace_kind_check`：`pace IS NULL OR kind = 'pace'`。每个旅程最多 30 条有效偏好，由应用限制。
 
 ### 3.5 计划运行三张表（1.2010）
 
@@ -306,6 +308,7 @@ pending 标记只保存推荐范围，不保存要推荐什么：卡片请求从
 | [0010_trip_preferences.sql](../drizzle/0010_trip_preferences.sql) | 创建 trip_preferences 表、三个 enum、两个外键和 (trip_id, status) 索引。0007–0009 是手写迁移、没有快照，drizzle-kit 生成时多出一句已存在的 `trip_messages.presentation`，已手动删掉；0010 快照是当前完整 schema |
 
 | [0011_plan_runs.sql](../drizzle/0011_plan_runs.sql) | 创建 plan_runs、plan_run_events、plan_versions 和 plan_run_status enum，四个级联外键、唯一约束和 (trip_id, started_at) 索引（drizzle-kit 生成，没有多余语句） |
+| [0013_trip_preference_pace.sql](../drizzle/0013_trip_preference_pace.sql) | 1.2017：新 enum `trip_preference_pace`（packed、relaxed），`trip_preferences` 加可空列 `pace` 和 CHECK 约束 `trip_preferences_pace_kind_check`；已有行为空，不需补数据 |
 | [0012_plan_run_suspended.sql](../drizzle/0012_plan_run_suspended.sql) | `plan_run_status` 加 `suspended`（在 `succeeded` 之前） |
 
 `_journal.json` 记录仓库迁移顺序；历史 snapshots 只覆盖已有快照，不应拿最后一份历史 snapshot 当完整当前 schema。执行状态需针对实际环境另行确认，本文件不授权清库或执行 DROP。

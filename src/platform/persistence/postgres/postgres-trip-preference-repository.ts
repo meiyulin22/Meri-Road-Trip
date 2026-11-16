@@ -33,8 +33,8 @@ function isoTime(value: string): string {
 }
 
 function toPreference(row: TripPreferenceRow): TripPreference {
-  const { id, tripId, label, kind, quote, source, messageId, status, createdAt } = row;
-  return { id, tripId, label, kind, quote, source, messageId, status, createdAt: isoTime(createdAt) };
+  const { id, tripId, label, kind, pace, quote, source, messageId, status, createdAt } = row;
+  return { id, tripId, label, kind, pace, quote, source, messageId, status, createdAt: isoTime(createdAt) };
 }
 
 export class PostgresTripPreferenceRepository implements TripPreferenceRepository {

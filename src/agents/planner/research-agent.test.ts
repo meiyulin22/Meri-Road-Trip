@@ -30,7 +30,7 @@ const handoff: PlanHandoff = {
   timezone: "Asia/Shanghai",
   locale: "zh",
   preferenceStatus: "ready",
-  preferences: [{ id: "p1", label: "少爬台阶", kind: "walking", quote: "少走台阶", source: "conversation",
+  preferences: [{ id: "p1", label: "少爬台阶", kind: "walking", pace: null, quote: "少走台阶", source: "conversation",
     messageId: "message", createdAt: "2026-11-11T08:00:00.000Z" }],
 };
 
