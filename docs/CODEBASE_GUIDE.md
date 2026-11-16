@@ -179,7 +179,7 @@ LLM 解释自然语言并提出受限 JSON；应用校验、决定是否执行�
 | [next.config.ts](../next.config.ts) | 工程配置 | Next.js 配置入口：允许 next/image 从照片提供方的白名单主机取图；开发模式下 `images.dangerouslyAllowLocalIP`，因为本机 Mihomo TUN 的 fake-IP（198.18.x.x）会被优化器当内网地址拒绝，远端照片全部 400。 |
 | [.gitattributes](../.gitattributes) | 工程配置 | `* text=auto eol=lf`：所有文本文件在任何平台上都按 LF 检出（图片等二进制按 binary 处理）。没有它，Windows 上 `core.autocrlf=true` 会把快照转成 CRLF，中文 prompt 锁定测试因行尾不同而失败（2026-10-23）。 |
 | [package-lock.json](../package-lock.json) | 工程配置 | 锁定 npm 依赖解析结果，保证安装版本可重现。 |
-| [package.json](../package.json) | 工程配置 | 项目信息、依赖与 dev/build/start/lint/test/typecheck 命令；`test` 跑 `src/` 和 `scripts/` 下的测试。 |
+| [package.json](../package.json) | 工程配置 | 项目信息、依赖（1.2104 起有 Leaflet，画计划页地图）与 dev/build/start/lint/test/typecheck 命令；`test` 跑 `src/` 和 `scripts/` 下的测试。 |
 | [tsconfig.json](../tsconfig.json) | 工程配置 | TypeScript 编译/检查、路径别名及 Next.js 类型配置。 |
 
 ### 6.2 文档
@@ -365,10 +365,16 @@ Generate plan 背后的计划页先用示例数据做出完整页面（设计决
 | [src/components/trip-plan/plan-sections.tsx](../src/components/trip-plan/plan-sections.tsx) | 表现层 | 生成进度（当前步骤、进度条、步骤列表，完成后收成一行运行统计）、规划中的骨架区块、锁住的区块（天数、出发日期、出发地 + 交通方式，各自写明要什么、就地点选）、怎么去（只展开推荐的一班，其余折叠；自驾时只给说明）、核实情况卡。 |
 | [src/components/trip-plan/day-card.tsx](../src/components/trip-plan/day-card.tsx) | 表现层 | 一天的卡片：收起时一行（第几天、日期、城市、标题、天气）；展开时照片、上午/下午天气、时间线（时间、景点、开放时间和核实标记及来源、提示、"我选了 X"的替换候选、两点之间的车程或步行）、可行性一句话、还不知道的事、住哪里和每晚价格；没日期时天气和价格显示锁住的说明；悬停景点会在地图上标亮。1.1001：天气块（预报：上午/下午、逐几小时温度、风、日出日落、因天气这样安排的理由；太远：往年同期加说明），每个景点名旁的导航按钮（选地图 App）。 |
 | [src/components/trip-plan/plan-map.tsx](../src/components/trip-plan/plan-map.tsx) | 表现层 | 示意地图（SVG）：湖、山脊、道路、城镇，当天景点按顺序编号并连线（步行虚线），其他天的点淡显；按天/全程切换，镜头平滑移过去；地名统一中文；只用于设计预览页，真实计划页的地图见 plan-tianditu-map.tsx（1.2100）。 |
-| [src/components/trip-plan/plan-tianditu-map.tsx](../src/components/trip-plan/plan-tianditu-map.tsx) | 表现层 | 1.2100：计划页的天地图地图。用 `next/script` 加载 JS API 4.0（浏览器端 key `NEXT_PUBLIC_TIANDITU_BROWSER_KEY`，公开在页面里），矢量底图加中文（cva）或英文（eva）注记；选中那天的景点为带编号的绿点并用淡虚线连起来（只表示顺序，不是行车路线），其他天为灰色小点，自动缩放到这些点；全程 / 第 N 天切换，每天都有按钮。1.2101：某天没有定位到的景点时，地图移到同城其他天已定位景点的中心，画一个虚线圈标出城市并写一句说明；整趟都没有这座城的坐标就显示全程。没有坐标的计划不显示，key 未配置或脚本加载失败时显示提示。 |
+| [src/components/trip-plan/plan-tianditu-map.tsx](../src/components/trip-plan/plan-tianditu-map.tsx) | 表现层 | 计划页地图。1.2104 起用 Leaflet 画，瓦片来自自己的中转接口 `/api/map-tiles/...`，网页里没有任何 key，浏览器也不直接请求天地图；矢量底图加中文注记（英文注记被天地图防火墙拦过，暂不使用），地图只能在中国范围内拖动，角落写「天地图 · GS(2026)4921号」。选中那天的景点带编号，沿道路或步行道画实线、没路处画虚线，其他天灰色小点；没有定位景点的那天显示所在城市（1.2101）。 |
+| [src/app/api/map-tiles/[layer]/[z]/[x]/[y]/route.ts](../src/app/api/map-tiles/[layer]/[z]/[x]/[y]/route.ts) | 接口层 | 1.2104：地图瓦片中转，每个服务器进程一个中转和一个限流器。 |
+| [src/capabilities/map/map-tiles-handler.ts](../src/capabilities/map/map-tiles-handler.ts) | 应用层 | 1.2104：只给自己的页面（Sec-Fetch-Site 或 Referer，可被伪造，只挡随手盗用）、只给中国范围内的瓦片、每个 IP 每分钟最多 400 张；失败只说「地图暂时不可用」，不带天地图细节；浏览器可以缓存一天，服务器不存。 |
+| [src/capabilities/map/map-tiles-handler.test.ts](../src/capabilities/map/map-tiles-handler.test.ts) | 测试 | 图层、缩放、中国范围、key 只在服务器、拒绝后暂停、限流、来源检查。 |
+| [src/domain/map/map-tile.ts](../src/domain/map/map-tile.ts) | 领域层 | 1.2104：中转接受的瓦片：vec、cva 两层，缩放 3–18，瓦片必须碰到中国范围（经度 73–136、纬度 3–54）。 |
+| [src/platform/tianditu/tianditu-tiles.ts](../src/platform/tianditu/tianditu-tiles.ts) | 外部集成适配器 | 1.2104：用服务端 key 取天地图瓦片；单独的队列，每 120 毫秒放出一张（一次性并发十几张曾被防火墙拦截）；遇到 418 或拦截页就暂停 5 分钟，期间不再请求。 |
+| [src/platform/http/rate-limiter.ts](../src/platform/http/rate-limiter.ts) | 基础设施 | 1.2104：按客户端计数的滑动窗口限流，存在内存里，单进程。 |
 | [src/components/trip-plan/plan-leg-text.ts](../src/components/trip-plan/plan-leg-text.ts) | 表现层模型 | 1.2103：每个景点前那一行的文字：步行写步行；开车按用户交通方式写「开车 / 打车 / 车程约」；路线头尾超过 300 米没路、或整段没路时如实写出，并列出常见方式（坐船、索道、步行），不替用户猜。 |
 | [src/components/trip-plan/plan-leg-text.test.ts](../src/components/trip-plan/plan-leg-text.test.ts) | 测试 | 交通方式的措辞、1.2102 旧计划、到不了的尾段、整段没路。 |
-| [src/components/trip-plan/plan-tianditu-map-model.ts](../src/components/trip-plan/plan-tianditu-map-model.ts) | 表现层模型 | 从保存的计划取出有坐标的景点（保留它在当天的序号）、按天筛选、天地图 Web 墨卡托瓦片地址（vec/cva/eva）、编号图标和城市圈的 SVG data URL，`dayOnMap` 决定某天显示自己的景点、所在城市还是全程；纯函数。 |
+| [src/components/trip-plan/plan-tianditu-map-model.ts](../src/components/trip-plan/plan-tianditu-map-model.ts) | 表现层模型 | 从保存的计划取出有坐标的景点（保留它在当天的序号）、按天筛选、中转接口的瓦片地址（1.2104 起，不含 key）、编号图标和城市圈的 SVG data URL，`dayOnMap` 决定某天显示自己的景点、所在城市还是全程；纯函数。 |
 | [src/components/trip-plan/plan-tianditu-map-model.test.ts](../src/components/trip-plan/plan-tianditu-map-model.test.ts) | 测试 | 未定位和旧计划的景点不画但保留序号、英文界面用英文注记、编号图标、没有定位景点的天按同城景点放置或显示全程。 |
 | [src/components/trip-plan/plan-map-model.ts](../src/components/trip-plan/plan-map-model.ts) | 表现层纯函数 | 丽江—大理一带的平面投影、把一组点放进方框的取景、镜头插值，以及粗略画的湖泊、山脊和道路坐标。 |
 | [src/components/trip-plan/plan-map-model.test.ts](../src/components/trip-plan/plan-map-model.test.ts) | 测试（对应模块边界） | 验证北在上东在右、取景后所有点落在留白之内且单个点不会无限放大、镜头插值。 |

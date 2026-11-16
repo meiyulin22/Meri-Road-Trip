@@ -1,4 +1,3 @@
-import type { Locale } from "@/domain/locale/locale";
 import { type DriveLeg, offRoadNoticeMeters } from "@/domain/plan/plan-draft";
 import type { ReadyPlan } from "@/domain/plan/plan-draft-response";
 
@@ -89,18 +88,20 @@ export function highlightedStops(stops: readonly MapStop[], day: number | null):
 }
 
 /**
- * A Tianditu tile layer in Web Mercator (the `_w` sets), as the JS API's TileLayer fills in
- * {x}, {y} and {z}. `vec` is the street map; `cva` its Chinese labels and `eva` its English
- * ones, so an English page reads English place names on the map.
+ * A tile layer as the browser asks for it: from Meri's own relay, never Tianditu directly, so no
+ * key reaches the page (1.2104). `vec` is the street map; `cva` its Chinese labels.
  */
-export function tileUrl(layer: "vec" | "cva" | "eva", key: string, server: number): string {
-  return `https://t${server}.tianditu.gov.cn/${layer}_w/wmts?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0`
-    + `&LAYER=${layer}&STYLE=default&TILEMATRIXSET=w&FORMAT=tiles&TILEMATRIX={z}&TILEROW={y}&TILECOL={x}`
-    + `&tk=${encodeURIComponent(key)}`;
+export function tileUrl(layer: "vec" | "cva"): string {
+  return `/api/map-tiles/${layer}/{z}/{x}/{y}`;
 }
 
-export function labelLayer(locale: Locale): "cva" | "eva" {
-  return locale === "en" ? "eva" : "cva";
+/**
+ * The labels drawn over the street map: Chinese on every page for now. Tianditu's firewall
+ * refused the English label tiles (eva) through the relay on 2026-11-16, and place names stay
+ * Chinese on Meri's pages anyway; English labels wait until that refusal is understood.
+ */
+export function labelLayer(): "cva" {
+  return "cva";
 }
 
 /**

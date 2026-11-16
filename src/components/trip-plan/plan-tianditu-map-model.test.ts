@@ -37,12 +37,10 @@ test("only located stops with coordinates are drawn, keeping their number in the
   assert.equal(highlightedStops(stops, null).length, 2);
 });
 
-test("tiles come from Tianditu's Web Mercator sets, with English labels on an English page", () => {
-  assert.equal(labelLayer("en"), "eva");
-  assert.equal(labelLayer("zh"), "cva");
-  const url = tileUrl("vec", "k y", 3);
-  assert.match(url, /^https:\/\/t3\.tianditu\.gov\.cn\/vec_w\/wmts\?/u);
-  assert.match(url, /TILEMATRIX=\{z\}&TILEROW=\{y\}&TILECOL=\{x\}&tk=k%20y$/u);
+test("tiles come through Meri's relay with no key, with Chinese labels on every page for now (1.2104)", () => {
+  assert.equal(tileUrl("cva"), "/api/map-tiles/cva/{z}/{x}/{y}");
+  assert.equal(labelLayer(), "cva");
+  assert.equal(tileUrl("vec"), "/api/map-tiles/vec/{z}/{x}/{y}");
 });
 
 test("the chosen day's pins are numbered; the others are small and plain", () => {

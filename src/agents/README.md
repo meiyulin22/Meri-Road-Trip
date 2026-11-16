@@ -423,7 +423,9 @@ failing the run.
 ### Drive times and the map (1.2100–1.2102)
 
 The map check keeps each located spot's coordinates (1.2100), and the plan page draws the stops
-on a Tianditu JS API map with a public browser key; a day with no located stop shows its city
+on a Tianditu map (since 1.2104 with Leaflet, from tiles our server relays with the server key, so no
+key reaches the page and the map loads behind proxies and abroad; vec plus Chinese labels, paced at
+one tile every 120 ms after a burst of English-label tiles was refused with 418); a day with no located stop shows its city
 (1.2101). After the validation stage, [transport/legs.ts](transport/legs.ts) asks Tianditu's drive
 service (`/drive`, style 0, fastest) for each pair of neighbouring located stops in a day (1.2102):
 its distance in km, duration in seconds and the road as `lng,lat;…` (an XML answer labelled
