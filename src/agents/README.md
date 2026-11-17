@@ -420,7 +420,7 @@ The same live check found the day-planning call failing when Kimi wrote a time a
 string: that answer shape is now read, and a malformed answer gets the second attempt instead of
 failing the run.
 
-### Drive times and the map (1.2100–1.2105)
+### Drive times and the map (1.2100–1.2106)
 
 The map check keeps each located spot's coordinates (1.2100), and the plan page draws the stops
 on a Tianditu map (since 1.2104 with Leaflet, from tiles our server relays with the server key, so no
@@ -459,6 +459,22 @@ nothing is looked up again. Each day has its own colour (six of Meri's tones, re
 its lines, pins, map tab and day card; a one-day view greys the other days. A drive is a thick solid
 line on a white casing, a walk a thin dotted one, a stretch with no road dashed, with a key below
 the map.
+
+**Setting off, changing city and heading home (1.2106).** Code lists the legs from the route and
+the origin ([transfer-legs.ts](../domain/plan/transfer-legs.ts)): setting off before day 1, one leg
+into every day marked `arrivingFrom`, and the way back after the last day (a preview plan has
+none). A missing or only roughly known origin is said, not guessed. A new step after the route,
+`transfer-legs`, then gives each leg a rough drive ([transport/transfers.ts](transport/transfers.ts)):
+one Tianditu search for each place's centre, read only from an administrative answer whose name is
+the one asked ([tianditu-city-point.ts](../platform/tianditu/tianditu-city-point.ts); measured
+2026-11-17: 丽江市 → 156530700 at 100.225258, 26.8583), and one drive between the two centres.
+Centres are kept 180 days, drives 30; at most 24 lookups a run, the first failure stops the rest. A
+one-city trip's way back is the way there reversed; a multi-city trip's starts from its last city
+and is asked. City centres, not stops, because a stop can sit in a lake and trains and flights go
+city to city. No model is asked: this is the code fallback the transport agent will wrap, and the
+step sits where that agent will sit. The days are still drafted as if a transfer takes the
+morning. The page shows a card before day 1 and after the last day, a slim strip between the two
+days of a change of city, and the roads between cities in ink on the whole-trip map.
 
 ### Evaluation (1.2014)
 

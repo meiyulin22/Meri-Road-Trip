@@ -3,7 +3,7 @@
 import { ArrowRight, CalendarCheck, Car, ChevronDown, Footprints, Clock, ExternalLink, Info, MapPin, MoonStar, RotateCw, Route, Sparkles, Star, Sun, Sunrise, TriangleAlert } from "lucide-react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import Image from "next/image";
-import { type CSSProperties, useEffect, useMemo, useReducer, useState } from "react";
+import { type CSSProperties, Fragment, useEffect, useMemo, useReducer, useState } from "react";
 
 import { useLocale } from "@/components/i18n/locale-context";
 import { creditsHref } from "@/components/trip-workspace/destination-choices-card";
@@ -16,6 +16,7 @@ import type { PlanHandoff } from "@/domain/plan/plan-handoff";
 import type { TransportPreference } from "@/domain/trip-draft/trip-draft";
 import type { PlanRunStartResponse } from "@/domain/plan/plan-run";
 import type { SpotCard, SpotEvidence } from "@/domain/plan/spot-card";
+import type { TransferKind } from "@/domain/plan/transfer-legs";
 
 import {
   answerPlanQuestion,
@@ -35,6 +36,7 @@ import { PlanQuestionCard, PlanRunActivity, type QuestionAnswer } from "./plan-r
 import { dayColor } from "./plan-day-colors";
 import { legText } from "./plan-leg-text";
 import { PlanTiandituMap } from "./plan-tianditu-map";
+import { PlanTransferCard } from "./plan-transfer-card";
 import draftStyles from "./plan-draft.module.css";
 import styles from "./trip-plan.module.css";
 
@@ -320,8 +322,8 @@ function LiveRun({ tripId, runId, text, locale, onDone, onFailed, onAnswered }: 
           {view.days.map((day, index) => (
             <DraftDay key={day.day} day={day} cards={cards} text={text} locale={locale} index={index}
               photo={view.photos[day.day] ?? null} preview={view.scope?.mode === "preview"} unverified={new Map()}
-              // Drive times arrive with the saved plan; the live view shows the days without them.
-              arriving={new Map()}
+              // Drive times and transfers arrive with the saved plan; meanwhile a transfer day keeps its tag.
+              arriving={new Map()} showTransferTag
               checks={new Map(day.stops.flatMap(({ spotId }) => {
                 const check = view.checks[`${day.day}|${spotId}`];
                 return check ? [[spotId, check] as const] : [];
@@ -370,6 +372,11 @@ function DraftDays({ response, text, locale, transport }: {
   const located = draft.days.flatMap((day) => day.stops).filter(({ spotId }) => cards.get(spotId)?.mapCheck.status === "located").length;
   const partial = response.cities.filter(({ status }) => status === "partial" || status === "unavailable").map(({ city }) => city);
   const nameOf = (spotId: string) => cards.get(spotId)?.name ?? spotId;
+  // Setting off, each change of city and heading home, where the plan has them (1.2106).
+  const transferCard = (kind: TransferKind, day: number | null) => {
+    const leg = draft.transfers?.find((item) => item.kind === kind && (day === null || item.day === day));
+    return leg ? <PlanTransferCard leg={leg} transport={transport} locale={locale} /> : null;
+  };
 
   return (
     <section className={draftStyles.draft} aria-label={text.dayLabel(1)}>
@@ -427,14 +434,19 @@ function DraftDays({ response, text, locale, transport }: {
       <PlanTiandituMap plan={response} locale={locale} selectedDay={openDay} onSelectDay={setOpenDay} />
 
       <div className={draftStyles.days}>
+        {transferCard("outbound", null)}
         {draft.days.map((day, index) => (
-          <DraftDay key={day.day} day={day} cards={cards} text={text} locale={locale} index={index} photo={photos.get(day.day) ?? null}
-            preview={draft.mode === "preview"}
+          <Fragment key={day.day}>
+          {transferCard("between", day.day)}
+          <DraftDay day={day} cards={cards} text={text} locale={locale} index={index} photo={photos.get(day.day) ?? null}
+            preview={draft.mode === "preview"} showTransferTag={!draft.transfers}
             unverified={new Map(draft.unverified.map(({ spotId, fields }) => [spotId, fields]))}
             checks={new Map((draft.checks ?? []).filter(({ day: number }) => number === day.day).map((check) => [check.spotId, check]))}
             arriving={arrivingLegs(day, draft.legs ?? [])} transport={transport}
             open={openDay === day.day} onOpen={() => setOpenDay(openDay === day.day ? null : day.day)} />
+          </Fragment>
         ))}
+        {transferCard("return", null)}
       </div>
 
       {partial.length > 0 || response.pendingProvinces.length > 0 ? (
@@ -463,7 +475,9 @@ function arrivingLegs(day: PlanDay, legs: readonly DriveLeg[]): ReadonlyMap<stri
   }));
 }
 
-function DraftDay({ day, cards, unverified, checks, arriving, transport = null, text, locale, preview, open, onOpen, index, photo }: {
+function DraftDay({ day, cards, unverified, checks, arriving, transport = null, text, locale, preview, showTransferTag, open, onOpen, index, photo }: {
+  /** Plans before 1.2106 mark a transfer day with a tag; later ones have a strip between the days. */
+  readonly showTransferTag: boolean;
   readonly transport?: TransportPreference | null;
   /** Each stop's drive from the stop before it, by spot ID; absent where none was planned. */
   readonly arriving: ReadonlyMap<string, DriveLeg>;
@@ -497,7 +511,7 @@ function DraftDay({ day, cards, unverified, checks, arriving, transport = null, 
             {text.dayLabel(day.day)}{day.date ? ` · ${formatDate(day.date, locale)}` : ""} · {day.city}
             {day.focus ? ` · ${day.focus}` : ""}
             {preview ? <span className={draftStyles.previewTag}>{text.preview}</span> : null}
-            {day.arrivingFrom ? (
+            {day.arrivingFrom && showTransferTag ? (
               <span className={draftStyles.transferTag} title={text.transferNote}>
                 {text.transfer(day.arrivingFrom, day.city)}
               </span>

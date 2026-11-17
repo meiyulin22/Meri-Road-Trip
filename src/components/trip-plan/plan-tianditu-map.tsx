@@ -9,7 +9,7 @@ import type { Locale } from "@/domain/locale/locale";
 import type { ReadyPlan } from "@/domain/plan/plan-draft-response";
 
 import { dayColor } from "./plan-day-colors";
-import { cityIcon, dayLines, dayOnMap, type DayOnMap, highlightedStops, labelLayer, lineStrokes, mapStops, markerIcon, type MapStop, tileUrl } from "./plan-tianditu-map-model";
+import { cityIcon, dayLines, dayOnMap, type DayOnMap, highlightedStops, labelLayer, lineStrokes, mapStops, markerIcon, type MapStop, tileUrl, transferInk, transferLines } from "./plan-tianditu-map-model";
 import draftStyles from "./plan-draft.module.css";
 
 type Leaflet = typeof import("leaflet");
@@ -19,13 +19,13 @@ const copy = {
     title: "地图", wholeTrip: "全程", day: (day: number) => `第 ${day} 天`, failed: "地图没有加载出来。",
     cityOnly: (day: number, city: string) => `第 ${day} 天的景点还没在地图上找到，先显示它所在的${city}。`,
     unplaced: (day: number) => `第 ${day} 天的景点还没在地图上找到，这里显示全程。`,
-    legend: { drive: "开车", walk: "步行", none: "地图上没有路" },
+    legend: { drive: "开车", walk: "步行", none: "地图上没有路", between: "城市之间" },
   },
   en: {
     title: "Map", wholeTrip: "Whole trip", day: (day: number) => `Day ${day}`, failed: "The map didn’t load.",
     cityOnly: (day: number, city: string) => `Day ${day}'s stops aren't on the map yet, so it shows where ${city} is.`,
     unplaced: (day: number) => `Day ${day}'s stops aren't on the map yet, so it shows the whole trip.`,
-    legend: { drive: "Drive", walk: "Walk", none: "No road on the map" },
+    legend: { drive: "Drive", walk: "Walk", none: "No road on the map", between: "Between cities" },
   },
 } as const;
 
@@ -91,7 +91,7 @@ export function PlanTiandituMap({ plan, locale, selectedDay, onSelectDay }: {
     if (!ready || !current || stops.length === 0) return;
     current.overlays.clearLayers();
     if (view?.kind === "city" && chosen !== null) drawCity(current, stops, view, dayColor(chosen).solid);
-    else drawStops(current, stops, view?.kind === "stops" ? chosen : null, plan.draft.legs ?? []);
+    else drawStops(current, stops, view?.kind === "stops" ? chosen : null, plan.draft.legs ?? [], plan.draft.transfers ?? []);
     // stops are rebuilt each render from the plan; the plan and the chosen day decide them.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ready, plan, chosen]);
@@ -114,6 +114,7 @@ export function PlanTiandituMap({ plan, locale, selectedDay, onSelectDay }: {
         <li data-kind="road">{text.legend.drive}</li>
         <li data-kind="walk">{text.legend.walk}</li>
         <li data-kind="straight">{text.legend.none}</li>
+        {transferLines(plan.draft.transfers ?? [], null).length > 0 ? <li data-kind="between">{text.legend.between}</li> : null}
       </ul>
       {failed ? <p className={draftStyles.mapNote} role="status">{text.failed}</p> : null}
       {note ? <p className={draftStyles.mapNote} role="status">{note}</p> : null}
@@ -134,8 +135,16 @@ function drawCity({ L, map, overlays }: Drawing, stops: readonly MapStop[], city
   map.setView([city.latitude, city.longitude], 11);
 }
 
-function drawStops({ L, map, overlays }: Drawing, stops: readonly MapStop[], day: number | null, legs: Parameters<typeof dayLines>[1]): void {
+function drawStops(
+  { L, map, overlays }: Drawing, stops: readonly MapStop[], day: number | null,
+  legs: Parameters<typeof dayLines>[1], transfers: Parameters<typeof transferLines>[0],
+): void {
   const highlighted = new Set(highlightedStops(stops, day));
+  // Roads between cities first, under the days' own lines; they do not set the frame.
+  for (const line of transferLines(transfers, day)) {
+    const points = line.path.map(([longitude, latitude]) => [latitude, longitude] as [number, number]);
+    L.polyline(points, { color: transferInk, weight: 3, opacity: line.faint ? 0.3 : 0.55, lineCap: "round" }).addTo(overlays);
+  }
   for (const number of [...new Set([...highlighted].map(({ day: value }) => value))]) {
     for (const line of dayLines(stops, legs, number)) {
       const points = line.path.map(([longitude, latitude]) => [latitude, longitude] as [number, number]);

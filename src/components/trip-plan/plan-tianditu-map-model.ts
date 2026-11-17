@@ -1,5 +1,6 @@
 import { type DriveLeg, legReach } from "@/domain/plan/plan-draft";
 import type { ReadyPlan } from "@/domain/plan/plan-draft-response";
+import type { TransferLeg } from "@/domain/plan/transfer-legs";
 
 import { fadedDayColor } from "./plan-day-colors";
 
@@ -107,6 +108,22 @@ export function lineStrokes(kind: Line["kind"], color: string): LineStroke[] {
   }
   if (kind === "walk") return [{ color, weight: 3.5, opacity: 0.95, dashArray: "1 7", lineCap: "round" }];
   return [{ color, weight: 2.5, opacity: 0.8, dashArray: "8 8", lineCap: "butt" }];
+}
+
+/** The ink of the roads between cities, apart from every day's colour (1.2106). */
+export const transferInk = "#17352c";
+
+/**
+ * The roads between the trip's cities (1.2106), where a drive was estimated: all of them in the
+ * whole-trip view, and in a one-day view only the one arriving that day, faint. Setting off and
+ * heading home are not drawn: from 上海 the map would have to show half of China.
+ */
+export function transferLines(transfers: readonly TransferLeg[], day: number | null): { readonly path: readonly (readonly [number, number])[]; readonly faint: boolean }[] {
+  return transfers.flatMap((leg) => {
+    if (leg.kind !== "between" || leg.estimate.status !== "estimated") return [];
+    if (day !== null && leg.day !== day) return [];
+    return [{ path: leg.estimate.path, faint: day !== null }];
+  });
 }
 
 /** The stops one view shows in colour: the chosen day's, or every day's for the whole trip. */

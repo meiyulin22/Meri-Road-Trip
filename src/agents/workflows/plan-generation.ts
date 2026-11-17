@@ -5,6 +5,7 @@ import { z } from "zod";
 
 import { dayPhotos, type FindDayImage } from "@/agents/planner/day-photos";
 import { type DriveLegDependencies, planDriveLegs } from "@/agents/transport/legs";
+import { planTransfers, type TransferDependencies } from "@/agents/transport/transfers";
 import { maxVerifySearches, type VerifyProgress, type VerifyResult } from "@/agents/planner/verify-spots";
 import { checkSpotsOnMap, type MapCheckDependencies } from "@/agents/planner/map-check";
 import { draftCityDays } from "@/agents/planner/plan-days";
@@ -22,6 +23,7 @@ import type { PlanHandoff } from "@/domain/plan/plan-handoff";
 import { type PlanProgressEvent, type PlanQuestion, planQuestionSchema, type PlanStage } from "@/domain/plan/plan-progress";
 import type { PlanRunUsage, PlanVersion } from "@/domain/plan/plan-run";
 import type { CityResearch, SpotCard } from "@/domain/plan/spot-card";
+import { type TransferLeg, transferLegs } from "@/domain/plan/transfer-legs";
 import { stopVerdict } from "@/domain/plan/availability";
 import { closedStops, type Moved, moveClosedStops, stopChecks, verdictsFor } from "@/domain/plan/plan-repair";
 import { maxStopsForPreferences, type PlanPreference } from "@/domain/plan/trip-preference";
@@ -34,6 +36,8 @@ export type PlanGenerationDependencies = {
   readonly map: MapCheckDependencies;
   /** Tianditu drive lookups between neighbouring stops (1.2102); the first failure stops them. */
   readonly drive: DriveLegDependencies;
+  /** Tianditu place centres and drives for setting off, changing city and going back (1.2106). */
+  readonly transfers: TransferDependencies;
   /** The second round on these cards; the real one is verifySpots with Kimi search and model. */
   readonly verifySpots: (
     cards: readonly SpotCard[],
@@ -62,7 +66,10 @@ export type RouteResume = z.infer<typeof routeResumeSchema>;
 
 type MapResult = { cities: CityResearch[]; status: "complete" | "stopped"; lookups: number };
 type RouteResult = MapResult & { plan: RoutedPlan; usage: PlanUsage };
-type DaysResult = MapResult & { draft: PlanDraft; usage: PlanUsage };
+/** The legs to, between and back from the cities, carried until the draft can hold them (1.2106). */
+type Transfers = { transfers: TransferLeg[]; transferLookups: number };
+type TransferResult = RouteResult & Transfers;
+type DaysResult = MapResult & Transfers & { draft: PlanDraft; usage: PlanUsage };
 /** Where the validation loop stands: how many repair rounds ran, what moved, what it spent. */
 type VerifyResultState = DaysResult & {
   verify: { round: number; done: boolean; moved: Moved[]; dropped: { day: number; spotId: string }[]; searches: number; checked: string[] };
@@ -93,6 +100,7 @@ export const stepStages = {
   "research-city": "research",
   "map-check": "map",
   "plan-route": "route",
+  "transfer-legs": "transfers",
   "plan-days": "days",
   "verify-facts": "verify",
   "verify-repair": "verify",
@@ -157,6 +165,14 @@ export function stageSummary(stepId: string, output: unknown): { stage: PlanStag
     case "route": {
       const { plan } = output as RouteResult;
       return { stage, summary: { cities: plan.route.cities.length, days: plan.frames.length } };
+    }
+    case "transfers": {
+      const { transfers, transferLookups } = output as TransferResult;
+      return { stage, summary: {
+        legs: transfers.length,
+        estimated: transfers.filter(({ estimate }) => estimate.status === "estimated").length,
+        lookups: transferLookups,
+      } };
     }
     case "days": {
       const { draft } = output as DaysResult;
@@ -309,9 +325,31 @@ export function createPlanGenerationWorkflow(deps: PlanGenerationDependencies) {
     },
   });
 
+  /**
+   * The legs to, between and back from the cities, once the route says their order (1.2106):
+   * code lists them, then a rough drive between city centres is looked up for each. It runs
+   * before the days are drafted, where the transport agent will sit; for now the days still
+   * assume a transfer takes the morning.
+   */
+  const transferStep = createStep({
+    id: "transfer-legs",
+    inputSchema: z.custom<RouteResult>(),
+    outputSchema: z.custom<TransferResult>(),
+    stateSchema: runState,
+    execute: async ({ inputData, state, writer }) => {
+      const { emit, flush } = emitter(writer);
+      const scope = scopeOf(state);
+      const legs = transferLegs(inputData.plan.frames, state.handoff.tripState.origin, scope.mode);
+      const outcome = await planTransfers(legs, deps.transfers,
+        ({ from, to, done, total }) => emit({ type: "stage.activity", stage: "transfers", activity: { kind: "driving", from, to, done, total } }));
+      await flush();
+      return { ...inputData, transfers: outcome.legs, transferLookups: outcome.lookups };
+    },
+  });
+
   const daysStep = createStep({
     id: "plan-days",
-    inputSchema: z.custom<RouteResult>(),
+    inputSchema: z.custom<TransferResult>(),
     outputSchema: z.custom<DaysResult>(),
     stateSchema: runState,
     execute: async ({ inputData, state, writer }) => {
@@ -341,7 +379,10 @@ export function createPlanGenerationWorkflow(deps: PlanGenerationDependencies) {
       const allocation = { mode: scope.mode, totalDays: scope.totalDays, frames: plan.frames, route: plan.route };
       const draft = finishDraft(allocation, routedCards, [...days].sort((left, right) => left.day - right.day));
       await flush();
-      return { cities: inputData.cities, status: inputData.status, lookups: inputData.lookups, draft, usage };
+      return {
+        cities: inputData.cities, status: inputData.status, lookups: inputData.lookups, draft, usage,
+        transfers: inputData.transfers, transferLookups: inputData.transferLookups,
+      };
     },
   });
 
@@ -526,7 +567,11 @@ export function createPlanGenerationWorkflow(deps: PlanGenerationDependencies) {
       const outcome = await planDriveLegs(inputData.draft.days, cardsOf(inputData.cities), deps.drive,
         ({ from, to, done, total }) => emit({ type: "stage.activity", stage: "drive", activity: { kind: "driving", from, to, done, total } }));
       await flush();
-      return { ...inputData, draft: { ...inputData.draft, legs: outcome.legs }, driveLookups: outcome.lookups };
+      return {
+        ...inputData,
+        draft: { ...inputData.draft, legs: outcome.legs, transfers: inputData.transfers },
+        driveLookups: outcome.lookups,
+      };
     },
   });
 
@@ -574,7 +619,7 @@ export function createPlanGenerationWorkflow(deps: PlanGenerationDependencies) {
           inputTokens: usage.inputTokens + cities.reduce((sum, city) => sum + (city.usage?.inputTokens ?? 0), 0),
           outputTokens: usage.outputTokens + cities.reduce((sum, city) => sum + (city.usage?.outputTokens ?? 0), 0),
           searches: cities.reduce((sum, { searchCalls }) => sum + searchCalls, 0) + inputData.verify.searches,
-          mapLookups: lookups + inputData.driveLookups,
+          mapLookups: lookups + inputData.transferLookups + inputData.driveLookups,
         },
       };
     },
@@ -590,6 +635,7 @@ export function createPlanGenerationWorkflow(deps: PlanGenerationDependencies) {
     .foreach(researchCityStep, { concurrency: cityConcurrency })
     .then(mapCheck)
     .then(routeStep)
+    .then(transferStep)
     .then(daysStep)
     .then(verifyFactsStep)
     // The validation loop: repair and re-check until nothing is closed, at most maxRepairRounds rounds.

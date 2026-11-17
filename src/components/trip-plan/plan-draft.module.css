@@ -56,6 +56,7 @@
 .mapLegend li::before { content: ""; width: 24px; border-top: 4px solid var(--muted); }
 .mapLegend li[data-kind="walk"]::before { border-top: 3px dotted var(--muted); }
 .mapLegend li[data-kind="straight"]::before { border-top: 2px dashed var(--muted); }
+.mapLegend li[data-kind="between"]::before { border-top: 3px solid rgba(23, 53, 44, .55); }
 /* The drive from the stop before (1.2102). */
 .driveLine { display: inline-flex; align-items: center; gap: 5px; margin-bottom: 4px; color: var(--muted); font-size: 12px; }
 @media (max-width: 720px) {
@@ -88,6 +89,66 @@
 }
 .routeArrow { color: var(--soft); }
 .routeFallback { margin-left: auto; color: var(--muted); font-size: 11px; }
+/*
+ * Setting off, changing city and heading home (1.2106): a ticket stub with the two places and the
+ * way between them. Setting off and heading home are full cards; a change of city is a slimmer,
+ * dashed strip tucked between two day cards.
+ */
+.transfer {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 6px 14px;
+  padding: 12px 18px;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: linear-gradient(90deg, #fffdf8, #f6f3ea);
+}
+.transfer[data-kind="between"] {
+  margin: 0 18px;
+  padding: 8px 14px;
+  border-style: dashed;
+  border-radius: 12px;
+  background: rgba(255, 253, 248, .7);
+}
+.transferLabel {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 9px;
+  border-radius: 999px;
+  color: var(--ink);
+  background: rgba(23, 53, 44, .07);
+  font-size: 11px;
+  font-weight: 650;
+  white-space: nowrap;
+}
+.transferWay { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.transferPlace { font-size: 14px; font-weight: 650; overflow-wrap: anywhere; }
+.transfer[data-kind="between"] .transferPlace { font-size: 13px; }
+.transferPlace[data-missing="true"] { color: var(--soft); font-weight: 500; }
+/* The way between: a dotted line with the car (or a route mark when there is no time) in the middle. */
+.transferLine {
+  display: inline-flex;
+  flex: 1 1 40px;
+  align-items: center;
+  justify-content: center;
+  min-width: 40px;
+  max-width: 160px;
+  height: 18px;
+  color: var(--ink);
+  background: radial-gradient(circle, rgba(23, 53, 44, .35) 1px, transparent 1.5px) center / 7px 3px repeat-x;
+}
+.transferLine svg { padding: 0 4px; background: #fbf9f2; border-radius: 4px; box-sizing: content-box; }
+.transfer[data-known="false"] .transferLine { color: var(--soft); }
+.transferText { grid-column: 2; color: var(--muted); font-size: 12px; }
+.transfer[data-known="true"] .transferText { color: var(--ink); }
+@media (max-width: 720px) {
+  .transfer { grid-template-columns: minmax(0, 1fr); }
+  .transferLabel { justify-self: start; }
+  .transferText { grid-column: 1; }
+}
+
 .transferTag {
   margin-left: 8px;
   padding: 1px 7px;

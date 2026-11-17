@@ -4,6 +4,7 @@ import { parsePlaceImage, type PlaceImage } from "@/domain/location/place-image"
 
 import { daySlots, spotFacts, type PlanDay, type PlanDraft, type PlanRoute } from "./plan-draft";
 import type { CityResearch, SpotAvailability, SpotCard, SpotEvidence, SpotMapCheck } from "./spot-card";
+import type { TransferLeg } from "./transfer-legs";
 
 export const spotEvidenceSchema: z.ZodType<SpotEvidence> = z.strictObject({
   url: z.string(),
@@ -98,6 +99,25 @@ export const stopCheckSchema = z.strictObject({
   movedFrom: z.number().int().positive().nullable(),
 });
 
+const pathSchema = z.array(z.tuple([z.number().min(-180).max(180), z.number().min(-90).max(90)])).min(2).max(200);
+
+/** One leg to, between or back from the trip's cities (1.2106). */
+const transferLegSchema: z.ZodType<TransferLeg> = z.strictObject({
+  kind: z.enum(["outbound", "between", "return"]),
+  day: z.number().int().positive(),
+  from: z.string().min(1).nullable(),
+  to: z.string().min(1).nullable(),
+  estimate: z.discriminatedUnion("status", [
+    z.strictObject({ status: z.literal("estimated"), distanceKm: z.number().nonnegative(), durationMinutes: z.number().int().nonnegative(), path: pathSchema }),
+    z.strictObject({ status: z.literal("origin_missing") }),
+    z.strictObject({ status: z.literal("origin_uncertain") }),
+    z.strictObject({ status: z.literal("same_city") }),
+    z.strictObject({ status: z.literal("not_found"), place: z.string().min(1) }),
+    z.strictObject({ status: z.literal("no_route") }),
+    z.strictObject({ status: z.literal("not_looked_up") }),
+  ]),
+});
+
 export const planDraftSchema: z.ZodType<PlanDraft> = z.strictObject({
   mode: z.enum(["preview", "full"]),
   totalDays: z.number().int().positive().nullable(),
@@ -121,6 +141,7 @@ export const planDraftSchema: z.ZodType<PlanDraft> = z.strictObject({
     offRoadStartMeters: z.number().int().nonnegative().optional(),
     offRoadEndMeters: z.number().int().nonnegative().optional(),
   })).optional(),
+  transfers: z.array(transferLegSchema).optional(),
 });
 
 // The page renders this URL, so it passes the same checks as every other place photo.

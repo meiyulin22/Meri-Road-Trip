@@ -11,6 +11,8 @@ import { TiandituLocationProvider } from "@/platform/tianditu/tianditu-location-
 import { driveLegKey, sharedDriveLegMemory } from "@/platform/tianditu/drive-leg-memory";
 import { sharedSpotLocationMemory } from "@/platform/tianditu/spot-location-memory";
 import { createTiandituDrive } from "@/platform/tianditu/tianditu-drive";
+import { sharedCityPointMemory } from "@/platform/tianditu/city-point-memory";
+import { createTiandituCityPoint } from "@/platform/tianditu/tianditu-city-point";
 
 import { researchCity } from "./planner/research-agent";
 import { verifySpots } from "./planner/verify-spots";
@@ -23,6 +25,7 @@ process.env.MASTRA_TELEMETRY_DISABLED ??= "1";
 
 let map: TiandituLocationProvider | null = null;
 let drive: ReturnType<typeof createTiandituDrive> | null = null;
+let cityPoint: ReturnType<typeof createTiandituCityPoint> | null = null;
 let photos: ReturnType<typeof createPlacePhotoProvider> | null = null;
 
 /**
@@ -55,6 +58,16 @@ export function planGenerationDependencies(
       drive: (from, to, mode) => (drive ??= createTiandituDrive(createTiandituClient(fetch, { retryRateLimit: false })))(from, to, mode),
       memory: sharedDriveLegMemory,
       key: driveLegKey,
+    },
+    transfers: {
+      // A centre a place and a drive a leg; the first failure stops the rest, with no retry.
+      cityPoint: (name) => (cityPoint ??= createTiandituCityPoint(createTiandituClient(fetch, { retryRateLimit: false })))(name),
+      cityMemory: sharedCityPointMemory,
+      drive: {
+        drive: (from, to, mode) => (drive ??= createTiandituDrive(createTiandituClient(fetch, { retryRateLimit: false })))(from, to, mode),
+        memory: sharedDriveLegMemory,
+        key: driveLegKey,
+      },
     },
     // The local catalog and photos already downloaded: no remote photo service is asked.
     findImage: (subject) => findPlaceImage(subject, photos ??= createPlacePhotoProvider()),

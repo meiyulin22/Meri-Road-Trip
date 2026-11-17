@@ -5,7 +5,7 @@ import type { ReadyPlan } from "@/domain/plan/plan-draft-response";
 import type { SpotCard } from "@/domain/plan/spot-card";
 
 import { dayColor } from "./plan-day-colors";
-import { cityIcon, dayLines, dayOnMap, highlightedStops, labelLayer, lineStrokes, mapStops, markerIcon, tileUrl } from "./plan-tianditu-map-model";
+import { cityIcon, dayLines, dayOnMap, highlightedStops, labelLayer, lineStrokes, mapStops, markerIcon, tileUrl, transferLines } from "./plan-tianditu-map-model";
 
 function card(id: string, mapCheck: SpotCard["mapCheck"]): SpotCard {
   return { id, province: "云南省", city: "丽江市", name: id, requested: false, location: null, opening: null, reservation: null,
@@ -111,4 +111,16 @@ test("a day's line follows the road where a leg was planned, and is straight and
   const lake = dayLines(stops, [{ day: 1, fromSpotId: "木府", toSpotId: "狮子山", mode: "drive", distanceKm: 54, durationMinutes: 70,
     path: road, offRoadStartMeters: 1700, offRoadEndMeters: 0 }], 1);
   assert.deepEqual(lake[0], { kind: "straight", path: [[100.2, 26.8], [100.21, 26.81]] });
+});
+
+test("roads between cities are drawn in the whole trip, and only the one arriving in a one-day view, faint (1.2106)", () => {
+  const path = [[100.2, 26.9], [100.2, 25.6]] as [number, number][];
+  const transfers = [
+    { kind: "outbound" as const, day: 1, from: "上海", to: "丽江市", estimate: { status: "estimated" as const, distanceKm: 2700, durationMinutes: 2280, path } },
+    { kind: "between" as const, day: 3, from: "丽江市", to: "大理白族自治州", estimate: { status: "estimated" as const, distanceKm: 186, durationMinutes: 163, path } },
+    { kind: "between" as const, day: 5, from: "大理白族自治州", to: "保山市", estimate: { status: "not_looked_up" as const } },
+  ];
+  assert.deepEqual(transferLines(transfers, null), [{ path, faint: false }]);
+  assert.deepEqual(transferLines(transfers, 3), [{ path, faint: true }]);
+  assert.deepEqual(transferLines(transfers, 2), []);
 });

@@ -351,7 +351,7 @@ Generate plan 背后的计划页先用示例数据做出完整页面（设计决
 | [src/components/trip-plan/plan-memories.module.css](../src/components/trip-plan/plan-memories.module.css) | 样式 | 偏好卡片、标签和提示。 |
 | [src/components/trip-plan/plan-preferences-model.ts](../src/components/trip-plan/plan-preferences-model.ts) | 表现层模型 | 调用偏好接口读取、添加、删除；常用选项按顺序对应类型。 |
 | [src/components/trip-plan/plan-draft-model.ts](../src/components/trip-plan/plan-draft-model.ts) | 表现层模型 | 调用 plan-runs、回答与 plan 接口并映射错误；SSE 地址（可带 after）和事件解析（只认本次运行）；运行错误码到页面说明；按时段分组和列出有出处的事实。 |
-| [src/components/trip-plan/plan-progress-view.ts](../src/components/trip-plan/plan-progress-view.ts) | 表现层纯函数 | 把进度事件逐条推成页面状态：七个阶段的状态、计时起点、摘要和当前活动（调研按城市各一行，其他阶段只留最新一行），路线、已到的天、景点卡、照片、等待中的问题、等待时长和已回答的问题、结束状态；重复事件不改变状态；路线已定但未到的天；记下每站的核实结果（spot.checked） |
+| [src/components/trip-plan/plan-progress-view.ts](../src/components/trip-plan/plan-progress-view.ts) | 表现层纯函数 | 把进度事件逐条推成页面状态：十个阶段（1.2106 起含查转场）的状态、计时起点、摘要和当前活动（调研按城市各一行，其他阶段只留最新一行），路线、已到的天、景点卡、照片、等待中的问题、等待时长和已回答的问题、结束状态；重复事件不改变状态；路线已定但未到的天；记下每站的核实结果（spot.checked） |
 | [src/components/trip-plan/plan-run-activity.tsx](../src/components/trip-plan/plan-run-activity.tsx) | 表现层 | 实时活动流：运行中的阶段转动 ✻、计时，⎿ 显示正在做什么；等待回答时显示「?」和标签、总计时停住；完成的阶段收成 ✓ 一行带数字和用时，调研、定位、路线（含问答）可展开明细；问题卡（选项、「你来定」，1.2018 起还有写自己想法的输入框）；中英文案。 |
 | [src/components/trip-plan/plan-run-activity.module.css](../src/components/trip-plan/plan-run-activity.module.css) | 样式 | 活动流的终端式排版、等宽计时、⎿ 缩进行、等待标签、问题卡和选项按钮、减少动态效果时停止转动和动画、窄屏换行。 |
 | [src/components/trip-plan/plan-preview.tsx](../src/components/trip-plan/plan-preview.tsx) | 表现层 | 预览页的编排：右下角预览开关切换三种状态（生成中：按定时的假事件逐步点亮进度、区块从骨架填进内容；只有目的地：第 1 天排好、其余锁住；全部填好）；在页面上点选天数、日期、出发地、交通方式后，只让依赖它的区块"重新规划"一下；顶部事实点"修改"会重新锁住对应区块；修改对话框带小熊猫，提交后显示"修改还没接上"的示例回复。1.1001 起：天气按出发日期分预报 / 往年同期；手动添加偏好后出现"按新偏好重新规划"，点了只重排各天；导出菜单下载日历、打印时所有天展开。 |
@@ -373,6 +373,9 @@ Generate plan 背后的计划页先用示例数据做出完整页面（设计决
 | [src/platform/tianditu/tianditu-tiles.ts](../src/platform/tianditu/tianditu-tiles.ts) | 外部集成适配器 | 1.2104：用服务端 key 取天地图瓦片；单独的队列，每 120 毫秒放出一张（一次性并发十几张曾被防火墙拦截）；遇到 418 或拦截页就暂停 5 分钟，期间不再请求。 |
 | [src/platform/http/rate-limiter.ts](../src/platform/http/rate-limiter.ts) | 基础设施 | 1.2104：按客户端计数的滑动窗口限流，存在内存里，单进程。 |
 | [src/components/trip-plan/plan-leg-text.ts](../src/components/trip-plan/plan-leg-text.ts) | 表现层模型 | 1.2103：每个景点前那一行的文字：步行写步行；开车按用户交通方式写「开车 / 打车 / 车程约」；路线头尾超过 300 米没路、或整段没路时如实写出，并列出常见方式（坐船、索道、步行），不替用户猜；1.2105 起一头离路超过 1 公里时那头是一大片区域（如洱海），只写「洱海是一大片区域，车程要看具体从哪里出发，无法估算」，不写分钟和公里。 |
+| [src/components/trip-plan/plan-transfer-text.ts](../src/components/trip-plan/plan-transfer-text.ts) | 表现层模型 | 1.2106：启程、转场、回程卡的文字：类别名（启程 / 转场 / 回程），两端地名（出发地没写时写「出发地」），开车估算「车程约 2 小时 40 分钟 · 186 公里（估算）」（自驾写「开车约」，一小时以上按 10 分钟取整），超过 6 小时加一句可以考虑火车或飞机；没有时间时说明原因（出发地没写、不确定、地图上没找到、没路、还没查到）。 |
+| [src/components/trip-plan/plan-transfer-text.test.ts](../src/components/trip-plan/plan-transfer-text.test.ts) | 测试 | 时长格式与取整、自驾和非自驾的措辞、长途提示、各种没有时间的原因。 |
+| [src/components/trip-plan/plan-transfer-card.tsx](../src/components/trip-plan/plan-transfer-card.tsx) | 表现层 | 1.2106：像车票存根的交通卡：类别标签、两端地名和中间带汽车图标的点线、一行估算或原因；启程和回程是整卡，转场是放在两天之间、更窄的虚线条。 |
 | [src/components/trip-plan/plan-day-colors.ts](../src/components/trip-plan/plan-day-colors.ts) | 表现层模型 | 1.2105：每天的颜色（森林绿、赤陶、湖蓝、赭黄、梅紫、石板灰蓝，第 7 天起循环）和淡色底，地图的线、圆点、天数标签和卡片的天数方块共用；其他天的淡灰色。 |
 | [src/components/trip-plan/plan-leg-text.test.ts](../src/components/trip-plan/plan-leg-text.test.ts) | 测试 | 交通方式的措辞、1.2102 旧计划、到不了的尾段、整段没路、一大片区域（1.2105）。 |
 | [src/components/trip-plan/plan-tianditu-map-model.ts](../src/components/trip-plan/plan-tianditu-map-model.ts) | 表现层模型 | 从保存的计划取出有坐标的景点（保留它在当天的序号）、按天筛选、中转接口的瓦片地址（1.2104 起，不含 key）、按天着色的编号图标和城市圈的 SVG data URL、三种线型的描边（`lineStrokes`，1.2105），`dayOnMap` 决定某天显示自己的景点、所在城市还是全程；纯函数。 |
@@ -436,9 +439,11 @@ Generate plan 背后的计划页先用示例数据做出完整页面（设计决
 | [src/domain/plan/availability.test.ts](../src/domain/plan/availability.test.ts) | 测试 | 验证原文核对、星期与跨年范围、过期通知，以及各种情况下每站的结论（含查了但什么都没找到时不算开放）。 |
 | [src/domain/plan/plan-repair.ts](../src/domain/plan/plan-repair.ts) | 领域层 | 验证阶段的代码修复：算每站结论、找出关闭的站、晚上关得早的改下午、关闭的换到同城有空且开放的另一天（转场日上午不排）、改不了的交给 Plan Agent；生成保存用的每站核实记录。 |
 | [src/domain/plan/plan-repair.test.ts](../src/domain/plan/plan-repair.test.ts) | 测试 | 验证改时段、换日、没处可换时留给 Plan Agent、转场日只排下午。 |
+| [src/domain/plan/transfer-legs.ts](../src/domain/plan/transfer-legs.ts) | 领域层 | 1.2106：启程、转场、回程三类交通段的类型和每段的状态（估算、出发地没写、不确定、同一座城、没找到、没路、没查）；`transferLegs` 由代码从路线展开后的每一天和出发地列出要估算的段：第 1 天启程，带 `arrivingFrom` 的天转场，最后一天回程（示范日没有回程）。 |
+| [src/domain/plan/transfer-legs.test.ts](../src/domain/plan/transfer-legs.test.ts) | 测试 | 多城和单城列出的段、出发地缺失和不确定、示范日没有回程、schema 读新旧计划。 |
 | [src/domain/plan/plan-draft.test.ts](../src/domain/plan/plan-draft.test.ts) | 测试（对应模块边界） | 验证规划范围、路线生成转场日和区县、路线错误被退回、天数不够时放弃城市与兜底、选点校验、转场日少一个景点和冲突整理。 |
-| [src/domain/plan/plan-draft-response.ts](../src/domain/plan/plan-draft-response.ts) | 领域层 | 景点卡、调研结果、路线、每日安排、计划草稿、照片和完整计划（ReadyPlan）的运行时 schema，供接口、页面、事件、数据库读取和验证脚本共用。 |
-| [src/domain/plan/plan-progress.ts](../src/domain/plan/plan-progress.ts) | 领域层 | 计划运行的进度事件格式（服务端和页面共用）：七个阶段、当前活动、阶段完成摘要、城市调研完成、定位结果、路线、某一天、照片、等待回答（问题）、已回答、运行结束及错误码；问题的格式；外层带 runId、seq 和服务器时间；1.2013 加验证阶段、核实与重排的活动、spot.checked 事件 |
+| [src/domain/plan/plan-draft-response.ts](../src/domain/plan/plan-draft-response.ts) | 领域层 | 景点卡、调研结果、路线、每日安排、计划草稿（1.2106 起含 `transfers`）、照片和完整计划（ReadyPlan）的运行时 schema，供接口、页面、事件、数据库读取和验证脚本共用。 |
+| [src/domain/plan/plan-progress.ts](../src/domain/plan/plan-progress.ts) | 领域层 | 计划运行的进度事件格式（服务端和页面共用）：十个阶段（1.2106 加 transfers「查转场」）、当前活动、阶段完成摘要、城市调研完成、定位结果、路线、某一天、照片、等待回答（问题）、已回答、运行结束及错误码；问题的格式；外层带 runId、seq 和服务器时间；1.2013 加验证阶段、核实与重排的活动、spot.checked 事件 |
 | [src/domain/plan/plan-run.ts](../src/domain/plan/plan-run.ts) | 领域层 | 计划运行（状态含等待回答、交接、摘要、错误码、用量）和计划版本的类型，以及 plan-runs、回答（选项、「你来定」或 1.2018 起的自写答案）与 plan 接口的请求和响应 schema。 |
 | [src/domain/trip-state/planning-readiness.test.ts](../src/domain/trip-state/planning-readiness.test.ts) | 测试（对应模块边界） | 验证缺目的地、只有省、省市混合、旧文本和已选城市的准备度；其他字段不是硬门槛。 |
 | [src/domain/trip-state/planning-readiness.ts](../src/domain/trip-state/planning-readiness.ts) | 领域层 | 纯准备度规则：missing、unverified 或 selected（只有省也算 selected）；仅检查状态，不研究可行性。 |
@@ -580,6 +585,8 @@ Generate plan 背后的计划页先用示例数据做出完整页面（设计决
 | [src/agents/planner/research-agent.test.ts](../src/agents/planner/research-agent.test.ts) | 测试（对应模块边界） | 用模拟模型和搜索结果验证提名与点名景点分组搜索、无出处提名被丢弃、模型不可用时的退路、只补查一次、10 城范围和证据校验。 |
 | [src/agents/transport/legs.ts](../src/agents/transport/legs.ts) | Agent 层（交通，纯代码） | 1.2103 起放在交通目录（1.2102 时叫 drive-legs）：同一天相邻、都已定位的两个景点，直线 1.2 公里内查步行（style 3）、更远查最快驾车（style 0），由代码按距离决定；步行分钟按 4.5 公里/小时从距离算（天地图的步行时间不是步行速度）；天地图说没路时记成 `mode: none`（直线、无时间）；先读缓存，每次最多 20 次查询，第一次失败即停、不重试。以后交通 Agent（高铁、机票）也放在这个目录。 |
 | [src/agents/transport/legs.test.ts](../src/agents/transport/legs.test.ts) | 测试 | 按距离选步行或开车、步行时间、没路时如实记录、未定位景点断开、缓存优先、第一次拒绝后不再查。 |
+| [src/agents/transport/transfers.ts](../src/agents/transport/transfers.ts) | Agent 层（交通，纯代码） | 1.2106：城市之间的开车估算，以后是交通 Agent 的兜底：每个地方查一次城市中心，每段查一次天地图驾车；单城行程的回程复用启程（反向），多城行程回程从最后一座城出发、另查；先读缓存，每次最多 24 次查询，第一次失败即停、不重试，剩下的段写「没查」。 |
+| [src/agents/transport/transfers.test.ts](../src/agents/transport/transfers.test.ts) | 测试 | 多城的查询次数和顺序、单城回程复用、缓存命中不再查、失败即停、没找到 / 同城 / 没路、预算上限。 |
 | [src/agents/planner/map-check.ts](../src/agents/planner/map-check.ts) | Agent 层（固定步骤） | 景点卡的天地图定位：每个有出处的景点查一次（每城最多 12 个），只认本市同名结果并记区县；1.2100 起也记经纬度（`mapCheck.point`），旧计划为 null；第一次失败即停止、不重试，其余保持未核实；使用定位缓存。 |
 | [src/agents/planner/map-check.test.ts](../src/agents/planner/map-check.test.ts) | 测试 | 验证别省同名不算、景区后缀、停车场不算、失败即停、缓存命中、每城上限和缓存过期。 |
 | [src/agents/planner/plan-route.ts](../src/agents/planner/plan-route.ts) | Agent 层 | Plan Agent 路线：一次 Kimi 调用规划城市顺序、天数、每天重点区县和主题、放弃的城市，代码校验、重试一次、再按添加顺序兜底；允许时可以返回一个带选项的问题（只在第一次尝试、格式合法时采用；选项可写明放弃哪座城）；天数够时不许自行放弃城市，只有用户选了才可以；用户点名的区域（如大理市）作为重点区域交给模型；空的理由当作没有理由；两次尝试共 60 秒；每次尝试报告进度。1.2016：天数少于城市且没有兴趣或节奏偏好时必须提问，第一次没问就退回再答一次（仍不问则用第一次的路线）；偏好已说明想多看、能接受紧凑时不问「是否保留全部城市」；放弃同一城市的重复选项只留第一个。1.2018：想轻松（relaxed）且每城都排得下，但扣掉转场日后不用赶路的天少于城市数（3 城 3 天、3 城 4 天）时也必须提问，同样退回一次；退回后仍不问，由 `fallbackQuestion` 按模板自己提问（候选最少的城市排前面，中英文）。 |
@@ -590,7 +597,7 @@ Generate plan 背后的计划页先用示例数据做出完整页面（设计决
 | [src/agents/planner/verify-spots.ts](../src/agents/planner/verify-spots.ts) | Agent 层（固定步骤） | 第二轮精查：每个景点一次 Kimi 搜索（4 个并行、整次最多 24 次），每城一次结构化调用把原文拆成营业时间、闭馆日、关闭日期范围、预约（扁平字段）、模糊通知；代码核对原文和值，丢掉对不上的。 |
 | [src/agents/planner/verify-spots.test.ts](../src/agents/planner/verify-spots.test.ts) | 测试 | 用模拟搜索和模型验证只保留原文在来源里、值在原文里的事实，以及搜索预算和没有结果的景点。 |
 | [src/agents/planner/plan-test-fixtures.ts](../src/agents/planner/plan-test-fixtures.ts) | 测试辅助 | Plan Agent 与工作流测试共用的云南交接、丽江大理景点卡和按 schema 名应答的模拟模型（记录路线调用的提示和系统提示）。 |
-| [src/agents/workflows/plan-generation.ts](../src/agents/workflows/plan-generation.ts) | Agent 层/工作流 | Generate plan 的 Mastra 工作流：读取范围 → 每城调研（foreach 两城并行）→ 天地图定位 → 路线（可暂停提问，恢复时把答案加进偏好再规划）→ 逐城选点 → 配图 → 保存版本；只导入和编排 planner 函数，用 writer 写进度事件；阶段摘要从步骤输出计算；1.2013 起按天选景点之后是验证阶段：verify-facts，再用 dountil 循环 verify-repair（代码换日、Plan Agent 只重排受影响的天、最多 2 轮） |
+| [src/agents/workflows/plan-generation.ts](../src/agents/workflows/plan-generation.ts) | Agent 层/工作流 | Generate plan 的 Mastra 工作流：读取范围 → 每城调研（foreach 两城并行）→ 天地图定位 → 路线（可暂停提问，恢复时把答案加进偏好再规划）→ 查转场（1.2106）→ 逐城选点 → 配图 → 保存版本；只导入和编排 planner 函数，用 writer 写进度事件；阶段摘要从步骤输出计算；1.2013 起按天选景点之后是验证阶段：verify-facts，再用 dountil 循环 verify-repair（代码换日、Plan Agent 只重排受影响的天、最多 2 轮） |
 | [src/agents/workflows/plan-generation.test.ts](../src/agents/workflows/plan-generation.test.ts) | 测试 | 用 Mastra 和内存 repository 真跑工作流：事件顺序与编号、逐城推送的天、天地图第一次失败即停、保存版本与用量、断线补发、同一交接共用运行和读取已存计划、模型不可用、超时、重启后标为中断；提问时暂停、错误回答被拒、只有一个回答生效、恢复后不重做调研、答案存为偏好并进入版本，单城不提问；选了「放弃某城」后恢复的路线只能放弃那一座；验证循环：关闭的站换日、改不了的天重排、点名景点记为当天关闭、整个阶段只有一行完成 |
 | [src/agents/tools/resolve-place.ts](../src/agents/tools/resolve-place.ts) | Agent 工具 | 用工作区同一套地点核验（天地图）查一个中文地名，返回匹配地点（省/市/区、GCJ-02 坐标、是否景点）、最多 5 个候选或整省；不代表开放或可达。 |
 | [src/agents/tools/web-search.ts](../src/agents/tools/web-search.ts) | Agent 工具 | 经 Bocha 搜索近期公告（封闭、预约、季节通行），最多 5 条，每条带来源和发布日期；结果只是线索，提供方失败只返回 unavailable，不暴露带密钥的 URL。 |
@@ -657,6 +664,9 @@ Generate plan 背后的计划页先用示例数据做出完整页面（设计决
 | [src/platform/tianditu/tianditu-fetch.ts](../src/platform/tianditu/tianditu-fetch.ts) | 基础设施/适配器 | 天地图请求客户端：独立排队（开始间隔 ≥300ms，复用 amap-fetch 的通用 pacer）、超时、key 只拼进天地图地址；418 或防火墙 HTML 页视为拒绝、不重试；**429 视为限流**，整队暂停 1 秒、被拒请求排队首、最多重试 3 次（`retryRateLimit: false` 时不重试，景点定位用）；失败只返回固定原因，不含 URL 和 key。1.2102 起有 `getXml`：驾车服务回 XML（标成 text/html），只把 418 和 HTML 拦截页当拒绝。 |
 | [src/platform/tianditu/tianditu-drive.ts](../src/platform/tianditu/tianditu-drive.ts) | 外部集成适配器 | 1.2102：天地图驾车规划（`/drive`，style 0 最快）：读 XML 的 `distance`（公里）、`duration`（秒）和 `routelatlon`（`经度,纬度;…`），沿路坐标抽稀到最多 200 个；缺字段就是没有路线，不猜。 |
 | [src/platform/tianditu/tianditu-drive.test.ts](../src/platform/tianditu/tianditu-drive.test.ts) | 测试 | 按 2026-11-16 实测格式解析、缺字段、抽稀、请求参数、失败原因、车程缓存。 |
+| [src/platform/tianditu/tianditu-city-point.ts](../src/platform/tianditu/tianditu-city-point.ts) | 外部集成适配器 | 1.2106：按名字查一次城市中心：只读天地图的行政区回答（`area`），名字必须是问的那个（或只多行政区后缀，如 大理 → 大理白族自治州）；POI 列表、别的地名、境外都算没找到，不猜；不重试。实测 2026-11-17：丽江市 → 156530700，(100.225258, 26.8583)。 |
+| [src/platform/tianditu/tianditu-city-point.test.ts](../src/platform/tianditu/tianditu-city-point.test.ts) | 测试 | 行政区回答的名字核对、短名加后缀、POI 和无结果、坏坐标、拒绝不重试。 |
+| [src/platform/tianditu/city-point-memory.ts](../src/platform/tianditu/city-point-memory.ts) | 基础设施/缓存 | 1.2106：城市中心缓存 180 天（`.cache/tianditu-city-points.json`，最多 2000 条，没找到和失败不存）。 |
 | [src/platform/tianditu/drive-leg-memory.ts](../src/platform/tianditu/drive-leg-memory.ts) | 基础设施/缓存 | 1.2102：两点之间的车程缓存 30 天（`.cache/tianditu-drive-legs.json`，最多 2000 条，失败不存），键为两点各取 5 位小数。 |
 | [src/platform/tianditu/spot-location-memory.ts](../src/platform/tianditu/spot-location-memory.ts) | 基础设施/缓存 | 景点定位缓存：按「省|市|景点」存天地图的判断（找到：区县、地图名和 1.2100 起的经纬度，30 天，之前存的没有经纬度的条目读时作废、重查一次；没找到：7 天），`.cache/tianditu-spot-locations.json`，上限 2000 条，失败不存。 |
 | [src/platform/tianditu/classification-memory.ts](../src/platform/tianditu/classification-memory.ts) | 基础设施/缓存 | 分类搜索缓存：按「行政区 + 类别」把 `queryType 13` 的一页存到 `.cache/tianditu-classification.json`，7 天、上限 50 页、只存真实答案（拒绝和空结果不存）；文件损坏按空缓存处理；写入用临时文件 + 改名，写失败不影响本次查询。 |

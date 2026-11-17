@@ -2,6 +2,7 @@ import type { TripState } from "@/domain/trip-state/trip-state";
 import { formatExactDate, parseExactDate, parseExactDays } from "@/domain/trip-state/trip-dates";
 
 import type { SpotCard, SpotEvidence } from "./spot-card";
+import type { TransferLeg } from "./transfer-legs";
 
 export const daySlots = ["morning", "afternoon", "evening"] as const;
 export type DaySlot = (typeof daySlots)[number];
@@ -143,6 +144,8 @@ export type PlanDraft = {
   readonly checks?: readonly StopCheck[];
   /** Driving between neighbouring located stops; absent on plans made before 1.2102. */
   readonly legs?: readonly DriveLeg[];
+  /** Setting off, between cities and the way back, with a rough drive time; absent before 1.2106. */
+  readonly transfers?: readonly TransferLeg[];
 };
 
 export type TripCity = { readonly province: string; readonly city: string };

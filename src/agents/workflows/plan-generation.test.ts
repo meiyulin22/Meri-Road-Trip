@@ -62,6 +62,22 @@ function setup(overrides: Partial<PlanGenerationDependencies> = {}, timeLimitMs?
       memory: { get: () => null, set: () => {} },
       key: (from, to, mode) => `${mode}:${from.longitude},${from.latitude}>${to.longitude},${to.latitude}`,
     },
+    // Each city's centre a degree apart; the drive between them is the same fake as between stops.
+    transfers: {
+      cityPoint: async (name) => ({ status: "found", city: {
+        name, adminCode: name.startsWith("丽江") ? "156530700" : "156532900",
+        point: name.startsWith("丽江") ? { longitude: 100.2, latitude: 26.9 } : { longitude: 100.2, latitude: 25.6 },
+      } }),
+      cityMemory: { get: () => null, set: () => {} },
+      drive: {
+        drive: async (from, to) => ({ status: "success", route: {
+          distanceKm: 186.4, durationSeconds: 10_200, path: [[from.longitude, from.latitude], [to.longitude, to.latitude]],
+          offRoadStartMeters: 0, offRoadEndMeters: 0,
+        } }),
+        memory: { get: () => null, set: () => {} },
+        key: (from, to, mode) => `${mode}:${from.longitude},${from.latitude}>${to.longitude},${to.latitude}`,
+      },
+    },
     // No facts by default: every stop stays unchecked and the loop has nothing to repair.
     verifySpots: async () => ({ availability: new Map(), searches: 0, usage: { inputTokens: 0, outputTokens: 0 } }),
     findImage: async (subject) => subject.spot ? null : { url: `/photos/${subject.place}.jpg`, caption: subject.place ?? "城市" },
@@ -107,7 +123,7 @@ test("streams real progress city by city, stops the map at its first failure, an
   // Sequence numbers have no gaps, and the page sees the stages in workflow order.
   assert.deepEqual(events.map(({ seq }) => seq), events.map((_, index) => index + 1));
   assert.deepEqual(events.filter(({ event }) => event.type === "stage.started").map(({ event }) => "stage" in event && event.stage),
-    ["scope", "research", "map", "route", "days", "verify", "drive", "photos", "save"]);
+    ["scope", "research", "map", "route", "transfers", "days", "verify", "drive", "photos", "save"]);
   assert.equal(types[0], "stage.started");
   assert.equal(types.at(-1), "run.finished");
   // Route before any day, and each day as its city is drafted.
@@ -136,10 +152,17 @@ test("streams real progress city by city, stops the map at its first failure, an
   // point here, so they are walked, and the minutes come from the distance at walking pace (1.2103).
   assert.deepEqual(version.plan.draft.legs?.map(({ day: dayNumber, mode, durationMinutes, distanceKm }) => [dayNumber, mode, durationMinutes, distanceKm]),
     [[1, "walk", 40, 3]]);
+  // No origin: setting off and going back say so; 丽江 → 大理 on day 4 is a rough drive (1.2106).
+  assert.deepEqual(version.plan.draft.transfers?.map(({ kind, day: dayNumber, from, to, estimate }) =>
+    [kind, dayNumber, from, to, estimate.status, estimate.status === "estimated" ? estimate.durationMinutes : null]), [
+    ["outbound", 1, null, "丽江市", "origin_missing", null],
+    ["between", 4, "丽江市", "大理白族自治州", "estimated", 170],
+    ["return", 5, "大理白族自治州", null, "origin_missing", null],
+  ]);
 
   const run = repository.runs.get(started.runId);
   assert.equal(run?.status, "succeeded");
-  assert.deepEqual(run?.usage, { inputTokens: 300, outputTokens: 60, searches: 4, mapLookups: 5 });
+  assert.deepEqual(run?.usage, { inputTokens: 300, outputTokens: 60, searches: 4, mapLookups: 8 });
 
   // A page that reconnects gets only what it missed; the same handoff reads the saved plan.
   const missed = await followToEnd(service, repository, started.runId, events.length - 2);
