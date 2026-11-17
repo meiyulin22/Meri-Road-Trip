@@ -1,5 +1,6 @@
 import { z } from "zod";
 
+import { planTransport, type TransportDependencies } from "@/agents/transport/transport-agent";
 import { planTransfers, type TransferDependencies } from "@/agents/transport/transfers";
 import type { DayFrame } from "@/domain/plan/plan-draft";
 import type { ReadyPlan } from "@/domain/plan/plan-draft-response";
@@ -11,7 +12,9 @@ import {
   travelChoices,
   type TravelChoice,
   transportPreferenceFor,
+  travelChoiceOf,
 } from "@/domain/plan/transfer-legs";
+import { railCityOfRegion } from "@/platform/rail/rail-names";
 import type { LocationField, TripState, TripStatePatch } from "@/domain/trip-state/trip-state";
 import type { PlanRunRepository } from "@/platform/persistence/plan-run-repository";
 
@@ -41,6 +44,8 @@ export type GettingThereDependencies = {
   readonly updateTripState: (tripId: string, ownerGuestId: string, patch: TripStatePatch) => Promise<TripState>;
   readonly repository: Pick<PlanRunRepository, "findLatestRun" | "findLatestVersion" | "fillPlanFacts">;
   readonly transfers: TransferDependencies;
+  /** Trains for the traveller's choice (1.2108); this is the only step that may take a while. */
+  readonly transport: TransportDependencies;
 };
 
 export type GettingThereOutcome =
@@ -107,7 +112,16 @@ export async function fillGettingThere(
   const kept = new Map((draft.transfers ?? []).filter(({ kind }) => kind === "between").map((leg) => [leg.day, leg]));
   const legs = transferLegs(frames, tripState.origin, draft.mode).map((leg) => leg.kind === "between" ? kept.get(leg.day) ?? leg : leg);
   const outcome = await planTransfers(legs, deps.transfers, () => {}, originPoint(tripState.origin));
-  const transfers: TransferLeg[] = outcome.legs;
+  // Trains for the choice made here, or the trip's own preference; a self-driver's car goes with them.
+  const travel = choice ?? travelChoiceOf(tripState.transportPreference);
+  const transport = travel === null ? null : await planTransport(outcome.legs, {
+    choice: travel,
+    dates: new Map(frames.map(({ day, date }) => [day, date])),
+    originRailCity: railCityOfRegion(request.origin.region, request.origin.name),
+    preferences: run.handoff.preferences.map(({ quote }) => quote),
+    locale: run.handoff.locale,
+  }, deps.transport);
+  const transfers: TransferLeg[] = transport?.legs ?? outcome.legs;
 
   const plan: ReadyPlan = { ...version.plan, draft: { ...draft, transfers }, ...(choice ? { travelChoice: choice } : {}) };
   const handoff: PlanHandoff = { ...run.handoff, tripState };

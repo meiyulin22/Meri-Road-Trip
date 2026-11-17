@@ -1,5 +1,5 @@
 import type { TransportPreference } from "@/domain/trip-draft/trip-draft";
-import type { LocationField } from "@/domain/trip-state/trip-state";
+import type { LocationField, TripStateField } from "@/domain/trip-state/trip-state";
 
 import type { DayFrame, PlanMode } from "./plan-draft";
 
@@ -36,6 +36,48 @@ export type TransferEstimate =
   /** Not looked up: the lookups stopped at a failure or ran out. */
   | { readonly status: "not_looked_up" };
 
+/** One seat class on a train as 12306 listed it: its price and how many are left, as information only. */
+export type TrainSeat = {
+  readonly name: string;
+  readonly price: number | null;
+  /** 12306's own word: 有 (plenty), 无 (none), or a number left. */
+  readonly left: string;
+};
+
+/** One train between two cities, as 12306 answered and code checked (1.2108). */
+export type TrainOption = {
+  readonly code: string;
+  readonly from: string;
+  readonly to: string;
+  /** Clock times, HH:MM. */
+  readonly departs: string;
+  readonly arrives: string;
+  /** Days after the departure day the train arrives: 0 the same day. Code computes it. */
+  readonly arriveDayOffset: number;
+  readonly durationMinutes: number;
+  readonly seats: readonly TrainSeat[];
+};
+
+/**
+ * The trains found for a leg. Beyond 12306's presale window the leg's own day cannot be asked,
+ * so the same weekday inside the window is, and the trains are only a reference for the timetable.
+ */
+export type LegTrains = {
+  readonly queriedDate: string;
+  readonly reference: boolean;
+  readonly checkedAt: string;
+  readonly options: readonly TrainOption[];
+};
+
+/** How a leg is best travelled: the transport agent's pick, checked by code, or code's own fallback. */
+export type LegRecommendation = {
+  readonly mode: "train" | "drive";
+  /** The train picked, one of the leg's options; null for a drive. */
+  readonly trainCode: string | null;
+  readonly reason: string;
+  readonly by: "agent" | "code";
+};
+
 export type TransferLeg = {
   readonly kind: TransferKind;
   /** The day the leg belongs to: 1 for setting off, the arrival day between cities, the last day for the way back. */
@@ -45,7 +87,37 @@ export type TransferLeg = {
   /** The place reached; null for the way back when there is no origin. */
   readonly to: string | null;
   readonly estimate: TransferEstimate;
+  /** Trains looked up for this leg (1.2108); absent when none were. */
+  readonly trains?: LegTrains;
+  readonly recommendation?: LegRecommendation;
+  /**
+   * Searched for trains but none to show: no direct train, a city without a station, or 12306 not
+   * reachable or out of requests. Absent when no search was made.
+   */
+  readonly trainsMissing?: "none" | "no_station" | "unavailable";
 };
+
+/** How many days ahead 12306 sells, counting today as day 0 (probe 2026-11-17: +3 answered, +34 did not). */
+export const railPresaleDays = 14;
+
+const dayMs = 24 * 60 * 60 * 1_000;
+const toDay = (date: string) => Date.parse(`${date}T00:00:00Z`);
+const fromDay = (ms: number) => new Date(ms).toISOString().slice(0, 10);
+
+/**
+ * The date to ask 12306 for a leg on `date`, seen from `today` (both YYYY-MM-DD, Beijing time):
+ * the date itself inside the presale window; beyond it, the latest same weekday inside the
+ * window, as a reference for the timetable. A date already past has none.
+ */
+export function railQueryDate(date: string, today: string): { readonly date: string; readonly reference: boolean } | null {
+  const target = toDay(date);
+  const start = toDay(today);
+  if (!Number.isFinite(target) || !Number.isFinite(start) || target < start) return null;
+  const last = start + railPresaleDays * dayMs;
+  if (target <= last) return { date, reference: false };
+  const weeksBack = Math.ceil((target - last) / (7 * dayMs));
+  return { date: fromDay(target - weeksBack * 7 * dayMs), reference: true };
+}
 
 /** A drive this long is still shown, with a word that a train or flight may suit better. */
 export const longDriveMinutes = 6 * 60;
@@ -93,6 +165,17 @@ export type TravelChoice = (typeof travelChoices)[number];
 /** The trip's transport preference a choice stands for: train and flight are both public transport. */
 export function transportPreferenceFor(choice: TravelChoice): TransportPreference {
   return choice === "drive" ? "self_drive" : choice === "auto" ? "flexible" : "public_transport";
+}
+
+/**
+ * The choice a trip's transport preference stands for when nothing was chosen on the plan page
+ * (1.2108): self-drive drives, public transport takes the train (flights are not wired yet), not
+ * driving or flexible lets Meri compare. No preference means no choice: only the drive is estimated.
+ */
+export function travelChoiceOf(preference: TripStateField<TransportPreference>): TravelChoice | null {
+  if (preference.state !== "known") return null;
+  if (preference.value === "self_drive") return "drive";
+  return preference.value === "public_transport" ? "train" : "auto";
 }
 
 /**

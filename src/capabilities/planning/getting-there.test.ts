@@ -67,7 +67,16 @@ function setup(current: TripState = handoff.tripState) {
       key: (from, to, mode) => `${mode}:${from.longitude}>${to.longitude}`,
     },
   };
+  const trainSearches: string[] = [];
   const deps = {
+    // The model is unreachable here: legs keep their drive estimates, as when Kimi is down.
+    transport: {
+      searchTrains: async (search: { fromCity: string; toCity: string }) => {
+        trainSearches.push(`${search.fromCity}>${search.toCity}`);
+        return { status: "none" as const, queriedDate: "2026-11-20", reference: false };
+      },
+      model: () => { throw new Error("model unavailable"); },
+    },
     loadJourney: async () => ({ tripState: state }),
     updateTripState: async (_trip: string, _owner: string, patch: Parameters<typeof applyTripStatePatch>[1]) => {
       writes.push(Object.keys(patch).join(","));
@@ -77,7 +86,7 @@ function setup(current: TripState = handoff.tripState) {
     repository,
     transfers,
   };
-  return { deps, repository, writes, asked, current: () => state };
+  return { deps, repository, writes, asked, trainSearches, current: () => state };
 }
 
 test("the origin is filled in once: TripState, then the plan version, then the run's handoff, and only setting off and home are estimated (1.2107)", async () => {

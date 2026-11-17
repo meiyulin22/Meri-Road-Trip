@@ -488,6 +488,24 @@ The origin is filled once. Train and flight are recorded (`travelChoice`) and th
 are looked up next; until 1.2108 the drive stays as a reference. No model is asked. An origin
 picked in the Workspace now keeps its point in Generate plan too.
 
+**Trains and the transport agent (1.2108).** The first real agent loop in transport, built as agreed:
+the agent decides, code guards. Code decides which legs may be trains: none for a self-driver;
+setting off and heading home only when the traveller chose train or let Meri decide (flights are
+not wired); every change of city, as the agent's call. Code sets each leg's departure hours. A Mastra
+agent with one tool, `search-trains`, decides which legs to search and whether another window is
+worth a search (at most 6 a run); a separate structured call then picks train or drive per leg with
+a reason, since Kimi skips tools when asked for JSON in the same call. Code keeps a pick only if the
+train is one 12306 returned for that leg; a bound leg keeps a train when one was found; otherwise
+the quickest train or the drive. Trains come from 12306-mcp 0.3.10 (unofficial web query, query only)
+through [platform/rail](../platform/rail/): a subprocess started on the first search, one request every
+3 s process-wide, 100 a day, a 30-minute pause after any failure. The adapter checks both stations
+belong to the cities (12306 mixes in neighbours), computes arrival from departure plus duration, and
+asks a same-weekday reference date beyond the ~15-day presale window. Measured 2026-11-17: start
+2.8 s; 丽江 → 大理 on 11-20, 6–13 h: C378 12:00 → 14:22. The first live pick chose to drive, reading
+the departure window as an arrival window; the prompt now names it `departureHours`, and the next
+pick was C378 with a correct reason (857 + 183 tokens). 上海 → 丽江 had no direct train; transfers
+(12306's interline search) are not used yet.
+
 ### Evaluation (1.2014)
 
 [scripts/eval-plan.ts](../../scripts/eval-plan.ts) runs the cases in

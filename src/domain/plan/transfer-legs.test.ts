@@ -5,7 +5,7 @@ import type { LocationField } from "@/domain/trip-state/trip-state";
 
 import type { DayFrame } from "./plan-draft";
 import { planDraftSchema } from "./plan-draft-response";
-import { originPoint, transferLegs, type TravelChoice, transportPreferenceFor } from "./transfer-legs";
+import { originPoint, railQueryDate, transferLegs, type TravelChoice, travelChoiceOf, transportPreferenceFor } from "./transfer-legs";
 
 const frame = (day: number, city: string, arrivingFrom: string | null = null): DayFrame =>
   ({ day, date: null, province: "云南省", city, arrivingFrom, focus: null, theme: null });
@@ -58,4 +58,20 @@ test("a choice stands for a transport preference, and only a picked Tianditu ori
     { longitude: 121.32, latitude: 31.19 });
   assert.equal(originPoint({ ...shanghai, selection: { provider: "amap", coordinates: { longitude: 121.32, latitude: 31.19, coordinateSystem: "GCJ-02" } } }), null);
   assert.equal(originPoint({ state: "missing" }), null);
+});
+
+test("12306 is asked for the leg's own day inside its presale window, and a same-weekday reference beyond it (1.2108)", () => {
+  assert.deepEqual(railQueryDate("2026-11-20", "2026-11-17"), { date: "2026-11-20", reference: false });
+  assert.deepEqual(railQueryDate("2026-12-01", "2026-11-17"), { date: "2026-12-01", reference: false });
+  // A Monday five weeks out: the last Monday within the window.
+  assert.deepEqual(railQueryDate("2026-12-21", "2026-11-17"), { date: "2026-11-30", reference: true });
+  assert.equal(railQueryDate("2026-11-10", "2026-11-17"), null);
+});
+
+test("a trip's transport preference stands for a choice; none means only the drive", () => {
+  assert.equal(travelChoiceOf({ state: "known", value: "self_drive", source: "user" }), "drive");
+  assert.equal(travelChoiceOf({ state: "known", value: "public_transport", source: "user" }), "train");
+  assert.equal(travelChoiceOf({ state: "known", value: "flexible", source: "user" }), "auto");
+  assert.equal(travelChoiceOf({ state: "known", value: "no_self_drive", source: "user" }), "auto");
+  assert.equal(travelChoiceOf({ state: "missing" }), null);
 });

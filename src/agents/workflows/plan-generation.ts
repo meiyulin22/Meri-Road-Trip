@@ -5,6 +5,7 @@ import { z } from "zod";
 
 import { dayPhotos, type FindDayImage } from "@/agents/planner/day-photos";
 import { type DriveLegDependencies, planDriveLegs } from "@/agents/transport/legs";
+import { planTransport, type TransportDependencies } from "@/agents/transport/transport-agent";
 import { planTransfers, type TransferDependencies } from "@/agents/transport/transfers";
 import { maxVerifySearches, type VerifyProgress, type VerifyResult } from "@/agents/planner/verify-spots";
 import { checkSpotsOnMap, type MapCheckDependencies } from "@/agents/planner/map-check";
@@ -23,7 +24,8 @@ import type { PlanHandoff } from "@/domain/plan/plan-handoff";
 import { type PlanProgressEvent, type PlanQuestion, planQuestionSchema, type PlanStage } from "@/domain/plan/plan-progress";
 import type { PlanRunUsage, PlanVersion } from "@/domain/plan/plan-run";
 import type { CityResearch, SpotCard } from "@/domain/plan/spot-card";
-import { originPoint, type TransferLeg, transferLegs } from "@/domain/plan/transfer-legs";
+import { originPoint, type TransferLeg, transferLegs, travelChoiceOf } from "@/domain/plan/transfer-legs";
+import { railCityOfRegion } from "@/platform/rail/rail-names";
 import { stopVerdict } from "@/domain/plan/availability";
 import { closedStops, type Moved, moveClosedStops, stopChecks, verdictsFor } from "@/domain/plan/plan-repair";
 import { maxStopsForPreferences, type PlanPreference } from "@/domain/plan/trip-preference";
@@ -38,6 +40,8 @@ export type PlanGenerationDependencies = {
   readonly drive: DriveLegDependencies;
   /** Tianditu place centres and drives for setting off, changing city and going back (1.2106). */
   readonly transfers: TransferDependencies;
+  /** Train searches on 12306 and the transport agent's pick (1.2108). */
+  readonly transport: TransportDependencies;
   /** The second round on these cards; the real one is verifySpots with Kimi search and model. */
   readonly verifySpots: (
     cards: readonly SpotCard[],
@@ -345,8 +349,23 @@ export function createPlanGenerationWorkflow(deps: PlanGenerationDependencies) {
         ({ from, to, done, total }) => emit({ type: "stage.activity", stage: "transfers", activity: { kind: "driving", from, to, done, total } }),
         // An origin picked from the map's suggestions in the Workspace keeps its own point.
         originPoint(origin));
+      // Trains only when the trip says how it travels; with no preference the drive estimate stands.
+      const choice = travelChoiceOf(state.handoff.tripState.transportPreference);
+      const transport = choice === null ? null : await planTransport(outcome.legs, {
+        choice,
+        dates: new Map(inputData.plan.frames.map(({ day, date }) => [day, date])),
+        originRailCity: origin.state === "known" && origin.selection?.region ? railCityOfRegion(origin.selection.region, origin.value) : null,
+        preferences: state.handoff.preferences.map(({ quote }) => quote),
+        locale: state.handoff.locale,
+      }, deps.transport, ({ from, to, done, total }) =>
+        emit({ type: "stage.activity", stage: "transfers", activity: { kind: "trains", from, to, done, total } }));
       await flush();
-      return { ...inputData, transfers: outcome.legs, transferLookups: outcome.lookups };
+      return {
+        ...inputData,
+        transfers: transport?.legs ?? outcome.legs,
+        transferLookups: outcome.lookups,
+        usage: transport ? addUsage(inputData.usage, transport.usage) : inputData.usage,
+      };
     },
   });
 

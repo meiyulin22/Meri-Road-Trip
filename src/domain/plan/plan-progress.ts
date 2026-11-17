@@ -30,6 +30,8 @@ export const planActivitySchema = z.discriminatedUnion("kind", [
   z.strictObject({ kind: z.literal("repairing"), days: z.array(z.number().int().positive()), round: count }),
   /** One drive leg looked up or remembered (1.2102), between stops or, in transfers, between cities (1.2106). */
   z.strictObject({ kind: z.literal("driving"), from: name, to: name, done: count, total: count }),
+  /** One train search between two cities sent to 12306 (1.2108). */
+  z.strictObject({ kind: z.literal("trains"), from: name, to: name, done: count, total: count }),
 ]);
 export type PlanActivity = z.output<typeof planActivitySchema>;
 

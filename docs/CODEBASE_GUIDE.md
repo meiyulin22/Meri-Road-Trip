@@ -65,6 +65,7 @@
 | `src/platform/llm/` | 模型客户端契约、Kimi 调用、SDK 错误与超时适配 | 模型提供方适配 |
 | `src/platform/location-provider/` | 地点搜索/输入建议接口（实现在 `src/platform/tianditu/`） | 地图提供方适配 |
 | `src/platform/search/` | Discovery Search 接口及 Bocha、Kimi Search Pro 请求/响应适配 | 搜索提供方适配 |
+| `src/platform/rail/` | 火车：12306-mcp 子进程、请求节奏和每日上限、城市名转换、查余票适配（1.2108） | 外部集成适配器 |
 | `src/platform/place-photos/` | 地点照片接口、本地图集（地区与名称匹配），以及推荐卡的运行时补图（Wikimedia 先、Pixabay 后：客户端、身份判断、媒体目录存储） | 照片提供方适配 |
 | `src/platform/persistence/` | repository 接口，隔离应用层与数据库实现 | 持久化端口；这里的接口不等于 SQL 实现 |
 | `src/platform/persistence/postgres/` | PostgreSQL repository，读取校验、错误包装、CAS 更新 | 持久化适配器 |
@@ -374,7 +375,7 @@ Generate plan 背后的计划页先用示例数据做出完整页面（设计决
 | [src/platform/tianditu/tianditu-tiles.ts](../src/platform/tianditu/tianditu-tiles.ts) | 外部集成适配器 | 1.2104：用服务端 key 取天地图瓦片；单独的队列，每 120 毫秒放出一张（一次性并发十几张曾被防火墙拦截）；遇到 418 或拦截页就暂停 5 分钟，期间不再请求。 |
 | [src/platform/http/rate-limiter.ts](../src/platform/http/rate-limiter.ts) | 基础设施 | 1.2104：按客户端计数的滑动窗口限流，存在内存里，单进程。 |
 | [src/components/trip-plan/plan-leg-text.ts](../src/components/trip-plan/plan-leg-text.ts) | 表现层模型 | 1.2103：每个景点前那一行的文字：步行写步行；开车按用户交通方式写「开车 / 打车 / 车程约」；路线头尾超过 300 米没路、或整段没路时如实写出，并列出常见方式（坐船、索道、步行），不替用户猜；1.2105 起一头离路超过 1 公里时那头是一大片区域（如洱海），只写「洱海是一大片区域，车程要看具体从哪里出发，无法估算」，不写分钟和公里。 |
-| [src/components/trip-plan/plan-transfer-text.ts](../src/components/trip-plan/plan-transfer-text.ts) | 表现层模型 | 1.2106：启程、转场、回程卡的文字：类别名（启程 / 转场 / 回程），两端地名（出发地没写时写「出发地」），开车估算「车程约 2 小时 40 分钟 · 186 公里（估算）」（自驾写「开车约」，一小时以上按 10 分钟取整），超过 6 小时加一句可以考虑火车或飞机；没有时间时说明原因（出发地没写、不确定、地图上没找到、没路、还没查到）。 |
+| [src/components/trip-plan/plan-transfer-text.ts](../src/components/trip-plan/plan-transfer-text.ts) | 表现层模型 | 1.2106：启程、转场、回程卡的文字：类别名（启程 / 转场 / 回程），两端地名（出发地没写时写「出发地」），开车估算「车程约 2 小时 40 分钟 · 186 公里（估算）」（自驾写「开车约」，一小时以上按 10 分钟取整），超过 6 小时加一句可以考虑火车或飞机；没有时间时说明原因（出发地没写、不确定、地图上没找到、没路、还没查到）；1.2108 起每趟火车一行（车次、时间和车站、历时、最便宜座位的票价和余票），以及来源和参考车次的说明。 |
 | [src/components/trip-plan/plan-transfer-text.test.ts](../src/components/trip-plan/plan-transfer-text.test.ts) | 测试 | 时长格式与取整、自驾和非自驾的措辞、长途提示、各种没有时间的原因。 |
 | [src/components/trip-plan/plan-origin-picker.tsx](../src/components/trip-plan/plan-origin-picker.tsx) | 表现层 | 1.2107：启程卡里的出发地填写：和 Workspace 同一个天地图地点建议接口（停止输入 0.25 秒后查，只列带天地图坐标的建议），点选后可「换一个」；交通方式没填时给自驾 / 高铁 / 飞机 / 让 Meri 判断（默认最后一个）；确认后锁定，出错时说明原因。 |
 | [src/components/trip-plan/plan-getting-there-model.ts](../src/components/trip-plan/plan-getting-there-model.ts) | 表现层模型 | 1.2107：哪些建议可以点选、发送补填请求并把 409 的原因码映射给页面。 |
@@ -593,6 +594,8 @@ Generate plan 背后的计划页先用示例数据做出完整页面（设计决
 | [src/agents/transport/legs.test.ts](../src/agents/transport/legs.test.ts) | 测试 | 按距离选步行或开车、步行时间、没路时如实记录、未定位景点断开、缓存优先、第一次拒绝后不再查。 |
 | [src/agents/transport/transfers.ts](../src/agents/transport/transfers.ts) | Agent 层（交通，纯代码） | 1.2106：城市之间的开车估算，以后是交通 Agent 的兜底：每个地方查一次城市中心，每段查一次天地图驾车；单城行程的回程复用启程（反向），多城行程回程从最后一座城出发、另查；先读缓存，每次最多 24 次查询，第一次失败即停、不重试，剩下的段写「没查」。 |
 | [src/agents/transport/transfers.test.ts](../src/agents/transport/transfers.test.ts) | 测试 | 多城的查询次数和顺序、单城回程复用、缓存命中不再查、失败即停、没找到 / 同城 / 没路、预算上限。 |
+| [src/agents/transport/transport-agent.ts](../src/agents/transport/transport-agent.ts) | Agent 层（交通 Agent） | 1.2108：代码先定哪些段可以查火车（自驾不查；启程回程只在选了高铁或让 Meri 判断时查；城市之间都可以查，由 Agent 判断）和每段的出发时段；Mastra Agent 用 `search-trains` 工具决定查哪段、要不要换时段再查（每次最多 6 次）；再单独一次结构化调用为每段选火车或开车、写一句理由；代码核对：选的车次必须是这一段查到的，启程回程按用户选的高铁至少给一趟，没有或无效的选择由代码选用时最短的一趟；每段最多展示 3 趟；模型不可用时各段保持开车估算。 |
+| [src/agents/transport/transport-agent.test.ts](../src/agents/transport/transport-agent.test.ts) | 测试 | 代码决定可查的段和时段、Agent 的选择被采用、编造的车次被拒、模型不可用时不变、查询预算与去重。 |
 | [src/agents/planner/map-check.ts](../src/agents/planner/map-check.ts) | Agent 层（固定步骤） | 景点卡的天地图定位：每个有出处的景点查一次（每城最多 12 个），只认本市同名结果并记区县；1.2100 起也记经纬度（`mapCheck.point`），旧计划为 null；第一次失败即停止、不重试，其余保持未核实；使用定位缓存。 |
 | [src/agents/planner/map-check.test.ts](../src/agents/planner/map-check.test.ts) | 测试 | 验证别省同名不算、景区后缀、停车场不算、失败即停、缓存命中、每城上限和缓存过期。 |
 | [src/agents/planner/plan-route.ts](../src/agents/planner/plan-route.ts) | Agent 层 | Plan Agent 路线：一次 Kimi 调用规划城市顺序、天数、每天重点区县和主题、放弃的城市，代码校验、重试一次、再按添加顺序兜底；允许时可以返回一个带选项的问题（只在第一次尝试、格式合法时采用；选项可写明放弃哪座城）；天数够时不许自行放弃城市，只有用户选了才可以；用户点名的区域（如大理市）作为重点区域交给模型；空的理由当作没有理由；两次尝试共 60 秒；每次尝试报告进度。1.2016：天数少于城市且没有兴趣或节奏偏好时必须提问，第一次没问就退回再答一次（仍不问则用第一次的路线）；偏好已说明想多看、能接受紧凑时不问「是否保留全部城市」；放弃同一城市的重复选项只留第一个。1.2018：想轻松（relaxed）且每城都排得下，但扣掉转场日后不用赶路的天少于城市数（3 城 3 天、3 城 4 天）时也必须提问，同样退回一次；退回后仍不问，由 `fallbackQuestion` 按模板自己提问（候选最少的城市排前面，中英文）。 |
@@ -670,6 +673,13 @@ Generate plan 背后的计划页先用示例数据做出完整页面（设计决
 | [src/platform/tianditu/tianditu-fetch.ts](../src/platform/tianditu/tianditu-fetch.ts) | 基础设施/适配器 | 天地图请求客户端：独立排队（开始间隔 ≥300ms，复用 amap-fetch 的通用 pacer）、超时、key 只拼进天地图地址；418 或防火墙 HTML 页视为拒绝、不重试；**429 视为限流**，整队暂停 1 秒、被拒请求排队首、最多重试 3 次（`retryRateLimit: false` 时不重试，景点定位用）；失败只返回固定原因，不含 URL 和 key。1.2102 起有 `getXml`：驾车服务回 XML（标成 text/html），只把 418 和 HTML 拦截页当拒绝。 |
 | [src/platform/tianditu/tianditu-drive.ts](../src/platform/tianditu/tianditu-drive.ts) | 外部集成适配器 | 1.2102：天地图驾车规划（`/drive`，style 0 最快）：读 XML 的 `distance`（公里）、`duration`（秒）和 `routelatlon`（`经度,纬度;…`），沿路坐标抽稀到最多 200 个；缺字段就是没有路线，不猜。 |
 | [src/platform/tianditu/tianditu-drive.test.ts](../src/platform/tianditu/tianditu-drive.test.ts) | 测试 | 按 2026-11-16 实测格式解析、缺字段、抽稀、请求参数、失败原因、车程缓存。 |
+| [src/platform/rail/rail-mcp.ts](../src/platform/rail/rail-mcp.ts) | 外部集成适配器 | 1.2108：12306-mcp 0.3.10 的子进程，`@mastra/mcp` 客户端；只有 `RAIL_PROVIDER=12306` 时可用，第一次调用 `railTools()` 才启动并一直复用，进程退出时关掉；导入和 `next dev` 不启动；启动本身向 12306 发 3 个请求。 |
+| [src/platform/rail/rail-budget.ts](../src/platform/rail/rail-budget.ts) | 基础设施/限流 | 1.2108：全进程一个队列，请求间隔 ≥3 秒；每天（北京时间）最多 100 个请求，计数存 `.cache/rail-requests.json`；失败后暂停 30 分钟。 |
+| [src/platform/rail/rail-budget.test.ts](../src/platform/rail/rail-budget.test.ts) | 测试 | 每日上限、跨天重新计数、失败后的暂停。 |
+| [src/platform/rail/rail-names.ts](../src/platform/rail/rail-names.ts) | 外部集成适配器 | 1.2108：行政区名转 12306 的城市短名（大理白族自治州 → 大理），点选出发地的地区取城市（上海市闵行区 → 上海）。 |
+| [src/platform/rail/rail-names.test.ts](../src/platform/rail/rail-names.test.ts) | 测试 | 自治州、市、直辖市和地区的转换。 |
+| [src/platform/rail/rail-12306.ts](../src/platform/rail/rail-12306.ts) | 外部集成适配器 | 1.2108：查两座城某天的火车：车站名来自子进程自己的车站表（不发请求），只有查余票发请求（每次 2 个，记入每日上限）；超出预售期改查同星期几的参考日期；JSON 结果用 zod 校验；出发站和到达站必须属于这两座城，到达时间由出发加历时计算；「有回应没数据」算没车，真正失败才暂停。 |
+| [src/platform/rail/rail-12306.test.ts](../src/platform/rail/rail-12306.test.ts) | 测试 | 车站核对和跨午夜、参考日期、没有车站 / 没有数据 / 失败的区分、关闭时不启动、过去的日期。 |
 | [src/platform/tianditu/tianditu-city-point.ts](../src/platform/tianditu/tianditu-city-point.ts) | 外部集成适配器 | 1.2106：按名字查一次城市中心：只读天地图的行政区回答（`area`），名字必须是问的那个（或只多行政区后缀，如 大理 → 大理白族自治州）；POI 列表、别的地名、境外都算没找到，不猜；不重试。实测 2026-11-17：丽江市 → 156530700，(100.225258, 26.8583)。 |
 | [src/platform/tianditu/tianditu-city-point.test.ts](../src/platform/tianditu/tianditu-city-point.test.ts) | 测试 | 行政区回答的名字核对、短名加后缀、POI 和无结果、坏坐标、拒绝不重试。 |
 | [src/platform/tianditu/city-point-memory.ts](../src/platform/tianditu/city-point-memory.ts) | 基础设施/缓存 | 1.2106：城市中心缓存 180 天（`.cache/tianditu-city-points.json`，最多 2000 条，没找到和失败不存）。 |

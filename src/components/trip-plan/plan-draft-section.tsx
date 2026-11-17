@@ -396,7 +396,12 @@ function DraftDays({ response, text, locale, transport, gettingThere }: {
     const picker = gettingThere && leg.kind === "outbound" && leg.estimate.status === "origin_missing"
       ? <PlanOriginPicker tripId={gettingThere.tripId} locale={locale} askChoice={gettingThere.askChoice} onFilled={gettingThere.onFilled} />
       : null;
-    return <PlanTransferCard leg={leg} transport={transport} travelChoice={response.travelChoice ?? null} locale={locale}>{picker}</PlanTransferCard>;
+    const legDate = draft.days.find((item) => item.day === leg.day)?.date ?? null;
+    return (
+      <PlanTransferCard leg={leg} legDate={legDate} transport={transport} travelChoice={response.travelChoice ?? null} locale={locale}>
+        {picker}
+      </PlanTransferCard>
+    );
   };
 
   return (

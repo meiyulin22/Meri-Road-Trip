@@ -13,6 +13,9 @@ import { sharedSpotLocationMemory } from "@/platform/tianditu/spot-location-memo
 import { createTiandituDrive } from "@/platform/tianditu/tianditu-drive";
 import { sharedCityPointMemory } from "@/platform/tianditu/city-point-memory";
 import { createTiandituCityPoint } from "@/platform/tianditu/tianditu-city-point";
+import { create12306Rail } from "@/platform/rail/rail-12306";
+import { sharedRailBudget } from "@/platform/rail/rail-budget";
+import { railEnabled, railTools } from "@/platform/rail/rail-mcp";
 
 import { researchCity } from "./planner/research-agent";
 import { verifySpots } from "./planner/verify-spots";
@@ -26,6 +29,7 @@ process.env.MASTRA_TELEMETRY_DISABLED ??= "1";
 let map: TiandituLocationProvider | null = null;
 let drive: ReturnType<typeof createTiandituDrive> | null = null;
 let cityPoint: ReturnType<typeof createTiandituCityPoint> | null = null;
+let rail: ReturnType<typeof create12306Rail> | null = null;
 let photos: ReturnType<typeof createPlacePhotoProvider> | null = null;
 
 /**
@@ -68,6 +72,11 @@ export function planGenerationDependencies(
         memory: sharedDriveLegMemory,
         key: driveLegKey,
       },
+    },
+    transport: {
+      // 12306 only when RAIL_PROVIDER=12306; its server starts on the first search, not on import.
+      searchTrains: (search) => (rail ??= create12306Rail({ enabled: railEnabled, tools: railTools, budget: sharedRailBudget, now: () => new Date() }))(search),
+      model: createMoonshotChatModelFromEnvironment,
     },
     // The local catalog and photos already downloaded: no remote photo service is asked.
     findImage: (subject) => findPlaceImage(subject, photos ??= createPlacePhotoProvider()),

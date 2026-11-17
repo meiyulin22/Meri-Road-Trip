@@ -32,6 +32,7 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
     updateTripState: (id, owner, patch) => journeyService.updateTripState(id, owner, patch),
     repository: planRunRepository,
     transfers: planGenerationDependencies().transfers,
+    transport: planGenerationDependencies().transport,
   }, (error) => {
     if (error instanceof TripNotFoundError || error instanceof TripStateNotFoundError) return true;
     logger.error({ tripId, error: serializeError(error) }, "Starting point could not be saved");

@@ -116,6 +116,28 @@ const transferLegSchema: z.ZodType<TransferLeg> = z.strictObject({
     z.strictObject({ status: z.literal("no_route") }),
     z.strictObject({ status: z.literal("not_looked_up") }),
   ]),
+  trains: z.strictObject({
+    queriedDate: z.iso.date(),
+    reference: z.boolean(),
+    checkedAt: z.iso.datetime(),
+    options: z.array(z.strictObject({
+      code: z.string().min(1).max(12),
+      from: z.string().min(1),
+      to: z.string().min(1),
+      departs: z.string().regex(/^\d{2}:\d{2}$/u),
+      arrives: z.string().regex(/^\d{2}:\d{2}$/u),
+      arriveDayOffset: z.number().int().min(0).max(3),
+      durationMinutes: z.number().int().positive(),
+      seats: z.array(z.strictObject({ name: z.string().min(1), price: z.number().nonnegative().nullable(), left: z.string() })),
+    })).max(5),
+  }).optional(),
+  recommendation: z.strictObject({
+    mode: z.enum(["train", "drive"]),
+    trainCode: z.string().min(1).nullable(),
+    reason: z.string().max(200),
+    by: z.enum(["agent", "code"]),
+  }).optional(),
+  trainsMissing: z.enum(["none", "no_station", "unavailable"]).optional(),
 });
 
 export const planDraftSchema: z.ZodType<PlanDraft> = z.strictObject({

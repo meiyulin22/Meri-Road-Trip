@@ -78,6 +78,11 @@ function setup(overrides: Partial<PlanGenerationDependencies> = {}, timeLimitMs?
         key: (from, to, mode) => `${mode}:${from.longitude},${from.latitude}>${to.longitude},${to.latitude}`,
       },
     },
+    // The trip has no transport preference, so no train is searched; asking would fail the test.
+    transport: {
+      searchTrains: async () => { throw new Error("no train search expected"); },
+      model: () => { throw new Error("no transport model expected"); },
+    },
     // No facts by default: every stop stays unchecked and the loop has nothing to repair.
     verifySpots: async () => ({ availability: new Map(), searches: 0, usage: { inputTokens: 0, outputTokens: 0 } }),
     findImage: async (subject) => subject.spot ? null : { url: `/photos/${subject.place}.jpg`, caption: subject.place ?? "城市" },

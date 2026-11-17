@@ -3,7 +3,7 @@ import test from "node:test";
 
 import type { TransferLeg } from "@/domain/plan/transfer-legs";
 
-import { driveDuration, transferEnds, transferLabel, transferText } from "./plan-transfer-text";
+import { driveDuration, trainLine, trainSource, transferEnds, transferLabel, transferText } from "./plan-transfer-text";
 
 const leg = (estimate: TransferLeg["estimate"], overrides: Partial<TransferLeg> = {}): TransferLeg =>
   ({ kind: "between", day: 3, from: "丽江市", to: "大理白族自治州", estimate, ...overrides });
@@ -33,11 +33,24 @@ test("a leg without a time says why", () => {
   assert.deepEqual([transferLabel("outbound", "zh"), transferLabel("between", "zh"), transferLabel("return", "en")], ["启程", "转场", "Heading home"]);
 });
 
-test("a train or flight chosen on the plan page is said first, with the drive as a reference (1.2107)", () => {
-  assert.equal(transferText(leg(drive(163, 186)), "public_transport", "zh", "train"),
-    "你选了高铁，车次查询下一步接上；先给开车参考：车程约 2 小时 40 分钟 · 186 公里（估算）");
+test("a missing train or a chosen flight is said first, with the drive as a reference (1.2107–1.2108)", () => {
+  assert.equal(transferText({ ...leg(drive(163, 186)), trainsMissing: "none" }, "public_transport", "zh", "train"),
+    "这段没查到合适的直达车次（可能要中转）；先给开车参考：车程约 2 小时 40 分钟 · 186 公里（估算）");
+  // Not searched (no train service turned on): no claim about trains at all.
+  assert.equal(transferText(leg(drive(163, 186)), "public_transport", "zh", "train"), "车程约 2 小时 40 分钟 · 186 公里（估算）");
   assert.equal(transferText(leg(drive(2280, 2700)), "public_transport", "zh", "flight"),
     "你选了飞机，航班查询下一步接上；先给开车参考：车程约 38 小时 · 2700 公里（估算）");
   assert.equal(transferText(leg(drive(163, 186)), "self_drive", "zh", "drive"), "开车约 2 小时 40 分钟 · 186 公里（估算）");
   assert.equal(transferText(leg({ status: "origin_missing" }, { kind: "return", to: null }), null, "zh"), "出发地还没写，在上面的启程卡里填写后一起估算");
+});
+
+test("a train reads as one line, its cheapest seat priced; a reference train says nothing about seats (1.2108)", () => {
+  const c378 = { code: "C378", from: "丽江", to: "大理", departs: "12:00", arrives: "14:22", arriveDayOffset: 0, durationMinutes: 142,
+    seats: [{ name: "一等座", price: 127, left: "5" }, { name: "二等座", price: 80, left: "有" }] };
+  assert.equal(trainLine(c378, false, "zh"), "C378 · 12:00 丽江 → 14:22 大理 · 2 小时 22 分 · 二等座 ¥80 有票");
+  assert.equal(trainLine(c378, true, "zh"), "C378 · 12:00 丽江 → 14:22 大理 · 2 小时 22 分 · 二等座 ¥80");
+  assert.equal(trainLine({ ...c378, arrives: "01:40", arriveDayOffset: 1 }, false, "en"), "C378 · 12:00 丽江 → 01:40 (+1d) 大理 · 2 h 22 min · 二等座 ¥80 available");
+  const trains = { queriedDate: "2026-11-30", reference: true, checkedAt: "2026-11-17T13:30:00.000Z", options: [c378] };
+  assert.match(trainSource(trains, "2026-12-21", "zh"), /^参考车次：12\/21周一还没开售，这是 11\/30周一 的时刻表，开售后再确认 · 来自 12306 · /u);
+  assert.match(trainSource({ ...trains, reference: false }, null, "zh"), /^来自 12306 · 11\/17 21:30 查询$/u);
 });
