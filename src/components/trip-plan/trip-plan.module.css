@@ -413,12 +413,13 @@
   place-items: center;
   height: 34px;
   border-radius: 10px;
-  color: var(--green);
-  background: var(--green-soft);
+  /* The real plan sets its day's colour (1.2105); the design preview keeps Meri's green. */
+  color: var(--day-color, var(--green));
+  background: var(--day-soft, var(--green-soft));
   font-family: var(--font-geist-pixel-square), monospace;
   font-size: 16px;
 }
-.dayCard[data-open="true"] .dayNumber { color: #fff; background: var(--green); }
+.dayCard[data-open="true"] .dayNumber { color: #fff; background: var(--day-color, var(--green)); }
 .dayHeading { display: grid; gap: 2px; min-width: 0; }
 .dayMeta { color: var(--soft); font-size: 11px; }
 .dayTitle { font-size: 15px; font-weight: 650; line-height: 1.35; overflow-wrap: anywhere; }

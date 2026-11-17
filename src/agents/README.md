@@ -420,7 +420,7 @@ The same live check found the day-planning call failing when Kimi wrote a time a
 string: that answer shape is now read, and a malformed answer gets the second attempt instead of
 failing the run.
 
-### Drive times and the map (1.2100–1.2102)
+### Drive times and the map (1.2100–1.2105)
 
 The map check keeps each located spot's coordinates (1.2100), and the plan page draws the stops
 on a Tianditu map (since 1.2104 with Leaflet, from tiles our server relays with the server key, so no
@@ -448,6 +448,17 @@ measured before thinning, are the stretches with no road. Over 300 m, the card s
 the trip's transport preference. Nothing here asks the model why a way is missing; finding the ferry
 or cable car with a sourced search is a later checker. Driving between cities and using the times to
 re-plan a day are not done yet. Two days no longer share a photo: a day with nothing new goes without.
+
+**Large areas, a colour per day, a line per mode (1.2105).** An end more than 1 km from any road
+(`bigAreaMeters`) is a large area, not a point: Tianditu put 洱海 mid-lake, so 洱海 → 南诏风情岛 read
+53.8 km in 55 min with the first 1.7 km off road. Such a leg shows no minutes and no kilometres; the
+card says "洱海是一大片区域，车程要看具体从哪里出发，无法估算" and the map draws one straight dashed line.
+300 m to 1 km keeps the note above. This is a code guardrail on Tianditu's answer, decided by
+`legReach` from what is already saved, so older plans read the same way; no model is asked and
+nothing is looked up again. Each day has its own colour (six of Meri's tones, repeating), shared by
+its lines, pins, map tab and day card; a one-day view greys the other days. A drive is a thick solid
+line on a white casing, a walk a thin dotted one, a stretch with no road dashed, with a key below
+the map.
 
 ### Evaluation (1.2014)
 

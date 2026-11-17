@@ -3,14 +3,14 @@
 import { ArrowRight, CalendarCheck, Car, ChevronDown, Footprints, Clock, ExternalLink, Info, MapPin, MoonStar, RotateCw, Route, Sparkles, Star, Sun, Sunrise, TriangleAlert } from "lucide-react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import Image from "next/image";
-import { useEffect, useMemo, useReducer, useState } from "react";
+import { type CSSProperties, useEffect, useMemo, useReducer, useState } from "react";
 
 import { useLocale } from "@/components/i18n/locale-context";
 import { creditsHref } from "@/components/trip-workspace/destination-choices-card";
 import { PhotoSourceCredit } from "@/components/trip-workspace/photo-source-dialog";
 import type { PlaceImage } from "@/domain/location/place-image";
 import type { Locale } from "@/domain/locale/locale";
-import type { DaySlot, DriveLeg, PlanDay, PlanRoute, SpotFact, StopCheck } from "@/domain/plan/plan-draft";
+import { type DaySlot, type DriveLeg, legReach, type PlanDay, type PlanRoute, type SpotFact, type StopCheck } from "@/domain/plan/plan-draft";
 import type { ReadyPlan } from "@/domain/plan/plan-draft-response";
 import type { PlanHandoff } from "@/domain/plan/plan-handoff";
 import type { TransportPreference } from "@/domain/trip-draft/trip-draft";
@@ -32,6 +32,7 @@ import {
 } from "./plan-draft-model";
 import { applyProgress, emptyProgress, pendingDays, type ProgressView } from "./plan-progress-view";
 import { PlanQuestionCard, PlanRunActivity, type QuestionAnswer } from "./plan-run-activity";
+import { dayColor } from "./plan-day-colors";
 import { legText } from "./plan-leg-text";
 import { PlanTiandituMap } from "./plan-tianditu-map";
 import draftStyles from "./plan-draft.module.css";
@@ -446,6 +447,12 @@ function DraftDays({ response, text, locale, transport }: {
   );
 }
 
+/** A walk, a drive, or — where the time cannot be given — a plain route mark (1.2105). */
+function LegIcon({ leg }: { readonly leg: DriveLeg }) {
+  if (legReach(leg).kind !== "way") return <Route aria-hidden="true" size={12} />;
+  return leg.mode === "walk" ? <Footprints aria-hidden="true" size={12} /> : <Car aria-hidden="true" size={12} />;
+}
+
 const slotIcon = { morning: Sunrise, afternoon: Sun, evening: MoonStar } satisfies Record<DaySlot, typeof Sun>;
 
 /** Each stop's drive from the stop before it in the day, where Tianditu planned one (1.2102). */
@@ -482,7 +489,9 @@ function DraftDay({ day, cards, unverified, checks, arriving, transport = null, 
       initial={reduce ? false : { opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.35, delay: reduce ? 0 : index * 0.06, ease: [0.22, 1, 0.36, 1] }}>
       <button type="button" className={styles.dayHeader} aria-expanded={open} onClick={onOpen}>
-        <span className={styles.dayNumber}>{day.day}</span>
+        {/* The day's colour, as on the map (1.2105). */}
+        <span className={styles.dayNumber}
+          style={{ "--day-color": dayColor(day.day).solid, "--day-soft": dayColor(day.day).soft } as CSSProperties}>{day.day}</span>
         <span className={styles.dayHeading}>
           <span className={styles.dayMeta}>
             {text.dayLabel(day.day)}{day.date ? ` · ${formatDate(day.date, locale)}` : ""} · {day.city}
@@ -527,8 +536,11 @@ function DraftDay({ day, cards, unverified, checks, arriving, transport = null, 
                           <li key={stop.spotId} className={draftStyles.stop}>
                             {leg ? (
                               <p className={draftStyles.driveLine}>
-                                {leg.mode === "walk" ? <Footprints aria-hidden="true" size={12} /> : <Car aria-hidden="true" size={12} />}
-                                {legText(leg, transport, locale)}
+                                <LegIcon leg={leg} />
+                                {legText(leg, transport, locale, {
+                                  from: cards.get(leg.fromSpotId)?.name ?? leg.fromSpotId,
+                                  to: card?.name ?? leg.toSpotId,
+                                })}
                               </p>
                             ) : null}
                             <div className={draftStyles.stopHead}>

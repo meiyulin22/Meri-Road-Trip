@@ -7,6 +7,7 @@ import {
   fallbackRoute,
   finishDraft,
   isAreaName,
+  legReach,
   planScope,
   reviewProposal,
   reviewRoute,
@@ -214,4 +215,15 @@ test("a county-level name under another city is an area, not a spot to visit", (
   assert.equal(isAreaName("洱海", "大理白族自治州"), false);
   assert.deepEqual(splitRequested(["大理市", "洱海", "崇圣寺三塔"], "大理白族自治州"),
     { spots: ["洱海", "崇圣寺三塔"], areas: ["大理市"] });
+});
+
+test("a leg's reach: no way, a large area at either end, or a way with stretches worth saying (1.2105)", () => {
+  const base = { day: 1, fromSpotId: "a", toSpotId: "b", mode: "drive" as const, distanceKm: 2, durationMinutes: 4, path: [] };
+  assert.deepEqual(legReach({ ...base, mode: "none" }), { kind: "none" });
+  assert.deepEqual(legReach({ ...base, offRoadStartMeters: 1001, offRoadEndMeters: 0 }), { kind: "area", fromIsArea: true, toIsArea: false });
+  assert.deepEqual(legReach({ ...base, offRoadStartMeters: 0, offRoadEndMeters: 1700 }), { kind: "area", fromIsArea: false, toIsArea: true });
+  assert.deepEqual(legReach({ ...base, offRoadStartMeters: 1000, offRoadEndMeters: 300 }), { kind: "way", startGapMeters: 1000, endGapMeters: 0 });
+  assert.deepEqual(legReach({ ...base, offRoadStartMeters: 299, offRoadEndMeters: 301 }), { kind: "way", startGapMeters: 0, endGapMeters: 301 });
+  // Saved before 1.2103: no off-road measures.
+  assert.deepEqual(legReach(base), { kind: "way", startGapMeters: 0, endGapMeters: 0 });
 });

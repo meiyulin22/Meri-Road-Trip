@@ -60,6 +60,13 @@ export type StopCheck = {
 export const walkWithinKm = 1.2;
 /** An off-road stretch longer than this is shown: the road stops short of the stop. */
 export const offRoadNoticeMeters = 300;
+/**
+ * An end farther than this from any road is not a point but a large area, such as a lake or a
+ * mountain range (1.2105): Tianditu put 洱海 mid-lake, so 洱海 → 南诏风情岛 read 54 km with the
+ * first 1.7 km off road. The time then depends on where the traveller actually starts and is
+ * not given.
+ */
+export const bigAreaMeters = 1000;
 
 /**
  * Getting between two stops next to each other in one day, as Tianditu planned it (1.2102):
@@ -81,6 +88,31 @@ export type DriveLeg = {
   readonly offRoadStartMeters?: number;
   readonly offRoadEndMeters?: number;
 };
+
+/**
+ * How far a leg's time can be trusted, decided from what Tianditu measured (1.2105): no way at
+ * all; an end that is a large area, so no time; or a way whose ends may stop short of a stop by
+ * a stretch worth saying (0 when it does not). Plans saved before 1.2103 have no off-road
+ * measures and read as reaching both stops.
+ */
+export type LegReach =
+  | { readonly kind: "none" }
+  | { readonly kind: "area"; readonly fromIsArea: boolean; readonly toIsArea: boolean }
+  | { readonly kind: "way"; readonly startGapMeters: number; readonly endGapMeters: number };
+
+export function legReach(leg: DriveLeg): LegReach {
+  if (leg.mode === "none") return { kind: "none" };
+  const start = leg.offRoadStartMeters ?? 0;
+  const end = leg.offRoadEndMeters ?? 0;
+  if (start > bigAreaMeters || end > bigAreaMeters) {
+    return { kind: "area", fromIsArea: start > bigAreaMeters, toIsArea: end > bigAreaMeters };
+  }
+  return {
+    kind: "way",
+    startGapMeters: start > offRoadNoticeMeters ? start : 0,
+    endGapMeters: end > offRoadNoticeMeters ? end : 0,
+  };
+}
 
 export type PlanMode = "preview" | "full";
 

@@ -45,9 +45,17 @@
   cursor: pointer;
 }
 .mapTabs button[aria-selected="true"] { color: var(--ink); background: #fff; box-shadow: 0 1px 2px rgba(23, 53, 44, .12); }
+/* A chosen day's tab takes that day's colour, as its lines and pins do (1.2105). */
+.mapTabs button[data-day][aria-selected="true"] { color: #fff; background: var(--day-color); }
 .mapTabs button:focus-visible { outline: 2px solid var(--green); outline-offset: 1px; }
 .mapCanvas { position: relative; height: 380px; border-radius: 12px; overflow: hidden; background: #eaf0e1; }
 .mapNote { color: var(--muted); font-size: 12px; }
+/* What the three line styles mean (1.2105); drawn in neutral ink, as every day shares them. */
+.mapLegend { display: flex; flex-wrap: wrap; gap: 4px 16px; list-style: none; color: var(--muted); font-size: 12px; }
+.mapLegend li { display: inline-flex; align-items: center; gap: 6px; }
+.mapLegend li::before { content: ""; width: 24px; border-top: 4px solid var(--muted); }
+.mapLegend li[data-kind="walk"]::before { border-top: 3px dotted var(--muted); }
+.mapLegend li[data-kind="straight"]::before { border-top: 2px dashed var(--muted); }
 /* The drive from the stop before (1.2102). */
 .driveLine { display: inline-flex; align-items: center; gap: 5px; margin-bottom: 4px; color: var(--muted); font-size: 12px; }
 @media (max-width: 720px) {

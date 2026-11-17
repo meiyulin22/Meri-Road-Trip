@@ -3,12 +3,13 @@
 import "leaflet/dist/leaflet.css";
 
 import type { LayerGroup, Map as LeafletMap } from "leaflet";
-import { useEffect, useRef, useState } from "react";
+import { type CSSProperties, useEffect, useRef, useState } from "react";
 
 import type { Locale } from "@/domain/locale/locale";
 import type { ReadyPlan } from "@/domain/plan/plan-draft-response";
 
-import { cityIcon, dayLines, dayOnMap, type DayOnMap, highlightedStops, labelLayer, mapStops, markerIcon, type MapStop, tileUrl } from "./plan-tianditu-map-model";
+import { dayColor } from "./plan-day-colors";
+import { cityIcon, dayLines, dayOnMap, type DayOnMap, highlightedStops, labelLayer, lineStrokes, mapStops, markerIcon, type MapStop, tileUrl } from "./plan-tianditu-map-model";
 import draftStyles from "./plan-draft.module.css";
 
 type Leaflet = typeof import("leaflet");
@@ -18,11 +19,13 @@ const copy = {
     title: "地图", wholeTrip: "全程", day: (day: number) => `第 ${day} 天`, failed: "地图没有加载出来。",
     cityOnly: (day: number, city: string) => `第 ${day} 天的景点还没在地图上找到，先显示它所在的${city}。`,
     unplaced: (day: number) => `第 ${day} 天的景点还没在地图上找到，这里显示全程。`,
+    legend: { drive: "开车", walk: "步行", none: "地图上没有路" },
   },
   en: {
     title: "Map", wholeTrip: "Whole trip", day: (day: number) => `Day ${day}`, failed: "The map didn’t load.",
     cityOnly: (day: number, city: string) => `Day ${day}'s stops aren't on the map yet, so it shows where ${city} is.`,
     unplaced: (day: number) => `Day ${day}'s stops aren't on the map yet, so it shows the whole trip.`,
+    legend: { drive: "Drive", walk: "Walk", none: "No road on the map" },
   },
 } as const;
 
@@ -33,10 +36,11 @@ const chinaBounds: [[number, number], [number, number]] = [[3, 73], [54, 136]];
 
 /**
  * The plan's stops on a Tianditu map, drawn with Leaflet from tiles Meri's server relays
- * (1.2104), so no key reaches the browser and visitors abroad see the map too. The chosen day's
- * stops are numbered, joined along the road or path where a leg was planned and dashed where the
- * map has no way; the other days' are small and grey. Only located stops are drawn; the day
- * cards carry every stop as text.
+ * (1.2104), so no key reaches the browser and visitors abroad see the map too. Each day has its
+ * own colour, shared with its day card (1.2105). The chosen day's stops — or every day's, for the
+ * whole trip — are numbered, joined by a solid line along the road, a dotted one on foot, and a
+ * dashed one where the map has no way; in a one-day view the other days' are small and grey.
+ * Only located stops are drawn; the day cards carry every stop as text.
  */
 export function PlanTiandituMap({ plan, locale, selectedDay, onSelectDay }: {
   readonly plan: ReadyPlan;
@@ -86,7 +90,7 @@ export function PlanTiandituMap({ plan, locale, selectedDay, onSelectDay }: {
     const current = leaflet.current;
     if (!ready || !current || stops.length === 0) return;
     current.overlays.clearLayers();
-    if (view?.kind === "city") drawCity(current, stops, view);
+    if (view?.kind === "city" && chosen !== null) drawCity(current, stops, view, dayColor(chosen).solid);
     else drawStops(current, stops, view?.kind === "stops" ? chosen : null, plan.draft.legs ?? []);
     // stops are rebuilt each render from the plan; the plan and the chosen day decide them.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -100,11 +104,17 @@ export function PlanTiandituMap({ plan, locale, selectedDay, onSelectDay }: {
         <div className={draftStyles.mapTabs} role="tablist" aria-label={text.title}>
           <button type="button" role="tab" aria-selected={chosen === null} onClick={() => onSelectDay(null)}>{text.wholeTrip}</button>
           {days.map((day) => (
-            <button type="button" role="tab" key={day} aria-selected={chosen === day} aria-label={text.day(day)} onClick={() => onSelectDay(day)}>{day}</button>
+            <button type="button" role="tab" key={day} aria-selected={chosen === day} aria-label={text.day(day)} onClick={() => onSelectDay(day)}
+              data-day="" style={{ "--day-color": dayColor(day).solid } as CSSProperties}>{day}</button>
           ))}
         </div>
       </div>
       <div className={draftStyles.mapCanvas} ref={container} lang={locale === "zh" ? "zh-CN" : "en"} />
+      <ul className={draftStyles.mapLegend} aria-label={locale === "zh" ? "线条说明" : "Line key"}>
+        <li data-kind="road">{text.legend.drive}</li>
+        <li data-kind="walk">{text.legend.walk}</li>
+        <li data-kind="straight">{text.legend.none}</li>
+      </ul>
       {failed ? <p className={draftStyles.mapNote} role="status">{text.failed}</p> : null}
       {note ? <p className={draftStyles.mapNote} role="status">{note}</p> : null}
     </section>
@@ -118,9 +128,9 @@ function pin(L: Leaflet, icon: { url: string; size: number }) {
 }
 
 /** A day placed only by its city: every stop faint, and a ring where the city's stops are. */
-function drawCity({ L, map, overlays }: Drawing, stops: readonly MapStop[], city: Extract<DayOnMap, { kind: "city" }>): void {
-  for (const stop of stops) L.marker([stop.latitude, stop.longitude], { icon: pin(L, markerIcon(stop.number, false)), title: stop.name }).addTo(overlays);
-  L.marker([city.latitude, city.longitude], { icon: pin(L, cityIcon()), title: city.name }).addTo(overlays);
+function drawCity({ L, map, overlays }: Drawing, stops: readonly MapStop[], city: Extract<DayOnMap, { kind: "city" }>, color: string): void {
+  for (const stop of stops) L.marker([stop.latitude, stop.longitude], { icon: pin(L, markerIcon(stop.number, null)), title: stop.name }).addTo(overlays);
+  L.marker([city.latitude, city.longitude], { icon: pin(L, cityIcon(color)), title: city.name }).addTo(overlays);
   map.setView([city.latitude, city.longitude], 11);
 }
 
@@ -129,16 +139,13 @@ function drawStops({ L, map, overlays }: Drawing, stops: readonly MapStop[], day
   for (const number of [...new Set([...highlighted].map(({ day: value }) => value))]) {
     for (const line of dayLines(stops, legs, number)) {
       const points = line.path.map(([longitude, latitude]) => [latitude, longitude] as [number, number]);
-      // The road or footpath where Tianditu planned it; a faint dashed line where the map has no way.
-      L.polyline(points, line.kind === "road" ? { color: "#2f5d46", weight: 4, opacity: 0.75 }
-        : line.kind === "walk" ? { color: "#2f5d46", weight: 3, opacity: 0.7 }
-          : { color: "#2f5d46", weight: 2, opacity: 0.55, dashArray: "6 6" }).addTo(overlays);
+      for (const stroke of lineStrokes(line.kind, dayColor(number).solid)) L.polyline(points, { ...stroke }).addTo(overlays);
     }
   }
   // Faint pins first, so the chosen day's sit on top of them.
   for (const stop of [...stops].sort((left, right) => Number(highlighted.has(left)) - Number(highlighted.has(right)))) {
     L.marker([stop.latitude, stop.longitude], {
-      icon: pin(L, markerIcon(stop.number, highlighted.has(stop))), title: stop.name, zIndexOffset: highlighted.has(stop) ? 1_000 : 0,
+      icon: pin(L, markerIcon(stop.number, highlighted.has(stop) ? dayColor(stop.day).solid : null)), title: stop.name, zIndexOffset: highlighted.has(stop) ? 1_000 : 0,
     }).addTo(overlays);
   }
   const framed = [...highlighted].map((stop) => [stop.latitude, stop.longitude] as [number, number]);

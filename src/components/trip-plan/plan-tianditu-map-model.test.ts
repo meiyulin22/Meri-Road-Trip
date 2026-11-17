@@ -4,7 +4,8 @@ import test from "node:test";
 import type { ReadyPlan } from "@/domain/plan/plan-draft-response";
 import type { SpotCard } from "@/domain/plan/spot-card";
 
-import { dayLines, dayOnMap, highlightedStops, labelLayer, mapStops, markerIcon, tileUrl } from "./plan-tianditu-map-model";
+import { dayColor } from "./plan-day-colors";
+import { cityIcon, dayLines, dayOnMap, highlightedStops, labelLayer, lineStrokes, mapStops, markerIcon, tileUrl } from "./plan-tianditu-map-model";
 
 function card(id: string, mapCheck: SpotCard["mapCheck"]): SpotCard {
   return { id, province: "云南省", city: "丽江市", name: id, requested: false, location: null, opening: null, reservation: null,
@@ -43,13 +44,35 @@ test("tiles come through Meri's relay with no key, with Chinese labels on every 
   assert.equal(tileUrl("vec"), "/api/map-tiles/vec/{z}/{x}/{y}");
 });
 
-test("the chosen day's pins are numbered; the others are small and plain", () => {
-  const active = markerIcon(3, true);
+test("the chosen day's pins are numbered in its colour; the others are small, plain and grey (1.2105)", () => {
+  const active = markerIcon(3, "#b5532f");
   assert.equal(active.size, 28);
   assert.match(decodeURIComponent(active.url), />3<\/text>/u);
-  const faint = markerIcon(3, false);
+  assert.match(decodeURIComponent(active.url), /fill="#b5532f"/u);
+  const faint = markerIcon(3, null);
   assert.equal(faint.size, 18);
   assert.doesNotMatch(decodeURIComponent(faint.url), /<text/u);
+  assert.match(decodeURIComponent(faint.url), /fill="#a9b3a6"/u);
+  assert.match(decodeURIComponent(cityIcon("#2c6a8f").url), /stroke="#2c6a8f"/u);
+});
+
+test("each day has its own colour, repeating after six days (1.2105)", () => {
+  const six = [1, 2, 3, 4, 5, 6].map((day) => dayColor(day).solid);
+  assert.equal(new Set(six).size, 6);
+  assert.equal(dayColor(1).solid, "#2f5d46");
+  assert.deepEqual(dayColor(7), dayColor(1));
+  assert.deepEqual(dayColor(12), dayColor(6));
+});
+
+test("a drive is thick and solid on a white casing, a walk dotted, no road dashed (1.2105)", () => {
+  const road = lineStrokes("road", "#2c6a8f");
+  assert.deepEqual(road.map(({ color, weight, dashArray }) => [color, weight, dashArray]), [["#ffffff", 8, undefined], ["#2c6a8f", 5, undefined]]);
+  const [walk] = lineStrokes("walk", "#2c6a8f");
+  assert.equal(walk.dashArray, "1 7");
+  assert.ok(walk.weight < 5);
+  const [none] = lineStrokes("straight", "#2c6a8f");
+  assert.equal(none.dashArray, "8 8");
+  assert.equal(none.color, "#2c6a8f");
 });
 
 test("a day with no located stop is placed by its city's stops on other days, or not at all (1.2101)", () => {
@@ -84,4 +107,8 @@ test("a day's line follows the road where a leg was planned, and is straight and
   // With 狮子山 not located, 木府 and 黑龙潭 are not neighbours: no line between them.
   const broken = mapStops(plan([card("木府", located(100.2, 26.8)), card("狮子山", { status: "not_located" }), card("黑龙潭", located(100.22, 26.88))]));
   assert.deepEqual(dayLines(broken, [], 1), []);
+  // An end more than 1 km off road is a large area: the whole leg is one straight dashed line (1.2105).
+  const lake = dayLines(stops, [{ day: 1, fromSpotId: "木府", toSpotId: "狮子山", mode: "drive", distanceKm: 54, durationMinutes: 70,
+    path: road, offRoadStartMeters: 1700, offRoadEndMeters: 0 }], 1);
+  assert.deepEqual(lake[0], { kind: "straight", path: [[100.2, 26.8], [100.21, 26.81]] });
 });

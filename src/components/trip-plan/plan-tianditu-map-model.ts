@@ -1,5 +1,7 @@
-import { type DriveLeg, offRoadNoticeMeters } from "@/domain/plan/plan-draft";
+import { type DriveLeg, legReach } from "@/domain/plan/plan-draft";
 import type { ReadyPlan } from "@/domain/plan/plan-draft-response";
+
+import { fadedDayColor } from "./plan-day-colors";
 
 /** One stop the map can draw: its day, its number within the day, and where Tianditu put it. */
 export type MapStop = {
@@ -52,13 +54,15 @@ export function dayOnMap(plan: ReadyPlan, stops: readonly MapStop[], day: number
   };
 }
 
-type Line = { readonly kind: "road" | "walk" | "straight"; readonly path: readonly (readonly [number, number])[] };
+export type Line = { readonly kind: "road" | "walk" | "straight"; readonly path: readonly (readonly [number, number])[] };
 
 /**
  * The lines between one day's neighbouring stops: along the road or footpath where Tianditu
  * planned the leg, otherwise straight and dashed, which shows only the order (1.2102). Where
  * the way stops short of a stop by more than a short walk, that stretch is dashed too, as the
- * map has no road there (1.2103). A stop that is not located breaks the line.
+ * map has no road there (1.2103). Where an end is a large area such as a lake, the planned road
+ * started from an arbitrary point inside it, so the whole leg is a straight dashed line (1.2105).
+ * A stop that is not located breaks the line.
  */
 export function dayLines(stops: readonly MapStop[], legs: readonly DriveLeg[], day: number): Line[] {
   const own = stops.filter((stop) => stop.day === day).sort((left, right) => left.number - right.number);
@@ -66,13 +70,14 @@ export function dayLines(stops: readonly MapStop[], legs: readonly DriveLeg[], d
     const from = own[index];
     if (to.number !== from.number + 1) return [];
     const leg = legs.find((item) => item.day === day && item.fromSpotId === from.spotId && item.toSpotId === to.spotId);
-    if (!leg || leg.mode === "none") {
+    const reach = leg ? legReach(leg) : null;
+    if (!leg || !reach || reach.kind !== "way") {
       return [{ kind: "straight", path: [[from.longitude, from.latitude], [to.longitude, to.latitude]] }];
     }
     const kind = leg.mode === "walk" ? "walk" : "road";
     const path = leg.path;
-    const startGap = (leg.offRoadStartMeters ?? 0) > offRoadNoticeMeters && path.length > 2;
-    const endGap = (leg.offRoadEndMeters ?? 0) > offRoadNoticeMeters && path.length > 2;
+    const startGap = reach.startGapMeters > 0 && path.length > 2;
+    const endGap = reach.endGapMeters > 0 && path.length > 2;
     const body = path.slice(startGap ? 1 : 0, endGap ? -1 : undefined);
     return [
       ...(startGap ? [{ kind: "straight" as const, path: path.slice(0, 2) }] : []),
@@ -80,6 +85,28 @@ export function dayLines(stops: readonly MapStop[], legs: readonly DriveLeg[], d
       ...(endGap ? [{ kind: "straight" as const, path: path.slice(-2) }] : []),
     ];
   });
+}
+
+/** How a line is stroked: Leaflet polyline options, plain so they can be tested. */
+export type LineStroke = {
+  readonly color: string;
+  readonly weight: number;
+  readonly opacity: number;
+  readonly dashArray?: string;
+  readonly lineCap?: "round" | "butt";
+};
+
+/**
+ * The strokes for one line, bottom first, in its day's colour (1.2105): a drive is a thick solid
+ * line on a white casing so it stands out from the yellow roads under it, a walk a thinner
+ * dotted line, and a stretch with no road a thin dashed one.
+ */
+export function lineStrokes(kind: Line["kind"], color: string): LineStroke[] {
+  if (kind === "road") {
+    return [{ color: "#ffffff", weight: 8, opacity: 0.85, lineCap: "round" }, { color, weight: 5, opacity: 0.9, lineCap: "round" }];
+  }
+  if (kind === "walk") return [{ color, weight: 3.5, opacity: 0.95, dashArray: "1 7", lineCap: "round" }];
+  return [{ color, weight: 2.5, opacity: 0.8, dashArray: "8 8", lineCap: "butt" }];
 }
 
 /** The stops one view shows in colour: the chosen day's, or every day's for the whole trip. */
@@ -105,14 +132,14 @@ export function labelLayer(): "cva" {
 }
 
 /**
- * A numbered pin as an SVG data URL, the icon format the JS API takes: the chosen day's in
- * Meri's green, the other days' small and grey.
+ * A numbered pin as an SVG data URL: in its day's colour when the view shows that day (1.2105),
+ * otherwise small, plain and grey.
  */
-export function markerIcon(number: number, active: boolean): { url: string; size: number } {
-  const size = active ? 28 : 18;
-  const fill = active ? "#2f5d46" : "#a9b3a6";
+export function markerIcon(number: number, color: string | null): { url: string; size: number } {
+  const size = color ? 28 : 18;
+  const fill = color ?? fadedDayColor;
   const half = size / 2;
-  const label = active
+  const label = color
     ? `<text x="${half}" y="${half + 4.5}" text-anchor="middle" font-family="sans-serif" font-size="13" font-weight="700" fill="#fff">${number}</text>`
     : "";
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 ${size} ${size}">`
@@ -120,11 +147,11 @@ export function markerIcon(number: number, active: boolean): { url: string; size
   return { url: `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`, size };
 }
 
-/** The pin for a day placed only by its city: a ring, so it does not read as a stop. */
-export function cityIcon(): { url: string; size: number } {
+/** The pin for a day placed only by its city, in that day's colour: a ring, so it does not read as a stop. */
+export function cityIcon(color: string): { url: string; size: number } {
   const size = 30;
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 ${size} ${size}">`
-    + `<circle cx="15" cy="15" r="11" fill="rgba(47,93,70,.12)" stroke="#2f5d46" stroke-width="2.5" stroke-dasharray="4 3"/>`
-    + `<circle cx="15" cy="15" r="3" fill="#2f5d46"/></svg>`;
+    + `<circle cx="15" cy="15" r="11" fill="${color}" fill-opacity=".12" stroke="${color}" stroke-width="2.5" stroke-dasharray="4 3"/>`
+    + `<circle cx="15" cy="15" r="3" fill="${color}"/></svg>`;
   return { url: `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`, size };
 }
