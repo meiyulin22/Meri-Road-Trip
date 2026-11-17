@@ -1,5 +1,22 @@
 import type { PlanProgressEnvelope } from "@/domain/plan/plan-progress";
+import type { PlanHandoff } from "@/domain/plan/plan-handoff";
+import type { ReadyPlan } from "@/domain/plan/plan-draft-response";
 import type { PlanRun, PlanRunFinish, PlanVersion } from "@/domain/plan/plan-run";
+import type { TripState } from "@/domain/trip-state/trip-state";
+
+/**
+ * A fact filled in once on the plan page after the run (1.2107): the version gets the new
+ * TripState and plan, and the run the handoff that now matches them, so the page finds the
+ * same plan again on its next visit.
+ */
+export type FilledPlanFacts = {
+  readonly versionId: string;
+  readonly runId: string;
+  readonly tripState: TripState;
+  readonly plan: ReadyPlan;
+  readonly handoff: PlanHandoff;
+  readonly handoffKey: string;
+};
 
 /** Plan runs, their progress events and the plan versions they save. */
 export interface PlanRunRepository {
@@ -17,4 +34,6 @@ export interface PlanRunRepository {
   createVersion(version: Omit<PlanVersion, "version">): Promise<PlanVersion>;
   findVersionByRun(runId: string): Promise<PlanVersion | null>;
   findLatestVersion(tripId: string): Promise<PlanVersion | null>;
+  /** Writes the version first, then the run; false when either row is gone. */
+  fillPlanFacts(filled: FilledPlanFacts): Promise<boolean>;
 }

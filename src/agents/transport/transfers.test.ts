@@ -110,3 +110,13 @@ test("legs that already say why they have no time are kept, and the lookups stay
   assert.ok(capped.lookups <= maxTransferLookups);
   assert.ok(capped.legs.some(({ estimate }) => estimate.status === "not_looked_up"));
 });
+
+test("a picked origin's own point is used, and one within 25 km of the first city is that city (1.2107)", async () => {
+  const { dependencies, asked } = deps();
+  const picked = await planTransfers([leg("outbound", 1, "上海虹桥站", "丽江市")], dependencies, () => {}, { longitude: 121.32, latitude: 31.19 });
+  assert.equal(picked.legs[0].estimate.status, "estimated");
+  assert.deepEqual(asked, ["place 丽江市", "drive 121.32>100.23"]);
+  const nearby = await planTransfers([leg("outbound", 1, "丽江站", "丽江市"), leg("return", 3, "丽江市", "丽江站")],
+    deps().dependencies, () => {}, { longitude: 100.3, latitude: 26.9 });
+  assert.deepEqual(statuses(nearby.legs), [["outbound", "same_city"], ["return", "same_city"]]);
+});

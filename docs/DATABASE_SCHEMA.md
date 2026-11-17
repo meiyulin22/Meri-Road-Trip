@@ -197,7 +197,7 @@ Trip 不再保存 name、origin、destination 或日期列，避免与 TripState
 
 `plan_versions.plan` 的 JSON 自 1.2013 起：景点卡可带 `availability`（营业时间、每周闭馆日、关闭日期范围、预约、模糊通知，每条带出处），草稿可带 `checks`（每站的核实结果、预约、从哪天换来），冲突多一种 `closed_on_day`。旧版本没有这些字段，照样能读。
 
-`plan_versions`：生成好的计划。`version` 按旅程从 1 递增（`unique(trip_id, version)`），`run_id` 唯一；`trip_state` 和 `preferences` 是生成时依据的 TripState 和偏好，`plan` 是页面显示的完整计划（草稿、用到的景点卡、各城调研状态、待定省份、每天照片、天地图核实状态）。三个 JSONB 列读取时都会校验。计划不写回 TripState；是否过期在读取时把 `trip_state` 和当前 TripState 按键排序后比较。
+`plan_versions`：生成好的计划。`version` 按旅程从 1 递增（`unique(trip_id, version)`），`run_id` 唯一；`trip_state` 和 `preferences` 是生成时依据的 TripState 和偏好，`plan` 是页面显示的完整计划（草稿、用到的景点卡、各城调研状态、待定省份、每天照片、天地图核实状态）。三个 JSONB 列读取时都会校验。计划不写回 TripState；是否过期在读取时把 `trip_state` 和当前 TripState 按键排序后比较。1.2107 起计划页补填出发地时，`trip_state` 和 `plan` 会就地更新（版本号不变），对应运行的 `handoff`/`handoff_key` 也换成新的交接；`plan` 可带 `travelChoice`（drive/train/flight/auto）。
 
 ### 3.6 `mastra` schema：Mastra 的工作流快照（1.2011，不归 Drizzle 管）
 
@@ -286,6 +286,7 @@ pending 标记只保存推荐范围，不保存要推荐什么：卡片请求从
 | 开始 Generate plan | plan_runs、plan_versions | [plan-run-service](../src/capabilities/planning/plan-run-service.ts)、[运行 repository](../src/platform/persistence/postgres/postgres-plan-run-repository.ts) | 先按 handoff_key 找最近运行：有版本直接返回，运行中复用；否则插入 running 行 |
 | 运行进度与结束 | plan_run_events、plan_runs | 同上 | 事件按 seq 逐条插入；结束时只更新仍是 running 的行（`WHERE status = 'running'`），防止中断标记和正常结束互相覆盖 |
 | 回答问题并恢复运行（1.2011） | plan_runs、trip_preferences、mastra.mastra_workflow_snapshot | plan-run-service 的 `answer` | `UPDATE … SET status = 'running' WHERE status = 'suspended'` 认领，只有一个回答成功；答案存成 `source = question` 的偏好；Mastra 从快照恢复。运行暂停时用同样的条件 UPDATE 改回 `suspended` |
+| 计划页补填出发地（1.2107） | trip_states、plan_versions、plan_runs | [getting-there](../src/capabilities/planning/getting-there.ts)、运行 repository 的 `fillPlanFacts` | 先 CAS 写 TripState 的出发地（和没填的交通方式）；再更新最新版本的 `trip_state` 和 `plan`（只重算启程和回程）；最后把这次运行的 `handoff` 和 `handoff_key` 换成与新 TripState 一致的交接，页面刷新仍找到同一份计划。不是一个事务：中途失败时同样的请求再发一次会补完，不会重复写 TripState |
 | 保存计划版本 | plan_versions | [plan-generation](../src/agents/workflows/plan-generation.ts) 的 save-plan 步骤 | 先查该旅程最大版本号再插入下一个；唯一约束拒绝并发重复 |
 | 删除 Journey | trips，级联其余六表 | [Trip repository](../src/platform/persistence/postgres/postgres-trip-repository.ts) | DELETE 同时带 Trip ID/owner 条件，依赖外键级联 |
 

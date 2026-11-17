@@ -7,8 +7,9 @@ import { useMemo, useState, useSyncExternalStore } from "react";
 
 import { useLocale, useMessages } from "@/components/i18n/locale-context";
 import type { Messages } from "@/components/i18n/messages";
-import { readPlanHandoff } from "@/components/trip-workspace/planning-handoff-model";
+import { readPlanHandoff, savePlanHandoff } from "@/components/trip-workspace/planning-handoff-model";
 import { toCalendarDate } from "@/components/trip-workspace/trip-dates-model";
+import type { PlanHandoff } from "@/domain/plan/plan-handoff";
 import { parseExactDays } from "@/domain/trip-state/trip-dates";
 import { destinationText, type TripState, type TripStateField } from "@/domain/trip-state/trip-state";
 
@@ -46,7 +47,10 @@ export function PlanHandoffPage({ tripId }: { readonly tripId: string }) {
   const words = useMessages();
   const text = copy[locale];
   const hydrated = useSyncExternalStore(subscribe, () => true, () => false);
-  const handoff = useMemo(() => hydrated ? readPlanHandoff(tripId) : null, [hydrated, tripId]);
+  const stored = useMemo(() => hydrated ? readPlanHandoff(tripId) : null, [hydrated, tripId]);
+  // Filling in the origin on this page gives the tab a new handoff to keep (1.2107).
+  const [filled, setFilled] = useState<PlanHandoff | null>(null);
+  const handoff = filled ?? stored;
   const [preferenceChanges, setPreferenceChanges] = useState(0);
 
   const state = handoff?.tripState;
@@ -79,7 +83,8 @@ export function PlanHandoffPage({ tripId }: { readonly tripId: string }) {
                 <section className={handoffStyles.itineraryHeading} aria-labelledby="plan-itinerary-heading">
                   <h2 id="plan-itinerary-heading">{text.itinerary}</h2>
                   <PlanDraftSection tripId={tripId} handoff={handoff}
-                    onPreferenceSaved={() => setPreferenceChanges((count) => count + 1)} />
+                    onPreferenceSaved={() => setPreferenceChanges((count) => count + 1)}
+                    onHandoffChange={(next) => { savePlanHandoff(tripId, next); setFilled(next); }} />
                 </section>
                 {dayCount === null ? (
                   <section className={styles.locked} aria-labelledby="plan-remaining-days-heading">

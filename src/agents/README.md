@@ -476,6 +476,18 @@ step sits where that agent will sit. The days are still drafted as if a transfer
 morning. The page shows a card before day 1 and after the last day, a slim strip between the two
 days of a change of city, and the roads between cities in ink on the whole-trip map.
 
+**Filling in the origin on the plan page (1.2107).** When the trip had no origin, the setting-off
+card offers the same Tianditu place suggestions as the Workspace, so the traveller can only pick a
+place on the map, and, when the trip did not say how to travel, drive / train / flight / let Meri
+decide. Confirming writes the origin (with its point) to TripState, then re-estimates only setting
+off and heading home ([getting-there.ts](../capabilities/planning/getting-there.ts)): the picked
+point is used as it is, and one within 25 km of the first city's centre counts as that city. The
+plan version gets the new TripState in place, so the plan is not out of date, and the run gets the
+matching handoff, so the page finds the same plan after a reload instead of starting a paid run.
+The origin is filled once. Train and flight are recorded (`travelChoice`) and the card says they
+are looked up next; until 1.2108 the drive stays as a reference. No model is asked. An origin
+picked in the Workspace now keeps its point in Generate plan too.
+
 ### Evaluation (1.2014)
 
 [scripts/eval-plan.ts](../../scripts/eval-plan.ts) runs the cases in

@@ -5,7 +5,7 @@ import type { LocationField } from "@/domain/trip-state/trip-state";
 
 import type { DayFrame } from "./plan-draft";
 import { planDraftSchema } from "./plan-draft-response";
-import { transferLegs } from "./transfer-legs";
+import { originPoint, transferLegs, type TravelChoice, transportPreferenceFor } from "./transfer-legs";
 
 const frame = (day: number, city: string, arrivingFrom: string | null = null): DayFrame =>
   ({ day, date: null, province: "云南省", city, arrivingFrom, focus: null, theme: null });
@@ -48,4 +48,14 @@ test("a saved plan's transfers are checked when read; plans from before 1.2106 h
   ];
   assert.ok(planDraftSchema.safeParse({ ...draft, transfers }).success);
   assert.ok(!planDraftSchema.safeParse({ ...draft, transfers: [{ ...transfers[1], estimate: { status: "by_train" } }] }).success);
+});
+
+test("a choice stands for a transport preference, and only a picked Tianditu origin has a point (1.2107)", () => {
+  assert.deepEqual(["drive", "train", "flight", "auto"].map((choice) => transportPreferenceFor(choice as TravelChoice)),
+    ["self_drive", "public_transport", "public_transport", "flexible"]);
+  assert.equal(originPoint(shanghai), null);
+  assert.deepEqual(originPoint({ ...shanghai, selection: { provider: "tianditu", coordinates: { longitude: 121.32, latitude: 31.19, coordinateSystem: "CGCS2000" } } }),
+    { longitude: 121.32, latitude: 31.19 });
+  assert.equal(originPoint({ ...shanghai, selection: { provider: "amap", coordinates: { longitude: 121.32, latitude: 31.19, coordinateSystem: "GCJ-02" } } }), null);
+  assert.equal(originPoint({ state: "missing" }), null);
 });

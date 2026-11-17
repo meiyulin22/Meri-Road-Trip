@@ -1,7 +1,8 @@
 import { Car, Home, MapPinned, Route } from "lucide-react";
+import type { ReactNode } from "react";
 
 import type { Locale } from "@/domain/locale/locale";
-import type { TransferLeg } from "@/domain/plan/transfer-legs";
+import type { TransferLeg, TravelChoice } from "@/domain/plan/transfer-legs";
 import type { TransportPreference } from "@/domain/trip-draft/trip-draft";
 
 import { transferEnds, transferLabel, transferText } from "./plan-transfer-text";
@@ -12,8 +13,12 @@ import draftStyles from "./plan-draft.module.css";
  * heading home after the last day as cards, a change of city as a slimmer strip between two days.
  * Both read as a ticket stub: the two places, the way between them, and the rough drive.
  */
-export function PlanTransferCard({ leg, transport, locale }: {
+export function PlanTransferCard({ leg, transport, travelChoice = null, locale, children = null }: {
   readonly leg: TransferLeg;
+  /** The traveller's choice on the plan page, for the wording while trains and flights are not looked up (1.2107). */
+  readonly travelChoice?: TravelChoice | null;
+  /** The origin picker, inside the setting-off card while the origin is missing (1.2107). */
+  readonly children?: ReactNode;
   readonly transport: TransportPreference | null;
   readonly locale: Locale;
 }) {
@@ -32,7 +37,7 @@ export function PlanTransferCard({ leg, transport, locale }: {
         <span className={draftStyles.transferLine} aria-hidden="true"><Icon size={14} /></span>
         <span className={draftStyles.transferPlace} data-missing={leg.to === null}>{to}</span>
       </div>
-      <p className={draftStyles.transferText}>{transferText(leg, transport, locale)}</p>
+      {children ?? <p className={draftStyles.transferText}>{transferText(leg, transport, locale, travelChoice)}</p>}
     </section>
   );
 }

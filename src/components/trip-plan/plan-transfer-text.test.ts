@@ -32,3 +32,12 @@ test("a leg without a time says why", () => {
   assert.deepEqual(transferEnds(leg({ status: "origin_missing" }, { kind: "outbound", from: null }), "zh"), { from: "出发地", to: "大理白族自治州" });
   assert.deepEqual([transferLabel("outbound", "zh"), transferLabel("between", "zh"), transferLabel("return", "en")], ["启程", "转场", "Heading home"]);
 });
+
+test("a train or flight chosen on the plan page is said first, with the drive as a reference (1.2107)", () => {
+  assert.equal(transferText(leg(drive(163, 186)), "public_transport", "zh", "train"),
+    "你选了高铁，车次查询下一步接上；先给开车参考：车程约 2 小时 40 分钟 · 186 公里（估算）");
+  assert.equal(transferText(leg(drive(2280, 2700)), "public_transport", "zh", "flight"),
+    "你选了飞机，航班查询下一步接上；先给开车参考：车程约 38 小时 · 2700 公里（估算）");
+  assert.equal(transferText(leg(drive(163, 186)), "self_drive", "zh", "drive"), "开车约 2 小时 40 分钟 · 186 公里（估算）");
+  assert.equal(transferText(leg({ status: "origin_missing" }, { kind: "return", to: null }), null, "zh"), "出发地还没写，在上面的启程卡里填写后一起估算");
+});

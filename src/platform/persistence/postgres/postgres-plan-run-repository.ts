@@ -8,7 +8,7 @@ import type { PlanRun, PlanRunFinish, PlanVersion } from "@/domain/plan/plan-run
 import { planPreferenceSchema } from "@/domain/plan/trip-preference";
 import { validateTripState } from "@/domain/trip-state/trip-state";
 import { planRunEvents, planRuns, planVersions } from "@/platform/persistence/database/schema/plan-runs";
-import type { PlanRunRepository } from "@/platform/persistence/plan-run-repository";
+import type { FilledPlanFacts, PlanRunRepository } from "@/platform/persistence/plan-run-repository";
 
 type PlanRunDatabase = typeof import("@/platform/persistence/database/db").db;
 type PlanRunRow = typeof planRuns.$inferSelect;
@@ -16,7 +16,7 @@ type PlanVersionRow = typeof planVersions.$inferSelect;
 
 type PostgresPlanRunOperation =
   | "createRun" | "moveRun" | "finishRun" | "findRun" | "findLatestRun" | "appendEvent" | "listEvents"
-  | "createVersion" | "findVersionByRun" | "findLatestVersion";
+  | "createVersion" | "findVersionByRun" | "findLatestVersion" | "fillPlanFacts";
 
 export class PostgresPlanRunRepositoryError extends Error {
   readonly operation: PostgresPlanRunOperation;
@@ -182,6 +182,26 @@ export class PostgresPlanRunRepository implements PlanRunRepository {
       return rows[0] ? toVersion(rows[0]) : null;
     } catch (error) {
       throw new PostgresPlanRunRepositoryError("findLatestVersion", tripId, error);
+    }
+  }
+
+  async fillPlanFacts(filled: FilledPlanFacts): Promise<boolean> {
+    try {
+      // Not one transaction (the Neon HTTP driver has none here): the version first, so a run
+      // whose handoff moved on always has a version to match; sending the same facts again
+      // finishes a half-done fill.
+      const versions = await this.database.update(planVersions)
+        .set({ tripState: filled.tripState, plan: filled.plan })
+        .where(eq(planVersions.id, filled.versionId))
+        .returning({ id: planVersions.id });
+      if (versions.length === 0) return false;
+      const runs = await this.database.update(planRuns)
+        .set({ handoff: filled.handoff, handoffKey: filled.handoffKey })
+        .where(eq(planRuns.id, filled.runId))
+        .returning({ id: planRuns.id });
+      return runs.length > 0;
+    } catch (error) {
+      throw new PostgresPlanRunRepositoryError("fillPlanFacts", filled.versionId, error);
     }
   }
 }

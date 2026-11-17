@@ -1,5 +1,5 @@
 import type { Locale } from "@/domain/locale/locale";
-import { longDriveMinutes, type TransferKind, type TransferLeg } from "@/domain/plan/transfer-legs";
+import { longDriveMinutes, type TransferKind, type TransferLeg, type TravelChoice } from "@/domain/plan/transfer-legs";
 import type { TransportPreference } from "@/domain/trip-draft/trip-draft";
 
 const kindLabel = {
@@ -35,20 +35,29 @@ export function driveDuration(minutes: number, locale: Locale): string {
  * or as "by road" otherwise, with a word that a long one may suit a train or flight; or, when
  * there is no time, why, in plain words. It never names a train or a flight it has not found.
  */
-export function transferText(leg: TransferLeg, transport: TransportPreference | null, locale: Locale): string {
+export function transferText(
+  leg: TransferLeg, transport: TransportPreference | null, locale: Locale, travelChoice: TravelChoice | null = null,
+): string {
   const zh = locale === "zh";
   const { estimate } = leg;
+  // A train or flight was chosen but is not looked up yet (1.2108): said first, the drive as a reference.
+  const chosen = travelChoice === "train" || travelChoice === "flight"
+    ? (zh ? `你选了${travelChoice === "train" ? "高铁" : "飞机"}，${travelChoice === "train" ? "车次" : "航班"}查询下一步接上；先给开车参考：`
+      : `You chose to ${travelChoice === "train" ? "take the train" : "fly"}; ${travelChoice === "train" ? "trains" : "flights"} are looked up next. For reference: `)
+    : "";
   switch (estimate.status) {
     case "estimated": {
       const time = driveDuration(estimate.durationMinutes, locale);
       const base = zh
         ? `${transport === "self_drive" ? "开车" : "车程"}约 ${time} · ${estimate.distanceKm} 公里（估算）`
         : `About ${time} ${transport === "self_drive" ? "by car" : "by road"} · ${estimate.distanceKm} km (estimate)`;
-      if (estimate.durationMinutes <= longDriveMinutes) return base;
+      if (chosen || estimate.durationMinutes <= longDriveMinutes) return chosen + base;
       return zh ? `${base}，路程较远，可以考虑火车或飞机` : `${base}; a long way, so a train or flight may suit better`;
     }
     case "origin_missing":
-      return zh ? "出发地还没写，这段暂不估算" : "No starting point yet, so this leg isn't estimated";
+      return leg.kind === "return"
+        ? (zh ? "出发地还没写，在上面的启程卡里填写后一起估算" : "No starting point yet; fill it in on the setting-off card above")
+        : (zh ? "出发地还没写，这段暂不估算" : "No starting point yet, so this leg isn't estimated");
     case "origin_uncertain":
       return zh ? `出发地还不确定（${leg.kind === "return" ? leg.to : leg.from}），这段暂不估算`
         : `The starting point is only roughly known (${leg.kind === "return" ? leg.to : leg.from}), so this leg isn't estimated`;

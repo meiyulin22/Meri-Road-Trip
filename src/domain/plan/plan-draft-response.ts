@@ -4,7 +4,7 @@ import { parsePlaceImage, type PlaceImage } from "@/domain/location/place-image"
 
 import { daySlots, spotFacts, type PlanDay, type PlanDraft, type PlanRoute } from "./plan-draft";
 import type { CityResearch, SpotAvailability, SpotCard, SpotEvidence, SpotMapCheck } from "./spot-card";
-import type { TransferLeg } from "./transfer-legs";
+import { type TransferLeg, travelChoices } from "./transfer-legs";
 
 export const spotEvidenceSchema: z.ZodType<SpotEvidence> = z.strictObject({
   url: z.string(),
@@ -169,6 +169,8 @@ export const readyPlanSchema = z.strictObject({
   pendingProvinces: z.array(z.string().min(1)),
   /** A photo for each day where the local catalog has one: a stop of the day, or its city. */
   dayPhotos: z.array(z.strictObject({ day: z.number().int().positive(), image: placeImageSchema })),
+  /** How the traveller chose to travel, when they filled it in on the plan page (1.2107). */
+  travelChoice: z.enum(travelChoices).optional(),
   /** Stopped when a Tianditu call failed: the remaining spots stayed unchecked. */
   mapCheck: z.enum(["complete", "stopped"]),
 });

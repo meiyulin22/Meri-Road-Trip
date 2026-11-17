@@ -88,7 +88,8 @@ export function canonicalJson(value: unknown): string {
     : item);
 }
 
-function handoffKey(handoff: PlanHandoff): string {
+/** The digest a run is found by: the same handoff always gives the same key. */
+export function handoffKey(handoff: PlanHandoff): string {
   return createHash("sha256").update(canonicalJson(handoff)).digest("hex");
 }
 

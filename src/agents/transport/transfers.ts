@@ -1,7 +1,7 @@
 import type { TransferEstimate, TransferLeg } from "@/domain/plan/transfer-legs";
 import { logger } from "@/platform/observability/logger";
 import type { CityPoint, CityPointAnswer } from "@/platform/tianditu/tianditu-city-point";
-import type { DriveRoute } from "@/platform/tianditu/tianditu-drive";
+import { type DriveRoute, type LonLat, metresBetween } from "@/platform/tianditu/tianditu-drive";
 
 import type { DriveLegDependencies, DriveProgress } from "./legs";
 
@@ -11,6 +11,12 @@ import type { DriveLegDependencies, DriveProgress } from "./legs";
  * the cities are remembered.
  */
 export const maxTransferLookups = 24;
+/**
+ * A picked origin this close to a city's centre is that city (1.2107): a suggestion is a place
+ * inside the city, such as 上海虹桥站, not its centre, so its code cannot be compared.
+ */
+const sameCityMeters = 25_000;
+const originCode = "origin";
 
 export type TransferDependencies = {
   /** One Tianditu search for a place's centre. It must not retry. */
@@ -55,6 +61,8 @@ export async function planTransfers(
   legs: readonly TransferLeg[],
   deps: TransferDependencies,
   onProgress: DriveProgress = () => {},
+  /** The origin's own point when the traveller picked it from the map (1.2107); otherwise its name is looked up. */
+  origin: LonLat | null = null,
 ): Promise<TransfersOutcome> {
   let lookups = 0;
   let stopped = false;
@@ -86,13 +94,22 @@ export async function planTransfers(
     return answer.city;
   }
 
-  async function estimate(from: string, to: string): Promise<TransferEstimate> {
-    const start = await placeOf(from);
-    const end = await placeOf(to);
+  /** The origin end of a leg is its picked point when there is one; every other end is a city centre. */
+  const endOf = (name: string, isOrigin: boolean) => isOrigin && origin
+    ? Promise.resolve<CityPoint>({ name, adminCode: originCode, point: origin })
+    : placeOf(name);
+
+  async function estimate(from: string, to: string, ends: { fromOrigin: boolean; toOrigin: boolean }): Promise<TransferEstimate> {
+    const start = await endOf(from, ends.fromOrigin);
+    const end = await endOf(to, ends.toOrigin);
     if (start === "not_found") return { status: "not_found", place: from };
     if (end === "not_found") return { status: "not_found", place: to };
     if (start === null || end === null) return { status: "not_looked_up" };
-    if (start.adminCode === end.adminCode) return { status: "same_city" };
+    const picked = start.adminCode === originCode || end.adminCode === originCode;
+    const pair = (point: LonLat): [number, number] => [point.longitude, point.latitude];
+    if (picked ? metresBetween(pair(start.point), pair(end.point)) < sameCityMeters : start.adminCode === end.adminCode) {
+      return { status: "same_city" };
+    }
     const key = deps.drive.key(start.point, end.point, "drive");
     const remembered = deps.drive.memory.get(key);
     if (remembered) return estimated(remembered);
@@ -127,7 +144,7 @@ export async function planTransfers(
       continue;
     }
     onProgress({ from: leg.from, to: leg.to, done: toLookUp.indexOf(leg) + 1, total: toLookUp.length });
-    done.push({ ...leg, estimate: await estimate(leg.from, leg.to) });
+    done.push({ ...leg, estimate: await estimate(leg.from, leg.to, { fromOrigin: leg.kind === "outbound", toOrigin: leg.kind === "return" }) });
   }
   return { legs: done, status: stopped ? "stopped" : "complete", lookups };
 }

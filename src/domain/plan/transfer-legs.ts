@@ -1,3 +1,4 @@
+import type { TransportPreference } from "@/domain/trip-draft/trip-draft";
 import type { LocationField } from "@/domain/trip-state/trip-state";
 
 import type { DayFrame, PlanMode } from "./plan-draft";
@@ -79,4 +80,28 @@ export function transferLegs(frames: readonly DayFrame[], origin: LocationField,
     legs.push({ kind: "return", day: last.day, from: last.city, to: start.name, estimate: start.status ?? pending });
   }
   return legs;
+}
+
+/**
+ * How the traveller wants to get to and between the cities, chosen once on the plan page (1.2107):
+ * drive themselves, train, flight, or let Meri compare. Train and flight are only recorded until
+ * the transport agent can look them up (1.2108); the leg keeps its rough drive meanwhile.
+ */
+export const travelChoices = ["drive", "train", "flight", "auto"] as const;
+export type TravelChoice = (typeof travelChoices)[number];
+
+/** The trip's transport preference a choice stands for: train and flight are both public transport. */
+export function transportPreferenceFor(choice: TravelChoice): TransportPreference {
+  return choice === "drive" ? "self_drive" : choice === "auto" ? "flexible" : "public_transport";
+}
+
+/**
+ * Where the origin is when the traveller picked it from the map's suggestions (1.2107), in
+ * Tianditu's own coordinates; null for an origin typed in conversation, which is looked up by name.
+ */
+export function originPoint(origin: LocationField): { readonly longitude: number; readonly latitude: number } | null {
+  if (origin.state !== "known") return null;
+  const coordinates = origin.selection?.provider === "tianditu" ? origin.selection.coordinates : null;
+  if (!coordinates || coordinates.coordinateSystem !== "CGCS2000") return null;
+  return { longitude: coordinates.longitude, latitude: coordinates.latitude };
 }

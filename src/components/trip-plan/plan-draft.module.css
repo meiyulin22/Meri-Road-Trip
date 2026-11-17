@@ -149,6 +149,51 @@
   .transferText { grid-column: 1; }
 }
 
+/* Filling in the origin inside the setting-off card (1.2107). */
+.originPicker { display: grid; grid-column: 2; gap: 8px; min-width: 0; }
+.originLabel { color: var(--muted); font-size: 12px; font-weight: 600; }
+.originSearch { position: relative; display: flex; align-items: center; gap: 6px; max-width: 360px; padding: 0 10px; border: 1px solid var(--line); border-radius: 10px; color: var(--soft); background: #fff; }
+.originSearch:focus-within { border-color: rgba(47, 93, 70, .5); box-shadow: 0 0 0 3px rgba(47, 93, 70, .1); }
+.originSearch input { flex: 1; min-width: 0; padding: 8px 0; border: 0; outline: 0; color: var(--ink); background: transparent; font: inherit; font-size: 13px; }
+.originList {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  z-index: 20;
+  max-height: 240px;
+  overflow-y: auto;
+  padding: 4px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: #fff;
+  box-shadow: 0 10px 28px rgba(23, 53, 44, .12);
+  list-style: none;
+}
+.originList button { display: grid; width: 100%; gap: 1px; padding: 7px 9px; border: 0; border-radius: 7px; color: var(--ink); background: transparent; font: inherit; text-align: left; cursor: pointer; }
+.originList button:hover, .originList button:focus-visible { background: rgba(47, 93, 70, .08); outline: 0; }
+.originList strong { font-size: 13px; font-weight: 600; }
+.originList small, .originPicked small { color: var(--soft); font-size: 11px; }
+.originStatus { position: absolute; top: calc(100% + 4px); left: 2px; color: var(--soft); font-size: 11px; }
+.originPicked { display: inline-flex; align-items: center; gap: 6px; justify-self: start; padding: 5px 6px 5px 10px; border: 1px solid rgba(47, 93, 70, .35); border-radius: 999px; color: var(--ink); background: rgba(47, 93, 70, .07); font-size: 13px; }
+.originPicked button { display: inline-grid; place-items: center; width: 20px; height: 20px; border: 0; border-radius: 999px; color: var(--muted); background: transparent; cursor: pointer; }
+.originPicked button:hover { background: rgba(23, 53, 44, .08); }
+.choiceRow { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.choiceRow .originLabel { margin-right: 4px; }
+.choiceChip { display: inline-flex; align-items: center; gap: 5px; padding: 5px 11px; border: 1px solid var(--line); border-radius: 999px; color: var(--muted); background: #fff; font: inherit; font-size: 12px; cursor: pointer; }
+.choiceChip[aria-pressed="true"] { border-color: #2f5d46; color: #fff; background: #2f5d46; }
+.choiceChip:disabled { cursor: default; opacity: .6; }
+.originActions { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+.originActions small { color: var(--soft); font-size: 11px; }
+.originConfirm { display: inline-flex; align-items: center; gap: 6px; padding: 7px 14px; border: 0; border-radius: 10px; color: #fff; background: #2f5d46; font: inherit; font-size: 13px; font-weight: 600; cursor: pointer; }
+.originConfirm:disabled { cursor: default; opacity: .45; }
+.originError { color: var(--accent); font-size: 12px; }
+.spin { animation: originSpin 1s linear infinite; }
+@keyframes originSpin { to { transform: rotate(360deg); } }
+@media (max-width: 720px) {
+  .originPicker { grid-column: 1; }
+}
+
 .transferTag {
   margin-left: 8px;
   padding: 1px 7px;

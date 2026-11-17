@@ -1,6 +1,6 @@
 import type { PlanProgressEnvelope } from "@/domain/plan/plan-progress";
 import type { PlanRun, PlanRunFinish, PlanVersion } from "@/domain/plan/plan-run";
-import type { PlanRunRepository } from "@/platform/persistence/plan-run-repository";
+import type { FilledPlanFacts, PlanRunRepository } from "@/platform/persistence/plan-run-repository";
 
 /** Plan runs kept in memory, for tests. */
 export class InMemoryPlanRunRepository implements PlanRunRepository {
@@ -57,5 +57,14 @@ export class InMemoryPlanRunRepository implements PlanRunRepository {
 
   async findLatestVersion(tripId: string): Promise<PlanVersion | null> {
     return this.versions.filter((version) => version.tripId === tripId).at(-1) ?? null;
+  }
+
+  async fillPlanFacts(filled: FilledPlanFacts): Promise<boolean> {
+    const index = this.versions.findIndex(({ id }) => id === filled.versionId);
+    const run = this.runs.get(filled.runId);
+    if (index < 0 || !run) return false;
+    this.versions[index] = { ...this.versions[index], tripState: filled.tripState, plan: filled.plan };
+    this.runs.set(run.id, { ...run, handoff: filled.handoff, handoffKey: filled.handoffKey });
+    return true;
   }
 }

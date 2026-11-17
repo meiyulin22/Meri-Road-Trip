@@ -227,6 +227,7 @@ LLM 解释自然语言并提出受限 JSON；应用校验、决定是否执行�
 | [src/app/api/trips/[id]/plan-runs/[runId]/events/route.ts](../src/app/api/trips/%5Bid%5D/plan-runs/%5BrunId%5D/events/route.ts) | HTTP 接口层 | GET 以 Server-Sent Events 推送一次运行的进度，按 Last-Event-ID（或回答后新连接的 `?after=`）补发漏掉的事件。 |
 | [src/app/api/trips/[id]/plan-runs/[runId]/answer/route.ts](../src/app/api/trips/%5Bid%5D/plan-runs/%5BrunId%5D/answer/route.ts) | HTTP 接口层 | POST 回答运行正在等的问题（选项或「你来定」），交给 plan-run-handler，成功后运行在后台恢复（202）。 |
 | [src/app/api/trips/[id]/plan/route.ts](../src/app/api/trips/%5Bid%5D/plan/route.ts) | HTTP 接口层 | GET 返回旅程最新的计划版本（是否过期）和最近一次运行。 |
+| [src/app/api/trips/[id]/plan/getting-there/route.ts](../src/app/api/trips/%5Bid%5D/plan/getting-there/route.ts) | HTTP 接口层 | 1.2107：POST 计划页补填出发地（和交通方式），装配旅程服务、运行 repository 和天地图交通依赖，交给 getting-there。 |
 | [src/app/api/trips/[id]/planning-readiness/route.ts](../src/app/api/trips/%5Bid%5D/planning-readiness/route.ts) | HTTP 接口层 | GET 读取新鲜 TripState，返回 missing/unverified/selected 准备度；不生成计划。 |
 | [src/app/api/trips/[id]/route.ts](../src/app/api/trips/%5Bid%5D/route.ts) | HTTP 接口层 | DELETE /api/trips/[id] 只删除当前访客拥有的 Trip，数据库级联清理状态和消息。 |
 | [src/app/api/trips/[id]/state/route.ts](../src/app/api/trips/%5Bid%5D/state/route.ts) | HTTP 接口层 | GET 状态/PATCH 领域校验后的 patch；调用 JourneyService，不自行做高德核验，冲突错误当前未单独映射 409。 |
@@ -343,7 +344,7 @@ Generate plan 背后的计划页先用示例数据做出完整页面（设计决
 
 | 文件地址 | 层/类别 | 做什么 |
 | --- | --- | --- |
-| [src/components/trip-plan/plan-handoff-page.tsx](../src/components/trip-plan/plan-handoff-page.tsx) | 表现层 | 真实计划页，展示快照里的旅程事实，挂「Meri 记得」和行程区块（回答计划的问题后让「Meri 记得」重新读取），没有交接时提示回旅程。 |
+| [src/components/trip-plan/plan-handoff-page.tsx](../src/components/trip-plan/plan-handoff-page.tsx) | 表现层 | 真实计划页，展示快照里的旅程事实，挂「Meri 记得」和行程区块（回答计划的问题后让「Meri 记得」重新读取），没有交接时提示回旅程；1.2107 起补填出发地后换成服务器给的新交接并存回本标签页。 |
 | [src/components/trip-plan/plan-handoff-page.module.css](../src/components/trip-plan/plan-handoff-page.module.css) | 样式 | 真实计划页的事实、偏好和行程区块布局。 |
 | [src/components/trip-plan/plan-draft-section.tsx](../src/components/trip-plan/plan-draft-section.tsx) | 表现层 | 开始或接上计划运行，用 EventSource 跟随进度：活动流、问题卡（回答后从最后一个事件重新连接，并通知刷新「Meri 记得」）、路线条和逐块出现的每日卡片；运行结束后换成保存的版本，显示统计、冲突、按时段分组的每日卡片、当天照片、时间锚点、待核实字段和出处；失败时按错误码说明并可重试；1.2013 起每站显示核实标签（当天开放、部分关闭、需预约、从第 N 天换来）、开放与预约的事实行和「当天关闭」冲突；1.2100 起在每天的卡片上面放天地图地图卡片，选中的天和展开的卡片联动。 |
 | [src/components/trip-plan/plan-draft.module.css](../src/components/trip-plan/plan-draft.module.css) | 样式 | 行程草稿的统计胶囊、时段时间轴、锚点、出处展开、提示卡和骨架加载。 |
@@ -375,6 +376,9 @@ Generate plan 背后的计划页先用示例数据做出完整页面（设计决
 | [src/components/trip-plan/plan-leg-text.ts](../src/components/trip-plan/plan-leg-text.ts) | 表现层模型 | 1.2103：每个景点前那一行的文字：步行写步行；开车按用户交通方式写「开车 / 打车 / 车程约」；路线头尾超过 300 米没路、或整段没路时如实写出，并列出常见方式（坐船、索道、步行），不替用户猜；1.2105 起一头离路超过 1 公里时那头是一大片区域（如洱海），只写「洱海是一大片区域，车程要看具体从哪里出发，无法估算」，不写分钟和公里。 |
 | [src/components/trip-plan/plan-transfer-text.ts](../src/components/trip-plan/plan-transfer-text.ts) | 表现层模型 | 1.2106：启程、转场、回程卡的文字：类别名（启程 / 转场 / 回程），两端地名（出发地没写时写「出发地」），开车估算「车程约 2 小时 40 分钟 · 186 公里（估算）」（自驾写「开车约」，一小时以上按 10 分钟取整），超过 6 小时加一句可以考虑火车或飞机；没有时间时说明原因（出发地没写、不确定、地图上没找到、没路、还没查到）。 |
 | [src/components/trip-plan/plan-transfer-text.test.ts](../src/components/trip-plan/plan-transfer-text.test.ts) | 测试 | 时长格式与取整、自驾和非自驾的措辞、长途提示、各种没有时间的原因。 |
+| [src/components/trip-plan/plan-origin-picker.tsx](../src/components/trip-plan/plan-origin-picker.tsx) | 表现层 | 1.2107：启程卡里的出发地填写：和 Workspace 同一个天地图地点建议接口（停止输入 0.25 秒后查，只列带天地图坐标的建议），点选后可「换一个」；交通方式没填时给自驾 / 高铁 / 飞机 / 让 Meri 判断（默认最后一个）；确认后锁定，出错时说明原因。 |
+| [src/components/trip-plan/plan-getting-there-model.ts](../src/components/trip-plan/plan-getting-there-model.ts) | 表现层模型 | 1.2107：哪些建议可以点选、发送补填请求并把 409 的原因码映射给页面。 |
+| [src/components/trip-plan/plan-getting-there-model.test.ts](../src/components/trip-plan/plan-getting-there-model.test.ts) | 测试 | 可点选的建议、请求内容、拒绝原因的映射。 |
 | [src/components/trip-plan/plan-transfer-card.tsx](../src/components/trip-plan/plan-transfer-card.tsx) | 表现层 | 1.2106：像车票存根的交通卡：类别标签、两端地名和中间带汽车图标的点线、一行估算或原因；启程和回程是整卡，转场是放在两天之间、更窄的虚线条。 |
 | [src/components/trip-plan/plan-day-colors.ts](../src/components/trip-plan/plan-day-colors.ts) | 表现层模型 | 1.2105：每天的颜色（森林绿、赤陶、湖蓝、赭黄、梅紫、石板灰蓝，第 7 天起循环）和淡色底，地图的线、圆点、天数标签和卡片的天数方块共用；其他天的淡灰色。 |
 | [src/components/trip-plan/plan-leg-text.test.ts](../src/components/trip-plan/plan-leg-text.test.ts) | 测试 | 交通方式的措辞、1.2102 旧计划、到不了的尾段、整段没路、一大片区域（1.2105）。 |
@@ -568,6 +572,8 @@ Generate plan 背后的计划页先用示例数据做出完整页面（设计决
 | [src/capabilities/planning/trip-preference-repository-instance.ts](../src/capabilities/planning/trip-preference-repository-instance.ts) | 装配 | 偏好 repository 的生产实例。 |
 | [src/capabilities/planning/planning-handoff-handler.ts](../src/capabilities/planning/planning-handoff-handler.ts) | 应用层 | 组织归属检查后的状态读取、准备度和偏好提取，保存偏好（替换上次的对话提取、跳过用户删除过的），返回禁止缓存的交接结果。 |
 | [src/capabilities/planning/planning-handoff-route.test.ts](../src/capabilities/planning/planning-handoff-route.test.ts) | 测试 | 验证归属、准备度、偏好保存与替换、删除过的不回来、提取不可用时保留已存的、快照传递和客户端响应解析。 |
+| [src/capabilities/planning/getting-there.ts](../src/capabilities/planning/getting-there.ts) | 应用层 | 1.2107：计划生成后补填一次出发地：请求校验（必须是带天地图坐标、在中国范围内的地点，交通选择四选一）；只对最新的成功运行和它的版本、出发地还空着、行程其他部分没改过时进行；依次写 TripState（出发地，交通方式没填时一并写）、更新版本的 TripState 和计划（只重算启程和回程，转场保留）、把运行的交接换成新的；重发同样的请求能补完中途失败；HTTP 映射（400/404/409/500）。不调用模型。 |
+| [src/capabilities/planning/getting-there.test.ts](../src/capabilities/planning/getting-there.test.ts) | 测试 | 三处写入和只查启程回程、只能填一次与中途失败后补完、计划过期和没有计划、交通方式已有时忽略选择、接口状态码。 |
 | [src/capabilities/planning/plan-run-handler.ts](../src/capabilities/planning/plan-run-handler.ts) | 应用层 | 四个接口的处理：校验交接和归属、与已保存 TripState 比对（409）、没有城市不建运行；开始或复用运行；回答问题（404/409/400 映射）；读取最新版本并判断是否过期；把运行事件写成 SSE（id 为 seq、心跳、重连间隔，运行开始等待回答时结束）。 |
 | [src/capabilities/planning/plan-run-service.ts](../src/capabilities/planning/plan-run-service.ts) | 应用层 | 在后台运行 plan-generation 工作流：同一份交接复用运行、等待中的运行或已保存的计划；把 Mastra 事件流转成进度事件、编号、立即推给页面并依次写库；运行暂停时标为 suspended；回答时认领、把答案存成偏好、用 resumeStream 从快照恢复并接着编号；8 分钟兜底时限（每段分别计时）；结束时记状态、错误码、用量和不含等待的用时；服务器重启留下的运行标为中断。1.2018：自写的答案先经 `labelAnswer`，原话存成偏好，要放弃的城市随恢复数据交给路线。 |
 | [src/capabilities/planning/plan-run-service-instance.ts](../src/capabilities/planning/plan-run-service-instance.ts) | 装配 | 用 Postgres 的运行和偏好 repository、Mastra 注册的工作流组装 PlanRunService（第一次运行时才加载 Agent）。 |
@@ -702,14 +708,14 @@ Generate plan 背后的计划页先用示例数据做出完整页面（设计决
 | [src/platform/persistence/in-memory/in-memory-trip-repository.ts](../src/platform/persistence/in-memory/in-memory-trip-repository.ts) | 基础设施端口/适配器 | 内存 TripRepository，测试中保留 owner 读写隔离。 |
 | [src/platform/persistence/in-memory/in-memory-trip-state-repository.test.ts](../src/platform/persistence/in-memory/in-memory-trip-state-repository.test.ts) | 测试（对应模块边界） | 验证创建/读取、替换更新及内存比较更新。 |
 | [src/platform/persistence/in-memory/in-memory-trip-state-repository.ts](../src/platform/persistence/in-memory/in-memory-trip-state-repository.ts) | 基础设施端口/适配器 | 内存 TripStateRepository，实现存取和 CAS，供应用测试模拟状态冲突。 |
-| [src/platform/persistence/in-memory/in-memory-plan-run-repository.ts](../src/platform/persistence/in-memory/in-memory-plan-run-repository.ts) | 基础设施端口/适配器 | 内存 PlanRunRepository，供工作流测试和验证脚本使用。 |
+| [src/platform/persistence/in-memory/in-memory-plan-run-repository.ts](../src/platform/persistence/in-memory/in-memory-plan-run-repository.ts) | 基础设施端口/适配器 | 内存 PlanRunRepository，供工作流测试和验证脚本使用；含 1.2107 的 `fillPlanFacts`。 |
 | [src/platform/persistence/journey-summary-repository.ts](../src/platform/persistence/journey-summary-repository.ts) | 持久化端口/读模型 | JourneySummary 读模型（含已保存的省/市/景点，供封面照片用）和按 owner 列表接口，不作为可变状态仓库。 |
 | [src/platform/persistence/postgres/postgres-journey-summary-repository.test.ts](../src/platform/persistence/postgres/postgres-journey-summary-repository.test.ts) | 测试（对应模块边界） | mock 验证权威状态投影、owner 过滤、缺状态、certainty 保留及已保存地点的投影。 |
 | [src/platform/persistence/postgres/postgres-journey-summary-repository.ts](../src/platform/persistence/postgres/postgres-journey-summary-repository.ts) | 基础设施端口/适配器 | 关联 Trip 与当前状态，按 owner 查询并投影列表摘要（含已保存的地点结构），不使用旧 Trip 字段。 |
 | [src/platform/persistence/postgres/postgres-trip-message-repository.test.ts](../src/platform/persistence/postgres/postgres-trip-message-repository.test.ts) | 测试（对应模块边界） | mock 验证完整 turn 单次插入、原话/助手 presentation、时间顺序和重复 ID 处理。 |
 | [src/platform/persistence/postgres/postgres-trip-preference-repository.ts](../src/platform/persistence/postgres/postgres-trip-preference-repository.ts) | 基础设施/存储 | Drizzle 实现：替换对话提取是先删后插两步、没有事务；删除只改状态；读出的时间转成 ISO（交接 schema 要求）。 |
 | [src/platform/persistence/postgres/postgres-trip-preference-repository.test.ts](../src/platform/persistence/postgres/postgres-trip-preference-repository.test.ts) | 测试 | 用数据库替身验证先删后插、只改状态、错误包装，以及 Postgres 时间格式读回为 ISO。 |
-| [src/platform/persistence/postgres/postgres-plan-run-repository.ts](../src/platform/persistence/postgres/postgres-plan-run-repository.ts) | 基础设施/存储 | Drizzle 实现：建运行、按条件在 running 与 suspended 之间切换（认领回答）、只结束仍在运行的行、找最近运行、按 seq 写读事件、按旅程递增版本号；读出的交接、事件、计划、TripState 和偏好都重新校验，时间转成 ISO。 |
+| [src/platform/persistence/postgres/postgres-plan-run-repository.ts](../src/platform/persistence/postgres/postgres-plan-run-repository.ts) | 基础设施/存储 | Drizzle 实现：建运行、按条件在 running 与 suspended 之间切换（认领回答）、只结束仍在运行的行、找最近运行、按 seq 写读事件、按旅程递增版本号、补填出发地时更新版本和运行的交接（1.2107 `fillPlanFacts`，先版本后运行）；读出的交接、事件、计划、TripState 和偏好都重新校验，时间转成 ISO。 |
 | [src/platform/persistence/postgres/postgres-trip-message-repository.ts](../src/platform/persistence/postgres/postgres-trip-message-repository.ts) | 基础设施端口/适配器 | PostgreSQL 消息插入/读取，完整双边 turn 单次 insert，稳定 ID 重试及 presentation 校验；按 id+trip+assistant 替换 presentation（推荐卡照片，唯一的消息更新）。 |
 | [src/platform/persistence/postgres/postgres-trip-repository.test.ts](../src/platform/persistence/postgres/postgres-trip-repository.test.ts) | 测试（对应模块边界） | mock 数据库验证字段映射、owner 条件、列表/删除及错误 cause。 |
 | [src/platform/persistence/postgres/postgres-trip-repository.ts](../src/platform/persistence/postgres/postgres-trip-repository.ts) | 基础设施端口/适配器 | PostgreSQL Trip 增查删适配，显式字段映射、owner 过滤和错误包装。 |
@@ -717,7 +723,7 @@ Generate plan 背后的计划页先用示例数据做出完整页面（设计决
 | [src/platform/persistence/postgres/postgres-trip-state-repository.ts](../src/platform/persistence/postgres/postgres-trip-state-repository.ts) | 基础设施端口/适配器 | 状态 JSONB 存取、领域读取校验/兼容，原始 JSONB 条件 CAS 与错误包装。 |
 | [src/platform/persistence/trip-message-repository.ts](../src/platform/persistence/trip-message-repository.ts) | 持久化端口/读模型 | 消息存储端口，定义完整 turn、单消息、列表及助手消息 presentation 替换能力。 |
 | [src/platform/persistence/trip-preference-repository.ts](../src/platform/persistence/trip-preference-repository.ts) | 基础设施/接口 | 偏好 repository：列出、替换对话提取、新增、标为删除。 |
-| [src/platform/persistence/plan-run-repository.ts](../src/platform/persistence/plan-run-repository.ts) | 基础设施/接口 | 计划运行 repository：运行（含暂停与恢复的状态切换）、事件和计划版本的读写契约。 |
+| [src/platform/persistence/plan-run-repository.ts](../src/platform/persistence/plan-run-repository.ts) | 基础设施/接口 | 计划运行 repository：运行（含暂停与恢复的状态切换）、事件和计划版本的读写契约；1.2107 加补填事实后的版本与交接更新。 |
 | [src/platform/persistence/trip-repository.ts](../src/platform/persistence/trip-repository.ts) | 持久化端口/读模型 | Trip 存储端口，定义创建、owner-scoped 查询/删除等，不写具体 SQL。 |
 | [src/platform/persistence/trip-state-repository.ts](../src/platform/persistence/trip-state-repository.ts) | 持久化端口/读模型 | TripState 存储端口，包含读取/更新及可选 compareAndUpdate；生产实现使用 CAS。 |
 

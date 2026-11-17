@@ -36,6 +36,7 @@ import { PlanQuestionCard, PlanRunActivity, type QuestionAnswer } from "./plan-r
 import { dayColor } from "./plan-day-colors";
 import { legText } from "./plan-leg-text";
 import { PlanTiandituMap } from "./plan-tianditu-map";
+import { PlanOriginPicker } from "./plan-origin-picker";
 import { PlanTransferCard } from "./plan-transfer-card";
 import draftStyles from "./plan-draft.module.css";
 import styles from "./trip-plan.module.css";
@@ -178,9 +179,11 @@ function checkedDate(evidence: SpotEvidence, locale: Locale): string {
  * The plan for the handoff this tab holds. The server either has it saved, is making it,
  * or starts a run; a running plan streams its real progress and its days as they come.
  */
-export function PlanDraftSection({ tripId, handoff, onPreferenceSaved = () => {} }: {
+export function PlanDraftSection({ tripId, handoff, onPreferenceSaved = () => {}, onHandoffChange = () => {} }: {
   readonly tripId: string;
   readonly handoff: PlanHandoff;
+  /** Called when filling in the origin gave the tab a new handoff to keep (1.2107). */
+  readonly onHandoffChange?: (handoff: PlanHandoff) => void;
   /** Called when answering the plan's question saved a new preference. */
   readonly onPreferenceSaved?: () => void;
 }) {
@@ -246,7 +249,15 @@ export function PlanDraftSection({ tripId, handoff, onPreferenceSaved = () => {}
     <div className={draftStyles.draft}>
       {state.progress ? <PlanRunActivity view={state.progress} /> : null}
       <DraftDays response={state.plan} text={text} locale={locale}
-        transport={handoff.tripState.transportPreference.state === "known" ? handoff.tripState.transportPreference.value : null} />
+        transport={handoff.tripState.transportPreference.state === "known" ? handoff.tripState.transportPreference.value : null}
+        gettingThere={{
+          tripId,
+          askChoice: handoff.tripState.transportPreference.state !== "known",
+          onFilled: (filled) => {
+            onHandoffChange(filled.handoff);
+            setState({ kind: "ready", plan: filled.plan, progress: state.progress });
+          },
+        }} />
     </div>
   );
 }
@@ -356,8 +367,14 @@ function DraftLoading({ text }: { readonly text: Copy }) {
   );
 }
 
-function DraftDays({ response, text, locale, transport }: {
+function DraftDays({ response, text, locale, transport, gettingThere }: {
   readonly response: ReadyPlan;
+  /** Filling in the origin from the setting-off card (1.2107); absent where it cannot be filled. */
+  readonly gettingThere: {
+    readonly tripId: string;
+    readonly askChoice: boolean;
+    readonly onFilled: (filled: { readonly handoff: PlanHandoff; readonly plan: ReadyPlan }) => void;
+  } | null;
   readonly text: Copy;
   readonly locale: Locale;
   /** How the traveller gets around, for the wording of road legs (1.2103). */
@@ -375,7 +392,11 @@ function DraftDays({ response, text, locale, transport }: {
   // Setting off, each change of city and heading home, where the plan has them (1.2106).
   const transferCard = (kind: TransferKind, day: number | null) => {
     const leg = draft.transfers?.find((item) => item.kind === kind && (day === null || item.day === day));
-    return leg ? <PlanTransferCard leg={leg} transport={transport} locale={locale} /> : null;
+    if (!leg) return null;
+    const picker = gettingThere && leg.kind === "outbound" && leg.estimate.status === "origin_missing"
+      ? <PlanOriginPicker tripId={gettingThere.tripId} locale={locale} askChoice={gettingThere.askChoice} onFilled={gettingThere.onFilled} />
+      : null;
+    return <PlanTransferCard leg={leg} transport={transport} travelChoice={response.travelChoice ?? null} locale={locale}>{picker}</PlanTransferCard>;
   };
 
   return (

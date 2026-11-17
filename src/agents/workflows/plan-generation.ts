@@ -23,7 +23,7 @@ import type { PlanHandoff } from "@/domain/plan/plan-handoff";
 import { type PlanProgressEvent, type PlanQuestion, planQuestionSchema, type PlanStage } from "@/domain/plan/plan-progress";
 import type { PlanRunUsage, PlanVersion } from "@/domain/plan/plan-run";
 import type { CityResearch, SpotCard } from "@/domain/plan/spot-card";
-import { type TransferLeg, transferLegs } from "@/domain/plan/transfer-legs";
+import { originPoint, type TransferLeg, transferLegs } from "@/domain/plan/transfer-legs";
 import { stopVerdict } from "@/domain/plan/availability";
 import { closedStops, type Moved, moveClosedStops, stopChecks, verdictsFor } from "@/domain/plan/plan-repair";
 import { maxStopsForPreferences, type PlanPreference } from "@/domain/plan/trip-preference";
@@ -340,8 +340,11 @@ export function createPlanGenerationWorkflow(deps: PlanGenerationDependencies) {
       const { emit, flush } = emitter(writer);
       const scope = scopeOf(state);
       const legs = transferLegs(inputData.plan.frames, state.handoff.tripState.origin, scope.mode);
+      const origin = state.handoff.tripState.origin;
       const outcome = await planTransfers(legs, deps.transfers,
-        ({ from, to, done, total }) => emit({ type: "stage.activity", stage: "transfers", activity: { kind: "driving", from, to, done, total } }));
+        ({ from, to, done, total }) => emit({ type: "stage.activity", stage: "transfers", activity: { kind: "driving", from, to, done, total } }),
+        // An origin picked from the map's suggestions in the Workspace keeps its own point.
+        originPoint(origin));
       await flush();
       return { ...inputData, transfers: outcome.legs, transferLookups: outcome.lookups };
     },
