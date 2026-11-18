@@ -1,86 +1,179 @@
-import { Car, Home, MapPinned, Route, TrainFront } from "lucide-react";
+import { Car, ChevronDown, Home, MapPinned, Route, Sparkles, TrainFront } from "lucide-react";
 import type { ReactNode } from "react";
 
 import type { Locale } from "@/domain/locale/locale";
-import type { TransferLeg, TravelChoice } from "@/domain/plan/transfer-legs";
+import type { TrainOption, TransferLeg, TravelChoice } from "@/domain/plan/transfer-legs";
 import type { TransportPreference } from "@/domain/trip-draft/trip-draft";
 
-import { trainLine, trainSource, transferEnds, transferLabel, transferText } from "./plan-transfer-text";
-import draftStyles from "./plan-draft.module.css";
+import {
+  driveSummary,
+  legDayLabel,
+  trainChecked,
+  trainClock,
+  trainReferenceNote,
+  trainSeat,
+  transferEnds,
+  transferLabel,
+  transferNote,
+  transferText,
+} from "./plan-transfer-text";
+import styles from "./plan-transfer-card.module.css";
 
 /**
- * One leg to, between or back from the trip's cities (1.2106): setting off before day 1 and
- * heading home after the last day as cards, a change of city as a slimmer strip between two days.
- * Both read as a ticket stub: the two places, the way between them, and the rough drive.
+ * One leg to, between or back from the trip's cities, as a ticket stub (1.2106, redrawn 1.2109):
+ * the stub names the leg and its day; the body reads like a ticket, departure on the left and
+ * arrival on the right with the way between them. A picked train shows its times and seat; a
+ * drive its rough duration; a leg without either says why. Setting off and heading home are
+ * full tickets; a change of city is a slimmer one tucked between two days. Nothing here books.
  */
 export function PlanTransferCard({ leg, legDate = null, transport, travelChoice = null, locale, children = null }: {
   readonly leg: TransferLeg;
-  /** The leg's own day, for saying which day a reference timetable stands in for. */
+  /** The leg's own day, for the stub and for saying which day a reference timetable stands in for. */
   readonly legDate?: string | null;
-  /** The traveller's choice on the plan page, for the wording while trains and flights are not looked up (1.2107). */
+  /** The traveller's choice on the plan page, for what a leg without trains says (1.2107). */
   readonly travelChoice?: TravelChoice | null;
-  /** The origin picker, inside the setting-off card while the origin is missing (1.2107). */
+  /** The origin picker, inside the setting-off ticket while the origin is missing (1.2107). */
   readonly children?: ReactNode;
   readonly transport: TransportPreference | null;
   readonly locale: Locale;
 }) {
   const { from, to } = transferEnds(leg, locale);
-  const known = leg.estimate.status === "estimated";
-  const byTrain = leg.recommendation?.mode === "train";
-  const Icon = byTrain ? TrainFront : known ? Car : Route;
   const label = transferLabel(leg.kind, locale);
+  const trains = leg.trains && leg.recommendation ? leg.trains : null;
+  const picked = trains?.options.find(({ code }) => code === leg.recommendation?.trainCode) ?? null;
+  const drive = driveSummary(leg, transport, locale);
+  const mode = picked ? "train" : drive ? "drive" : "none";
+  const KindIcon = leg.kind === "between" ? MapPinned : Home;
   return (
-    <section className={draftStyles.transfer} data-kind={leg.kind} data-known={known} aria-label={`${label}: ${from} → ${to}`}>
-      <span className={draftStyles.transferLabel}>
-        {leg.kind === "between" ? <MapPinned aria-hidden="true" size={13} /> : <Home aria-hidden="true" size={13} />}
-        {label}
-      </span>
-      <div className={draftStyles.transferWay}>
-        <span className={draftStyles.transferPlace} data-missing={leg.from === null}>{from}</span>
-        <span className={draftStyles.transferLine} aria-hidden="true"><Icon size={14} /></span>
-        <span className={draftStyles.transferPlace} data-missing={leg.to === null}>{to}</span>
+    <section className={styles.ticket} data-kind={leg.kind} data-mode={mode} aria-label={`${label}: ${from} → ${to}`}>
+      <div className={styles.stub}>
+        <span className={styles.kind}><KindIcon aria-hidden="true" size={13} />{label}</span>
+        {legDate ? <span className={styles.day}>{legDayLabel(legDate, locale)}</span> : null}
       </div>
-      {children ?? (leg.trains && leg.recommendation ? (
-        <TrainChoice leg={leg} legDate={legDate} transport={transport} locale={locale} />
-      ) : <p className={draftStyles.transferText}>{transferText(leg, transport, locale, travelChoice)}</p>)}
+      <div className={styles.body}>
+        <div className={styles.way}>
+          <End place={from} missing={leg.from === null} time={picked?.departs ?? null} station={picked ? ownStation(picked.from, from) : null} />
+          <Between leg={leg} picked={picked} drive={drive} locale={locale} />
+          <End place={to} missing={leg.to === null} time={picked ? trainClock(picked, locale).arrives : null}
+            nextDay={picked ? trainClock(picked, locale).nextDay : null} station={picked ? ownStation(picked.to, to) : null} alignEnd />
+        </div>
+        {children ?? (trains ? (
+          <TrainDetails leg={leg} picked={picked} legDate={legDate} drive={drive} locale={locale} />
+        ) : <DriveDetails leg={leg} drive={drive} transport={transport} travelChoice={travelChoice} locale={locale} />)}
+      </div>
     </section>
   );
 }
 
-/**
- * The trains found for a leg (1.2108): the pick first with its reason, the others a click away,
- * the drive as a reference, and where the times came from. Information only: nothing here books.
- */
-function TrainChoice({ leg, legDate, transport, locale }: {
+/** A train's station worth naming under the city: 上海虹桥 under 上海市, but not 丽江 under 丽江市. */
+function ownStation(station: string, place: string): string | null {
+  return place.startsWith(station) ? null : station;
+}
+
+function End({ place, missing, time, nextDay = null, station, alignEnd = false }: {
+  readonly place: string;
+  readonly missing: boolean;
+  readonly time: string | null;
+  readonly nextDay?: string | null;
+  /** The train's own station, when it is not just the city's name: 上海虹桥. */
+  readonly station: string | null;
+  readonly alignEnd?: boolean;
+}) {
+  return (
+    <div className={styles.end} data-align={alignEnd ? "end" : "start"}>
+      {time ? <span className={styles.time}>{time}{nextDay ? <sup>{nextDay}</sup> : null}</span> : null}
+      <span className={styles.place} data-missing={missing}>{place}</span>
+      {station ? <span className={styles.station}>{station}</span> : null}
+    </div>
+  );
+}
+
+/** The middle of the ticket: the line between the ends, and what travels it. */
+function Between({ leg, picked, drive, locale }: {
   readonly leg: TransferLeg;
+  readonly picked: TrainOption | null;
+  readonly drive: ReturnType<typeof driveSummary>;
+  readonly locale: Locale;
+}) {
+  const Icon = picked ? TrainFront : drive ? Car : Route;
+  const caption = picked ? `${picked.code} · ${trainClock(picked, locale).duration}` : drive ? drive.headline : null;
+  return (
+    <div className={styles.between} data-known={Boolean(picked || drive)}>
+      <span className={styles.line} aria-hidden="true"><Icon size={15} /></span>
+      {caption ? <span className={styles.caption}>{caption}</span> : null}
+      {leg.estimate.status === "estimated" && !picked ? <span className={styles.subcaption}>{drive?.detail}</span> : null}
+    </div>
+  );
+}
+
+/**
+ * Trains found for a leg (1.2108): the seat and Meri's reason for the pick, the others folded in a
+ * small timetable, the drive as a reference, and where the times came from. A reference timetable
+ * is flagged before anything else, since its times are not yet on sale.
+ */
+function TrainDetails({ leg, picked, legDate, drive, locale }: {
+  readonly leg: TransferLeg;
+  readonly picked: TrainOption | null;
   readonly legDate: string | null;
-  readonly transport: TransportPreference | null;
+  readonly drive: ReturnType<typeof driveSummary>;
   readonly locale: Locale;
 }) {
   const zh = locale === "zh";
   const trains = leg.trains;
   const recommendation = leg.recommendation;
   if (!trains || !recommendation) return null;
-  const picked = trains.options.find(({ code }) => code === recommendation.trainCode) ?? null;
   const others = trains.options.filter((train) => train !== picked);
+  const reference = trainReferenceNote(trains, legDate, locale);
+  const seat = picked ? trainSeat(picked, trains.reference, locale) : null;
   return (
-    <div className={draftStyles.trainChoice}>
-      {picked ? (
-        <p className={draftStyles.trainPick}><TrainFront aria-hidden="true" size={13} />{trainLine(picked, trains.reference, locale)}</p>
-      ) : (
-        <p className={draftStyles.trainPick}><Car aria-hidden="true" size={13} />{zh ? "建议开车" : "Driving suits this leg"}</p>
-      )}
-      {recommendation.reason ? <p className={draftStyles.trainReason}>{recommendation.reason}</p> : null}
+    <div className={styles.details}>
+      {reference ? <p className={styles.reference}>{zh ? "参考车次" : "Reference"}<span>{reference}</span></p> : null}
+      <div className={styles.facts}>
+        {seat ? <span className={styles.seat}>{seat}</span> : null}
+        {!picked ? <span className={styles.seat} data-drive="true"><Car aria-hidden="true" size={12} />{zh ? "这段建议开车" : "Driving suits this leg"}</span> : null}
+        {recommendation.reason ? (
+          <span className={styles.reason}>
+            {recommendation.by === "agent" ? <Sparkles aria-hidden="true" size={12} /> : null}{recommendation.reason}
+          </span>
+        ) : null}
+      </div>
       {others.length > 0 ? (
-        <details className={draftStyles.trainOthers}>
-          <summary>{zh ? `其他 ${others.length} 趟` : `${others.length} more`}</summary>
-          <ul>{others.map((train) => <li key={train.code}>{trainLine(train, trains.reference, locale)}</li>)}</ul>
+        <details className={styles.others}>
+          <summary><ChevronDown aria-hidden="true" size={13} />{zh ? `其他 ${others.length} 趟` : `${others.length} more ${others.length === 1 ? "train" : "trains"}`}</summary>
+          <table>
+            <tbody>
+              {others.map((train) => {
+                const clock = trainClock(train, locale);
+                return (
+                  <tr key={train.code}>
+                    <th scope="row">{train.code}</th>
+                    <td>{clock.departs} → {clock.arrives}{clock.nextDay ? <sup>{clock.nextDay}</sup> : null}</td>
+                    <td>{clock.duration}</td>
+                    <td>{trainSeat(train, trains.reference, locale) ?? ""}</td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
         </details>
       ) : null}
-      {leg.estimate.status === "estimated" ? (
-        <p className={draftStyles.trainMeta}>{zh ? "开车参考：" : "By road: "}{transferText({ ...leg, kind: "between" }, transport, locale)}</p>
-      ) : null}
-      <p className={draftStyles.trainMeta} data-reference={trains.reference}>{trainSource(trains, legDate, locale)}</p>
+      <p className={styles.meta}>
+        {drive && picked ? <span><Car aria-hidden="true" size={11} />{drive.headline} · {drive.detail}</span> : null}
+        <span>{trainChecked(trains, locale)}</span>
+      </p>
     </div>
   );
+}
+
+/** A leg without trains: its rough drive's detail and one note, or why there is no time at all. */
+function DriveDetails({ leg, drive, transport, travelChoice, locale }: {
+  readonly leg: TransferLeg;
+  readonly drive: ReturnType<typeof driveSummary>;
+  readonly transport: TransportPreference | null;
+  readonly travelChoice: TravelChoice | null;
+  readonly locale: Locale;
+}) {
+  const note = transferNote(leg, travelChoice, locale);
+  if (drive) return note ? <div className={styles.details}><p className={styles.note}>{note}</p></div> : null;
+  return <div className={styles.details}><p className={styles.note} data-tone="muted">{transferText(leg, transport, locale, travelChoice)}</p></div>;
 }

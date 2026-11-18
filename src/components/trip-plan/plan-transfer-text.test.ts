@@ -3,7 +3,10 @@ import test from "node:test";
 
 import type { TransferLeg } from "@/domain/plan/transfer-legs";
 
-import { driveDuration, trainLine, trainSource, transferEnds, transferLabel, transferText } from "./plan-transfer-text";
+import {
+  driveDuration, driveSummary, legDayLabel, trainChecked, trainClock, trainLine, trainReferenceNote, trainSeat, trainSource,
+  transferEnds, transferLabel, transferNote, transferText,
+} from "./plan-transfer-text";
 
 const leg = (estimate: TransferLeg["estimate"], overrides: Partial<TransferLeg> = {}): TransferLeg =>
   ({ kind: "between", day: 3, from: "丽江市", to: "大理白族自治州", estimate, ...overrides });
@@ -53,4 +56,27 @@ test("a train reads as one line, its cheapest seat priced; a reference train say
   const trains = { queriedDate: "2026-11-30", reference: true, checkedAt: "2026-11-17T13:30:00.000Z", options: [c378] };
   assert.match(trainSource(trains, "2026-12-21", "zh"), /^参考车次：12\/21周一还没开售，这是 11\/30周一 的时刻表，开售后再确认 · 来自 12306 · /u);
   assert.match(trainSource({ ...trains, reference: false }, null, "zh"), /^来自 12306 · 11\/17 21:30 查询$/u);
+});
+
+test("a ticket's pieces: the clock, the cheapest seat, the drive headline and one note (1.2109)", () => {
+  const z162 = { code: "Z162", from: "上海南", to: "丽江", departs: "17:38", arrives: "22:10", arriveDayOffset: 2, durationMinutes: 1712,
+    seats: [{ name: "硬卧", price: 568, left: "有" }, { name: "软卧", price: 880, left: "无" }] };
+  assert.deepEqual(trainClock(z162, "zh"), { departs: "17:38", arrives: "22:10", nextDay: "+2天", duration: "28 小时 32 分" });
+  assert.equal(trainClock({ ...z162, arriveDayOffset: 1 }, "zh").nextDay, "次日");
+  assert.equal(trainClock(z162, "en").nextDay, "+2d");
+  assert.equal(trainSeat(z162, false, "zh"), "硬卧 ¥568 · 有票");
+  assert.equal(trainSeat(z162, true, "zh"), "硬卧 ¥568");
+  assert.equal(trainSeat({ ...z162, seats: [{ name: "无座", price: null, left: "有" }] }, false, "zh"), null);
+  assert.deepEqual(driveSummary(leg(drive(163, 186)), null, "zh"), { headline: "车程约 2 小时 40 分钟", detail: "186 公里 · 估算" });
+  assert.deepEqual(driveSummary(leg(drive(163, 186)), "self_drive", "en"), { headline: "About 2 h 40 min by car", detail: "186 km · estimate" });
+  assert.equal(driveSummary(leg({ status: "not_looked_up" }), null, "zh"), null);
+  assert.equal(transferNote(leg(drive(2280, 2700)), null, "zh"), "路程较远，可以考虑火车或飞机");
+  assert.equal(transferNote({ ...leg(drive(2280, 2700)), trainsMissing: "none" }, "train", "zh"), "这段没查到合适的直达车次，可能要中转");
+  assert.equal(transferNote(leg(drive(163, 186)), "flight", "zh"), "你选了飞机，航班查询下一步接上");
+  assert.equal(transferNote(leg(drive(163, 186)), null, "zh"), null);
+  const trains = { queriedDate: "2026-11-30", reference: true, checkedAt: "2026-11-17T13:30:00.000Z", options: [z162] };
+  assert.equal(trainChecked(trains, "zh"), "12306 · 11/17 21:30 查询");
+  assert.equal(trainReferenceNote(trains, "2026-12-21", "zh"), "12/21周一还没开售，这是 11/30周一 的时刻表，开售后再确认");
+  assert.equal(trainReferenceNote({ ...trains, reference: false }, "2026-12-21", "zh"), null);
+  assert.equal(legDayLabel("2026-12-21", "zh"), "12/21周一");
 });

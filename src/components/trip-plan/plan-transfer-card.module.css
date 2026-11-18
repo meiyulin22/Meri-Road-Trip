@@ -1,0 +1,199 @@
+/*
+ * Transfer tickets on the plan page (1.2109): a stub with the leg and its day, a perforation, and
+ * the ticket body. Colours come from the page tokens in trip-plan.module.css. Setting off and
+ * heading home are full tickets; a change of city is a slimmer, dashed one tucked between days.
+ */
+.ticket {
+  position: relative;
+  display: grid;
+  grid-template-columns: 108px minmax(0, 1fr);
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: #fffdf8;
+  box-shadow: 0 1px 0 rgba(23, 53, 44, .04), 0 8px 24px -18px rgba(23, 53, 44, .25);
+}
+
+/* The stub: what this leg is and when. */
+.stub {
+  position: relative;
+  display: grid;
+  align-content: center;
+  justify-items: start;
+  gap: 6px;
+  padding: 14px 14px 14px 16px;
+  border-right: 1.5px dashed rgba(70, 81, 65, .24);
+  border-radius: 16px 0 0 16px;
+  background: linear-gradient(160deg, rgba(79, 131, 107, .09), rgba(79, 131, 107, .02));
+}
+/* The perforation's notches, top and bottom, cut into the sheet's paper. */
+.stub::before,
+.stub::after {
+  content: "";
+  position: absolute;
+  right: -8px;
+  width: 14px;
+  height: 14px;
+  border: 1px solid var(--line);
+  border-radius: 50%;
+  background: var(--paper);
+}
+.stub::before { top: -8px; clip-path: inset(50% 0 0 0); }
+.stub::after { bottom: -8px; clip-path: inset(0 0 50% 0); }
+.kind {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--ink);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: .02em;
+}
+.kind svg { color: var(--green); }
+.day { color: var(--muted); font-size: 12px; font-variant-numeric: tabular-nums; }
+
+/* The ticket: departure, the way, arrival. */
+.body { display: grid; gap: 10px; min-width: 0; padding: 14px 18px; }
+.way {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(112px, 1.25fr) minmax(0, 1fr);
+  align-items: center;
+  gap: 12px;
+}
+.end { display: grid; gap: 1px; min-width: 0; }
+.end[data-align="end"] { justify-items: end; text-align: right; }
+.time {
+  color: var(--ink);
+  font-size: 22px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -.01em;
+  line-height: 1.15;
+}
+.time sup, .others sup { margin-left: 3px; color: var(--accent); font-size: 10px; font-weight: 650; }
+.place { color: var(--ink); font-size: 15px; font-weight: 650; line-height: 1.3; overflow-wrap: anywhere; }
+.place[data-missing="true"] { color: var(--soft); font-weight: 500; }
+.station { color: var(--soft); font-size: 11px; }
+
+.between { display: grid; justify-items: center; gap: 2px; min-width: 0; text-align: center; }
+.line {
+  position: relative;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 100%;
+  height: 22px;
+  color: var(--ink);
+}
+/* A drive is a dotted road; a train a solid line with its two stops; nothing known stays faint. */
+.line::before {
+  content: "";
+  position: absolute;
+  inset: 50% 0 auto;
+  border-top: 2px dotted rgba(33, 62, 64, .32);
+}
+.ticket[data-mode="train"] .line::before {
+  inset: 50% 4px auto;
+  border-top: 2px solid rgba(47, 93, 70, .5);
+}
+/* The train's two stops at the ends of its line. */
+.ticket[data-mode="train"] .line::after {
+  content: "";
+  position: absolute;
+  inset: calc(50% - 3px) 0 auto;
+  height: 7px;
+  background:
+    radial-gradient(circle, #2f5d46 3px, transparent 3.5px) left center / 7px 7px no-repeat,
+    radial-gradient(circle, #2f5d46 3px, transparent 3.5px) right center / 7px 7px no-repeat;
+}
+.line svg { position: relative; z-index: 1; padding: 0 7px; background: #fffdf8; box-sizing: content-box; }
+.ticket[data-mode="train"] .line svg { color: #2f5d46; }
+.between[data-known="false"] .line { color: var(--soft); }
+.caption { color: var(--ink); font-size: 12px; font-weight: 650; font-variant-numeric: tabular-nums; }
+.subcaption { color: var(--soft); font-size: 11px; font-variant-numeric: tabular-nums; }
+
+/* Below the line: the facts that matter, then the small print. */
+.details { display: grid; gap: 8px; padding-top: 10px; border-top: 1px solid var(--line); }
+.reference {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 8px;
+  padding: 6px 10px;
+  border-radius: 8px;
+  color: var(--accent);
+  background: var(--accent-soft);
+  font-size: 12px;
+  font-weight: 700;
+}
+.reference span { color: #8a4a33; font-weight: 450; }
+.facts { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; }
+.seat {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 10px;
+  border-radius: 999px;
+  color: #2f5d46;
+  background: var(--green-soft);
+  font-size: 12px;
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+}
+.seat[data-drive="true"] { color: var(--ink); background: rgba(23, 53, 44, .06); }
+.reason { display: inline-flex; align-items: baseline; gap: 5px; min-width: 0; color: var(--muted); font-size: 12px; line-height: 1.5; }
+.reason svg { flex: none; color: var(--green); transform: translateY(1px); }
+
+.others summary {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--muted);
+  font-size: 12px;
+  cursor: pointer;
+  list-style: none;
+}
+.others summary::-webkit-details-marker { display: none; }
+.others summary svg { transition: transform .2s ease; }
+.others[open] summary svg { transform: rotate(180deg); }
+.others summary:hover { color: var(--ink); }
+.others table { width: 100%; margin-top: 6px; border-collapse: collapse; color: var(--ink); font-size: 12px; font-variant-numeric: tabular-nums; }
+.others th, .others td { padding: 5px 10px 5px 0; border-top: 1px solid var(--line); text-align: left; white-space: nowrap; }
+.others th { font-weight: 650; }
+.others td:last-child { padding-right: 0; color: var(--muted); white-space: normal; }
+
+.meta { display: flex; flex-wrap: wrap; gap: 4px 14px; color: var(--soft); font-size: 11px; }
+.meta span { display: inline-flex; align-items: center; gap: 4px; }
+.note { color: var(--ink); font-size: 12px; line-height: 1.5; }
+.note[data-tone="muted"] { color: var(--muted); }
+
+/* A change of city: the same ticket, slimmer and dashed, set in from the day cards. */
+.ticket[data-kind="between"] {
+  grid-template-columns: 88px minmax(0, 1fr);
+  margin: 0 18px;
+  border-style: dashed;
+  background: rgba(255, 253, 248, .78);
+  box-shadow: none;
+}
+.ticket[data-kind="between"] .stub { padding: 10px 10px 10px 12px; background: transparent; }
+.ticket[data-kind="between"] .body { gap: 8px; padding: 10px 14px; }
+.ticket[data-kind="between"] .time { font-size: 18px; }
+.ticket[data-kind="between"] .place { font-size: 13px; }
+.ticket[data-kind="between"] .line svg { background: #fffdf9; }
+
+@media (max-width: 560px) {
+  .ticket, .ticket[data-kind="between"] { grid-template-columns: minmax(0, 1fr); }
+  .stub {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 14px;
+    border-right: 0;
+    border-bottom: 1.5px dashed rgba(70, 81, 65, .24);
+    border-radius: 16px 16px 0 0;
+  }
+  .stub::before, .stub::after { display: none; }
+  .ticket[data-kind="between"] { margin: 0 8px; }
+  .way { grid-template-columns: minmax(0, 1fr) minmax(84px, 1fr) minmax(0, 1fr); gap: 8px; }
+  .time { font-size: 18px; }
+  .body { padding: 12px 14px; }
+}

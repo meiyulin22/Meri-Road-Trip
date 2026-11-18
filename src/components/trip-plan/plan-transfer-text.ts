@@ -124,3 +124,84 @@ export function trainSource(trains: LegTrains, legDate: string | null, locale: L
     ? `参考车次：${day ?? "出行日"}还没开售，这是 ${asked} 的时刻表，开售后再确认 · ${source}`
     : `Reference only: ${day ?? "the day"} isn't on sale yet, so this is ${asked}'s timetable; check again once it is · ${source}`;
 }
+
+/*
+ * The pieces a ticket-stub card lays out on its own (1.2109): the same facts as the lines above,
+ * split so times, durations and prices can sit where a reader looks for them.
+ */
+
+/** A leg's day as the stub prints it: 12/21 周一, Mon 12/21. */
+export function legDayLabel(date: string, locale: Locale): string {
+  return shortDate(date, locale);
+}
+
+/** A train's clock: departure, arrival with a next-day mark, and the exact duration. */
+export function trainClock(train: TrainOption, locale: Locale): {
+  readonly departs: string; readonly arrives: string; readonly nextDay: string | null; readonly duration: string;
+} {
+  const zh = locale === "zh";
+  return {
+    departs: train.departs,
+    arrives: train.arrives,
+    nextDay: train.arriveDayOffset === 0 ? null
+      : zh ? (train.arriveDayOffset === 1 ? "次日" : `+${train.arriveDayOffset}天`) : `+${train.arriveDayOffset}d`,
+    duration: trainDuration(train.durationMinutes, zh),
+  };
+}
+
+/** The cheapest seat with its price, and, for a real day, what is left: 二等座 ¥80 · 有票. */
+export function trainSeat(train: TrainOption, reference: boolean, locale: Locale): string | null {
+  const zh = locale === "zh";
+  const seat = [...train.seats].filter(({ price }) => price !== null).sort((left, right) => (left.price ?? 0) - (right.price ?? 0))[0];
+  if (!seat) return null;
+  const left = reference ? null : seatsLeft(seat.left, zh);
+  return `${seat.name} ¥${seat.price}${left ? ` · ${left}` : ""}`;
+}
+
+/** A rough drive as a headline and its detail: 约 2 小时 40 分钟 / 186 公里 · 估算. Null when there is no time. */
+export function driveSummary(leg: TransferLeg, transport: TransportPreference | null, locale: Locale): {
+  readonly headline: string; readonly detail: string;
+} | null {
+  if (leg.estimate.status !== "estimated") return null;
+  const zh = locale === "zh";
+  const time = driveDuration(leg.estimate.durationMinutes, locale);
+  const by = transport === "self_drive" ? (zh ? "开车" : "by car") : (zh ? "车程" : "by road");
+  return zh
+    ? { headline: `${by}约 ${time}`, detail: `${leg.estimate.distanceKm} 公里 · 估算` }
+    : { headline: `About ${time} ${by}`, detail: `${leg.estimate.distanceKm} km · estimate` };
+}
+
+/**
+ * The one sentence a leg without trains needs besides its drive: what happened to the train or
+ * flight that was wanted, or, for a long drive, that a train or flight may suit better.
+ */
+export function transferNote(leg: TransferLeg, travelChoice: TravelChoice | null, locale: Locale): string | null {
+  const zh = locale === "zh";
+  if (leg.trainsMissing === "none") return zh ? "这段没查到合适的直达车次，可能要中转" : "No suitable direct train for this leg; a change may be needed";
+  if (leg.trainsMissing === "no_station") return zh ? "这段有一头没有火车站" : "One end of this leg has no railway station";
+  if (leg.trainsMissing === "unavailable") return zh ? "车次暂时查不到" : "Trains couldn't be looked up just now";
+  if (travelChoice === "flight") return zh ? "你选了飞机，航班查询下一步接上" : "You chose to fly; flights are looked up next";
+  if (leg.estimate.status === "estimated" && leg.estimate.durationMinutes > longDriveMinutes) {
+    return zh ? "路程较远，可以考虑火车或飞机" : "A long way: a train or flight may suit better";
+  }
+  return null;
+}
+
+/** When and where the trains were looked up: 12306 · 11/17 21:30. */
+export function trainChecked(trains: LegTrains, locale: Locale): string {
+  const zh = locale === "zh";
+  const checked = new Intl.DateTimeFormat(zh ? "zh-CN" : "en", {
+    month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit", hour12: false, timeZone: "Asia/Shanghai",
+  }).format(new Date(trains.checkedAt));
+  return zh ? `12306 · ${checked} 查询` : `12306 · checked ${checked}`;
+}
+
+/** A reference timetable said plainly: which day it stands in for, and that it must be checked again. */
+export function trainReferenceNote(trains: LegTrains, legDate: string | null, locale: Locale): string | null {
+  if (!trains.reference) return null;
+  const zh = locale === "zh";
+  const asked = shortDate(trains.queriedDate, locale);
+  const day = legDate ? shortDate(legDate, locale) : null;
+  return zh ? `${day ?? "出行日"}还没开售，这是 ${asked} 的时刻表，开售后再确认`
+    : `${day ?? "The day"} isn't on sale yet; this is ${asked}'s timetable, so check again once it is`;
+}
