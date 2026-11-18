@@ -4,6 +4,7 @@ import test from "node:test";
 import type { TransferLeg } from "@/domain/plan/transfer-legs";
 
 import {
+  flightCaption, flightCharges, flightChecked, flightSeat, otherWay,
   changeCaption, changeSeats, changeTrains, changeWarning, driveDuration, driveSummary, legDayLabel, trainChecked, trainClock, trainLine, trainReferenceNote, trainSeat, trainSource,
   transferEnds, transferLabel, transferNote, transferText,
 } from "./plan-transfer-text";
@@ -42,7 +43,7 @@ test("a missing train or a chosen flight is said first, with the drive as a refe
   // Not searched (no train service turned on): no claim about trains at all.
   assert.equal(transferText(leg(drive(163, 186)), "public_transport", "zh", "train"), "车程约 2 小时 40 分钟 · 186 公里（估算）");
   assert.equal(transferText(leg(drive(2280, 2700)), "public_transport", "zh", "flight"),
-    "你选了飞机，航班查询下一步接上；先给开车参考：车程约 38 小时 · 2700 公里（估算）");
+    "你选了飞机，航班暂时查不到；先给开车参考：车程约 38 小时 · 2700 公里（估算）");
   assert.equal(transferText(leg(drive(163, 186)), "self_drive", "zh", "drive"), "开车约 2 小时 40 分钟 · 186 公里（估算）");
   assert.equal(transferText(leg({ status: "origin_missing" }, { kind: "return", to: null }), null, "zh"), "出发地还没写，在上面的启程卡里填写后一起估算");
 });
@@ -72,7 +73,8 @@ test("a ticket's pieces: the clock, the cheapest seat, the drive headline and on
   assert.equal(driveSummary(leg({ status: "not_looked_up" }), null, "zh"), null);
   assert.equal(transferNote(leg(drive(2280, 2700)), null, "zh"), "路程较远，可以考虑火车或飞机");
   assert.equal(transferNote({ ...leg(drive(2280, 2700)), trainsMissing: "none" }, "train", "zh"), "这段没查到合适的直达车次，可能要中转");
-  assert.equal(transferNote(leg(drive(163, 186)), "flight", "zh"), "你选了飞机，航班查询下一步接上");
+  assert.equal(transferNote(leg(drive(163, 186)), "flight", "zh"), "你选了飞机，航班暂时查不到");
+  assert.equal(transferNote({ ...leg(drive(163, 186)), flightsMissing: "none" }, "flight", "zh"), "这段没查到航班");
   assert.equal(transferNote(leg(drive(163, 186)), null, "zh"), null);
   const trains = { queriedDate: "2026-11-30", reference: true, checkedAt: "2026-11-17T13:30:00.000Z", options: [z162] };
   assert.equal(trainChecked(trains, "zh"), "12306 · 11/17 21:30 查询");
@@ -94,4 +96,22 @@ test("a journey with a change names the city, both trains, the wait, each seat, 
   const direct = { ...journey, change: undefined };
   assert.equal(changeCaption(direct, "zh"), null);
   assert.equal(changeSeats(direct, false, "zh"), null);
+});
+
+test("a flight reads as its number and time, the cheapest cabin, charges apart, and the other way to compare (1.2111)", () => {
+  const nineC = { flightNo: "9C6733", fromAirport: "上海浦东", toAirport: "丽江三义", departs: "09:30", arrives: "13:45", arriveDayOffset: 0,
+    durationMinutes: 255, cabin: "经济舱", price: 460, seatsLeft: 9, charges: 190, stopCity: null, codeshare: false };
+  assert.deepEqual(flightCaption(nineC, "zh"), { caption: "9C6733 · 4 小时 15 分", note: null });
+  assert.deepEqual(flightCaption({ ...nineC, stopCity: "昆明", codeshare: true }, "zh"), { caption: "9C6733 · 4 小时 15 分", note: "经停昆明 · 代码共享" });
+  assert.equal(flightSeat(nineC, "zh"), "经济舱 ¥460 · 剩 9 张");
+  assert.equal(flightSeat({ ...nineC, seatsLeft: null }, "en"), "经济舱 ¥460");
+  assert.equal(flightCharges(nineC, "zh"), "另付机建燃油约 ¥190");
+  assert.equal(flightCharges({ ...nineC, charges: null }, "zh"), null);
+  const flights = { queriedDate: "2026-12-21", checkedAt: "2026-11-18T06:30:00.000Z", options: [nineC] };
+  assert.equal(flightChecked(flights, "zh"), "飞常准 · 11/18 14:30 查询");
+  const z162 = { code: "Z162", from: "上海南", to: "丽江", departs: "17:38", arrives: "22:10", arriveDayOffset: 2, durationMinutes: 1712, seats: [] };
+  const both = { ...leg(drive(2280, 2700)), flights, trains: { queriedDate: "2026-12-21", reference: false, checkedAt: "2026-11-18T06:30:00.000Z", options: [z162] } };
+  assert.equal(otherWay(both, "train", "zh"), "也有航班：最快 4 小时 15 分，¥460 起");
+  assert.equal(otherWay(both, "flight", "zh"), "火车参考：最快 28 小时 32 分");
+  assert.equal(otherWay(leg(drive(163, 186)), "flight", "zh"), null);
 });

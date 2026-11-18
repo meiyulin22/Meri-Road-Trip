@@ -357,8 +357,8 @@ export function createPlanGenerationWorkflow(deps: PlanGenerationDependencies) {
         originRailCity: origin.state === "known" && origin.selection?.region ? railCityOfRegion(origin.selection.region, origin.value) : null,
         preferences: state.handoff.preferences.map(({ quote }) => quote),
         locale: state.handoff.locale,
-      }, deps.transport, ({ from, to, done, total }) =>
-        emit({ type: "stage.activity", stage: "transfers", activity: { kind: "trains", from, to, done, total } }));
+      }, deps.transport, ({ mode, from, to, done, total }) =>
+        emit({ type: "stage.activity", stage: "transfers", activity: { kind: mode === "flight" ? "flights" : "trains", from, to, done, total } }));
       await flush();
       return {
         ...inputData,

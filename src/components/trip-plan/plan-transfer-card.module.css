@@ -146,6 +146,9 @@
   font-weight: 650;
   font-variant-numeric: tabular-nums;
 }
+.charges { color: var(--muted); font-size: 11px; font-variant-numeric: tabular-nums; }
+.ticket[data-mode="flight"] .line::before { border-top: 2px dashed rgba(47, 93, 70, .5); inset: 50% 4px auto; }
+.ticket[data-mode="flight"] .line svg { color: #2f5d46; transform: rotate(45deg); }
 .seat[data-drive="true"] { color: var(--ink); background: rgba(23, 53, 44, .06); }
 .reason { display: inline-flex; align-items: baseline; gap: 5px; min-width: 0; color: var(--muted); font-size: 12px; line-height: 1.5; }
 .reason svg { flex: none; color: var(--green); transform: translateY(1px); }

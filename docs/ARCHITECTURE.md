@@ -62,6 +62,7 @@ flowchart TB
 | react-day-picker 10 | “何时”范围日历（中文 locale，样式通过 CSS 变量换成 Meri 配色） | `src/components/trip-workspace/trip-dates-editor.tsx` | 已用于日期选择 |
 | Vercel AI SDK 6 / `@ai-sdk/react` 3 | 服务端结构化模型调用、前端 useChat/transport 适配 | `src/platform/llm/ai-sdk-kimi-client.ts`、`workspace-chat-transport.ts` | 当前 API 返回完整 JSON，前端逐字显示不是服务端 token 流 |
 | Kimi / Moonshot（默认 kimi-k2.6） | 草稿、Workspace 解释、opening 和推荐生成 | `src/platform/llm/`、各能力的 `prompts/` | `LLM_MODEL` 可覆盖；默认超时 60 秒、零 SDK 自动重试 |
+| 飞常准 VariFlight Aviation MCP（远程，1.2111） | 交通 Agent 查机票：两城之间在售航班的结构化票价（`getFlightPriceByCities`） | `src/platform/flight/`、`src/agents/transport/transport-agent.ts` | `FLIGHT_PROVIDER=variflight` 加 `VARIFLIGHT_API_KEY` 才启用；预付费，每次查价 ¥0.25，每次规划最多 4 次、每天最多 40 次（计数存 `.cache`），失败暂停 30 分钟，余额用完（403）暂停到第二天；返回是 Python 字典文本，由代码自己的解析器读取，不执行；城市代码由 Agent 给出，代码按返回里的机场城市核对 |
 | 12306-mcp 0.3.10 + `@mastra/mcp` 2.1.0（精确锁定，1.2108） | 交通 Agent 查火车：12306 网页的余票查询（非官方接口，只查不订） | `src/platform/rail/`、`src/agents/transport/transport-agent.ts` | `RAIL_PROVIDER=12306` 才启用，第一次查火车时才以子进程启动；全进程一个队列、请求间隔 ≥3 秒、每天最多 100 个请求（计数存 `.cache`）、失败暂停 30 分钟不重试；`@mastra/mcp` 2.1.0 是与 core 1.74.0 兼容的最高版本；车站核对和到达日期由代码计算 |
 | Mastra 1.74（`@mastra/core`，精确锁定版本） | Agent 与工具调用（1.0300 试验阶段） | `src/agents/`、`src/platform/llm/moonshot-chat-model.ts` | 直接使用现有 AI SDK 的 Kimi 模型；默认关闭 Mastra 的 PostHog 使用统计；尚未配置存储和追踪导出；工具 + 结构化输出必须用单独的结构化步骤（Kimi 在同一调用里会跳过工具并用空行填充 JSON） |
 | OpenAI SDK 7 | 保留的旧 Kimi 兼容客户端 | `src/platform/llm/kimi-client.ts` | 当前主应用默认走 AI SDK；此文件同时定义共享客户端契约 |

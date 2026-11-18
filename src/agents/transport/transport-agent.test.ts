@@ -5,7 +5,7 @@ import type { TrainOption, TransferLeg } from "@/domain/plan/transfer-legs";
 import { createMoonshotChatModel } from "@/platform/llm/moonshot-chat-model";
 import type { RailAnswer, TrainSearch } from "@/platform/rail/rail-12306";
 
-import { maxTrainSearches, planTransport, trainCandidates, type TransportInput } from "./transport-agent";
+import { flightCandidates, maxFlightSearches, maxTrainSearches, planTransport, trainCandidates, type TransportInput } from "./transport-agent";
 
 type ChatRequest = {
   readonly messages: readonly { readonly role: string; readonly content: string | null }[];
@@ -98,7 +98,7 @@ test("the agent searches; a pick that names a listed train is kept with its reas
   assert.deepEqual(asked.map(({ fromCity, toCity, date, earliestHour, latestHour }) => [fromCity, toCity, date, earliestHour, latestHour]),
     [["丽江", "大理", "2026-11-22", 6, 13]]);
   const between = outcome.legs[1];
-  assert.deepEqual(between.recommendation, { mode: "train", trainCode: "C378", reason: "中午出发，下午到大理", by: "agent" });
+  assert.deepEqual(between.recommendation, { mode: "train", trainCode: "C378", flightNo: null, reason: "中午出发，下午到大理", by: "agent" });
   // The pick first, then the quickest, at most three.
   assert.deepEqual(between.trains?.options.map(({ code }) => code), ["C378", "D8761", "C1"]);
   assert.equal(outcome.searches, 1);
@@ -112,9 +112,9 @@ test("a train the model made up is refused: code picks the quickest real one", a
     searchTrains,
     model: fakeModel([0, 1, 2], { legs: [{ leg: 0, mode: "train", trainCode: "G9999", reason: "最快" }, { leg: 1, mode: "drive", trainCode: null, reason: "开车更灵活" }] }),
   });
-  assert.deepEqual(outcome.legs[0].recommendation, { mode: "train", trainCode: "D8761", reason: "按你选的高铁，选了用时最短的一趟", by: "code" });
+  assert.deepEqual(outcome.legs[0].recommendation, { mode: "train", trainCode: "D8761", flightNo: null, reason: "按你选的高铁，选了用时最短的一趟", by: "code" });
   // Between cities the model may choose to drive.
-  assert.deepEqual(outcome.legs[1].recommendation, { mode: "drive", trainCode: null, reason: "开车更灵活", by: "agent" });
+  assert.deepEqual(outcome.legs[1].recommendation, { mode: "drive", trainCode: null, flightNo: null, reason: "开车更灵活", by: "agent" });
   // A leg with no pick still gets code's choice.
   assert.equal(outcome.legs[2].recommendation?.by, "code");
 });
@@ -162,7 +162,7 @@ test("with no direct train the agent may choose a change city; code joins the tw
   assert.equal(journey?.code, "Z162/D8761");
   assert.equal(journey?.change?.city, "昆明");
   assert.equal(journey?.change?.waitMinutes, 90);
-  assert.deepEqual(outcome.legs[0].recommendation, { mode: "train", trainCode: "Z162/D8761", reason: "在昆明换乘", by: "agent" });
+  assert.deepEqual(outcome.legs[0].recommendation, { mode: "train", trainCode: "Z162/D8761", flightNo: null, reason: "在昆明换乘", by: "agent" });
 });
 
 test("a connection is refused before the direct search, or when a direct train exists", async () => {
@@ -174,4 +174,66 @@ test("a connection is refused before the direct search, or when a direct train e
   });
   // Only the direct search went out.
   assert.deepEqual(asked.map(({ toCity }) => toCity), ["大理"]);
+});
+
+const flight = (flightNo: string, departs: string, minutes: number, price: number) => ({
+  flightNo, fromAirport: "上海浦东", toAirport: "丽江三义", departs, arrives: "13:45", arriveDayOffset: 0, durationMinutes: minutes,
+  cabin: "经济舱", price, seatsLeft: 9, charges: 190, stopCity: null, codeshare: false,
+});
+const flightsFound = (...options: ReturnType<typeof flight>[]) =>
+  ({ status: "found" as const, flights: { queriedDate: "2026-11-20", checkedAt: "2026-11-18T06:30:00.000Z", options } });
+
+test("code decides which legs may fly: ends for a flight or let-Meri-decide choice, between cities only for a long drive (1.2111)", () => {
+  assert.deepEqual(flightCandidates(legs, input({ choice: "flight" })).map(({ leg, bound }) => [leg.kind, bound]), [["outbound", true], ["return", true]]);
+  assert.deepEqual(flightCandidates(legs, input({ choice: "auto" })).map(({ leg, bound }) => [leg.kind, bound]), [["outbound", false], ["return", false]]);
+  assert.deepEqual(flightCandidates(legs, input({ choice: "train" })), []);
+  assert.deepEqual(flightCandidates(legs, input({ choice: "drive" })), []);
+  const long: TransferLeg = { kind: "between", day: 3, from: "丽江市", to: "西双版纳傣族自治州", estimate: drive(600) };
+  assert.deepEqual(flightCandidates([long], input({ choice: "train" })).map(({ toCity }) => toCity), ["西双版纳"]);
+});
+
+test("the agent gives city codes; flights for a flight choice are kept, a made-up one refused (1.2111)", async () => {
+  const flightSearches: string[] = [];
+  const outcome = await planTransport([legs[0]], input({ choice: "flight" }), {
+    searchTrains: async () => { throw new Error("no train search expected"); },
+    searchFlights: async (search) => {
+      flightSearches.push(`${search.fromCode}>${search.toCode} ${search.fromCity}>${search.toCity} ${search.date}`);
+      return flightsFound(flight("9C6733", "09:30", 255, 460), flight("CA8559", "07:55", 235, 670));
+    },
+    model: fakeModelCalling([{ tool: "searchFlights", args: { leg: 0, fromCode: "sha", toCode: "LJG" } }],
+      { legs: [{ leg: 0, mode: "flight", trainCode: null, flightNo: "MU9999", reason: "最便宜" }] }),
+  });
+  assert.deepEqual(flightSearches, ["SHA>LJG 上海>丽江 2026-11-20"]);
+  // MU9999 was not found: code picks the quickest real flight, as the traveller chose to fly.
+  assert.deepEqual(outcome.legs[0].recommendation,
+    { mode: "flight", trainCode: null, flightNo: "CA8559", reason: "按你选的飞机，选了用时最短的一班", by: "code" });
+  assert.deepEqual(outcome.legs[0].flights?.options.map(({ flightNo }) => flightNo), ["CA8559", "9C6733"]);
+  assert.equal(outcome.flightSearches, 1);
+});
+
+test("letting Meri decide, the agent may pick the flight over a day on the train", async () => {
+  const outcome = await planTransport([legs[0]], input({ choice: "auto" }), {
+    searchTrains: async () => found({ ...train("Z162", "17:38", 1712), from: "上海南", to: "丽江" }),
+    searchFlights: async () => flightsFound(flight("9C6733", "09:30", 255, 460)),
+    model: fakeModelCalling([{ tool: "searchTrains", args: { leg: 0 } }, { tool: "searchFlights", args: { leg: 0, fromCode: "SHA", toCode: "LJG" } }],
+      { legs: [{ leg: 0, mode: "flight", trainCode: null, flightNo: "9C6733", reason: "4 小时 15 分、¥460，比火车快一天" }] }),
+  });
+  const leg = outcome.legs[0];
+  assert.deepEqual(leg.recommendation, { mode: "flight", trainCode: null, flightNo: "9C6733", reason: "4 小时 15 分、¥460，比火车快一天", by: "agent" });
+  // Both are kept, so the card can compare them.
+  assert.equal(leg.trains?.options[0]?.code, "Z162");
+  assert.equal(leg.flights?.options[0]?.flightNo, "9C6733");
+});
+
+test("flight searches stop at their budget, and a flight with nothing found says so", async () => {
+  let asked = 0;
+  const many: TransferLeg[] = Array.from({ length: 6 }, (_, index) =>
+    ({ kind: "between", day: index + 2, from: `城${index}`, to: `城${index + 1}`, estimate: drive(700) }));
+  const outcome = await planTransport(many, input({ choice: "auto", dates: new Map(many.map(({ day }) => [day, "2026-11-22"])) }), {
+    searchTrains: async () => ({ status: "none", queriedDate: "2026-11-22", reference: false }),
+    searchFlights: async () => { asked += 1; return { status: "none" }; },
+    model: fakeModelCalling(many.map((_, leg) => ({ tool: "searchFlights", args: { leg, fromCode: "AAA", toCode: "BBB" } })), { legs: [] }),
+  });
+  assert.equal(asked, maxFlightSearches);
+  assert.equal(outcome.legs.filter(({ flightsMissing }) => flightsMissing === "none").length, maxFlightSearches);
 });

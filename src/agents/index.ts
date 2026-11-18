@@ -16,6 +16,7 @@ import { createTiandituCityPoint } from "@/platform/tianditu/tianditu-city-point
 import { create12306Rail } from "@/platform/rail/rail-12306";
 import { sharedRailBudget } from "@/platform/rail/rail-budget";
 import { railEnabled, railTools } from "@/platform/rail/rail-mcp";
+import { createVariflightSearch, flightEnabled, sharedFlightBudget, variflightTools } from "@/platform/flight/variflight";
 
 import { researchCity } from "./planner/research-agent";
 import { verifySpots } from "./planner/verify-spots";
@@ -30,6 +31,7 @@ let map: TiandituLocationProvider | null = null;
 let drive: ReturnType<typeof createTiandituDrive> | null = null;
 let cityPoint: ReturnType<typeof createTiandituCityPoint> | null = null;
 let rail: ReturnType<typeof create12306Rail> | null = null;
+let flights: ReturnType<typeof createVariflightSearch> | null = null;
 let photos: ReturnType<typeof createPlacePhotoProvider> | null = null;
 
 /**
@@ -76,6 +78,10 @@ export function planGenerationDependencies(
     transport: {
       // 12306 only when RAIL_PROVIDER=12306; its server starts on the first search, not on import.
       searchTrains: (search) => (rail ??= create12306Rail({ enabled: railEnabled, tools: railTools, budget: sharedRailBudget, now: () => new Date() }))(search),
+      // VariFlight only when FLIGHT_PROVIDER=variflight and a key are set; each fare search costs ¥0.25.
+      searchFlights: (search) => (flights ??= createVariflightSearch({
+        enabled: flightEnabled, tools: variflightTools, budget: sharedFlightBudget, now: () => new Date(),
+      }))(search),
       model: createMoonshotChatModelFromEnvironment,
     },
     // The local catalog and photos already downloaded: no remote photo service is asked.

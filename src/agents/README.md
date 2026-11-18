@@ -519,6 +519,19 @@ next day, 24 h 45 min (3 searches, 9 requests with startup; 1,883 + 372 tokens).
 reason called G201 "the earliest departure" when G1371 left earlier; the train and its times are
 checked by code, the prose is not.
 
+**Flights (1.2111).** RollingGo's flight endpoint refused the developer key (401 with Bearer, with
+X-Secret-Key and with none; its flight repos are gone), so flights come from VariFlight (飞常准), a
+remote MCP paid per call from prepaid credits: `getFlightPriceByCities` at ¥0.25
+([platform/flight](../platform/flight/)). It answers with a printed Python dict, read by Meri's own
+literal parser, never evaluated. Code decides which legs may fly (setting off and heading home for a
+flight or let-Meri-decide choice; a change of city only when the drive is over six hours); the agent
+gives the two IATA city codes in `search-flights`, and code drops any row whose airport cities are not
+the leg's, telling the agent its code was wrong. At most 4 flight searches a plan and 40 a day; any
+failure pauses half an hour, an empty balance until the next day. The pick may now be train, flight or
+drive; a bound leg keeps the traveller's kind when one was found, and a picked flight must be one
+returned. Measured 2026-11-18: 上海 → 丽江 on 12-21, let Meri decide: no direct train; 5 flights; the
+agent picked CA8559 07:55 → 11:50, ¥670 (1 flight search ¥0.25, 1,829 + 356 tokens).
+
 ### Evaluation (1.2014)
 
 [scripts/eval-plan.ts](../../scripts/eval-plan.ts) runs the cases in

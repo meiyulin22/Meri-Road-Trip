@@ -1,5 +1,7 @@
 import type { Locale } from "@/domain/locale/locale";
-import { type LegTrains, longDriveMinutes, type TrainOption, type TransferKind, type TransferLeg, type TravelChoice } from "@/domain/plan/transfer-legs";
+import {
+  type FlightOption, type LegFlights, type LegTrains, longDriveMinutes, type TrainOption, type TransferKind, type TransferLeg, type TravelChoice,
+} from "@/domain/plan/transfer-legs";
 import type { TransportPreference } from "@/domain/trip-draft/trip-draft";
 
 const kindLabel = {
@@ -44,8 +46,10 @@ export function transferText(
   const missing = leg.trainsMissing === "none" ? (zh ? "这段没查到合适的直达车次（可能要中转）" : "No suitable direct train for this leg (a change may be needed)")
     : leg.trainsMissing === "no_station" ? (zh ? "这段有一头没有火车站" : "One end of this leg has no railway station")
       : leg.trainsMissing === "unavailable" ? (zh ? "车次暂时查不到" : "Trains couldn't be looked up just now")
-        : travelChoice === "flight" ? (zh ? "你选了飞机，航班查询下一步接上" : "You chose to fly; flights are looked up next")
-          : null;
+        : leg.flightsMissing === "none" ? (zh ? "这段没查到航班" : "No flight found for this leg")
+          : leg.flightsMissing === "unavailable" ? (zh ? "航班暂时查不到" : "Flights couldn't be looked up just now")
+            : travelChoice === "flight" ? (zh ? "你选了飞机，航班暂时查不到" : "You chose to fly; flights can't be looked up just now")
+              : null;
   const chosen = missing ? (zh ? `${missing}；先给开车参考：` : `${missing}. For reference: `) : "";
   switch (estimate.status) {
     case "estimated": {
@@ -180,7 +184,9 @@ export function transferNote(leg: TransferLeg, travelChoice: TravelChoice | null
   if (leg.trainsMissing === "none") return zh ? "这段没查到合适的直达车次，可能要中转" : "No suitable direct train for this leg; a change may be needed";
   if (leg.trainsMissing === "no_station") return zh ? "这段有一头没有火车站" : "One end of this leg has no railway station";
   if (leg.trainsMissing === "unavailable") return zh ? "车次暂时查不到" : "Trains couldn't be looked up just now";
-  if (travelChoice === "flight") return zh ? "你选了飞机，航班查询下一步接上" : "You chose to fly; flights are looked up next";
+  if (leg.flightsMissing === "none") return zh ? "这段没查到航班" : "No flight found for this leg";
+  if (leg.flightsMissing === "unavailable") return zh ? "航班暂时查不到" : "Flights couldn't be looked up just now";
+  if (travelChoice === "flight") return zh ? "你选了飞机，航班暂时查不到" : "You chose to fly; flights can't be looked up just now";
   if (leg.estimate.status === "estimated" && leg.estimate.durationMinutes > longDriveMinutes) {
     return zh ? "路程较远，可以考虑火车或飞机" : "A long way: a train or flight may suit better";
   }
@@ -245,4 +251,56 @@ export function changeWarning(train: TrainOption, locale: Locale): string | null
   const wait = trainDuration(waitMinutes, zh);
   return zh ? `要在${city}从${first.to}站换到${second.from}站，市内交通另算，换乘时间共 ${wait}`
     : `In ${city} the change is from ${first.to} to ${second.from} station; the ride across town is not included (${wait} to change)`;
+}
+
+/*
+ * Flights (1.2111): the same ticket, with airports under the cities, the cheapest cabin and its
+ * fare, the airport and fuel charges said apart, and VariFlight as the source.
+ */
+
+/** The middle of a plane ticket: 9C6733 · 4 小时 15 分, and a stop or codeshare when there is one. */
+export function flightCaption(flight: FlightOption, locale: Locale): { readonly caption: string; readonly note: string | null } {
+  const zh = locale === "zh";
+  const notes = [
+    flight.stopCity ? (zh ? `经停${flight.stopCity}` : `stops at ${flight.stopCity}`) : null,
+    flight.codeshare ? (zh ? "代码共享" : "codeshare") : null,
+  ].filter(Boolean);
+  return { caption: `${flight.flightNo} · ${trainDuration(flight.durationMinutes, zh)}`, note: notes.length > 0 ? notes.join(" · ") : null };
+}
+
+/** The cheapest cabin, its fare and seats left: 经济舱 ¥460 · 剩 9 张. */
+export function flightSeat(flight: FlightOption, locale: Locale): string {
+  const zh = locale === "zh";
+  const left = flight.seatsLeft === null ? null : zh ? `剩 ${flight.seatsLeft} 张` : `${flight.seatsLeft} left`;
+  return `${flight.cabin} ¥${flight.price}${left ? ` · ${left}` : ""}`;
+}
+
+/** Airport and fuel charges on top of the fare, said apart so the fare is not mistaken for the total. */
+export function flightCharges(flight: FlightOption, locale: Locale): string | null {
+  if (flight.charges === null) return null;
+  return locale === "zh" ? `另付机建燃油约 ¥${flight.charges}` : `plus about ¥${flight.charges} airport and fuel charges`;
+}
+
+/** When and where the fares were looked up: 飞常准 · 11/18 14:30 查询. */
+export function flightChecked(flights: LegFlights, locale: Locale): string {
+  const zh = locale === "zh";
+  const checked = new Intl.DateTimeFormat(zh ? "zh-CN" : "en", {
+    month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit", hour12: false, timeZone: "Asia/Shanghai",
+  }).format(new Date(flights.checkedAt));
+  return zh ? `飞常准 · ${checked} 查询` : `VariFlight · checked ${checked}`;
+}
+
+/** The other way, in one line, so a train and a flight can be compared: 也有航班：最快 4 小时 15 分，¥460 起. */
+export function otherWay(leg: TransferLeg, shown: "train" | "flight", locale: Locale): string | null {
+  const zh = locale === "zh";
+  if (shown === "train" && leg.flights && leg.flights.options.length > 0) {
+    const quickest = Math.min(...leg.flights.options.map(({ durationMinutes }) => durationMinutes));
+    const cheapest = Math.min(...leg.flights.options.map(({ price }) => price));
+    return zh ? `也有航班：最快 ${trainDuration(quickest, zh)}，¥${cheapest} 起` : `Flights too: from ${trainDuration(quickest, zh)}, from ¥${cheapest}`;
+  }
+  if (shown === "flight" && leg.trains && leg.trains.options.length > 0) {
+    const quickest = Math.min(...leg.trains.options.map(({ durationMinutes }) => durationMinutes));
+    return zh ? `火车参考：最快 ${trainDuration(quickest, zh)}` : `By train: from ${trainDuration(quickest, zh)}`;
+  }
+  return null;
 }

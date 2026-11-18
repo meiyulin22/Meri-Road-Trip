@@ -57,6 +57,7 @@ const copy = {
         case "verifying": return `${activity.spot} · ${activity.done}/${activity.total}`;
         case "driving": return `${activity.from} → ${activity.to} · ${activity.done}/${activity.total}`;
         case "trains": return `trains ${activity.from} → ${activity.to} · search ${activity.done}`;
+        case "flights": return `flights ${activity.from} → ${activity.to} · search ${activity.done}`;
         case "repairing": return `re-planning day ${activity.days.join(", ")} · round ${activity.round}`;
       }
     },
@@ -105,6 +106,7 @@ const copy = {
         case "verifying": return `${activity.spot} · ${activity.done}/${activity.total}`;
         case "driving": return `${activity.from} → ${activity.to} · ${activity.done}/${activity.total}`;
         case "trains": return `查车次 ${activity.from} → ${activity.to} · 第 ${activity.done} 次`;
+        case "flights": return `查航班 ${activity.from} → ${activity.to} · 第 ${activity.done} 次`;
         case "repairing": return `重排第 ${activity.days.join("、")} 天 · 第 ${activity.round} 轮`;
       }
     },

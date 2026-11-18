@@ -86,10 +86,41 @@ export type LegTrains = {
 };
 
 /** How a leg is best travelled: the transport agent's pick, checked by code, or code's own fallback. */
+/** One flight between two cities as VariFlight answered and code checked (1.2111): its lowest cabin. */
+export type FlightOption = {
+  /** With the airline code: 9C6733. */
+  readonly flightNo: string;
+  readonly fromAirport: string;
+  readonly toAirport: string;
+  /** Clock times in Beijing time, HH:MM; the arrival's day counted from the departure day. */
+  readonly departs: string;
+  readonly arrives: string;
+  readonly arriveDayOffset: number;
+  readonly durationMinutes: number;
+  /** The cheapest cabin on sale: its name, fare in yuan, and seats left when VariFlight says. */
+  readonly cabin: string;
+  readonly price: number;
+  readonly seatsLeft: number | null;
+  /** Airport and fuel charges on top of the fare, in yuan, when given. */
+  readonly charges: number | null;
+  /** The city of a stop on the way, or null for a non-stop flight. */
+  readonly stopCity: string | null;
+  /** Sold under another airline's number. */
+  readonly codeshare: boolean;
+};
+
+export type LegFlights = {
+  readonly queriedDate: string;
+  readonly checkedAt: string;
+  readonly options: readonly FlightOption[];
+};
+
 export type LegRecommendation = {
-  readonly mode: "train" | "drive";
-  /** The train picked, one of the leg's options; null for a drive. */
+  readonly mode: "train" | "drive" | "flight";
+  /** The train picked, one of the leg's options; null otherwise. */
   readonly trainCode: string | null;
+  /** The flight picked, one of the leg's flights (1.2111); absent or null otherwise. */
+  readonly flightNo?: string | null;
   readonly reason: string;
   readonly by: "agent" | "code";
 };
@@ -111,6 +142,10 @@ export type TransferLeg = {
    * reachable or out of requests. Absent when no search was made.
    */
   readonly trainsMissing?: "none" | "no_station" | "unavailable";
+  /** Flights looked up for this leg (1.2111); absent when none were. */
+  readonly flights?: LegFlights;
+  /** Searched for flights but none to show: no flight that day, no airport, or VariFlight not reachable or out of calls. */
+  readonly flightsMissing?: "none" | "no_airport" | "unavailable";
 };
 
 /** How many days ahead 12306 sells, counting today as day 0 (probe 2026-11-17: +3 answered, +34 did not). */
