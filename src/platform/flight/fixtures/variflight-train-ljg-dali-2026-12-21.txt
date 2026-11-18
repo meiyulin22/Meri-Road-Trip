@@ -1,0 +1,1 @@
+Train tickets: {'code': 200, 'message': 'Success', 'data': {'error_code': 10, 'error': '暂无数据'}, 'request_id': '7528801801848492032', 'timestamp': '2026-11-18T20:50:27.954071+08:00'}

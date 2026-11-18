@@ -681,6 +681,10 @@ Generate plan 背后的计划页先用示例数据做出完整页面（设计决
 | [src/platform/flight/python-literal.ts](../src/platform/flight/python-literal.ts) | 外部集成适配器 | 1.2111：读取飞常准返回的 Python 字典文本（单引号、True/False/None、元组），只读数据，任何其他东西都报错，不执行。 |
 | [src/platform/flight/python-literal.test.ts](../src/platform/flight/python-literal.test.ts) | 测试 | 各种字面量、拒绝代码和多余文本、完整读取录下的真实返回。 |
 | [src/platform/flight/fixtures/variflight-sha-ljg-2026-12-21.txt](../src/platform/flight/fixtures/variflight-sha-ljg-2026-12-21.txt) | 测试数据 | 2026-11-18 实测录下的飞常准返回：上海→丽江 2026-12-21 的 5 个直飞航班。 |
+| [src/platform/flight/fixtures/variflight-train-ljg-dali-2026-11-20.txt](../src/platform/flight/fixtures/variflight-train-ljg-dali-2026-11-20.txt) | 测试数据 | 2026-11-18 实测：飞常准 Tripmatch `searchTrainTickets` 丽江→大理 11-20，24 行（含大理州其他县的车站），带票价和余票张数。 |
+| [src/platform/flight/fixtures/variflight-train-ljg-dali-2026-12-21.txt](../src/platform/flight/fixtures/variflight-train-ljg-dali-2026-12-21.txt) | 测试数据 | 同上 12-21：「暂无数据」，和 12306 一样受约 15 天预售期限制。 |
+| [src/platform/flight/fixtures/variflight-air-rail-sha-ljg-2026-12-21.txt](../src/platform/flight/fixtures/variflight-air-rail-sha-ljg-2026-12-21.txt) | 测试数据 | 同日实测：`getFlightAndTrainTransferInfo` 上海→丽江，只返回 3 个单段航班（没有火车段、没有价格、目的地误写鹤庆县、混入 12-22）。 |
+| [src/platform/flight/fixtures/variflight-flight-transfer-sha-dig-2026-12-21.txt](../src/platform/flight/fixtures/variflight-flight-transfer-sha-dig-2026-12-21.txt) | 测试数据 | 同日实测：`getFlightTransferInfo` 上海→迪庆，经成都中转（MU9181 + MU5780），没有价格，同一组航班重复 12-21、22、23 三天。 |
 | [src/platform/http/daily-budget.ts](../src/platform/http/daily-budget.ts) | 基础设施/限流 | 1.2111 从 rail-budget 抽出：按次付费或易被封的提供方共用的每日预算：一次一个请求、按间隔排队、按北京时间每天计数（存 `.cache`）、失败后暂停（可指定时长）。 |
 | [src/platform/rail/rail-mcp.ts](../src/platform/rail/rail-mcp.ts) | 外部集成适配器 | 1.2108：12306-mcp 0.3.10 的子进程，`@mastra/mcp` 客户端；只有 `RAIL_PROVIDER=12306` 时可用，第一次调用 `railTools()` 才启动并一直复用，进程退出时关掉；导入和 `next dev` 不启动；启动本身向 12306 发 3 个请求。 |
 | [src/platform/rail/rail-budget.ts](../src/platform/rail/rail-budget.ts) | 基础设施/限流 | 1.2108（1.2111 起用共享的 daily-budget）：全进程一个队列，请求间隔 ≥3 秒；每天（北京时间）最多 100 个请求，计数存 `.cache/rail-requests.json`；失败后暂停 30 分钟。 |
