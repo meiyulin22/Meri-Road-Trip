@@ -5,10 +5,10 @@ import type { TrainOption, TransferLeg } from "@/domain/plan/transfer-legs";
 import { createMoonshotChatModel } from "@/platform/llm/moonshot-chat-model";
 import type { RailAnswer, TrainSearch } from "@/platform/rail/rail-12306";
 
-import { flightCandidates, maxFlightSearches, maxTrainSearches, planTransport, trainCandidates, type TransportInput } from "./transport-agent";
+import { applyTransport, flightCandidates, maxFlightSearches, maxTrainSearches, planTransport, trainCandidates, type TransportInput } from "./transport-agent";
 
 type ChatRequest = {
-  readonly messages: readonly { readonly role: string; readonly content: string | null }[];
+  readonly messages: readonly { readonly role: string; readonly content: string | null; readonly tool_calls?: unknown }[];
   readonly response_format?: { readonly json_schema?: { readonly name?: string } };
   readonly tools?: readonly { readonly function: { readonly name: string } }[];
 };
@@ -67,7 +67,7 @@ const legs: TransferLeg[] = [
 const input = (overrides: Partial<TransportInput> = {}): TransportInput => ({
   choice: "train",
   dates: new Map([[1, "2026-11-20"], [3, "2026-11-22"], [5, "2026-11-24"]]),
-  originRailCity: "上海", preferences: [], locale: "zh", ...overrides,
+  originRailCity: "上海", preferences: [], locale: "zh", allowQuestion: false, ...overrides,
 });
 
 function rail(answers: (search: TrainSearch) => RailAnswer) {
@@ -236,4 +236,137 @@ test("flight searches stop at their budget, and a flight with nothing found says
   });
   assert.equal(asked, maxFlightSearches);
   assert.equal(outcome.legs.filter(({ flightsMissing }) => flightsMissing === "none").length, maxFlightSearches);
+});
+
+/**
+ * A model that makes each step's tool calls after the previous step's results came back, then
+ * picks with `pick`; `prompts` collects what the pick call was shown.
+ */
+function fakeModelSteps(steps: { tool: string; args: unknown }[][], pick: unknown, prompts: string[] = []) {
+  return () => createMoonshotChatModel({
+    apiKey: "test", baseUrl: "https://model.test/v1", model: "test",
+    fetch: async (_url, init) => {
+      const request = JSON.parse(String(init?.body)) as ChatRequest;
+      if (request.response_format?.json_schema?.name === "transport_pick") {
+        prompts.push(String(request.messages.at(-1)?.content));
+        return reply({ content: JSON.stringify(pick) });
+      }
+      const step = request.messages.filter(({ role, tool_calls: calls }) => role === "assistant" && calls).length;
+      const calls = steps[step];
+      if (!calls) return reply({ content: "done" });
+      return reply({ content: null, tool_calls: calls.map(({ tool, args }, index) => ({
+        index, id: `call-${step}-${index}`, type: "function", function: { name: tool, arguments: JSON.stringify(args) },
+      })) }, "tool_calls");
+    },
+  });
+}
+
+// Setting off and heading home of a trip by train, 上海 ⇄ 丽江: a day on the train each way.
+const ends = [legs[0], legs[2]];
+const sleeper = { ...train("Z162", "17:38", 1712), from: "上海南", to: "丽江" };
+const searchBoth = [
+  [{ tool: "searchTrains", args: { leg: 0 } }, { tool: "searchTrains", args: { leg: 1 } }],
+  [{ tool: "searchFlights", args: { leg: 0, fromCode: "SHA", toCode: "LJG" } }, { tool: "searchFlights", args: { leg: 1, fromCode: "LJG", toCode: "SHA" } }],
+];
+function providers(trainMinutes = 1712) {
+  const flightsAsked: string[] = [];
+  return {
+    flightsAsked,
+    searchTrains: async () => found({ ...sleeper, durationMinutes: trainMinutes }),
+    searchFlights: async (search: { fromCode: string; toCode: string }) => {
+      flightsAsked.push(`${search.fromCode}>${search.toCode}`);
+      return flightsFound(flight("9C6733", "09:30", 255, 460), flight("CA8559", "07:55", 235, 670));
+    },
+  };
+}
+const pickFlights = (askTraveller: boolean | null, legsAsked = [0, 1]) => ({ legs: legsAsked.map((leg) => (
+  { leg, mode: "flight", trainCode: null, flightNo: "9C6733", reason: "比火车快一天", askTraveller }
+)) });
+
+test("a train over 12 hours with a flight found: code asks once about both ends, even when the agent would not (1.2112)", async () => {
+  const prompts: string[] = [];
+  const { flightsAsked, ...search } = providers();
+  const outcome = await planTransport(ends, input({ allowQuestion: true }), { ...search, model: fakeModelSteps(searchBoth, pickFlights(false), prompts) });
+  // The traveller chose the train, yet the comparison flights were searched, one per end.
+  assert.deepEqual(flightsAsked, ["SHA>LJG", "LJG>SHA"]);
+  // The pick saw both ends as askable, not bound to the train.
+  const shown = JSON.parse(prompts[0]) as { legs: { askable?: boolean; boundTo: string | null }[] };
+  assert.deepEqual(shown.legs.map(({ askable, boundTo }) => [askable, boundTo]), [[true, null], [true, null]]);
+  // No preference mentions trains or flying, so code asks although the agent said no.
+  assert.deepEqual(outcome.question?.askedLegs, [0, 1]);
+  assert.match(outcome.question?.question.text ?? "", /^去程火车最快28小时32分（Z162），飞机 CA8559 约3小时55分、¥670；回程/u);
+  // Until answered, the legs read as if the train were kept.
+  assert.deepEqual(outcome.legs[0].recommendation, { mode: "train", trainCode: "Z162", flightNo: null, reason: "按你选的高铁，选了用时最短的一趟", by: "code" });
+});
+
+test("each answer decides the asked legs again from the same findings, with no new search", async () => {
+  const outcome = await planTransport(ends, input({ allowQuestion: true }), { ...providers(), model: fakeModelSteps(searchBoth, pickFlights(true)) });
+  const pause = outcome.question;
+  assert.ok(pause);
+  const decide = (choice: "train" | "flight" | "auto") =>
+    applyTransport(ends, pause.findings, "zh", { legs: pause.askedLegs, choice }).map(({ recommendation }) => recommendation);
+  // Fly instead: the agent's flight, with its reason.
+  assert.deepEqual(decide("flight")[0], { mode: "flight", trainCode: null, flightNo: "9C6733", reason: "比火车快一天", by: "agent" });
+  // Stay on the train: the agent picked a flight, so code keeps the quickest train and says why.
+  assert.deepEqual(decide("train")[1], { mode: "train", trainCode: "Z162", flightNo: null, reason: "你选了坚持坐火车，这是用时最短的一趟", by: "code" });
+  // You decide: the agent's pick as it is.
+  assert.equal(decide("auto")[0]?.flightNo, "9C6733");
+  // Answering fly with no usable pick: the quickest flight, said to be the traveller's choice.
+  const noPick = { legs: pause.findings.legs.map((leg) => ({ ...leg, pick: null })) };
+  assert.deepEqual(applyTransport(ends, noPick, "zh", { legs: [0], choice: "flight" })[0].recommendation,
+    { mode: "flight", trainCode: null, flightNo: "CA8559", reason: "你选了改坐飞机，这是用时最短的一班", by: "code" });
+  // You decide with no pick: a flight beats more than 12 hours on the train.
+  assert.equal(applyTransport(ends, noPick, "zh", { legs: [0], choice: "auto" })[0].recommendation?.mode, "flight");
+});
+
+test("a preference about the train lets the agent decide: no question when it says so, one leg when it asks one", async () => {
+  const quiet = await planTransport(ends, input({ allowQuestion: true, preferences: ["想坐一次卧铺"] }), {
+    ...providers(), model: fakeModelSteps(searchBoth, pickFlights(false)),
+  });
+  assert.equal(quiet.question, null);
+  // The train stays, and the flight found is still shown next to it.
+  assert.equal(quiet.legs[0].recommendation?.mode, "train");
+  assert.equal(quiet.legs[0].flights?.options[0]?.flightNo, "CA8559");
+
+  const one = await planTransport(ends, input({ allowQuestion: true, preferences: ["想坐一次卧铺"] }), {
+    ...providers(), model: fakeModelSteps(searchBoth, { legs: [pickFlights(true).legs[0], pickFlights(false).legs[1]] }),
+  });
+  assert.deepEqual(one.question?.askedLegs, [0]);
+  assert.match(one.question?.question.text ?? "", /^去程/u);
+});
+
+test("a comparison flight is searched only after the train, and only when the train is over 12 hours", async () => {
+  // Flights first: refused until the trains are known.
+  const early = providers();
+  await planTransport([legs[0]], input({ allowQuestion: true }), { ...early, model: fakeModelSteps([
+    [{ tool: "searchFlights", args: { leg: 0, fromCode: "SHA", toCode: "LJG" } }],
+  ], { legs: [] }) });
+  assert.deepEqual(early.flightsAsked, []);
+  // Ten hours on the train: no flight is bought and nothing is asked.
+  const quick = providers(600);
+  const outcome = await planTransport([legs[0]], input({ allowQuestion: true }), { ...quick, model: fakeModelSteps(searchBoth, { legs: [] }) });
+  assert.deepEqual(quick.flightsAsked, []);
+  assert.equal(outcome.question, null);
+});
+
+test("where a run cannot ask, a train choice searches no flight, as before (1.2112)", async () => {
+  const { flightsAsked, ...search } = providers();
+  const outcome = await planTransport(ends, input(), { ...search, model: fakeModelSteps(searchBoth, pickFlights(true)) });
+  assert.deepEqual(flightsAsked, []);
+  assert.equal(outcome.question, null);
+  assert.equal(outcome.legs[0].recommendation?.mode, "train");
+});
+
+test("no train at all: the comparison flight is used without a question, and the card says why", async () => {
+  const flightsAsked: string[] = [];
+  const outcome = await planTransport([legs[0]], input({ allowQuestion: true }), {
+    searchTrains: async (search) => ({ status: "none", queriedDate: search.date, reference: false }),
+    searchFlights: async () => { flightsAsked.push("SHA>LJG"); return flightsFound(flight("CA8559", "07:55", 235, 670)); },
+    model: fakeModelSteps(searchBoth, { legs: [] }),
+  });
+  assert.deepEqual(flightsAsked, ["SHA>LJG"]);
+  assert.equal(outcome.question, null);
+  assert.equal(outcome.legs[0].trainsMissing, "none");
+  assert.deepEqual(outcome.legs[0].recommendation,
+    { mode: "flight", trainCode: null, flightNo: "CA8559", reason: "没查到火车，这是用时最短的一班飞机", by: "code" });
 });

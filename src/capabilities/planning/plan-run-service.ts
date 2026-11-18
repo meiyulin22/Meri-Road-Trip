@@ -16,6 +16,7 @@ import {
   type PlanProgressEvent,
   type PlanRunErrorCode,
   type PlanStage,
+  type QuestionStep,
 } from "@/domain/plan/plan-progress";
 import type { LabelledAnswer } from "@/capabilities/planning/extract-plan-preferences";
 import type { PlanAnswer, PlanRun, PlanRunUsage, PlanVersion } from "@/domain/plan/plan-run";
@@ -58,7 +59,14 @@ type WorkflowChunk = { type: string; payload?: unknown };
 /** A run starts once and resumes once for each answer, numbering its events on from the last. */
 type RunSegment =
   | { readonly kind: "start" }
-  | { readonly kind: "resume"; readonly resume: RouteResume; readonly lastSeq: number; readonly activeMs: number };
+  | {
+    readonly kind: "resume";
+    /** The step that asked: the route, or the transport question (1.2112). */
+    readonly step: QuestionStep;
+    readonly resume: RouteResume;
+    readonly lastSeq: number;
+    readonly activeMs: number;
+  };
 
 export type PlanAnswerOutcome = "resumed" | "not_found" | "not_waiting" | "wrong_question";
 
@@ -74,6 +82,26 @@ export type PlanRunServiceDependencies = {
   readonly newId?: () => string;
   readonly timeLimitMs?: number;
 };
+
+/**
+ * The time a run worked up to its latest question, without the waits for earlier answers: a run
+ * may now wait twice, for the route and for the transport question (1.2112).
+ */
+export function workingMs(events: readonly PlanProgressEnvelope[], startedAt: number): number {
+  let waitingSince: number | null = null;
+  let lastWaiting = startedAt;
+  let waited = 0;
+  for (const { at, event } of events) {
+    if (event.type === "run.waiting") {
+      waitingSince = at;
+      lastWaiting = at;
+    } else if (event.type === "question.answered" && waitingSince !== null) {
+      waited += at - waitingSince;
+      waitingSince = null;
+    }
+  }
+  return Math.max(0, lastWaiting - startedAt - waited);
+}
 
 /** The trip's selected cities, as a written answer may name one to leave out. */
 function tripCities(handoff: PlanHandoff): string[] {
@@ -246,6 +274,9 @@ export class PlanRunService {
     const choice = "choice" in answer ? answer.choice : null;
     const option = choice === null ? null : question.options.find(({ label }) => label === choice) ?? null;
     if (choice !== null && !option) return "wrong_question";
+    // The transport question offers options only: the train, the flight, or Meri's choice (1.2112).
+    const step: QuestionStep = question.step ?? routeStepId;
+    if ("text" in answer && step !== routeStepId) return "wrong_question";
     // Claimed in the database, so a second answer or a second tab cannot resume it twice.
     if (!await this.deps.repository.moveRun(runId, "suspended", "running")) return "not_waiting";
 
@@ -269,10 +300,11 @@ export class PlanRunService {
     activeRuns.set(runId, { events: [...events], listeners: new Set() });
     void this.execute(run, {
       kind: "resume",
+      step,
       resume: { choice: option?.label ?? ("text" in answer ? answer.text : null), preference, leaveOut },
       lastSeq: events.at(-1)?.seq ?? 0,
       // The time already spent working, without the wait for the answer.
-      activeMs: Math.max(0, waiting.at - Date.parse(run.startedAt)),
+      activeMs: workingMs(events, Date.parse(run.startedAt)),
     }).catch((error: unknown) => {
       logger.error({ runId, error: serializeError(error) }, "Plan run could not finish");
       activeRuns.delete(runId);
@@ -346,10 +378,10 @@ export class PlanRunService {
         void workflowRun.cancel();
       }, this.timeLimitMs);
       const input = { runId: run.id, tripId: run.tripId, handoff: run.handoff };
-      // A resumed run starts again at the route; Mastra reads every earlier step from its snapshot.
+      // A resumed run starts again at the step that asked; Mastra reads every earlier step from its snapshot.
       const stream = segment.kind === "start"
         ? workflowRun.stream({ inputData: input, initialState: initialPlanState(input) })
-        : workflowRun.resumeStream({ step: routeStepId, resumeData: segment.resume });
+        : workflowRun.resumeStream({ step: segment.step, resumeData: segment.resume });
       // Keyed by stage: the validation stage is two steps and a loop, but one line on the page.
       const stageStarts = new Map<PlanStage, number>();
       for await (const chunk of stream.fullStream as AsyncIterable<WorkflowChunk>) {

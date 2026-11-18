@@ -5,11 +5,13 @@ import { Mastra } from "@mastra/core";
 import { InMemoryStore } from "@mastra/core/storage";
 
 import { afternoon, dali, day, fiveDays, handoff, lijiang, modelAnswering } from "@/agents/planner/plan-test-fixtures";
-import { PlanRunService } from "@/capabilities/planning/plan-run-service";
+import { PlanRunService, workingMs } from "@/capabilities/planning/plan-run-service";
 import type { PlanProgressEnvelope } from "@/domain/plan/plan-progress";
 import type { CityResearch } from "@/domain/plan/spot-card";
 import type { TripPreference } from "@/domain/plan/trip-preference";
+import { createMoonshotChatModel } from "@/platform/llm/moonshot-chat-model";
 import { InMemoryPlanRunRepository } from "@/platform/persistence/in-memory/in-memory-plan-run-repository";
+import type { TrainSearch } from "@/platform/rail/rail-12306";
 
 import { createPlanGenerationWorkflow, type PlanGenerationDependencies } from "./plan-generation";
 
@@ -381,4 +383,128 @@ test("the validation loop moves a closed stop, re-plans a day it cannot fix, and
   assert.deepEqual(verify[0].event.type === "stage.finished" && verify[0].event.summary,
     { checked: 1, stops: 4, reservations: 0, moved: 1, closed: 1, rounds: 1 });
   assert.equal(events.filter(({ event }) => event.type === "stage.started" && event.stage === "verify").length, 1);
+});
+
+test("the transport agent's question pauses at the transfers and resumes there with no new search (1.2112)", async () => {
+  // From 上海 by train on fixed dates: setting off and heading home take a day on the train.
+  const byTrain = { ...trip, tripState: {
+    ...trip.tripState,
+    origin: { state: "known" as const, value: "上海", source: "user" as const },
+    startDate: { state: "known" as const, value: "2026-11-20", source: "user" as const },
+    transportPreference: { state: "known" as const, value: "public_transport" as const, source: "user" as const },
+  } };
+  const trainSearches: string[] = [];
+  const flightSearches: string[] = [];
+  const longTrain = { code: "Z162", from: "上海南", to: "丽江", departs: "17:38", arrives: "22:10", arriveDayOffset: 1, durationMinutes: 1712,
+    seats: [{ name: "硬卧", price: 580, left: "有" }] };
+  const shortTrain = { ...longTrain, code: "C378", from: "丽江", to: "大理", departs: "12:00", arrives: "14:22", arriveDayOffset: 0, durationMinutes: 142 };
+  const steps = [
+    [0, 1, 2].map((leg) => ({ name: "searchTrains", args: { leg } })),
+    [{ name: "searchFlights", args: { leg: 0, fromCode: "SHA", toCode: "LJG" } }, { name: "searchFlights", args: { leg: 2, fromCode: "DLU", toCode: "SHA" } }],
+  ];
+  const transportModel = () => createMoonshotChatModel({
+    apiKey: "test", baseUrl: "https://model.test/v1", model: "test",
+    fetch: async (_url, init) => {
+      const request = JSON.parse(String(init?.body)) as {
+        messages: { role: string; tool_calls?: unknown }[]; response_format?: { json_schema?: { name?: string } };
+      };
+      const answer = (message: object, finish = "stop") => Response.json({ id: "chat", model: "test", created: 1,
+        choices: [{ index: 0, message: { role: "assistant", ...message }, finish_reason: finish }],
+        usage: { prompt_tokens: 40, completion_tokens: 10, total_tokens: 50 } });
+      // The pick: C378 between the cities, nothing for the ends, and no wish to ask; code asks anyway.
+      if (request.response_format?.json_schema?.name === "transport_pick") return answer({ content: JSON.stringify({ legs: [
+        { leg: 1, mode: "train", trainCode: "C378", flightNo: null, reason: "中午出发，下午到大理", askTraveller: null },
+      ] }) });
+      const calls = steps[request.messages.filter(({ role, tool_calls: made }) => role === "assistant" && made).length];
+      if (!calls) return answer({ content: "done" });
+      return answer({ content: null, tool_calls: calls.map(({ name, args }, index) => ({
+        index, id: `call-${name}-${index}`, type: "function", function: { name, arguments: JSON.stringify(args) },
+      })) }, "tool_calls");
+    },
+  });
+  const centre = (name: string) => name.startsWith("上海") ? { longitude: 121.47, latitude: 31.23 }
+    : name.startsWith("丽江") ? { longitude: 100.2, latitude: 26.9 } : { longitude: 100.2, latitude: 25.6 };
+  const fakeDrive = {
+    drive: async (from: { longitude: number; latitude: number }, to: { longitude: number; latitude: number }) => ({ status: "success" as const, route: {
+      distanceKm: 186.4, durationSeconds: 10_200, path: [[from.longitude, from.latitude], [to.longitude, to.latitude]] as [number, number][],
+      offRoadStartMeters: 0, offRoadEndMeters: 0,
+    } }),
+    memory: { get: () => null, set: () => {} },
+    key: (from: { longitude: number }, to: { longitude: number }, mode: string) => `${mode}:${from.longitude}>${to.longitude}`,
+  };
+  const { repository, service, preferences } = setup({
+    transfers: {
+      cityPoint: async (name) => ({ status: "found", city: { name, adminCode: name, point: centre(name) } }),
+      cityMemory: { get: () => null, set: () => {} },
+      drive: fakeDrive,
+    },
+    transport: {
+      searchTrains: async (search: TrainSearch) => {
+        trainSearches.push(`${search.fromCity}>${search.toCity}`);
+        const options = search.fromCity === "丽江" ? [shortTrain] : [longTrain];
+        return { status: "found", trains: { queriedDate: search.date, reference: false, checkedAt: "2026-11-18T08:00:00.000Z", options } };
+      },
+      searchFlights: async (search) => {
+        flightSearches.push(`${search.fromCode}>${search.toCode}`);
+        return { status: "found", flights: { queriedDate: search.date, checkedAt: "2026-11-18T08:00:00.000Z", options: [{
+          flightNo: "CA8559", fromAirport: "上海浦东", toAirport: "丽江三义", departs: "07:55", arrives: "11:50", arriveDayOffset: 0,
+          durationMinutes: 235, cabin: "经济舱", price: 670, seatsLeft: 9, charges: 190, stopCity: null, codeshare: false,
+        }] } };
+      },
+      model: transportModel,
+    },
+  });
+  const started = await service.start(tripId, byTrain);
+  const before = await followToEnd(service, repository, started.runId);
+  const waiting = before.at(-1)?.event;
+  assert.equal(waiting?.type, "run.waiting");
+  if (waiting?.type !== "run.waiting") return;
+  // Asked by the transfers step, after the route and before any day.
+  assert.equal(waiting.question.step, "transfer-legs");
+  assert.match(waiting.question.text, /^去程火车最快28小时32分（Z162），飞机 CA8559 约3小时55分、¥670；回程/u);
+  assert.ok(before.some(({ event }) => event.type === "route.ready"));
+  assert.ok(!before.some(({ event }) => event.type === "day.ready"));
+  assert.equal(repository.runs.get(started.runId)?.status, "suspended");
+  assert.deepEqual(trainSearches, ["上海>丽江", "丽江>大理", "大理>上海"]);
+  assert.deepEqual(flightSearches, ["SHA>LJG", "DLU>SHA"]);
+
+  // Options only: written words do not answer it.
+  assert.equal(await service.answer(tripId, started.runId, { questionId: waiting.question.id, text: "坐飞机吧" }), "wrong_question");
+  assert.equal(await service.answer(tripId, started.runId, { questionId: waiting.question.id, choice: "改坐飞机" }), "resumed");
+  const after = await followToEnd(service, repository, started.runId, before.at(-1)?.seq);
+  const finished = after.at(-1)?.event;
+  assert.equal(finished?.type === "run.finished" && finished.status, "succeeded");
+  assert.ok(after.some(({ event }) => event.type === "question.answered" && event.choice === "改坐飞机"));
+  // Nothing was searched again, and the route was not asked again.
+  assert.equal(trainSearches.length, 3);
+  assert.equal(flightSearches.length, 2);
+  assert.ok(!after.some(({ event }) => event.type === "route.ready" || event.type === "city.researched"));
+
+  const transfers = repository.versions[0].plan.draft.transfers ?? [];
+  assert.deepEqual(transfers.map(({ kind, recommendation }) => [kind, recommendation?.mode, recommendation?.trainCode ?? recommendation?.flightNo, recommendation?.by]), [
+    ["outbound", "flight", "CA8559", "code"],
+    ["between", "train", "C378", "agent"],
+    ["return", "flight", "CA8559", "code"],
+  ]);
+  assert.equal(transfers[0].recommendation?.reason, "你选了改坐飞机，这是用时最短的一班");
+  // The answer is a preference of kind other, kept in the version too.
+  assert.deepEqual(preferences.map(({ label, kind, source }) => [label, kind, source]), [["改坐飞机", "other", "question"]]);
+  assert.ok(repository.versions[0].preferences.some(({ label }) => label === "改坐飞机"));
+  assert.equal(repository.runs.get(started.runId)?.status, "succeeded");
+});
+
+test("a run's working time leaves out every wait for an answer", () => {
+  const at = (ms: number, event: PlanProgressEnvelope["event"]): PlanProgressEnvelope => ({ runId: "r", seq: ms, at: ms, event });
+  const question = { id: "00000000-0000-4000-8000-000000000001", text: "?", options: [
+    { label: "a", kind: "other" as const }, { label: "b", kind: "other" as const },
+  ] };
+  const events = [
+    at(1_000, { type: "stage.started", stage: "scope" }),
+    at(5_000, { type: "run.waiting", question }),
+    at(65_000, { type: "question.answered", questionId: question.id, choice: "a" }),
+    at(70_000, { type: "run.waiting", question }),
+  ];
+  // 4 s before the first question, then 5 s after its answer: the minute of waiting is not counted.
+  assert.equal(workingMs(events, 1_000), 9_000);
+  assert.equal(workingMs(events.slice(0, 2), 1_000), 4_000);
 });

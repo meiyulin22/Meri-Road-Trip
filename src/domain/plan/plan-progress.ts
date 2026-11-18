@@ -39,6 +39,10 @@ export type PlanActivity = z.output<typeof planActivitySchema>;
 
 const cityStatus = z.enum(["ready", "partial", "unavailable", "deferred"]);
 
+/** The workflow steps that may pause to ask the traveller. */
+export const questionSteps = ["plan-route", "transfer-legs"] as const;
+export type QuestionStep = (typeof questionSteps)[number];
+
 /**
  * What the Plan Agent asks while routing, when the preferences leave a real choice open.
  * Each option says which kind of preference it expresses, so the answer is saved as one.
@@ -46,6 +50,11 @@ const cityStatus = z.enum(["ready", "partial", "unavailable", "deferred"]);
 export const planQuestionSchema = z.strictObject({
   id: z.uuid(),
   text: z.string().trim().min(1).max(120),
+  /**
+   * The workflow step that asked and is resumed with the answer: the route (1.2011) or the
+   * transport question (1.2112), which takes no written answer. Older questions have none: the route.
+   */
+  step: z.enum(questionSteps).optional(),
   options: z.array(z.strictObject({
     label: z.string().trim().min(1).max(maxPreferenceLabelLength),
     kind: z.enum(preferenceKinds),

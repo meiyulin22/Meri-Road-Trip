@@ -7,6 +7,7 @@ import {
   type PlanProgressEvent,
   type PlanQuestion,
   type PlanStage,
+  type QuestionStep,
 } from "@/domain/plan/plan-progress";
 import type { SpotCard } from "@/domain/plan/spot-card";
 
@@ -45,7 +46,8 @@ export type ProgressView = {
   readonly waitingSince: number | null;
   /** Time spent waiting for answers, left out of the run's clock. */
   readonly waitedMs: number;
-  readonly answers: readonly { readonly question: string; readonly choice: string | null }[];
+  /** Each answer and the step that asked: the route, or the transport question (1.2112). */
+  readonly answers: readonly { readonly question: string; readonly choice: string | null; readonly step: QuestionStep }[];
   /** The second round's verdict for each stop, by "day|spotId", latest wins. */
   readonly checks: Readonly<Record<string, StopCheck>>;
 };
@@ -135,7 +137,7 @@ export function applyProgress(view: ProgressView, { seq, at, event }: PlanProgre
         question: null,
         waitingSince: null,
         waitedMs: next.waitedMs + (next.waitingSince === null ? 0 : Math.max(0, at - next.waitingSince)),
-        answers: [...next.answers, { question: next.question?.text ?? "", choice: event.choice }],
+        answers: [...next.answers, { question: next.question?.text ?? "", choice: event.choice, step: next.question?.step ?? "plan-route" }],
       };
     case "run.finished":
       return {

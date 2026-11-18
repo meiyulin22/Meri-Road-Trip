@@ -5,7 +5,7 @@ import { z } from "zod";
 
 import { dayPhotos, type FindDayImage } from "@/agents/planner/day-photos";
 import { type DriveLegDependencies, planDriveLegs } from "@/agents/transport/legs";
-import { planTransport, type TransportDependencies } from "@/agents/transport/transport-agent";
+import { applyTransport, planTransport, type TransportDependencies, type TransportPause } from "@/agents/transport/transport-agent";
 import { planTransfers, type TransferDependencies } from "@/agents/transport/transfers";
 import { maxVerifySearches, type VerifyProgress, type VerifyResult } from "@/agents/planner/verify-spots";
 import { checkSpotsOnMap, type MapCheckDependencies } from "@/agents/planner/map-check";
@@ -25,6 +25,7 @@ import { type PlanProgressEvent, type PlanQuestion, planQuestionSchema, type Pla
 import type { PlanRunUsage, PlanVersion } from "@/domain/plan/plan-run";
 import type { CityResearch, SpotCard } from "@/domain/plan/spot-card";
 import { originPoint, type TransferLeg, transferLegs, travelChoiceOf } from "@/domain/plan/transfer-legs";
+import { transportAnswerOf } from "@/domain/plan/transport-question";
 import { railCityOfRegion } from "@/platform/rail/rail-names";
 import { stopVerdict } from "@/domain/plan/availability";
 import { closedStops, type Moved, moveClosedStops, stopChecks, verdictsFor } from "@/domain/plan/plan-repair";
@@ -67,6 +68,9 @@ export const routeResumeSchema = z.object({
   leaveOut: z.string().nullable().optional(),
 });
 export type RouteResume = z.infer<typeof routeResumeSchema>;
+
+/** The step that may pause to ask "train too long, fly instead?" (1.2112); resumed with the same shape. */
+export const transferStepId = "transfer-legs";
 
 type MapResult = { cities: CityResearch[]; status: "complete" | "stopped"; lookups: number };
 type RouteResult = MapResult & { plan: RoutedPlan; usage: PlanUsage };
@@ -336,12 +340,32 @@ export function createPlanGenerationWorkflow(deps: PlanGenerationDependencies) {
    * assume a transfer takes the morning.
    */
   const transferStep = createStep({
-    id: "transfer-legs",
+    id: transferStepId,
     inputSchema: z.custom<RouteResult>(),
     outputSchema: z.custom<TransferResult>(),
     stateSchema: runState,
-    execute: async ({ inputData, state, writer }) => {
+    // Everything found before asking is kept, so the answer decides the legs without new searches.
+    suspendSchema: z.object({
+      question: planQuestionSchema,
+      usage: z.custom<PlanUsage>(),
+      pause: z.custom<{ legs: TransferLeg[]; transferLookups: number; findings: TransportPause["findings"]; askedLegs: number[] }>(),
+    }),
+    resumeSchema: routeResumeSchema,
+    execute: async ({ inputData, state, setState, writer, suspend, suspendData, resumeData }) => {
       const { emit, flush } = emitter(writer);
+      if (resumeData && suspendData) {
+        // The answer is one more preference for the rest of the run and the saved version.
+        if (resumeData.preference) await setState({ ...state, handoff: { ...state.handoff, preferences: [...state.handoff.preferences, resumeData.preference] } });
+        emit({ type: "question.answered", questionId: suspendData.question.id, choice: resumeData.choice });
+        const { pause } = suspendData;
+        const transfers = applyTransport(pause.legs, pause.findings, state.handoff.locale,
+          { legs: pause.askedLegs, choice: transportAnswerOf(resumeData.choice) });
+        await flush();
+        return {
+          ...inputData, transfers, transferLookups: pause.transferLookups,
+          usage: addUsage(inputData.usage, suspendData.usage),
+        };
+      }
       const scope = scopeOf(state);
       const legs = transferLegs(inputData.plan.frames, state.handoff.tripState.origin, scope.mode);
       const origin = state.handoff.tripState.origin;
@@ -357,8 +381,21 @@ export function createPlanGenerationWorkflow(deps: PlanGenerationDependencies) {
         originRailCity: origin.state === "known" && origin.selection?.region ? railCityOfRegion(origin.selection.region, origin.value) : null,
         preferences: state.handoff.preferences.map(({ quote }) => quote),
         locale: state.handoff.locale,
+        allowQuestion: true,
       }, deps.transport, ({ mode, from, to, done, total }) =>
         emit({ type: "stage.activity", stage: "transfers", activity: { kind: mode === "flight" ? "flights" : "trains", from, to, done, total } }));
+      if (transport?.question) {
+        const question: PlanQuestion = { id: randomUUID(), ...transport.question.question };
+        emit({ type: "run.waiting", question });
+        await flush();
+        return suspend({
+          question, usage: transport.usage,
+          pause: {
+            legs: outcome.legs, transferLookups: outcome.lookups,
+            findings: transport.question.findings, askedLegs: [...transport.question.askedLegs],
+          },
+        });
+      }
       await flush();
       return {
         ...inputData,

@@ -5,7 +5,7 @@ import { useEffect, useState } from "react";
 
 import { useLocale } from "@/components/i18n/locale-context";
 import type { Locale } from "@/domain/locale/locale";
-import type { PlanActivity, PlanQuestion, PlanStage } from "@/domain/plan/plan-progress";
+import type { PlanActivity, PlanQuestion, PlanStage, QuestionStep } from "@/domain/plan/plan-progress";
 
 import type { ProgressView, StageView } from "./plan-progress-view";
 import styles from "./plan-run-activity.module.css";
@@ -256,9 +256,12 @@ function stageDetails(stage: PlanStage, view: ProgressView, text: Copy): string[
     const verify = view.stages.find(({ stage: item }) => item === "verify");
     return verify?.status === "done" ? [text.verifyDetail(verify.summary.rounds ?? 0)] : [];
   }
+  const answered = (step: QuestionStep) => view.answers.filter((answer) => answer.step === step)
+    .map(({ question, choice }) => text.answered(question, choice));
+  if (stage === "transfers") return answered("transfer-legs");
   if (stage === "route" && view.route) {
     return [
-      ...view.answers.map(({ question, choice }) => text.answered(question, choice)),
+      ...answered("plan-route"),
       ...view.route.cities.map(({ city, days, reason }) => `${city} · ${days}${reason ? ` · ${reason}` : ""}`),
       ...view.route.omitted.map(({ city, reason }) => `${city} ×${reason ? ` · ${reason}` : ""}`),
       ...(view.route.source === "fallback" ? [text.routeAuto] : []),
@@ -284,7 +287,7 @@ export type QuestionAnswer = { readonly choice: string | null } | { readonly tex
 /**
  * The question a run waits on. Choosing an option, letting Meri decide, or writing their own
  * answer resumes the run; the answer is kept as a preference. Shown again after a refresh until
- * answered.
+ * answered. The transport question (1.2112) takes options only, so it has no box for words.
  */
 export function PlanQuestionCard({ question, onAnswer }: {
   readonly question: PlanQuestion;
@@ -314,7 +317,7 @@ export function PlanQuestionCard({ question, onAnswer }: {
         ))}
         <button type="button" className={styles.option} data-skip="true" disabled={sending} onClick={() => choose(null)}>{text.skip}</button>
       </div>
-      <form
+      {question.step === "transfer-legs" ? null : <form
         className={styles.ownAnswer}
         onSubmit={(event) => {
           event.preventDefault();
@@ -334,7 +337,7 @@ export function PlanQuestionCard({ question, onAnswer }: {
           />
           <button type="submit" className={styles.ownSend} disabled={sending || !own.trim()}>{text.send}</button>
         </div>
-      </form>
+      </form>}
       {failed ? <p className={styles.questionError} role="alert">{text.failed}</p> : null}
     </section>
   );

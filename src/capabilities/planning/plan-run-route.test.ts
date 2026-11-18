@@ -292,5 +292,20 @@ test("the live view stops its clock while waiting for an answer and remembers th
   view = applyProgress(view, { runId, seq: 3, at: 64000, event: { type: "question.answered", questionId: question.id, choice: "山水" } });
   assert.equal(view.question, null);
   assert.equal(view.waitedMs, 60000);
-  assert.deepEqual(view.answers, [{ question: "山水还是古城？", choice: "山水" }]);
+  assert.deepEqual(view.answers, [{ question: "山水还是古城？", choice: "山水", step: "plan-route" }]);
+});
+
+test("each answer keeps the step that asked, so the transport answer is listed under the transfers (1.2112)", () => {
+  const runId = "00000000-0000-4000-8000-000000000001";
+  const question = (id: string, step?: "transfer-legs") => ({ id, text: "?", ...(step ? { step } : {}), options: [
+    { label: "a", kind: "other" as const }, { label: "b", kind: "other" as const },
+  ] });
+  const route = question("00000000-0000-4000-8000-000000000002");
+  const transport = question("00000000-0000-4000-8000-000000000003", "transfer-legs");
+  let view = applyProgress(emptyProgress, { runId, seq: 1, at: 1000, event: { type: "run.waiting", question: route } });
+  view = applyProgress(view, { runId, seq: 2, at: 2000, event: { type: "question.answered", questionId: route.id, choice: "a" } });
+  view = applyProgress(view, { runId, seq: 3, at: 3000, event: { type: "run.waiting", question: transport } });
+  view = applyProgress(view, { runId, seq: 4, at: 5000, event: { type: "question.answered", questionId: transport.id, choice: null } });
+  assert.deepEqual(view.answers.map(({ choice, step }) => [choice, step]), [["a", "plan-route"], [null, "transfer-legs"]]);
+  assert.equal(view.waitedMs, 3000);
 });

@@ -120,6 +120,8 @@ export async function fillGettingThere(
     originRailCity: railCityOfRegion(request.origin.region, request.origin.name),
     preferences: run.handoff.preferences.map(({ quote }) => quote),
     locale: run.handoff.locale,
+    // The plan page cannot pause a run to ask (1.2112): a long train stays the train.
+    allowQuestion: false,
   }, deps.transport);
   const transfers: TransferLeg[] = transport?.legs ?? outcome.legs;
 

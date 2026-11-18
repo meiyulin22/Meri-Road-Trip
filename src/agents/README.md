@@ -532,6 +532,28 @@ drive; a bound leg keeps the traveller's kind when one was found, and a picked f
 returned. Measured 2026-11-18: 上海 → 丽江 on 12-21, let Meri decide: no direct train; 5 flights; the
 agent picked CA8559 07:55 → 11:50, ¥670 (1 flight search ¥0.25, 1,829 + 356 tokens).
 
+**Asking "train or plane?" (1.2112).** When the traveller chose the train and setting off or heading
+home takes more than 12 hours on the quickest train found, the run may pause to ask, as agreed: the
+agent decides, code guards. Code decides which legs can be asked about. Choosing the train normally
+searches no flight, so a leg bound to the train in a run that may ask can search one comparison
+flight, and `search-flights` refuses it (at no cost) until the leg's trains are in and the quickest
+is over 12 hours or none was found; it counts against the 4 flight searches. The pick sees such a
+leg as `askable` instead of bound to the train, recommends what it would, and says with
+`askTraveller` whether the traveller should choose; it may say no only when a preference already
+says they want the train (a sleeper, a fear of flying). When no preference mentions trains or flying
+at all, code asks anyway (the 1.2018 pattern). Code writes the question from the real timetable and
+fares ("去程火车最快也要24小时45分（G201/Y767），飞机 CA8559 约3小时55分、¥670。怎么走？"), one question
+for both ends, with the fixed options 坚持坐火车 and 改坐飞机 plus the card's own "you decide", and no box
+for words. The `transfer-legs` step suspends with the findings (every train and flight found, the
+pick) in its snapshot, so the answer decides the legs again with no new search: fly → the agent's
+flight or the quickest; stay → the agent's train or the quickest; you decide → the agent's pick, the
+flight when it has none. The answer is saved as a preference of kind `other`. The question carries
+`step: "transfer-legs"`, and the run resumes at that step; a run may now wait twice (route, then
+transport), and its clock leaves out both waits. No train at all: the comparison flight is used
+without a question, and the card says no train was found. The plan page's origin fill-in cannot
+pause, so it neither asks nor searches the comparison flight; a 「改坐飞机」 button there is later.
+Built with unit tests only; not yet run live.
+
 ### Evaluation (1.2014)
 
 [scripts/eval-plan.ts](../../scripts/eval-plan.ts) runs the cases in
