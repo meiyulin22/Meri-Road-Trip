@@ -55,7 +55,23 @@ export type TrainOption = {
   /** Days after the departure day the train arrives: 0 the same day. Code computes it. */
   readonly arriveDayOffset: number;
   readonly durationMinutes: number;
+  /** For a journey with a change, empty: each train in `change` has its own seats. */
   readonly seats: readonly TrainSeat[];
+  /**
+   * A journey with one change (1.2110): the two direct trains and the change between them. The
+   * journey's own fields cover it whole: first departure, last arrival, total time with the wait.
+   */
+  readonly change?: TrainChange;
+};
+
+export type TrainChange = {
+  /** The city changed in, as 12306 names it: 昆明. */
+  readonly city: string;
+  readonly waitMinutes: number;
+  /** False when the second train leaves from another station of the city: 昆明 to 昆明南. */
+  readonly sameStation: boolean;
+  readonly first: TrainOption;
+  readonly second: TrainOption;
 };
 
 /**

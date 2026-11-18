@@ -101,6 +101,18 @@ export const stopCheckSchema = z.strictObject({
 
 const pathSchema = z.array(z.tuple([z.number().min(-180).max(180), z.number().min(-90).max(90)])).min(2).max(200);
 
+/** One direct train as a leg keeps it (1.2108); a journey with a change wraps two of these (1.2110). */
+const trainOptionSchema = z.strictObject({
+  code: z.string().min(1).max(25),
+  from: z.string().min(1),
+  to: z.string().min(1),
+  departs: z.string().regex(/^\d{2}:\d{2}$/u),
+  arrives: z.string().regex(/^\d{2}:\d{2}$/u),
+  arriveDayOffset: z.number().int().min(0).max(4),
+  durationMinutes: z.number().int().positive(),
+  seats: z.array(z.strictObject({ name: z.string().min(1), price: z.number().nonnegative().nullable(), left: z.string() })),
+});
+
 /** One leg to, between or back from the trip's cities (1.2106). */
 const transferLegSchema: z.ZodType<TransferLeg> = z.strictObject({
   kind: z.enum(["outbound", "between", "return"]),
@@ -120,15 +132,14 @@ const transferLegSchema: z.ZodType<TransferLeg> = z.strictObject({
     queriedDate: z.iso.date(),
     reference: z.boolean(),
     checkedAt: z.iso.datetime(),
-    options: z.array(z.strictObject({
-      code: z.string().min(1).max(12),
-      from: z.string().min(1),
-      to: z.string().min(1),
-      departs: z.string().regex(/^\d{2}:\d{2}$/u),
-      arrives: z.string().regex(/^\d{2}:\d{2}$/u),
-      arriveDayOffset: z.number().int().min(0).max(3),
-      durationMinutes: z.number().int().positive(),
-      seats: z.array(z.strictObject({ name: z.string().min(1), price: z.number().nonnegative().nullable(), left: z.string() })),
+    options: z.array(trainOptionSchema.extend({
+      change: z.strictObject({
+        city: z.string().min(1),
+        waitMinutes: z.number().int().nonnegative(),
+        sameStation: z.boolean(),
+        first: trainOptionSchema,
+        second: trainOptionSchema,
+      }).optional(),
     })).max(5),
   }).optional(),
   recommendation: z.strictObject({

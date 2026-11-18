@@ -105,6 +105,13 @@
     radial-gradient(circle, #2f5d46 3px, transparent 3.5px) left center / 7px 7px no-repeat,
     radial-gradient(circle, #2f5d46 3px, transparent 3.5px) right center / 7px 7px no-repeat;
 }
+/* A journey with a change: a ring where the change city sits, halfway along the line. */
+.between[data-change="true"] .line::after {
+  background:
+    radial-gradient(circle, #2f5d46 3px, transparent 3.5px) left center / 7px 7px no-repeat,
+    radial-gradient(circle, #fffdf8 2px, #2f5d46 2.5px, #2f5d46 3.5px, transparent 4px) 25% center / 9px 9px no-repeat,
+    radial-gradient(circle, #2f5d46 3px, transparent 3.5px) right center / 7px 7px no-repeat;
+}
 .line svg { position: relative; z-index: 1; padding: 0 7px; background: #fffdf8; box-sizing: content-box; }
 .ticket[data-mode="train"] .line svg { color: #2f5d46; }
 .between[data-known="false"] .line { color: var(--soft); }

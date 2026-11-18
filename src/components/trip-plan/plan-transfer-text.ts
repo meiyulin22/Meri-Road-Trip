@@ -205,3 +205,44 @@ export function trainReferenceNote(trains: LegTrains, legDate: string | null, lo
   return zh ? `${day ?? "出行日"}还没开售，这是 ${asked} 的时刻表，开售后再确认`
     : `${day ?? "The day"} isn't on sale yet; this is ${asked}'s timetable, so check again once it is`;
 }
+
+/*
+ * A journey with one change (1.2110): where, how long the wait, each train's seat, and a word when
+ * the change means crossing the city to another station.
+ */
+
+/** The middle of the ticket: 在昆明换乘 · 共 30 小时 10 分 / Change at 昆明 · 30 h 10 min in all. */
+export function changeCaption(train: TrainOption, locale: Locale): string | null {
+  if (!train.change) return null;
+  const zh = locale === "zh";
+  const total = trainDuration(train.durationMinutes, zh);
+  return zh ? `在${train.change.city}换乘 · 共 ${total}` : `Change at ${train.change.city} · ${total} in all`;
+}
+
+/** The two trains and the wait between them: Z162 → D8761 · 等 1 小时 30 分. */
+export function changeTrains(train: TrainOption, locale: Locale): string | null {
+  if (!train.change) return null;
+  const zh = locale === "zh";
+  const wait = trainDuration(train.change.waitMinutes, zh);
+  return `${train.change.first.code} → ${train.change.second.code} · ${zh ? `等 ${wait}` : `${wait} wait`}`;
+}
+
+/** Each train's cheapest seat: Z162 硬卧 ¥568 · D8761 二等座 ¥80. */
+export function changeSeats(train: TrainOption, reference: boolean, locale: Locale): string | null {
+  if (!train.change) return null;
+  const parts = [train.change.first, train.change.second].flatMap((part) => {
+    const seat = trainSeat(part, reference, locale);
+    return seat ? [`${part.code} ${seat}`] : [];
+  });
+  return parts.length > 0 ? parts.join(" · ") : null;
+}
+
+/** A change across the city, said plainly, since the ride between stations is not in the times. */
+export function changeWarning(train: TrainOption, locale: Locale): string | null {
+  if (!train.change || train.change.sameStation) return null;
+  const { city, first, second, waitMinutes } = train.change;
+  const zh = locale === "zh";
+  const wait = trainDuration(waitMinutes, zh);
+  return zh ? `要在${city}从${first.to}站换到${second.from}站，市内交通另算，换乘时间共 ${wait}`
+    : `In ${city} the change is from ${first.to} to ${second.from} station; the ride across town is not included (${wait} to change)`;
+}

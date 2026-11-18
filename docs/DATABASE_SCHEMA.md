@@ -197,7 +197,7 @@ Trip 不再保存 name、origin、destination 或日期列，避免与 TripState
 
 `plan_versions.plan` 的 JSON 自 1.2013 起：景点卡可带 `availability`（营业时间、每周闭馆日、关闭日期范围、预约、模糊通知，每条带出处），草稿可带 `checks`（每站的核实结果、预约、从哪天换来），冲突多一种 `closed_on_day`。旧版本没有这些字段，照样能读。
 
-`plan_versions`：生成好的计划。`version` 按旅程从 1 递增（`unique(trip_id, version)`），`run_id` 唯一；`trip_state` 和 `preferences` 是生成时依据的 TripState 和偏好，`plan` 是页面显示的完整计划（草稿、用到的景点卡、各城调研状态、待定省份、每天照片、天地图核实状态）。三个 JSONB 列读取时都会校验。计划不写回 TripState；是否过期在读取时把 `trip_state` 和当前 TripState 按键排序后比较。1.2107 起计划页补填出发地时，`trip_state` 和 `plan` 会就地更新（版本号不变），对应运行的 `handoff`/`handoff_key` 也换成新的交接；`plan` 可带 `travelChoice`（drive/train/flight/auto）；1.2108 起 `draft.transfers` 的每段可带 `trains`（查询日期、是否参考车次、查询时间、最多 3 趟车）和 `recommendation`（火车或开车、车次、理由、由 Agent 还是代码决定）。
+`plan_versions`：生成好的计划。`version` 按旅程从 1 递增（`unique(trip_id, version)`），`run_id` 唯一；`trip_state` 和 `preferences` 是生成时依据的 TripState 和偏好，`plan` 是页面显示的完整计划（草稿、用到的景点卡、各城调研状态、待定省份、每天照片、天地图核实状态）。三个 JSONB 列读取时都会校验。计划不写回 TripState；是否过期在读取时把 `trip_state` 和当前 TripState 按键排序后比较。1.2107 起计划页补填出发地时，`trip_state` 和 `plan` 会就地更新（版本号不变），对应运行的 `handoff`/`handoff_key` 也换成新的交接；`plan` 可带 `travelChoice`（drive/train/flight/auto）；1.2108 起 `draft.transfers` 的每段可带 `trains`（查询日期、是否参考车次、查询时间、最多 3 趟车）和 `recommendation`（火车或开车、车次、理由、由 Agent 还是代码决定）；1.2110 起车次可带 `change`（中转城市、等车分钟、是否同站、两趟直达车），中转行程的车次写成「G201/Y767」。
 
 ### 3.6 `mastra` schema：Mastra 的工作流快照（1.2011，不归 Drizzle 管）
 

@@ -506,6 +506,19 @@ the departure window as an arrival window; the prompt now names it `departureHou
 pick was C378 with a correct reason (857 + 183 tokens). 上海 → 丽江 had no direct train; transfers
 (12306's interline search) are not used yet.
 
+**Journeys with a change (1.2110).** 12306-mcp's own interline tool pages through results in a loop
+with no page limit, inside the subprocess where Meri's pacing and daily cap cannot reach, so it is
+not used. Instead the agent got a second tool, `search-connection`: for a leg whose direct search
+found no train, it names a hub city on the way, and code searches the two halves directly, through
+the same budget, and joins them ([train-connections.ts](../domain/plan/train-connections.ts)): the
+second train must leave at least 40 minutes after the first arrives at the same station, 90 when the
+change crosses the city to another station (said on the card), and within 6 hours; the quickest
+three journeys are kept. A run may now make 8 searches; a connection takes two. Measured 2026-11-18:
+上海 → 丽江 on 11-20 had no direct train; the agent chose 昆明; code found G201 + Y767, 10:00 → 10:45
+next day, 24 h 45 min (3 searches, 9 requests with startup; 1,883 + 372 tokens). Open: the pick's
+reason called G201 "the earliest departure" when G1371 left earlier; the train and its times are
+checked by code, the prose is not.
+
 ### Evaluation (1.2014)
 
 [scripts/eval-plan.ts](../../scripts/eval-plan.ts) runs the cases in

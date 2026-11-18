@@ -6,6 +6,10 @@ import type { TrainOption, TransferLeg, TravelChoice } from "@/domain/plan/trans
 import type { TransportPreference } from "@/domain/trip-draft/trip-draft";
 
 import {
+  changeCaption,
+  changeSeats,
+  changeTrains,
+  changeWarning,
   driveSummary,
   legDayLabel,
   trainChecked,
@@ -96,12 +100,14 @@ function Between({ leg, picked, drive, locale }: {
   readonly locale: Locale;
 }) {
   const Icon = picked ? TrainFront : drive ? Car : Route;
-  const caption = picked ? `${picked.code} · ${trainClock(picked, locale).duration}` : drive ? drive.headline : null;
+  // A journey with a change names the city and both trains; a direct train its number and time.
+  const caption = picked ? changeCaption(picked, locale) ?? `${picked.code} · ${trainClock(picked, locale).duration}` : drive ? drive.headline : null;
+  const subcaption = picked ? changeTrains(picked, locale) : leg.estimate.status === "estimated" ? drive?.detail ?? null : null;
   return (
-    <div className={styles.between} data-known={Boolean(picked || drive)}>
+    <div className={styles.between} data-known={Boolean(picked || drive)} data-change={Boolean(picked?.change)}>
       <span className={styles.line} aria-hidden="true"><Icon size={15} /></span>
       {caption ? <span className={styles.caption}>{caption}</span> : null}
-      {leg.estimate.status === "estimated" && !picked ? <span className={styles.subcaption}>{drive?.detail}</span> : null}
+      {subcaption ? <span className={styles.subcaption}>{subcaption}</span> : null}
     </div>
   );
 }
@@ -124,10 +130,12 @@ function TrainDetails({ leg, picked, legDate, drive, locale }: {
   if (!trains || !recommendation) return null;
   const others = trains.options.filter((train) => train !== picked);
   const reference = trainReferenceNote(trains, legDate, locale);
-  const seat = picked ? trainSeat(picked, trains.reference, locale) : null;
+  const seat = picked ? changeSeats(picked, trains.reference, locale) ?? trainSeat(picked, trains.reference, locale) : null;
+  const crossTown = picked ? changeWarning(picked, locale) : null;
   return (
     <div className={styles.details}>
       {reference ? <p className={styles.reference}>{zh ? "参考车次" : "Reference"}<span>{reference}</span></p> : null}
+      {crossTown ? <p className={styles.reference}>{zh ? "跨站换乘" : "Change of station"}<span>{crossTown}</span></p> : null}
       <div className={styles.facts}>
         {seat ? <span className={styles.seat}>{seat}</span> : null}
         {!picked ? <span className={styles.seat} data-drive="true"><Car aria-hidden="true" size={12} />{zh ? "这段建议开车" : "Driving suits this leg"}</span> : null}
@@ -149,7 +157,7 @@ function TrainDetails({ leg, picked, legDate, drive, locale }: {
                     <th scope="row">{train.code}</th>
                     <td>{clock.departs} → {clock.arrives}{clock.nextDay ? <sup>{clock.nextDay}</sup> : null}</td>
                     <td>{clock.duration}</td>
-                    <td>{trainSeat(train, trains.reference, locale) ?? ""}</td>
+                    <td>{train.change ? changeTrains(train, locale) : trainSeat(train, trains.reference, locale) ?? ""}</td>
                   </tr>
                 );
               })}

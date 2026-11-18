@@ -5,7 +5,7 @@ import type { TrainOption, TransferLeg } from "@/domain/plan/transfer-legs";
 import { createMoonshotChatModel } from "@/platform/llm/moonshot-chat-model";
 import type { RailAnswer, TrainSearch } from "@/platform/rail/rail-12306";
 
-import { planTransport, trainCandidates, type TransportInput } from "./transport-agent";
+import { maxTrainSearches, planTransport, trainCandidates, type TransportInput } from "./transport-agent";
 
 type ChatRequest = {
   readonly messages: readonly { readonly role: string; readonly content: string | null }[];
@@ -18,6 +18,21 @@ function reply(message: { content: string | null; tool_calls?: unknown }, finish
     id: "chat-test", model: "test", created: 1,
     choices: [{ index: 0, message: { role: "assistant", ...message }, finish_reason: finish }],
     usage: { prompt_tokens: 50, completion_tokens: 10, total_tokens: 60 },
+  });
+}
+
+/** A model that makes the given tool calls in one step, then picks with `pick`. */
+function fakeModelCalling(calls: { tool: string; args: unknown }[], pick: unknown) {
+  return () => createMoonshotChatModel({
+    apiKey: "test", baseUrl: "https://model.test/v1", model: "test",
+    fetch: async (_url, init) => {
+      const request = JSON.parse(String(init?.body)) as ChatRequest;
+      if (request.response_format?.json_schema?.name === "transport_pick") return reply({ content: JSON.stringify(pick) });
+      if (request.messages.some(({ role }) => role === "tool")) return reply({ content: "done" });
+      return reply({ content: null, tool_calls: calls.map(({ tool, args }, index) => ({
+        index, id: `call-${index}`, type: "function", function: { name: tool, arguments: JSON.stringify(args) },
+      })) }, "tool_calls");
+    },
   });
 }
 
@@ -118,9 +133,45 @@ test("searches stop at the budget, and the same search is not sent twice", async
   const outcome = await planTransport(many, input({ dates: new Map(many.map(({ day }) => [day, "2026-11-22"])) }), {
     searchTrains, model: fakeModel([0, 0, 1, 2, 3, 4, 5, 6, 7, 8], { legs: [] }),
   });
-  assert.equal(outcome.searches, 6);
-  assert.equal(asked.length, 6);
+  assert.equal(outcome.searches, maxTrainSearches);
+  assert.equal(asked.length, maxTrainSearches);
   assert.ok(outcome.legs.every(({ trains }) => trains === undefined));
   // The searched legs say no train was found; the rest were not searched and say nothing.
-  assert.equal(outcome.legs.filter(({ trainsMissing }) => trainsMissing === "none").length, 6);
+  assert.equal(outcome.legs.filter(({ trainsMissing }) => trainsMissing === "none").length, maxTrainSearches);
+});
+
+test("with no direct train the agent may choose a change city; code joins the two halves (1.2110)", async () => {
+  const toKunming = { ...train("Z162", "17:38", 1712), from: "上海南", to: "昆明", arrives: "22:10", arriveDayOffset: 1 };
+  const toLijiang = { ...train("D8761", "23:40", 200), from: "昆明", to: "丽江", arrives: "03:00", arriveDayOffset: 1 };
+  const { asked, searchTrains } = rail((search) => {
+    if (search.toCity === "丽江" && search.fromCity === "上海") return { status: "none", queriedDate: search.date, reference: false };
+    if (search.toCity === "昆明") return { status: "found", trains: { queriedDate: "2026-11-20", reference: false, checkedAt: "2026-11-17T08:00:00.000Z", options: [toKunming] } };
+    return { status: "found", trains: { queriedDate: search.date, reference: false, checkedAt: "2026-11-17T08:00:00.000Z", options: [toLijiang] } };
+  });
+  const outcome = await planTransport([legs[0]], input(), {
+    searchTrains,
+    model: fakeModelCalling([
+      { tool: "searchTrains", args: { leg: 0 } },
+      { tool: "searchConnection", args: { leg: 0, via: "昆明市" } },
+    ], { legs: [{ leg: 0, mode: "train", trainCode: "Z162/D8761", reason: "在昆明换乘" }] }),
+  });
+  // Direct first, then the two halves: the second asked on the day the first arrives in 昆明.
+  assert.deepEqual(asked.map(({ fromCity, toCity, date }) => `${fromCity}>${toCity} ${date}`),
+    ["上海>丽江 2026-11-20", "上海>昆明 2026-11-20", "昆明>丽江 2026-11-21"]);
+  const journey = outcome.legs[0].trains?.options[0];
+  assert.equal(journey?.code, "Z162/D8761");
+  assert.equal(journey?.change?.city, "昆明");
+  assert.equal(journey?.change?.waitMinutes, 90);
+  assert.deepEqual(outcome.legs[0].recommendation, { mode: "train", trainCode: "Z162/D8761", reason: "在昆明换乘", by: "agent" });
+});
+
+test("a connection is refused before the direct search, or when a direct train exists", async () => {
+  const { asked, searchTrains } = rail(() => found(train("C378", "12:00", 142)));
+  await planTransport([legs[1]], input({ choice: "auto" }), {
+    searchTrains,
+    model: fakeModelCalling([{ tool: "searchConnection", args: { leg: 0, via: "昆明" } }, { tool: "searchTrains", args: { leg: 0 } },
+      { tool: "searchConnection", args: { leg: 0, via: "昆明" } }], { legs: [] }),
+  });
+  // Only the direct search went out.
+  assert.deepEqual(asked.map(({ toCity }) => toCity), ["大理"]);
 });

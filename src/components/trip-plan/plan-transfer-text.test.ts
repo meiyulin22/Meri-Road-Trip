@@ -4,7 +4,7 @@ import test from "node:test";
 import type { TransferLeg } from "@/domain/plan/transfer-legs";
 
 import {
-  driveDuration, driveSummary, legDayLabel, trainChecked, trainClock, trainLine, trainReferenceNote, trainSeat, trainSource,
+  changeCaption, changeSeats, changeTrains, changeWarning, driveDuration, driveSummary, legDayLabel, trainChecked, trainClock, trainLine, trainReferenceNote, trainSeat, trainSource,
   transferEnds, transferLabel, transferNote, transferText,
 } from "./plan-transfer-text";
 
@@ -79,4 +79,19 @@ test("a ticket's pieces: the clock, the cheapest seat, the drive headline and on
   assert.equal(trainReferenceNote(trains, "2026-12-21", "zh"), "12/21周一还没开售，这是 11/30周一 的时刻表，开售后再确认");
   assert.equal(trainReferenceNote({ ...trains, reference: false }, "2026-12-21", "zh"), null);
   assert.equal(legDayLabel("2026-12-21", "zh"), "12/21周一");
+});
+
+test("a journey with a change names the city, both trains, the wait, each seat, and a change across town (1.2110)", () => {
+  const part = (code: string, from: string, to: string, price: number, left: string) =>
+    ({ code, from, to, departs: "07:05", arrives: "18:28", arriveDayOffset: 0, durationMinutes: 683, seats: [{ name: "二等座", price, left }] });
+  const journey = { code: "G1373/D8761", from: "上海虹桥", to: "丽江", departs: "07:05", arrives: "23:28", arriveDayOffset: 0, durationMinutes: 983,
+    seats: [], change: { city: "昆明", waitMinutes: 102, sameStation: false, first: part("G1373", "上海虹桥", "昆明南", 1168, "有"), second: part("D8761", "昆明", "丽江", 210, "12") } };
+  assert.equal(changeCaption(journey, "zh"), "在昆明换乘 · 共 16 小时 23 分");
+  assert.equal(changeTrains(journey, "zh"), "G1373 → D8761 · 等 1 小时 42 分");
+  assert.equal(changeSeats(journey, false, "zh"), "G1373 二等座 ¥1168 · 有票 · D8761 二等座 ¥210 · 剩 12 张");
+  assert.equal(changeWarning(journey, "zh"), "要在昆明从昆明南站换到昆明站，市内交通另算，换乘时间共 1 小时 42 分");
+  assert.equal(changeWarning({ ...journey, change: { ...journey.change, sameStation: true } }, "zh"), null);
+  const direct = { ...journey, change: undefined };
+  assert.equal(changeCaption(direct, "zh"), null);
+  assert.equal(changeSeats(direct, false, "zh"), null);
 });
