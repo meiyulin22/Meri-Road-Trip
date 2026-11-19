@@ -165,7 +165,8 @@ const transferLegSchema: z.ZodType<TransferLeg> = z.strictObject({
     trainCode: z.string().min(1).nullable(),
     flightNo: z.string().min(1).nullable().optional(),
     reason: z.string().max(200),
-    by: z.enum(["agent", "code"]),
+    // `traveller` (1.2115): switched on the plan page between a train and a flight already found.
+    by: z.enum(["agent", "code", "traveller"]),
   }).optional(),
   // `off` (1.2113 step 1): train search is switched off on this server, so nothing was looked up.
   trainsMissing: z.enum(["none", "no_station", "unavailable", "off"]).optional(),

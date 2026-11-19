@@ -29,3 +29,12 @@ test("the picked place and the choice are sent; a refusal is told by its code", 
   await assert.rejects(requestGettingThere("trip", hongqiao, null, failing),
     (error: unknown) => error instanceof GettingThereRequestError && error.reason === "failed");
 });
+
+test("a trip with an origin sends the way of travelling alone (1.2115)", async () => {
+  let sent: unknown = null;
+  await requestGettingThere("trip-1", null, "flight", async (_url, init) => {
+    sent = JSON.parse(String(init?.body));
+    return Response.json({}, { status: 500 });
+  }).catch(() => {});
+  assert.deepEqual(sent, { origin: null, choice: "flight" });
+});

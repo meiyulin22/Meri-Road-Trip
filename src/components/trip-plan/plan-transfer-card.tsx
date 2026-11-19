@@ -36,7 +36,7 @@ import styles from "./plan-transfer-card.module.css";
  * drive its rough duration; a leg without either says why. Setting off and heading home are
  * full tickets; a change of city is a slimmer one tucked between two days. Nothing here books.
  */
-export function PlanTransferCard({ leg, legDate = null, transport, travelChoice = null, locale, children = null }: {
+export function PlanTransferCard({ leg, legDate = null, transport, travelChoice = null, locale, children = null, below = null }: {
   readonly leg: TransferLeg;
   /** The leg's own day, for the stub and for saying which day a reference timetable stands in for. */
   readonly legDate?: string | null;
@@ -44,6 +44,8 @@ export function PlanTransferCard({ leg, legDate = null, transport, travelChoice 
   readonly travelChoice?: TravelChoice | null;
   /** The origin picker, inside the setting-off ticket while the origin is missing (1.2107). */
   readonly children?: ReactNode;
+  /** Shown under the details, keeping them (1.2115): the choice of how to travel, or the train/flight switch. */
+  readonly below?: ReactNode;
   readonly transport: TransportPreference | null;
   readonly locale: Locale;
 }) {
@@ -84,6 +86,7 @@ export function PlanTransferCard({ leg, legDate = null, transport, travelChoice 
         {children ?? (!found ? <DriveDetails leg={leg} drive={drive} transport={transport} travelChoice={travelChoice} locale={locale} />
           : flight || !trains ? <FlightDetails leg={leg} picked={flight} drive={drive} locale={locale} />
             : <TrainDetails leg={leg} picked={picked} legDate={legDate} drive={drive} locale={locale} />)}
+        {below}
       </div>
     </section>
   );

@@ -17,6 +17,7 @@ import type { TransportPreference } from "@/domain/trip-draft/trip-draft";
 import type { PlanRunStartResponse } from "@/domain/plan/plan-run";
 import type { SpotCard, SpotEvidence } from "@/domain/plan/spot-card";
 import type { TransferKind } from "@/domain/plan/transfer-legs";
+import { legModeOffer } from "@/domain/plan/leg-mode";
 
 import {
   answerPlanQuestion,
@@ -38,6 +39,7 @@ import { dayColor } from "./plan-day-colors";
 import { legText } from "./plan-leg-text";
 import { PlanTiandituMap } from "./plan-tianditu-map";
 import { PlanOriginPicker } from "./plan-origin-picker";
+import { PlanLegModeButton } from "./plan-leg-mode-button";
 import { PlanTransferCard } from "./plan-transfer-card";
 import draftStyles from "./plan-draft.module.css";
 import styles from "./trip-plan.module.css";
@@ -269,6 +271,7 @@ export function PlanDraftSection({ tripId, handoff, onPreferenceSaved = () => {}
             onHandoffChange(filled.handoff);
             setState({ kind: "ready", plan: filled.plan, progress: state.progress });
           },
+          onPlanChanged: (plan) => setState({ kind: "ready", plan, progress: state.progress }),
         }} />
     </div>
   );
@@ -386,6 +389,8 @@ function DraftDays({ response, text, locale, transport, gettingThere }: {
     readonly tripId: string;
     readonly askChoice: boolean;
     readonly onFilled: (filled: { readonly handoff: PlanHandoff; readonly plan: ReadyPlan }) => void;
+    /** A leg switched between train and flight (1.2115): the plan changes, the handoff does not. */
+    readonly onPlanChanged: (plan: ReadyPlan) => void;
   } | null;
   readonly text: Copy;
   readonly locale: Locale;
@@ -405,13 +410,22 @@ function DraftDays({ response, text, locale, transport, gettingThere }: {
   const transferCard = (kind: TransferKind, day: number | null) => {
     const leg = draft.transfers?.find((item) => item.kind === kind && (day === null || item.day === day));
     if (!leg) return null;
-    const picker = gettingThere && leg.kind === "outbound" && leg.estimate.status === "origin_missing"
-      ? <PlanOriginPicker tripId={gettingThere.tripId} locale={locale} askChoice={gettingThere.askChoice} onFilled={gettingThere.onFilled} />
+    // No origin: the place search (1.2107). An origin but no way of travelling: the choices alone, since
+    // the traveller cannot go back to the Workspace (1.2115).
+    const askOrigin = leg.estimate.status === "origin_missing";
+    const picker = gettingThere && leg.kind === "outbound" && (askOrigin || gettingThere.askChoice)
+      ? <PlanOriginPicker tripId={gettingThere.tripId} locale={locale} askOrigin={askOrigin} askChoice={gettingThere.askChoice} onFilled={gettingThere.onFilled} />
+      : null;
+    // A train over 12 hours and a flight both found: switch between them on this plan only (1.2115).
+    const offer = gettingThere && leg.kind !== "between" && !picker ? legModeOffer(leg) : null;
+    const switcher = offer && gettingThere && leg.kind !== "between"
+      ? <PlanLegModeButton tripId={gettingThere.tripId} leg={leg.kind} mode={offer} locale={locale} onSwitched={gettingThere.onPlanChanged} />
       : null;
     const legDate = draft.days.find((item) => item.day === leg.day)?.date ?? null;
     return (
-      <PlanTransferCard leg={leg} legDate={legDate} transport={transport} travelChoice={response.travelChoice ?? null} locale={locale}>
-        {picker}
+      <PlanTransferCard leg={leg} legDate={legDate} transport={transport} travelChoice={response.travelChoice ?? null} locale={locale}
+        below={askOrigin ? null : picker ?? switcher}>
+        {askOrigin ? picker : null}
       </PlanTransferCard>
     );
   };

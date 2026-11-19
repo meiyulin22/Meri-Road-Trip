@@ -26,8 +26,10 @@ const copy = {
     confirm: "确认",
     saving: "正在估算…",
     locked: "确认后出发地会锁定，不能再改。",
+    lockedChoice: "确认后交通方式会锁定，不能再改。",
+    chosenSaving: "正在查找…",
     failures: {
-      already_filled: "出发地已经填过了，刷新页面看看。",
+      already_filled: "已经填过了，刷新页面看看。",
       plan_stale: "这趟旅程在计划生成后改过，这份计划已经过期。",
       no_plan: "还没有可以补填的计划。",
       failed: "没有保存成功，再点一次确认试试。",
@@ -45,8 +47,10 @@ const copy = {
     confirm: "Confirm",
     saving: "Estimating…",
     locked: "Once confirmed, the starting point is locked.",
+    lockedChoice: "Once confirmed, the way of travelling is locked.",
+    chosenSaving: "Looking it up…",
     failures: {
-      already_filled: "The starting point is already set — reload the page.",
+      already_filled: "This is already set — reload the page.",
       plan_stale: "The journey changed after this plan was made, so the plan is out of date.",
       no_plan: "There's no finished plan to fill in yet.",
       failed: "That didn't save. Try confirming again.",
@@ -61,11 +65,15 @@ type SearchStatus = "idle" | "searching" | "results" | "empty" | "error";
 /**
  * Filling in where the traveller starts, inside the setting-off card (1.2107): a place picked
  * from Tianditu's suggestions, as in the Workspace, so it is always on the map; and, when the
- * trip did not say, how to travel. Confirming sends both once and shows the new estimate.
+ * trip did not say, how to travel. Confirming sends both once and shows the new estimate. Since
+ * 1.2115 a trip that has its origin but no way of travelling gets the choices alone: the traveller
+ * cannot go back to the Workspace to set it.
  */
-export function PlanOriginPicker({ tripId, locale, askChoice, onFilled }: {
+export function PlanOriginPicker({ tripId, locale, askOrigin = true, askChoice, onFilled }: {
   readonly tripId: string;
   readonly locale: Locale;
+  /** The plan has no origin yet, so the place search is shown; false offers only the choices. */
+  readonly askOrigin?: boolean;
   /** The trip did not say how to travel, so the four choices are offered. */
   readonly askChoice: boolean;
   readonly onFilled: (filled: { readonly handoff: PlanHandoff; readonly plan: ReadyPlan }) => void;
@@ -108,12 +116,13 @@ export function PlanOriginPicker({ tripId, locale, askChoice, onFilled }: {
     };
   }, [picked, query]);
 
+  const ready = askOrigin ? picked !== null : askChoice;
   const confirm = async () => {
-    if (!picked || saving) return;
+    if (!ready || saving) return;
     setSaving(true);
     setFailure(null);
     try {
-      onFilled(await requestGettingThere(tripId, picked, askChoice ? choice : null));
+      onFilled(await requestGettingThere(tripId, askOrigin ? picked : null, askChoice ? choice : null));
     } catch (error) {
       setFailure(error instanceof GettingThereRequestError ? error.reason : "failed");
       setSaving(false);
@@ -122,8 +131,8 @@ export function PlanOriginPicker({ tripId, locale, askChoice, onFilled }: {
 
   return (
     <div className={draftStyles.originPicker}>
-      <span className={draftStyles.originLabel}>{text.label}</span>
-      {picked ? (
+      {askOrigin ? <span className={draftStyles.originLabel}>{text.label}</span> : null}
+      {!askOrigin ? null : picked ? (
         <span className={draftStyles.originPicked}>
           <MapPin aria-hidden="true" size={13} />
           <strong>{picked.name}</strong>
@@ -169,11 +178,11 @@ export function PlanOriginPicker({ tripId, locale, askChoice, onFilled }: {
         </div>
       ) : null}
       <div className={draftStyles.originActions}>
-        <button type="button" className={draftStyles.originConfirm} disabled={!picked || saving} onClick={() => void confirm()}>
+        <button type="button" className={draftStyles.originConfirm} disabled={!ready || saving} onClick={() => void confirm()}>
           {saving ? <LoaderCircle aria-hidden="true" size={14} className={draftStyles.spin} /> : <Check aria-hidden="true" size={14} />}
-          {saving ? text.saving : text.confirm}
+          {saving ? (askOrigin ? text.saving : text.chosenSaving) : text.confirm}
         </button>
-        <small>{text.locked}</small>
+        <small>{askOrigin ? text.locked : text.lockedChoice}</small>
       </div>
       {failure ? <p className={draftStyles.originError} role="alert">{text.failures[failure]}</p> : null}
     </div>

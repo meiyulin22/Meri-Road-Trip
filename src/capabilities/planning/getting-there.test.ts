@@ -6,6 +6,7 @@ import type { TransferDependencies } from "@/agents/transport/transfers";
 import type { ReadyPlan } from "@/domain/plan/plan-draft-response";
 import type { TransferLeg } from "@/domain/plan/transfer-legs";
 import { applyTripStatePatch, type TripState } from "@/domain/trip-state/trip-state";
+import { createMoonshotChatModel } from "@/platform/llm/moonshot-chat-model";
 import { InMemoryPlanRunRepository } from "@/platform/persistence/in-memory/in-memory-plan-run-repository";
 
 import { fillGettingThere, type GettingThereRequest, handleGettingTherePost } from "./getting-there";
@@ -36,10 +37,8 @@ const plan: ReadyPlan = {
   },
   spots: [], cities: [], pendingProvinces: [], dayPhotos: [], mapCheck: "complete",
 };
-const shanghai: GettingThereRequest = {
-  origin: { name: "上海虹桥站", region: "上海市闵行区", coordinates: { longitude: 121.32, latitude: 31.19, coordinateSystem: "CGCS2000" } },
-  choice: "train",
-};
+const shanghaiOrigin = { name: "上海虹桥站", region: "上海市闵行区", coordinates: { longitude: 121.32, latitude: 31.19, coordinateSystem: "CGCS2000" as const } };
+const shanghai: GettingThereRequest = { origin: shanghaiOrigin, choice: "train" };
 
 function setup(current: TripState = handoff.tripState) {
   const repository = new InMemoryPlanRunRepository();
@@ -121,14 +120,14 @@ test("filled once: a second origin is refused; the same one again finishes a hal
   // TripState was written but the version was not: the same request completes it.
   const written = applyTripStatePatch(handoff.tripState, {
     origin: { state: "known", value: "上海虹桥站", source: "user",
-      selection: { provider: "tianditu", region: "上海市闵行区", coordinates: shanghai.origin.coordinates } },
+      selection: { provider: "tianditu", region: "上海市闵行区", coordinates: shanghaiOrigin.coordinates } },
     transportPreference: { state: "known", value: "public_transport", source: "user" },
   });
   const half = setup(written);
   assert.equal((await fillGettingThere(tripId, owner, shanghai, half.deps)).status, "filled");
   assert.deepEqual(half.writes, []);
   const other = setup(written);
-  const beijing = { ...shanghai, origin: { ...shanghai.origin, name: "北京" } };
+  const beijing = { ...shanghai, origin: { ...shanghaiOrigin, name: "北京" } };
   assert.equal((await fillGettingThere(tripId, owner, beijing, other.deps)).status, "already_filled");
 });
 
@@ -164,4 +163,68 @@ test("the endpoint answers a bad request, a missing guest and a refusal plainly"
   const again = await handleGettingTherePost(tripId, owner, shanghai, deps, never);
   assert.equal(again.status, 409);
   assert.equal(((await again.json()) as { error: { code: string } }).error.code, "already_filled");
+});
+
+// 1.2115: the trip had its origin from the Workspace but no way of travelling.
+const withOrigin: TripState = { ...handoff.tripState, origin: { state: "known", value: "上海虹桥站", source: "user",
+  selection: { provider: "tianditu", region: "上海市闵行区", coordinates: shanghaiOrigin.coordinates } } };
+const estimated = (kind: "outbound" | "return", from: string, to: string): TransferLeg =>
+  ({ kind, day: kind === "outbound" ? 1 : 5, from, to, estimate: { status: "estimated", distanceKm: 2700, durationMinutes: 2280, path: [[121.32, 31.19], [100.2, 26.9]] } });
+function setupWithOrigin(current: TripState = withOrigin) {
+  const made = setup(current);
+  const run = made.repository.runs.get(runId);
+  assert.ok(run);
+  const madeHandoff = { ...handoff, tripState: withOrigin };
+  made.repository.runs.set(runId, { ...run, handoff: madeHandoff, handoffKey: handoffKey(madeHandoff) });
+  // Dated days, so trains can be asked for the way there and back.
+  const days = plan.draft.days.map((item, at) => ({ ...item, date: `2026-11-${20 + at}` }));
+  made.repository.versions[0] = { ...made.repository.versions[0], tripState: withOrigin, plan: { ...plan, draft: { ...plan.draft, days,
+    transfers: [estimated("outbound", "上海虹桥站", "丽江市"), between, estimated("return", "大理白族自治州", "上海虹桥站")] } } };
+  return made;
+}
+
+test("with an origin but no way of travelling, the choice alone is filled once on the plan page (1.2115)", async () => {
+  const { deps, repository, writes, asked, trainSearches, current } = setupWithOrigin();
+  // A model that searches both ends once, then picks nothing: code keeps what it found.
+  const searching = () => createMoonshotChatModel({
+    apiKey: "test", baseUrl: "https://model.test/v1", model: "test",
+    fetch: async (_url, init) => {
+      const request = JSON.parse(String(init?.body)) as { messages: { role: string }[]; response_format?: { json_schema?: { name?: string } } };
+      const answer = (message: object, finish = "stop") => Response.json({ id: "c", model: "test", created: 1,
+        choices: [{ index: 0, message: { role: "assistant", ...message }, finish_reason: finish }] });
+      if (request.response_format?.json_schema?.name === "transport_pick") return answer({ content: JSON.stringify({ legs: [] }) });
+      if (request.messages.some(({ role }) => role === "tool")) return answer({ content: "done" });
+      // Legs 0 and 2 are setting off and the way home; 1 is the change of city, which stays as it was.
+      return answer({ content: null, tool_calls: [0, 2].map((leg) => ({
+        index: leg, id: `call-${leg}`, type: "function", function: { name: "searchTrains", arguments: JSON.stringify({ leg }) },
+      })) }, "tool_calls");
+    },
+  });
+  const outcome = await fillGettingThere(tripId, owner, { origin: null, choice: "train" }, { ...deps, transport: { ...deps.transport, model: searching } });
+  assert.equal(outcome.status, "filled");
+  // Only the way of travelling is written; the drives the plan had are kept, so Tianditu is not asked.
+  assert.deepEqual(writes, ["transportPreference"]);
+  assert.deepEqual(current().transportPreference, { state: "known", value: "public_transport", source: "user" });
+  assert.deepEqual(asked, []);
+  // Trains were looked up for setting off and the way home, from 12306's name of the kept origin.
+  assert.deepEqual(trainSearches, ["上海>丽江", "大理>上海"]);
+  const version = repository.versions[0];
+  assert.equal(canonicalJson(version.tripState), canonicalJson(current()));
+  assert.equal(version.plan.travelChoice, "train");
+  assert.deepEqual(version.plan.draft.transfers?.[1], between);
+  // Locked now: a second choice is refused.
+  assert.equal((await fillGettingThere(tripId, owner, { origin: null, choice: "flight" }, deps)).status, "already_filled");
+});
+
+test("a choice alone needs the plan's origin; a way of travelling already set stays locked", async () => {
+  // No origin in the plan: the place has to come first.
+  assert.equal((await fillGettingThere(tripId, owner, { origin: null, choice: "train" }, setup().deps)).status, "origin_required");
+  // Both already set in the Workspace: nothing is filled.
+  const bothSet = { ...withOrigin, transportPreference: { state: "known" as const, value: "self_drive" as const, source: "user" as const } };
+  const set = setupWithOrigin(bothSet);
+  set.repository.versions[0] = { ...set.repository.versions[0], tripState: bothSet };
+  assert.equal((await fillGettingThere(tripId, owner, { origin: null, choice: "flight" }, set.deps)).status, "already_filled");
+  // Sending neither is not a request.
+  const empty = await handleGettingTherePost(tripId, owner, { origin: null, choice: null }, setup().deps, () => false);
+  assert.equal(empty.status, 400);
 });

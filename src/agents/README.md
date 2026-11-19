@@ -621,6 +621,16 @@ the last x-forwarded-for entry, since a client can forge the first; no CDN heade
 was taken out the same day, the CDN and captcha left for the deploy, a China server first). A pool of
 rotating addresses still gets through; the site's daily caps are for that.
 
+**Choosing on the plan page (1.2115).** The traveller cannot go back to the Workspace once the plan is
+made, so a trip with an origin but no way of travelling had nowhere to choose one. The setting-off card
+now offers the four choices under its details, and the 1.2107 fill-in takes the choice alone: written
+once to TripState and locked, the drives already estimated kept, only the transport agent run (without
+pausing to ask), the version and the run's handoff updated in place, no new run. A way of travelling
+already set stays locked. The plan page's side of the 1.2112 question is a switch: where setting off or
+heading home shows a train over 12 hours and a flight was also found, 「改坐飞机」 (then 「改坐火车」)
+changes that leg of this plan from what was already found (`by: "traveller"`), with no model call and
+no lookup, and TripState untouched.
+
 **A switched-off search says so (1.2113 step 1).** Without `RAIL_PROVIDER` or `FLIGHT_PROVIDER`, that
 search is not wired at all: the transport agent is not run for it, and a leg bound to the traveller's
 choice reads "没有开启火车查询" / "没有开启航班查询" (`trainsMissing` / `flightsMissing: "off"`) instead

@@ -23,7 +23,8 @@ import { canonicalJson, handoffKey } from "./plan-run-service";
 /**
  * What the plan page sends when the traveller fills in where they start (1.2107): a place they
  * picked from the map's suggestions, with Tianditu's point, and how they want to travel when the
- * trip did not say. China's bounds hold the point, as the suggestions do.
+ * trip did not say. China's bounds hold the point, as the suggestions do. Since 1.2115 either may
+ * come alone: a trip with an origin but no way of travelling sends only the choice.
  */
 export const gettingThereRequestSchema = z.strictObject({
   origin: z.strictObject({
@@ -34,9 +35,9 @@ export const gettingThereRequestSchema = z.strictObject({
       latitude: z.number().min(3).max(54),
       coordinateSystem: z.literal("CGCS2000"),
     }),
-  }),
+  }).nullable(),
   choice: z.enum(travelChoices).nullable(),
-});
+}).refine(({ origin, choice }) => origin !== null || choice !== null, { message: "Send a starting point, a way of travelling, or both." });
 export type GettingThereRequest = z.output<typeof gettingThereRequestSchema>;
 
 export type GettingThereDependencies = {
@@ -52,13 +53,15 @@ export type GettingThereOutcome =
   | { readonly status: "filled"; readonly handoff: PlanHandoff; readonly plan: ReadyPlan }
   /** No finished plan to fill in, or the newest run did not make the newest version. */
   | { readonly status: "no_plan" }
-  /** The origin is already set, here or in the Workspace; it is filled once. */
+  /** What was sent is already set, here or in the Workspace; each is filled once and then locked. */
   | { readonly status: "already_filled" }
+  /** The plan has no origin yet, and only a way of travelling was sent (1.2115). */
+  | { readonly status: "origin_required" }
   /** The trip changed in other ways since the plan was made: this plan is out of date. */
   | { readonly status: "plan_stale" };
 
-function originFrom(request: GettingThereRequest): LocationField {
-  const { name, region, coordinates } = request.origin;
+function originFrom(picked: NonNullable<GettingThereRequest["origin"]>): LocationField {
+  const { name, region, coordinates } = picked;
   return {
     state: "known", value: name, source: "user",
     selection: { provider: "tianditu", ...(region ? { region } : {}), coordinates },
@@ -69,13 +72,27 @@ function originFrom(request: GettingThereRequest): LocationField {
 const withGettingThere = (state: TripState, other: TripState): TripState =>
   ({ ...state, origin: other.origin, transportPreference: other.transportPreference });
 
+/** A setting-off or way-home leg as its drive estimate alone, before the transport agent decides again. */
+function driveOnly(leg: TransferLeg): TransferLeg {
+  return { kind: leg.kind, day: leg.day, from: leg.from, to: leg.to, estimate: leg.estimate };
+}
+
+/** 12306's name for where the traveller starts: the place picked here, or the one the trip kept. */
+function originRailCity(request: GettingThereRequest, origin: LocationField): string | null {
+  if (request.origin) return railCityOfRegion(request.origin.region, request.origin.name);
+  return origin.state === "known" && origin.selection?.region ? railCityOfRegion(origin.selection.region, origin.value) : null;
+}
+
 /**
  * Fills in the origin once after the plan is made (1.2107), and how to travel when the trip did
  * not say, then estimates only setting off and heading home again: the legs between cities keep
- * what the run found. TripState is written first, as the authority; then the plan version gets
- * the same TripState, so the plan is not out of date; then the run gets the handoff that matches,
- * so the page finds this plan again. Sending the same request after a failure part-way finishes
- * the rest without writing TripState twice. No model is asked.
+ * what the run found. Since 1.2115 the way of travelling can be filled in alone, for a trip that
+ * had an origin but no transport: the traveller cannot go back to the Workspace, so the plan page
+ * is where it is chosen; the drives already estimated are kept and only the transport agent runs.
+ * TripState is written first, as the authority; then the plan version gets the same TripState, so
+ * the plan is not out of date; then the run gets the handoff that matches, so the page finds this
+ * plan again. Sending the same request after a failure part-way finishes the rest without writing
+ * TripState twice. Each value is filled once and then locked.
  */
 export async function fillGettingThere(
   tripId: string,
@@ -88,21 +105,30 @@ export async function fillGettingThere(
     deps.repository.findLatestRun(tripId),
   ]);
   if (!version || !run || run.id !== version.runId || run.status !== "succeeded") return { status: "no_plan" };
-  if (version.tripState.origin.state !== "missing") return { status: "already_filled" };
+  const originOpen = version.tripState.origin.state === "missing";
+  const transportOpen = version.tripState.transportPreference.state !== "known";
+  // Each value is filled once: what the plan already has, here or from the Workspace, stays locked.
+  if (request.origin && !originOpen) return { status: "already_filled" };
+  if (!request.origin && originOpen) return { status: "origin_required" };
+  if (!request.origin && !transportOpen) return { status: "already_filled" };
 
   const { tripState: current } = await deps.loadJourney(tripId, ownerGuestId);
   // Anything else changed since the plan was made: filling in the origin would not make it current.
   if (canonicalJson(withGettingThere(current, version.tripState)) !== canonicalJson(version.tripState)) {
     return { status: "plan_stale" };
   }
-  const origin = originFrom(request);
-  const transportOpen = version.tripState.transportPreference.state !== "known";
   const choice: TravelChoice | null = transportOpen ? request.choice : null;
   const patch: { -readonly [K in keyof TripStatePatch]: TripStatePatch[K] } = {};
-  if (current.origin.state === "missing") patch.origin = origin;
-  else if (canonicalJson(current.origin) !== canonicalJson(origin)) return { status: "already_filled" };
-  if (choice && current.transportPreference.state !== "known") {
-    patch.transportPreference = { state: "known", value: transportPreferenceFor(choice), source: "user" };
+  if (request.origin) {
+    const origin = originFrom(request.origin);
+    if (current.origin.state === "missing") patch.origin = origin;
+    else if (canonicalJson(current.origin) !== canonicalJson(origin)) return { status: "already_filled" };
+  }
+  if (choice) {
+    const preference = { state: "known", value: transportPreferenceFor(choice), source: "user" } as const;
+    if (current.transportPreference.state !== "known") patch.transportPreference = preference;
+    // Written already by a request that failed part-way: the same choice finishes it, another is refused.
+    else if (current.transportPreference.value !== preference.value) return { status: "already_filled" };
   }
   const tripState = Object.keys(patch).length > 0 ? await deps.updateTripState(tripId, ownerGuestId, patch) : current;
 
@@ -110,14 +136,19 @@ export async function fillGettingThere(
   const frames: DayFrame[] = draft.days.map(({ day, date, province, city, arrivingFrom, focus, theme }) =>
     ({ day, date, province, city, arrivingFrom, focus, theme }));
   const kept = new Map((draft.transfers ?? []).filter(({ kind }) => kind === "between").map((leg) => [leg.day, leg]));
-  const legs = transferLegs(frames, tripState.origin, draft.mode).map((leg) => leg.kind === "between" ? kept.get(leg.day) ?? leg : leg);
-  const outcome = await planTransfers(legs, deps.transfers, () => {}, originPoint(tripState.origin));
+  // A new origin needs its drives looked up; a choice alone keeps the drives the plan already has
+  // and clears only what was said about trains and flights on the way there and back.
+  const outcome = request.origin
+    ? await planTransfers(
+      transferLegs(frames, tripState.origin, draft.mode).map((leg) => leg.kind === "between" ? kept.get(leg.day) ?? leg : leg),
+      deps.transfers, () => {}, originPoint(tripState.origin))
+    : { legs: (draft.transfers ?? []).map((leg) => leg.kind === "between" ? leg : driveOnly(leg)), lookups: 0 };
   // Trains for the choice made here, or the trip's own preference; a self-driver's car goes with them.
   const travel = choice ?? travelChoiceOf(tripState.transportPreference);
   const transport = travel === null ? null : await planTransport(outcome.legs, {
     choice: travel,
     dates: new Map(frames.map(({ day, date }) => [day, date])),
-    originRailCity: railCityOfRegion(request.origin.region, request.origin.name),
+    originRailCity: originRailCity(request, tripState.origin),
     preferences: run.handoff.preferences.map(({ quote }) => quote),
     locale: run.handoff.locale,
     // The plan page cannot pause a run to ask (1.2112): a long train stays the train.
@@ -152,7 +183,8 @@ export async function handleGettingTherePost(
     switch (outcome.status) {
       case "filled": return json({ handoff: outcome.handoff, plan: outcome.plan });
       case "no_plan": return failure(409, "no_plan", "There is no finished plan to fill in.");
-      case "already_filled": return failure(409, "already_filled", "The starting point is already set.");
+      case "already_filled": return failure(409, "already_filled", "This is already set for the plan.");
+      case "origin_required": return failure(400, "origin_required", "Pick where you start first.");
       case "plan_stale": return failure(409, "plan_stale", "The journey changed after this plan was made.");
     }
   } catch (error) {

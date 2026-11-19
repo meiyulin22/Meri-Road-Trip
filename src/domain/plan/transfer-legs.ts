@@ -137,7 +137,8 @@ export type LegRecommendation = {
   /** The flight picked, one of the leg's flights (1.2111); absent or null otherwise. */
   readonly flightNo?: string | null;
   readonly reason: string;
-  readonly by: "agent" | "code";
+  /** Who chose: the transport agent, code's fallback, or the traveller on the plan page (1.2115). */
+  readonly by: "agent" | "code" | "traveller";
 };
 
 export type TransferLeg = {
