@@ -616,9 +616,10 @@ once the address has started 6 in 24 hours (kept high for shared office networks
 given back when a run fails; no address is stored). The eleven endpoints that call Kimi share one count,
 120 requests an address an hour, and a Workspace message also counts 30 an hour for its visitor; over a
 limit the answer is 429 `too_many_requests`, which the chat explains. The address comes only from a
-header a trusted proxy writes ([client-address.ts](../platform/http/client-address.ts)):
-CF-Connecting-IP, then x-real-ip, then the last x-forwarded-for entry, since a client can forge the first.
-A pool of rotating addresses still gets through; the site's daily caps and Turnstile are for that.
+header our own proxy writes ([client-address.ts](../platform/http/client-address.ts)): x-real-ip, then
+the last x-forwarded-for entry, since a client can forge the first; no CDN header is trusted (Cloudflare
+was taken out the same day, the CDN and captcha left for the deploy, a China server first). A pool of
+rotating addresses still gets through; the site's daily caps are for that.
 
 **A switched-off search says so (1.2113 step 1).** Without `RAIL_PROVIDER` or `FLIGHT_PROVIDER`, that
 search is not wired at all: the transport agent is not run for it, and a leg bound to the traveller's
