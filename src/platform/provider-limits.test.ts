@@ -5,7 +5,7 @@ import { defaultProviderLimits, providerLimitsFrom } from "./provider-limits";
 
 test("limits come from .env.local in yuan and whole numbers, with the agreed defaults (1.2113)", () => {
   assert.deepEqual(providerLimitsFrom({}), {
-    variflightFenPerPlan: 200, variflightFenPerDay: 2_000, railSearchesPerPlan: 8, railRequestsPerDay: 100, bochaCallsPerDay: 500, kimiSearchesPerDay: 150,
+    variflightFenPerPlan: 200, variflightFenPerDay: 2_000, railSearchesPerPlan: 8, railRequestsPerDay: 100, bochaCallsPerDay: 500, kimiSearchesPerDay: 500,
   });
   assert.deepEqual(providerLimitsFrom({
     VARIFLIGHT_MAX_YUAN_PER_PLAN: "1.5", VARIFLIGHT_MAX_YUAN_PER_DAY: " 10 ", RAIL_MAX_SEARCHES_PER_PLAN: "6", RAIL_MAX_REQUESTS_PER_DAY: "60",

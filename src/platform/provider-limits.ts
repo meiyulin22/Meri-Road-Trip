@@ -16,7 +16,7 @@ export type ProviderLimits = {
   readonly railRequestsPerDay: number;
   /** BOCHA_MAX_CALLS_PER_DAY: Bocha web searches a Beijing day, plans and Workspace together. Default 500. */
   readonly bochaCallsPerDay: number;
-  /** KIMI_MAX_SEARCHES_PER_DAY: Kimi web searches (search_pro) a Beijing day. Default 150. */
+  /** KIMI_MAX_SEARCHES_PER_DAY: Kimi web searches (search_pro) a Beijing day; about 30 a plan, 15 plans a day. Default 500. */
   readonly kimiSearchesPerDay: number;
 };
 
@@ -26,7 +26,7 @@ export const defaultProviderLimits: ProviderLimits = {
   railSearchesPerPlan: 8,
   railRequestsPerDay: 100,
   bochaCallsPerDay: 500,
-  kimiSearchesPerDay: 150,
+  kimiSearchesPerDay: 500,
 };
 
 type Environment = Readonly<Record<string, string | undefined>>;

@@ -584,9 +584,16 @@ one call per city, which says for each whether a second, Kimi look could find it
 query, or that there is nothing to find (a lake, an old town open all day). Code keeps the second
 looks within the run's 24 searches; if the model cannot be asked, every such spot gets the fixed
 wording. A skipped spot stays "not checked": the model's reason is never shown as a fact. Daily caps:
-Bocha 500 and Kimi search 150, from `.env.local`, each logged once when reached. Bocha pages are read
+Bocha 500 and Kimi search 150 (500 since the same day, below), from `.env.local`, each logged once when reached. Bocha pages are read
 to 550 characters for plans, as Kimi's were. Not measured live yet: whether Bocha's summaries give the
 extraction as much to quote as Kimi's chunks did.
+
+**Kimi is the default after all (same day).** Looking again at the 2026-10-29 comparison (six questions,
+official sources 6 to 3, and the closures and limits only Kimi found) against the saving (about ¥0.34 a
+plan, ¥5 a day at fifteen plans), merlin chose Kimi for both research and checks: `PLAN_SEARCH_PROVIDER`
+defaults to `kimi` and Kimi search to 500 a day. Everything above stays as a switch: the agent's deeper
+follow-up and plan C's code check and second look work the same with Kimi as the first look. Bocha keeps
+Workspace inspiration. Still to try: Kimi's `sites` and `time_window` for the checks.
 
 **A switched-off search says so (1.2113 step 1).** Without `RAIL_PROVIDER` or `FLIGHT_PROVIDER`, that
 search is not wired at all: the transport agent is not run for it, and a leg bound to the traveller's

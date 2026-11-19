@@ -36,8 +36,8 @@ test("a Bocha failure or spent day falls back to Kimi; PLAN_SEARCH_PROVIDER=kimi
   assert.deepEqual(timedOut.asked, ["bocha:q"]);
 });
 
-test("the provider switch reads bocha or kimi, and anything else as bocha", () => {
-  assert.equal(planSearchProviderFrom(undefined), "bocha");
-  assert.equal(planSearchProviderFrom(" Kimi "), "kimi");
-  assert.equal(planSearchProviderFrom("google"), "bocha");
+test("the provider switch reads kimi or bocha; unset or anything else is Kimi (merlin, 2026-11-19)", () => {
+  assert.equal(planSearchProviderFrom(undefined), "kimi");
+  assert.equal(planSearchProviderFrom(" Bocha "), "bocha");
+  assert.equal(planSearchProviderFrom("google"), "kimi");
 });

@@ -8,10 +8,11 @@ import { createKimiSearchProFromEnvironment } from "./kimi-search-pro";
 export type PlanSearchCall = (query: string, signal: AbortSignal) => Promise<readonly DiscoverySearchResult[]>;
 
 /**
- * Generate plan's two searches (1.2113 step 1, agreed with merlin 2026-11-19). `search` is the
- * first look: Bocha, which is far cheaper, and Kimi in its place when Bocha fails or its day is
- * spent, so a plan never goes without. `deep` is always Kimi: the agent's second look when Bocha's
- * results are thin or miss the facts. PLAN_SEARCH_PROVIDER=kimi makes the first look Kimi too.
+ * Generate plan's two searches (1.2113 step 1). `search` is the first look, `deep` the second look
+ * the agent or the checks ask for, always Kimi. Kimi is the default first look too (merlin,
+ * 2026-11-19): the 2026-10-29 comparison found the closures and limits only Kimi found, and the
+ * saving with Bocha is about ¥0.34 a plan. PLAN_SEARCH_PROVIDER=bocha makes the first look Bocha,
+ * with Kimi in its place when Bocha fails or its day is spent.
  */
 export type PlanSearch = { readonly search: PlanSearchCall; readonly deep: PlanSearchCall };
 
@@ -19,10 +20,10 @@ export type PlanSearchProvider = "bocha" | "kimi";
 
 export function planSearchProviderFrom(value: string | undefined): PlanSearchProvider {
   const named = value?.trim().toLowerCase();
-  if (!named || named === "bocha") return "bocha";
-  if (named === "kimi") return "kimi";
-  logger.warn({ variable: "PLAN_SEARCH_PROVIDER" }, "PLAN_SEARCH_PROVIDER is neither bocha nor kimi; using bocha");
-  return "bocha";
+  if (!named || named === "kimi") return "kimi";
+  if (named === "bocha") return "bocha";
+  logger.warn({ variable: "PLAN_SEARCH_PROVIDER" }, "PLAN_SEARCH_PROVIDER is neither kimi nor bocha; using kimi");
+  return "kimi";
 }
 
 export function createPlanSearch(provider: PlanSearchProvider, bocha: PlanSearchCall, kimi: PlanSearchCall): PlanSearch {

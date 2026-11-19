@@ -19,7 +19,7 @@ export const sharedBochaBudget = createDailyBudget({ intervalMs: 0, dailyUnits: 
   label: { provider: "Bocha", units: (count) => `${count} searches` },
 });
 
-/** Kimi web searches a Beijing day: KIMI_MAX_SEARCHES_PER_DAY, default 150. */
+/** Kimi web searches a Beijing day: KIMI_MAX_SEARCHES_PER_DAY, default 500. */
 export const sharedKimiSearchBudget = createDailyBudget({ intervalMs: 0, dailyUnits: providerLimits.kimiSearchesPerDay, pauseMs: 0 }, {
   file: join(process.cwd(), ".cache", "kimi-searches.json"),
   gate: sideBySide,
