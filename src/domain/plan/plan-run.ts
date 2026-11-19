@@ -59,6 +59,8 @@ export const planRunStartResponseSchema = z.discriminatedUnion("status", [
   z.strictObject({ status: z.literal("ready"), runId: z.uuid(), versionId: z.uuid(), plan: readyPlanSchema }),
   z.strictObject({ status: z.literal("running"), runId: z.uuid() }),
   z.strictObject({ status: z.literal("unsupported"), reason: z.literal("no_city") }),
+  // No run was started (step 2): the site's runs for today are used up, or paid calls are switched off.
+  z.strictObject({ status: z.literal("limited"), reason: z.enum(["daily_runs", "daily_quota", "paid_calls_paused"]) }),
 ]);
 export type PlanRunStartResponse = z.output<typeof planRunStartResponseSchema>;
 

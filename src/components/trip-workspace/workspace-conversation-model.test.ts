@@ -6,6 +6,7 @@ import type { TripState } from "@/domain/trip-state/trip-state";
 import {
   requestWorkspaceConversation,
   WorkspaceConversationRequestError,
+  WorkspaceLimitError,
 } from "./workspace-conversation-model";
 
 const tripState: TripState = {
@@ -84,4 +85,14 @@ test("failed AI request does not produce replacement state", async () => {
     }),
     WorkspaceConversationRequestError,
   );
+});
+
+test("a reached site limit is its own error, so the chat explains it instead of asking to refresh (step 2)", async () => {
+  for (const code of ["daily_quota", "paid_calls_paused"] as const) {
+    const refused = requestWorkspaceConversation("推荐一下", "trip-1", async () => Response.json({ error: "limited", code }, { status: 503 }));
+    await assert.rejects(refused, (error: unknown) => error instanceof WorkspaceLimitError && error.limit === code);
+  }
+  // Any other failure stays the general one.
+  const failed = requestWorkspaceConversation("推荐一下", "trip-1", async () => Response.json({ error: "failed" }, { status: 502 }));
+  await assert.rejects(failed, (error: unknown) => error instanceof WorkspaceConversationRequestError && !(error instanceof WorkspaceLimitError));
 });

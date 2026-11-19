@@ -125,6 +125,9 @@ const en = {
     understanding: "Meri is reading your message…",
     unconfirmedDetail: "We couldn't confirm whether this was sent. Refresh the journey to see the latest messages and state before continuing.",
     refresh: "Refresh to check",
+    // Step 2: Meri did not answer because a site limit is reached; nothing was sent, so there is nothing to refresh.
+    dailyQuota: "Today's demo allowance is used up. Please come back tomorrow.",
+    demoPaused: "Meri's demo is paused for now. Please come back a little later.",
     pickingCards: "Picking places to recommend…",
     cardsFailed: "The recommendations didn't come through.",
     retry: "Retry",
@@ -547,6 +550,8 @@ const zh: Messages = {
     understanding: "Meri 正在理解这条消息…",
     unconfirmedDetail: "发送结果暂时无法确认。请刷新旅程，查看最新消息和状态后再继续。",
     refresh: "刷新核对",
+    dailyQuota: "今天的演示额度用完了，明天再来吧。",
+    demoPaused: "Meri 的演示暂停中，稍后再来吧。",
     pickingCards: "正在挑选推荐的地方…",
     cardsFailed: "推荐暂时没有生成出来。",
     retry: "重试",

@@ -21,6 +21,7 @@ import type { TransferKind } from "@/domain/plan/transfer-legs";
 import {
   answerPlanQuestion,
   parseProgressMessage,
+  limitFailures,
   PlanDraftRequestError,
   planRunEventsUrl,
   readLatestPlan,
@@ -88,6 +89,9 @@ const copy = {
       failed: "Meri couldn’t arrange the days this time.",
       time_limit: "This plan took too long and was stopped. Try again.",
       interrupted: "The server restarted while planning, so this plan stopped. Try again.",
+      daily_runs: "Today’s demo plans are used up. Please come back tomorrow.",
+      daily_quota: "Today’s demo allowance is used up. Please come back tomorrow.",
+      paid_calls_paused: "Meri’s demo is paused for now. Please come back a little later.",
     } satisfies Record<PlanDraftFailure, string>,
     retry: "Try again",
   },
@@ -137,6 +141,9 @@ const copy = {
       failed: "这次没能排好行程。",
       time_limit: "这次规划用时过长，已经停止，请重试。",
       interrupted: "规划过程中服务器重启了，这次没有完成，请重试。",
+      daily_runs: "今天的演示规划次数用完了，明天再来吧。",
+      daily_quota: "今天的演示额度用完了，明天再来吧。",
+      paid_calls_paused: "Meri 的演示暂停中，稍后再来吧。",
     } satisfies Record<PlanDraftFailure, string>,
     retry: "重试",
   },
@@ -200,6 +207,7 @@ export function PlanDraftSection({ tripId, handoff, onPreferenceSaved = () => {}
         if (!active) return;
         if (response.status === "ready") setState({ kind: "ready", plan: response.plan, progress: null });
         else if (response.status === "running") setState({ kind: "running", runId: response.runId });
+        else if (response.status === "limited") setState({ kind: "failed", reason: response.reason, progress: null });
         else setState({ kind: "unsupported" });
       })
       .catch((error: unknown) => {
@@ -227,7 +235,7 @@ export function PlanDraftSection({ tripId, handoff, onPreferenceSaved = () => {}
           <TriangleAlert aria-hidden="true" size={18} />
           <div>
             <p>{text.failed[state.reason]}</p>
-            {state.reason === "journey_changed" ? null : (
+            {state.reason === "journey_changed" || limitFailures.includes(state.reason) ? null : (
               <button type="button" className={draftStyles.retry} onClick={retry}>
                 <RotateCw aria-hidden="true" size={14} />{text.retry}
               </button>

@@ -5,7 +5,7 @@ import { Mastra } from "@mastra/core";
 import { InMemoryStore } from "@mastra/core/storage";
 
 import { afternoon, dali, day, fiveDays, handoff, lijiang, modelAnswering } from "@/agents/planner/plan-test-fixtures";
-import { PlanRunService, workingMs } from "@/capabilities/planning/plan-run-service";
+import { beijingDayStart, type PlanRunLimits, type PlanRunStart, PlanRunService, workingMs } from "@/capabilities/planning/plan-run-service";
 import type { PlanProgressEnvelope } from "@/domain/plan/plan-progress";
 import type { CityResearch } from "@/domain/plan/spot-card";
 import type { TripPreference } from "@/domain/plan/trip-preference";
@@ -29,7 +29,7 @@ const researched: Record<string, CityResearch> = {
   大理白族自治州: { ...dali, spots: dali.spots.map((card) => ({ ...card, mapCheck: { status: "unchecked" as const } })) },
 };
 
-function setup(overrides: Partial<PlanGenerationDependencies> = {}, timeLimitMs?: number) {
+function setup(overrides: Partial<PlanGenerationDependencies> = {}, timeLimitMs?: number, limits?: PlanRunLimits) {
   const repository = new InMemoryPlanRunRepository();
   const preferences: TripPreference[] = [];
   const lookups: string[] = [];
@@ -108,8 +108,16 @@ function setup(overrides: Partial<PlanGenerationDependencies> = {}, timeLimitMs?
     workflow: async () => ({ workflow: mastra.getWorkflow("planGeneration") }),
     newId: () => `00000000-0000-4000-8000-${String(++id).padStart(12, "0")}`,
     timeLimitMs,
+    now: () => new Date("2026-11-19T08:00:00.000Z"),
+    ...(limits ? { limits } : {}),
   });
   return { repository, service, lookups, preferences };
+}
+
+/** A run that started: these tests set no site limits, so a start is never refused. */
+function begun(start: PlanRunStart): Exclude<PlanRunStart, { status: "limited" }> {
+  if (start.status === "limited") throw new Error(`The run was refused: ${start.reason}`);
+  return start;
 }
 
 async function followToEnd(service: PlanRunService, repository: InMemoryPlanRunRepository, runId: string, afterSeq = 0) {
@@ -122,7 +130,7 @@ async function followToEnd(service: PlanRunService, repository: InMemoryPlanRunR
 
 test("streams real progress city by city, stops the map at its first failure, and saves a version", async () => {
   const { repository, service, lookups } = setup();
-  const started = await service.start(tripId, trip);
+  const started = begun(await service.start(tripId, trip));
   assert.equal(started.status, "running");
   const events = await followToEnd(service, repository, started.runId);
   const types = events.map(({ event }) => event.type);
@@ -182,6 +190,7 @@ test("streams real progress city by city, stops the map at its first failure, an
 test("two requests at once share one run", async () => {
   const { repository, service } = setup();
   const [first, second] = await Promise.all([service.start(tripId, trip), service.start(tripId, trip)]);
+  assert.ok(first.status !== "limited" && second.status !== "limited");
   assert.equal(first.runId, second.runId);
   await followToEnd(service, repository, first.runId);
   assert.equal(repository.runs.size, 1);
@@ -193,7 +202,7 @@ test("an unreachable planner fails the run with its own code, keeping the events
       throw new Error("MOONSHOT_API_KEY is required");
     } },
   });
-  const started = await service.start(tripId, trip);
+  const started = begun(await service.start(tripId, trip));
   const events = await followToEnd(service, repository, started.runId);
   const finished = events.at(-1)?.event;
   assert.deepEqual(finished?.type === "run.finished" && [finished.status, finished.errorCode, finished.versionId],
@@ -219,7 +228,7 @@ test("a run past its time limit is stopped and says so", async () => {
   const { repository, service } = setup({
     researchCity: (task) => new Promise((resolve) => setTimeout(() => resolve(researched[task.city]), 200)),
   }, 30);
-  const started = await service.start(tripId, trip);
+  const started = begun(await service.start(tripId, trip));
   const events = await followToEnd(service, repository, started.runId);
   const finished = events.at(-1)?.event;
   assert.deepEqual(finished?.type === "run.finished" && [finished.status, finished.errorCode], ["failed", "time_limit"]);
@@ -240,7 +249,7 @@ test("pauses on the Plan Agent's question, saves the answer as a preference, and
       days: [[day(1, "s1", "s2"), day(2, "s3"), day(3, "s4")], [afternoon(day(4, "s1")), day(5, "s2")]],
     }) },
   });
-  const started = await service.start(tripId, trip);
+  const started = begun(await service.start(tripId, trip));
   const before = await followToEnd(service, repository, started.runId);
   const waiting = before.at(-1)?.event;
   assert.equal(waiting?.type, "run.waiting");
@@ -284,7 +293,7 @@ test("a single city, or a resumed route, is never asked about", async () => {
       days: [[day(1, "s1"), day(2, "s2"), day(3, "s3"), day(4, "s4"), day(5, "s5")]],
     }) },
   });
-  const started = await service.start(tripId, handoff(["丽江市"], fiveDays));
+  const started = begun(await service.start(tripId, handoff(["丽江市"], fiveDays)));
   const events = await followToEnd(service, repository, started.runId);
   assert.ok(!events.some(({ event }) => event.type === "run.waiting"));
   assert.equal(events.at(-1)?.event.type, "run.finished");
@@ -301,7 +310,7 @@ test("answering leave-one-out lets the resumed route drop exactly that city", as
       days: [[day(1, "s1"), day(2, "s2"), day(3, "s3"), day(4, "s4"), day(5, "s5")]],
     }) },
   });
-  const started = await service.start(tripId, trip);
+  const started = begun(await service.start(tripId, trip));
   const waiting = (await followToEnd(service, repository, started.runId)).at(-1)?.event;
   assert.equal(waiting?.type, "run.waiting");
   if (waiting?.type !== "run.waiting") return;
@@ -324,7 +333,7 @@ test("a written answer is saved in the traveller's words and can leave a city ou
       days: [[day(1, "s1"), day(2, "s2"), day(3, "s3"), day(4, "s4"), day(5, "s5")]],
     }) },
   });
-  const started = await service.start(tripId, trip);
+  const started = begun(await service.start(tripId, trip));
   const waiting = (await followToEnd(service, repository, started.runId)).at(-1)?.event;
   if (waiting?.type !== "run.waiting") throw new Error("expected a question");
   assert.equal(await service.answer(tripId, started.runId, { questionId: waiting.question.id, text: "这次不去大理了" }), "resumed");
@@ -359,7 +368,7 @@ test("the validation loop moves a closed stop, re-plans a day it cannot fix, and
         usage: { inputTokens: 10, outputTokens: 5 } };
     },
   });
-  const started = await service.start(tripId, startsMonday);
+  const started = begun(await service.start(tripId, startsMonday));
   const events = await followToEnd(service, repository, started.runId);
 
   // Scheduled stops first, then two checked replacements; the re-planned stop is checked after.
@@ -454,7 +463,7 @@ test("the transport agent's question pauses at the transfers and resumes there w
       model: transportModel,
     },
   });
-  const started = await service.start(tripId, byTrain);
+  const started = begun(await service.start(tripId, byTrain));
   const before = await followToEnd(service, repository, started.runId);
   const waiting = before.at(-1)?.event;
   assert.equal(waiting?.type, "run.waiting");
@@ -507,4 +516,35 @@ test("a run's working time leaves out every wait for an answer", () => {
   // 4 s before the first question, then 5 s after its answer: the minute of waiting is not counted.
   assert.equal(workingMs(events, 1_000), 9_000);
   assert.equal(workingMs(events.slice(0, 2), 1_000), 4_000);
+});
+
+test("the site's runs a day count only new runs; a saved plan or the same handoff never does (step 2)", async () => {
+  const { repository, service } = setup({}, undefined, { runsPerDay: 1, kimiRefusal: () => null });
+  const first = begun(await service.start(tripId, trip));
+  await followToEnd(service, repository, first.runId);
+  // The same handoff reads its saved plan, not a new run.
+  assert.equal((await service.start(tripId, trip)).status, "ready");
+  // Another trip's run would be the second today.
+  const other = handoff(["丽江市"], fiveDays);
+  assert.deepEqual(await service.start("8c3f9f0e-6f4b-4d0a-9f55-1d2a3b4c5d6e", other), { status: "limited", reason: "daily_runs" });
+  assert.equal(repository.runs.size, 1);
+  // Runs from before midnight in Beijing do not count.
+  assert.equal(beijingDayStart(new Date("2026-11-19T08:00:00.000Z")), "2026-11-18T16:00:00.000Z");
+  assert.equal(beijingDayStart(new Date("2026-11-18T17:00:00.000Z")), "2026-11-18T16:00:00.000Z");
+});
+
+test("with paid calls off or Kimi's day spent, no run starts, and a run Kimi stopped says why", async () => {
+  const paused = setup({}, undefined, { runsPerDay: 15, kimiRefusal: () => "paid_calls_paused" });
+  assert.deepEqual(await paused.service.start(tripId, trip), { status: "limited", reason: "paid_calls_paused" });
+  assert.equal(paused.repository.runs.size, 0);
+  // Kimi refused mid-run: the run ends with the limit's code, not "planner unavailable".
+  let refusing = false;
+  const spent = setup({ planModel: { model() {
+    refusing = true;
+    throw new Error("refused");
+  } } }, undefined, { runsPerDay: 15, kimiRefusal: () => (refusing ? "daily_quota" : null) });
+  const started = begun(await spent.service.start(tripId, trip));
+  const events = await followToEnd(spent.service, spent.repository, started.runId);
+  const finished = events.at(-1)?.event;
+  assert.deepEqual(finished?.type === "run.finished" && [finished.status, finished.errorCode], ["failed", "daily_quota"]);
 });

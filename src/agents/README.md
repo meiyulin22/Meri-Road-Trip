@@ -595,6 +595,20 @@ defaults to `kimi` and Kimi search to 500 a day. Everything above stays as a swi
 follow-up and plan C's code check and second look work the same with Kimi as the first look. Bocha keeps
 Workspace inspiration. Still to try: Kimi's `sites` and `time_window` for the checks.
 
+**A ceiling on the whole site (step 2).** Every Kimi model call, chat and plans alike, goes through one
+fetch ([kimi-spend.ts](../platform/llm/kimi-spend.ts)), set in `createMoonshotChatModelFromEnvironment`
+and the structured-output client: before a call it checks `PAID_CALLS_ENABLED` and the day's money,
+and a refusal answers 403 without reaching Kimi; after it, the answer's usage (input, output, cache
+hits) is priced from merlin's 2026-11-19 table and added to the Beijing day in `.cache/kimi-spend.json`,
+default ¥40 (`KIMI_MAX_YUAN_PER_DAY`); an unknown model is priced as the dearest. It is an estimate that
+guards, not the bill. A new Generate plan is also refused once the site has started 15 that day
+(`PLAN_RUNS_PER_DAY`, counted in `plan_runs`, so a restart does not reset it); a saved plan, the same
+handoff or a resumed run never counts. The start answers `limited` with the reason and the page says
+it with no retry; a run Kimi refused midway ends as `daily_quota` or `paid_calls_paused`, and the
+Workspace chat shows "today's demo allowance is used up" or "the demo is paused" instead of "refresh".
+The switch also stops Kimi search, Bocha and VariFlight. Measured from 16 saved runs: 10–28k tokens a
+plan (11-16/17), 5–14 searches.
+
 **A switched-off search says so (1.2113 step 1).** Without `RAIL_PROVIDER` or `FLIGHT_PROVIDER`, that
 search is not wired at all: the transport agent is not run for it, and a leg bound to the traveller's
 choice reads "没有开启火车查询" / "没有开启航班查询" (`trainsMissing` / `flightsMissing: "off"`) instead

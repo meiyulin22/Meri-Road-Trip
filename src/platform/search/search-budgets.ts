@@ -2,7 +2,7 @@ import { join } from "node:path";
 
 import { createDailyBudget, type DailyBudget } from "@/platform/http/daily-budget";
 import type { Gate } from "@/platform/http/request-pacer";
-import { providerLimits } from "@/platform/provider-limits";
+import { paidCallsEnabled, providerLimits } from "@/platform/provider-limits";
 
 import { DiscoverySearchError } from "./discovery-search";
 
@@ -26,8 +26,12 @@ export const sharedKimiSearchBudget = createDailyBudget({ intervalMs: 0, dailyUn
   label: { provider: "Kimi search", units: (count) => `${count} searches` },
 });
 
-/** One search through a day's budget; a spent day throws `daily_limit`, which callers treat like any failed search. */
+/**
+ * One search through a day's budget; a spent day throws `daily_limit`, which callers treat like any
+ * failed search. With PAID_CALLS_ENABLED=false nothing is sent (step 2).
+ */
 export async function withinBudget<T>(budget: DailyBudget | undefined, search: () => Promise<T>): Promise<T> {
+  if (budget && !paidCallsEnabled()) throw new DiscoverySearchError("daily_limit");
   if (!budget) return search();
   const asked = await budget.run(1, search);
   if (!asked.ok) throw new DiscoverySearchError("daily_limit");

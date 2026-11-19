@@ -20,6 +20,14 @@ export class WorkspaceConversationRequestError extends Error {
   }
 }
 
+/** Meri did not answer because a site limit is reached (step 2); the chat says so instead of "refresh". */
+export class WorkspaceLimitError extends WorkspaceConversationRequestError {
+  constructor(readonly limit: "daily_quota" | "paid_calls_paused") {
+    super(`The workspace conversation was refused: ${limit}.`);
+    this.name = "WorkspaceLimitError";
+  }
+}
+
 export async function requestWorkspaceConversation(
   message: string,
   tripId: string,
@@ -58,6 +66,9 @@ export async function requestWorkspaceConversation(
       error,
     );
   }
+
+  const code = typeof body === "object" && body !== null && "code" in body ? body.code : null;
+  if (!response.ok && (code === "daily_quota" || code === "paid_calls_paused")) throw new WorkspaceLimitError(code);
 
   if (
     !response.ok ||

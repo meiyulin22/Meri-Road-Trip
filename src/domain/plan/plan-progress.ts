@@ -70,7 +70,11 @@ export const planRunEndings = ["succeeded", "failed", "interrupted"] as const;
 export type PlanRunEnding = (typeof planRunEndings)[number];
 
 /** Why a run failed, for the page to word; never a provider message. */
-export const planRunErrorCodes = ["planner_unavailable", "time_limit", "internal_error", "interrupted"] as const;
+/**
+ * Why a run ended without a plan. `daily_quota` and `paid_calls_paused` (step 2): Kimi was refused
+ * mid-run because the day's money was spent or PAID_CALLS_ENABLED was turned off.
+ */
+export const planRunErrorCodes = ["planner_unavailable", "time_limit", "internal_error", "interrupted", "daily_quota", "paid_calls_paused"] as const;
 export type PlanRunErrorCode = (typeof planRunErrorCodes)[number];
 
 export const planProgressEventSchema = z.discriminatedUnion("type", [

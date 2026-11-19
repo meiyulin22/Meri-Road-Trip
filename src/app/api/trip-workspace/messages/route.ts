@@ -38,11 +38,14 @@ import { resolveDestinationPlace } from "@/capabilities/destination/resolve-dest
 import { withChoiceImages } from "@/capabilities/destination/place-images";
 import { logger, logEvents } from "@/platform/observability/logger";
 import { tripMessageService } from "@/capabilities/conversation/trip-message-service-instance";
+import { kimiRefusalOf, type KimiRefusal } from "@/platform/llm/kimi-spend";
 import { serializeError } from "@/platform/observability/serialize-error";
 
 type ErrorResponse = {
   status: number;
   message: string;
+  /** A site limit the page explains in its own words (step 2). */
+  code?: KimiRefusal;
 };
 
 function getRequestContext(): { referenceDate: string; timezone: string } {
@@ -65,6 +68,12 @@ function getRequestContext(): { referenceDate: string; timezone: string } {
 }
 
 function mapError(error: unknown): ErrorResponse {
+  // Meri refused the Kimi call (the day's money is spent or paid calls are off): not a failure.
+  const refusal = kimiRefusalOf(error);
+  if (refusal) {
+    return { status: 503, code: refusal, message: refusal === "daily_quota" ? "Today's demo allowance is used up." : "The demo is paused." };
+  }
+
   if (error instanceof TripStateConflictError) {
     return { status: 409, message: "Journey changed while saving. Please refresh and retry." };
   }
@@ -299,7 +308,7 @@ export async function POST(request: Request) {
     );
 
     return NextResponse.json(
-      { error: response.message, requestId },
+      { error: response.message, requestId, ...(response.code ? { code: response.code } : {}) },
       { status: response.status },
     );
   }

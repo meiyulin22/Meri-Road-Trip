@@ -52,7 +52,26 @@ const startingRuns = (globals[startsKey] ??= new Map()) as Map<string, Promise<P
 
 export type PlanRunStart =
   | { readonly status: "ready"; readonly runId: string; readonly version: PlanVersion }
-  | { readonly status: "running"; readonly runId: string };
+  | { readonly status: "running"; readonly runId: string }
+  /** No run was started (step 2): today's runs are used up, Kimi's money is spent, or paid calls are off. */
+  | { readonly status: "limited"; readonly reason: PlanRunLimit };
+
+export type PlanRunLimit = "daily_runs" | "daily_quota" | "paid_calls_paused";
+
+/**
+ * The site's limits a new run must pass (step 2): runs a Beijing day, counted in the database, and
+ * whether Kimi would refuse right now. Absent (as in the tests), no limit applies.
+ */
+export type PlanRunLimits = {
+  readonly runsPerDay: number;
+  readonly kimiRefusal: () => "daily_quota" | "paid_calls_paused" | null;
+};
+
+/** Midnight in Beijing on the day of `now`, as an instant. */
+export function beijingDayStart(now: Date): string {
+  const day = new Date(now.getTime() + 8 * 60 * 60 * 1_000).toISOString().slice(0, 10);
+  return new Date(`${day}T00:00:00+08:00`).toISOString();
+}
 
 type WorkflowChunk = { type: string; payload?: unknown };
 
@@ -81,6 +100,7 @@ export type PlanRunServiceDependencies = {
   readonly now?: () => Date;
   readonly newId?: () => string;
   readonly timeLimitMs?: number;
+  readonly limits?: PlanRunLimits;
 };
 
 /**
@@ -171,6 +191,13 @@ export class PlanRunService {
       }
     }
 
+    // Only a new run counts: a saved plan, a run in progress or one waiting for an answer never does.
+    const limited = await this.limitFor();
+    if (limited) {
+      logger.info({ tripId, reason: limited }, "Plan run not started: a site limit is reached");
+      return { status: "limited", reason: limited };
+    }
+
     const run: PlanRun = {
       id: this.newId(), tripId, status: "running", handoff, handoffKey: key,
       errorCode: null, usage: null, startedAt: this.now().toISOString(), finishedAt: null, durationMs: null,
@@ -182,6 +209,15 @@ export class PlanRunService {
       activeRuns.delete(run.id);
     });
     return { status: "running", runId: run.id };
+  }
+
+  private async limitFor(): Promise<PlanRunLimit | null> {
+    const limits = this.deps.limits;
+    if (!limits) return null;
+    const refusal = limits.kimiRefusal();
+    if (refusal) return refusal;
+    const started = await this.deps.repository.countRunsStartedSince(beijingDayStart(this.now()));
+    return started >= limits.runsPerDay ? "daily_runs" : null;
   }
 
   /** The newest saved plan and the newest run of a trip. */
@@ -415,6 +451,8 @@ export class PlanRunService {
         // Mastra hands back the step's error serialized, as { name, message }.
         const error = result.status === "failed" ? result.error as { name?: unknown; message?: unknown } | undefined : undefined;
         errorCode = timedOut ? "time_limit" : error?.message === plannerUnavailable ? "planner_unavailable" : "internal_error";
+        // A model that stopped answering because Meri refused the call says why (step 2).
+        if (!timedOut) errorCode = this.deps.limits?.kimiRefusal() ?? errorCode;
         // The error name only: a provider's message can carry request details.
         logger.warn({ runId: run.id, status: result.status, errorCode, errorName: error?.name ?? null }, "Plan run did not succeed");
       }

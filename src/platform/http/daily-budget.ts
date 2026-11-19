@@ -30,6 +30,15 @@ export interface DailyBudget {
   pause(ms?: number): void;
 }
 
+/**
+ * A budget for a cost known only after the call (Kimi's tokens, step 2): whether the day still has
+ * room, checked before the call, and the cost counted after it. A call may end a little past the cap.
+ */
+export interface DailyMeter extends DailyBudget {
+  room(): boolean;
+  record(units: number): void;
+}
+
 type Day = { date: string; count: number };
 
 function shanghaiDate(now: number): string {
@@ -45,7 +54,7 @@ function shanghaiDate(now: number): string {
 export function createDailyBudget(
   limits: DailyLimits,
   options: { readonly file: string | null; readonly label: BudgetLabel; readonly clock?: Clock; readonly gate?: Gate },
-): DailyBudget {
+): DailyMeter {
   const file = options.file;
   const now = options.clock?.now ?? Date.now;
   const gate = options.gate ?? createPacer(limits.intervalMs, options.clock);
@@ -106,6 +115,18 @@ export function createDailyBudget(
     },
     pause(ms = limits.pauseMs) {
       pausedUntil = Math.max(pausedUntil, now() + ms);
+    },
+    room() {
+      const current = load();
+      if (current.count < limits.dailyUnits) return true;
+      warnLimitReached(current, 0);
+      return false;
+    },
+    record(units) {
+      if (!(units > 0)) return;
+      const current = load();
+      current.count += units;
+      save(current);
     },
   };
 }

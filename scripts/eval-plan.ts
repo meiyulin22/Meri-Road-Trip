@@ -54,6 +54,8 @@ async function runOnce(evalCase: EvalCase, handoff: PlanHandoff): Promise<{ capt
 
   const tripId = crypto.randomUUID();
   const started = await service.start(tripId, handoff);
+  // These scripts set no site limits, so a run always starts.
+  if (started.status === "limited") throw new Error(`The run was refused: ${started.reason}.`);
   const run = await repository.findRun(tripId, started.runId);
   if (!run) throw new Error(`The run for case ${evalCase.id} was not recorded.`);
   const events: PlanProgressEvent[] = [];

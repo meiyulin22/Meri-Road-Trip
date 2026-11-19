@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, gt, max } from "drizzle-orm";
+import { and, asc, count, desc, eq, gt, gte, max } from "drizzle-orm";
 import { z } from "zod";
 
 import { readyPlanSchema } from "@/domain/plan/plan-draft-response";
@@ -15,7 +15,7 @@ type PlanRunRow = typeof planRuns.$inferSelect;
 type PlanVersionRow = typeof planVersions.$inferSelect;
 
 type PostgresPlanRunOperation =
-  | "createRun" | "moveRun" | "finishRun" | "findRun" | "findLatestRun" | "appendEvent" | "listEvents"
+  | "createRun" | "moveRun" | "finishRun" | "findRun" | "findLatestRun" | "countRunsStartedSince" | "appendEvent" | "listEvents"
   | "createVersion" | "findVersionByRun" | "findLatestVersion" | "fillPlanFacts";
 
 export class PostgresPlanRunRepositoryError extends Error {
@@ -127,6 +127,15 @@ export class PostgresPlanRunRepository implements PlanRunRepository {
       return rows[0] ? toRun(rows[0]) : null;
     } catch (error) {
       throw new PostgresPlanRunRepositoryError("findLatestRun", tripId, error);
+    }
+  }
+
+  async countRunsStartedSince(since: string): Promise<number> {
+    try {
+      const rows = await this.database.select({ runs: count() }).from(planRuns).where(gte(planRuns.startedAt, since));
+      return rows[0]?.runs ?? 0;
+    } catch (error) {
+      throw new PostgresPlanRunRepositoryError("countRunsStartedSince", since, error);
     }
   }
 

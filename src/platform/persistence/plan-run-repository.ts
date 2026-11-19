@@ -27,6 +27,8 @@ export interface PlanRunRepository {
   finishRun(runId: string, finish: PlanRunFinish): Promise<boolean>;
   findRun(tripId: string, runId: string): Promise<PlanRun | null>;
   findLatestRun(tripId: string): Promise<PlanRun | null>;
+  /** How many runs started at or after `since`, every trip together: the site's daily cap (step 2). */
+  countRunsStartedSince(since: string): Promise<number>;
   appendEvent(envelope: PlanProgressEnvelope): Promise<void>;
   /** A run's events after the given sequence number, in order. */
   listEvents(runId: string, afterSeq: number): Promise<PlanProgressEnvelope[]>;

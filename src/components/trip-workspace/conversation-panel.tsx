@@ -19,7 +19,7 @@ import { DestinationChoicesCard } from "./destination-choices-card";
 import { GeneratePlanAction } from "./generate-plan-action";
 import { formatMessageTimestamp } from "./message-timestamp";
 import { appendPersistedMessageIfAbsent, destinationChoicePresentation, messageCreatedAt, pendingRecommendationPresentation, recommendationIdsAwaitingPhoto, toWorkspaceUIMessages, withRecommendationPhoto } from "./trip-message-ui-adapter";
-import { DestinationMapUnavailableError, DestinationOfferExpiredError, DestinationSelectionCityLimitError, DestinationSelectionFollowUpError, RecommendationsStaleError } from "./workspace-conversation-model";
+import { DestinationMapUnavailableError, DestinationOfferExpiredError, DestinationSelectionCityLimitError, DestinationSelectionFollowUpError, RecommendationsStaleError, WorkspaceLimitError } from "./workspace-conversation-model";
 import {
   reconcileCommittedUserId,
   WorkspaceChatTransport,
@@ -81,7 +81,7 @@ export function ConversationPanel({
     );
   }
 
-  const { messages, sendMessage, setMessages, status } = useChat({
+  const { messages, sendMessage, setMessages, status, error: chatError } = useChat({
     id: tripId,
     messages: toWorkspaceUIMessages(initialMessages),
     transport: new WorkspaceChatTransport(tripId, handleCommittedTurn),
@@ -363,7 +363,11 @@ export function ConversationPanel({
               {words.understanding}
             </p>
           ) : null}
-          {hasError ? (
+          {hasError && chatError instanceof WorkspaceLimitError ? (
+            <div className={styles.conversationError} role="alert">
+              <span>{chatError.limit === "daily_quota" ? words.dailyQuota : words.demoPaused}</span>
+            </div>
+          ) : hasError ? (
             <div className={styles.conversationError} role="alert">
               <span>{words.unconfirmedDetail}</span>
               <button

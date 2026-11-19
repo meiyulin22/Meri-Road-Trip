@@ -35,6 +35,10 @@ export class InMemoryPlanRunRepository implements PlanRunRepository {
     return [...this.runs.values()].filter((run) => run.tripId === tripId).at(-1) ?? null;
   }
 
+  async countRunsStartedSince(since: string): Promise<number> {
+    return [...this.runs.values()].filter((run) => Date.parse(run.startedAt) >= Date.parse(since)).length;
+  }
+
   async appendEvent(envelope: PlanProgressEnvelope): Promise<void> {
     this.events.push(envelope);
   }

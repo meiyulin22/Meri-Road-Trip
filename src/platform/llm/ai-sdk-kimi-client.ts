@@ -14,6 +14,7 @@ import {
   DEFAULT_MOONSHOT_BASE_URL,
   DEFAULT_MOONSHOT_MODEL,
 } from "@/platform/llm/moonshot-chat-model";
+import { kimiFetch } from "@/platform/llm/kimi-spend";
 import { logger, logEvents } from "@/platform/observability/logger";
 import { serializeError } from "@/platform/observability/serialize-error";
 
@@ -349,6 +350,8 @@ export function createAiSdkKimiClientFromEnvironment(options: { readonly debugRa
     apiKey,
     baseUrl: process.env.MOONSHOT_BASE_URL?.trim() || DEFAULT_MOONSHOT_BASE_URL,
     model: process.env.LLM_MODEL?.trim() || DEFAULT_MOONSHOT_MODEL,
+    // The day's Kimi money and PAID_CALLS_ENABLED (step 2).
+    fetch: kimiFetch,
     debugRawOutput: options.debugRawOutput ?? (
       process.env.NODE_ENV === "development" &&
       process.env.LLM_DEBUG_OUTPUT === "true"

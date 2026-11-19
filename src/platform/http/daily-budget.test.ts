@@ -28,3 +28,20 @@ test("reaching the day's limit is logged once, in the provider's own units (1.21
     warn.mock.restore();
   }
 });
+
+test("a cost counted after the call: room before, record after, a little past the cap is allowed (step 2)", () => {
+  const budget = createDailyBudget({ intervalMs: 0, dailyUnits: 100, pauseMs: 0 }, {
+    file: null, gate: straightThrough, label: { provider: "Kimi", units: (fen) => `${fen} fen` },
+  });
+  const warn = mock.method(logger, "warn", () => {});
+  try {
+    assert.equal(budget.room(), true);
+    budget.record(60.5);
+    budget.record(55);
+    assert.equal(budget.room(), false);
+    assert.equal(budget.room(), false);
+    assert.equal(warn.mock.callCount(), 1);
+  } finally {
+    warn.mock.restore();
+  }
+});

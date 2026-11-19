@@ -186,7 +186,7 @@ Trip 不再保存 name、origin、destination 或日期列，避免与 TripState
 | `status` | `status` | `plan_run_status` enum | 非空 | `running`、`suspended`（1.2011：等用户回答，Mastra 快照在 `mastra` schema）、`succeeded`、`failed`、`interrupted`（服务器重启时还在运行，被第一个来看的页面标记） |
 | `handoff` | `handoff` | jsonb | 非空 | 本次运行收到的交接快照（TripState、偏好、参考日期、语言）；读取时按 PlanHandoff 校验 |
 | `handoff_key` | `handoffKey` | text | 非空 | 交接快照按键排序后的 SHA-256；同一份交接复用已有运行或已保存的计划 |
-| `error_code` | `errorCode` | text | 可空 | `planner_unavailable`、`time_limit`、`internal_error`、`interrupted`；不存提供方的错误原文 |
+| `error_code` | `errorCode` | text | 可空 | `planner_unavailable`、`time_limit`、`internal_error`、`interrupted`，第 2 步起还有 `daily_quota`（Kimi 当天的钱用完）和 `paid_calls_paused`（总开关关闭）；不存提供方的错误原文 |
 | `usage` | `usage` | jsonb | 可空 | `{inputTokens, outputTokens, searches, mapLookups}`；模型 token 含调研、路线、选点和验证（1.2014 起计入调研；之前的行只算后三者）；`mapLookups` 1.2102 起也含驾车路线查询 |
 | `started_at` / `finished_at` | `startedAt` / `finishedAt` | timestamptz | 开始非空，结束可空 | 起止时间 |
 | `duration_ms` | `durationMs` | integer | 可空 | 用时 |

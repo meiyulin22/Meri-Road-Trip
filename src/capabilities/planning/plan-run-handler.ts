@@ -56,6 +56,9 @@ export async function handlePlanRunPost(
       return noStore({ status: "unsupported", reason: scope.reason } satisfies PlanRunStartResponse);
     }
     const started = await deps.service.start(tripId, handoff);
+    if (started.status === "limited") {
+      return noStore({ status: "limited", reason: started.reason } satisfies PlanRunStartResponse);
+    }
     if (started.status === "ready") {
       return noStore({
         status: "ready", runId: started.runId, versionId: started.version.id, plan: started.version.plan,

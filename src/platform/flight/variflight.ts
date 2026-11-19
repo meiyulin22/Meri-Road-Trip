@@ -6,7 +6,7 @@ import { z } from "zod";
 import type { FlightOption, LegFlights } from "@/domain/plan/transfer-legs";
 import { createDailyBudget, type DailyBudget } from "@/platform/http/daily-budget";
 import { logger } from "@/platform/observability/logger";
-import { providerLimits } from "@/platform/provider-limits";
+import { paidCallsEnabled, providerLimits } from "@/platform/provider-limits";
 
 import { parseLabelledLiteral } from "./python-literal";
 
@@ -36,7 +36,8 @@ export type FlightToolCaller = (name: string, input: Record<string, unknown>) =>
 
 /** Whether this server may ask VariFlight: only with FLIGHT_PROVIDER=variflight and a key (1.2111). */
 export function flightEnabled(): boolean {
-  return process.env.FLIGHT_PROVIDER?.trim() === "variflight" && Boolean(process.env.VARIFLIGHT_API_KEY?.trim());
+  // PAID_CALLS_ENABLED=false switches flights off with every other paid call (step 2).
+  return process.env.FLIGHT_PROVIDER?.trim() === "variflight" && Boolean(process.env.VARIFLIGHT_API_KEY?.trim()) && paidCallsEnabled();
 }
 
 let starting: Promise<FlightToolCaller> | null = null;

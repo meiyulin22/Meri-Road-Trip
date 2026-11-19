@@ -16,8 +16,12 @@ export type ProviderLimits = {
   readonly railRequestsPerDay: number;
   /** BOCHA_MAX_CALLS_PER_DAY: Bocha web searches a Beijing day, plans and Workspace together. Default 500. */
   readonly bochaCallsPerDay: number;
-  /** KIMI_MAX_SEARCHES_PER_DAY: Kimi web searches (search_pro) a Beijing day; about 30 a plan, 15 plans a day. Default 500. */
+  /** KIMI_MAX_SEARCHES_PER_DAY: Kimi web searches (search_pro) a Beijing day; 5–14 a plan measured. Default 300. */
   readonly kimiSearchesPerDay: number;
+  /** KIMI_MAX_YUAN_PER_DAY: Kimi model money a Beijing day, chat and plans together, in fen. Default ¥40 (merlin, 2026-11-19). */
+  readonly kimiFenPerDay: number;
+  /** PLAN_RUNS_PER_DAY: Generate plan runs started a Beijing day, the whole site. Default 15. */
+  readonly planRunsPerDay: number;
 };
 
 export const defaultProviderLimits: ProviderLimits = {
@@ -26,7 +30,9 @@ export const defaultProviderLimits: ProviderLimits = {
   railSearchesPerPlan: 8,
   railRequestsPerDay: 100,
   bochaCallsPerDay: 500,
-  kimiSearchesPerDay: 500,
+  kimiSearchesPerDay: 300,
+  kimiFenPerDay: 4_000,
+  planRunsPerDay: 15,
 };
 
 type Environment = Readonly<Record<string, string | undefined>>;
@@ -52,7 +58,18 @@ export function providerLimitsFrom(env: Environment): ProviderLimits {
     railRequestsPerDay: positive(env, "RAIL_MAX_REQUESTS_PER_DAY", defaultProviderLimits.railRequestsPerDay, 1, true),
     bochaCallsPerDay: positive(env, "BOCHA_MAX_CALLS_PER_DAY", defaultProviderLimits.bochaCallsPerDay, 1, true),
     kimiSearchesPerDay: positive(env, "KIMI_MAX_SEARCHES_PER_DAY", defaultProviderLimits.kimiSearchesPerDay, 1, true),
+    kimiFenPerDay: positive(env, "KIMI_MAX_YUAN_PER_DAY", defaultProviderLimits.kimiFenPerDay, 100, false),
+    planRunsPerDay: positive(env, "PLAN_RUNS_PER_DAY", defaultProviderLimits.planRunsPerDay, 1, true),
   };
+}
+
+/**
+ * PAID_CALLS_ENABLED (step 2): false stops every call that costs money (Kimi, Kimi search, Bocha,
+ * VariFlight) before it is sent; anything but "false" leaves them on. Read on every call, so the
+ * running server follows it from the next restart and tests can set it.
+ */
+export function paidCallsEnabled(env: Environment = process.env): boolean {
+  return env.PAID_CALLS_ENABLED?.trim().toLowerCase() !== "false";
 }
 
 /** Read once per server process; a change in .env.local takes effect on restart. */

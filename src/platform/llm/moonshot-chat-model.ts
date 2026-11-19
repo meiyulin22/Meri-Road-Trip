@@ -1,6 +1,7 @@
 import { createOpenAICompatible, type OpenAICompatibleProviderSettings } from "@ai-sdk/openai-compatible";
 
 import { MissingLlmConfigurationError } from "@/platform/llm/kimi-client";
+import { kimiFetch } from "@/platform/llm/kimi-spend";
 
 export const DEFAULT_MOONSHOT_MODEL = "kimi-k2.6";
 export const DEFAULT_MOONSHOT_BASE_URL = "https://api.moonshot.cn/v1";
@@ -32,7 +33,10 @@ export function createMoonshotChatModel(options: MoonshotChatModelOptions) {
   return provider.chatModel(options.model);
 }
 
-/** The model the environment configures: MOONSHOT_API_KEY, optional MOONSHOT_BASE_URL and LLM_MODEL. */
+/**
+ * The model the environment configures: MOONSHOT_API_KEY, optional MOONSHOT_BASE_URL and LLM_MODEL.
+ * Every call goes through the day's Kimi money and PAID_CALLS_ENABLED (step 2).
+ */
 export function createMoonshotChatModelFromEnvironment() {
   const apiKey = process.env.MOONSHOT_API_KEY?.trim();
   if (!apiKey) throw new MissingLlmConfigurationError();
@@ -40,5 +44,6 @@ export function createMoonshotChatModelFromEnvironment() {
     apiKey,
     baseUrl: process.env.MOONSHOT_BASE_URL?.trim() || DEFAULT_MOONSHOT_BASE_URL,
     model: process.env.LLM_MODEL?.trim() || DEFAULT_MOONSHOT_MODEL,
+    fetch: kimiFetch,
   });
 }

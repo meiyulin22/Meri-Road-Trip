@@ -52,6 +52,8 @@ async function main(): Promise<void> {
 
   const tripId = "00000000-0000-4000-8000-00000000f00d";
   const started = await service.start(tripId, handoff);
+  // These scripts set no site limits, so a run always starts.
+  if (started.status === "limited") throw new Error(`The run was refused: ${started.reason}.`);
   const run = await repository.findRun(tripId, started.runId);
   if (!run) throw new Error("The run was not recorded.");
   let after = 0;

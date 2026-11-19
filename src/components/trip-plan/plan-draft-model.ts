@@ -12,7 +12,12 @@ import type { SpotCard } from "@/domain/plan/spot-card";
 
 type Fetcher = (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>;
 
-export type PlanDraftFailure = "journey_changed" | "unavailable" | "failed" | "time_limit" | "interrupted";
+export type PlanDraftFailure = "journey_changed" | "unavailable" | "failed" | "time_limit" | "interrupted"
+  // The site's limits (step 2): today's plans are used up, Kimi's money is spent, or paid calls are off.
+  | "daily_runs" | "daily_quota" | "paid_calls_paused";
+
+/** Limits a retry today cannot get past, so the page offers no retry button. */
+export const limitFailures: readonly PlanDraftFailure[] = ["daily_runs", "daily_quota", "paid_calls_paused"];
 
 export class PlanDraftRequestError extends Error {
   constructor(readonly reason: PlanDraftFailure) {
@@ -93,6 +98,8 @@ export function runFailure(errorCode: PlanRunErrorCode | null): PlanDraftFailure
   if (errorCode === "planner_unavailable") return "unavailable";
   if (errorCode === "time_limit") return "time_limit";
   if (errorCode === "interrupted") return "interrupted";
+  if (errorCode === "daily_quota") return "daily_quota";
+  if (errorCode === "paid_calls_paused") return "paid_calls_paused";
   return "failed";
 }
 

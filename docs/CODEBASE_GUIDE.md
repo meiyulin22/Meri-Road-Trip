@@ -212,7 +212,7 @@ LLM 解释自然语言并提出受限 JSON；应用校验、决定是否执行�
 | [src/app/api/locations/suggestions/route.test.ts](../src/app/api/locations/suggestions/route.test.ts) | 测试（对应模块边界） | 验证建议 API 的正常输出、空/过长 query、提供方失败及不暴露请求密钥。 |
 | [src/app/api/locations/suggestions/route.ts](../src/app/api/locations/suggestions/route.ts) | HTTP 接口层 | GET /api/locations/suggestions 校验 query，返回规范化输入建议及提供方错误。 |
 | [src/app/api/trip-drafts/route.ts](../src/app/api/trip-drafts/route.ts) | HTTP 接口层 | POST /api/trip-drafts 校验原话，带上访客语言调用模型草稿提取（旅程名用该语言），返回草稿或模型错误；不创建 Journey。 |
-| [src/app/api/trip-workspace/messages/route.ts](../src/app/api/trip-workspace/messages/route.ts) | HTTP 接口层 | POST 聊天的实际编排：归属/历史、模型解释、普通字段保存、地点 edit（精确地点直接写入）、推荐范围判断与 pending 标记、保存真实消息及错误映射。 |
+| [src/app/api/trip-workspace/messages/route.ts](../src/app/api/trip-workspace/messages/route.ts) | HTTP 接口层 | POST 聊天的实际编排：归属/历史、模型解释、普通字段保存、地点 edit（精确地点直接写入）、推荐范围判断与 pending 标记、保存真实消息及错误映射。；第 2 步：Kimi 被站点上限拒绝时回 503 和 `code`（`daily_quota` / `paid_calls_paused`） |
 | [src/app/api/trips/[id]/conversation/initialize/route.ts](../src/app/api/trips/%5Bid%5D/conversation/initialize/route.ts) | HTTP 接口层 | POST opening 重试：检查访客和 Journey，返回保存的开场或按访客语言初始化合资格开场。 |
 | [src/app/api/trips/[id]/destination-recommendation-selection/route.ts](../src/app/api/trips/%5Bid%5D/destination-recommendation-selection/route.ts) | HTTP 接口层 | POST 多选确认：取持久化 offer、验证选择和过期、复核高德、合并/替换、保存确认，处理安全重试和半成功。 |
 | [src/app/api/trips/[id]/destination-recommendations/route.ts](../src/app/api/trips/%5Bid%5D/destination-recommendations/route.ts) | HTTP 接口层 | POST 推荐卡片：只接受 `{messageId}`，从保存的对话还原 pending 请求，仅为仍是最新消息的 pending 运行推荐工作流，以派生 ID 保存卡片；已存在则直接返回，过期 409，失败 502。 |
@@ -266,7 +266,7 @@ LLM 解释自然语言并提出受限 JSON；应用校验、决定是否执行�
 | [src/components/meri-shell/recent-journeys-model.ts](../src/components/meri-shell/recent-journeys-model.ts) | 表现层 | 纯前端规则：最近列表、可见数量、首尾循环的下一索引及点击导航边界。 |
 | [src/components/meri-shell/recent-journeys.module.css](../src/components/meri-shell/recent-journeys.module.css) | 表现层 | 最近旅程卡片、轮播箭头及操作样式；局部圆角与透明遮罩柔化两侧卡片及视口切口，中央卡片保持清晰。 |
 | [src/components/meri-shell/recent-journeys.tsx](../src/components/meri-shell/recent-journeys.tsx) | 表现层 | 最近旅程 React 组件，适配 Aceternity Carousel 的居中平移轨道、透视缩放及 Motion 悬停视差；支持循环切换、手势、键盘、导航和删除后的列表更新；有封面照片的卡在插画上叠放该照片。 |
-| [src/components/i18n/messages.ts](../src/components/i18n/messages.ts) | 表现层 | 界面文字中英字典（介绍页与示例照片署名、首页、最近旅程、旅程页面各区域、我的旅程列表），英文定结构、中文类型上必须对应，带参数的句子与日期格式为函数；`photoCredits` 提供照片来源确认弹窗、来源按钮和缩小副本说明。 |
+| [src/components/i18n/messages.ts](../src/components/i18n/messages.ts) | 表现层 | 界面文字中英字典（介绍页与示例照片署名、首页、最近旅程、旅程页面各区域、我的旅程列表），英文定结构、中文类型上必须对应，带参数的句子与日期格式为函数；`photoCredits` 提供照片来源确认弹窗、来源按钮和缩小副本说明。；第 2 步加聊天的「额度用完」「演示暂停」两句 |
 | [src/components/i18n/locale-context.tsx](../src/components/i18n/locale-context.tsx) | 表现层 | LocaleProvider 与 useLocale/useMessages；Provider 之外默认英文（仅测试中出现）。 |
 
 ### 6.4a 介绍页表现层
@@ -291,7 +291,7 @@ LLM 解释自然语言并提出受限 JSON；应用校验、决定是否执行�
 | [src/components/companion/companion.module.css](../src/components/companion/companion.module.css) | 表现层 | 小熊区域在旅程列底部的固定位置、对话气泡和像素化精灵图样式。 |
 | [src/components/companion/meri-world.tsx](../src/components/companion/meri-world.tsx) | 表现层 | 旅程列底部的小熊猫和独立状态气泡，气泡文案来自 companionStatus。 |
 | [src/components/companion/workspace-red-panda.tsx](../src/components/companion/workspace-red-panda.tsx) | 表现层 | 工作区透明视频动作队列、海报衔接、离屏暂停与静态降级。 |
-| [src/components/trip-workspace/conversation-panel.tsx](../src/components/trip-workspace/conversation-panel.tsx) | 表现层 | 聊天主组件：useChat、已保存消息、候选卡、卡片关闭/只读、确认及消息逐字显示；最后一条为 pending 时请求推荐卡片并显示加载/重试；推荐卡还有未查照片时逐条消息请求照片流，收到一张补一张；向外上报 idle/thinking/error 活动供小熊使用。 |
+| [src/components/trip-workspace/conversation-panel.tsx](../src/components/trip-workspace/conversation-panel.tsx) | 表现层 | 聊天主组件：useChat、已保存消息、候选卡、卡片关闭/只读、确认及消息逐字显示；最后一条为 pending 时请求推荐卡片并显示加载/重试；推荐卡还有未查照片时逐条消息请求照片流，收到一张补一张；向外上报 idle/thinking/error 活动供小熊使用。；第 2 步：站点上限时显示额度用完或演示暂停，不显示刷新 |
 | [src/components/trip-workspace/conversation-reveal.test.ts](../src/components/trip-workspace/conversation-reveal.test.ts) | 测试（对应模块边界） | 验证只对已提交文本按字符步进显示，不越界或改写正文。 |
 | [src/components/trip-workspace/conversation-reveal.ts](../src/components/trip-workspace/conversation-reveal.ts) | 表现层 | 已提交助手正文的客户端可见字符数/显示节奏纯函数；不是服务端 token 流。 |
 | [src/components/trip-workspace/destination-choices-card.test.tsx](../src/components/trip-workspace/destination-choices-card.test.tsx) | 测试（对应模块边界） | 验证同市新 spot 可添加、replace 可选已有市、重复 POI 归并及历史/已确认卡禁用。 |
@@ -329,7 +329,7 @@ LLM 解释自然语言并提出受限 JSON；应用校验、决定是否执行�
 | [src/components/trip-workspace/workspace-chat-transport.test.ts](../src/components/trip-workspace/workspace-chat-transport.test.ts) | 测试（对应模块边界） | 验证实际 JSON 契约、临时/持久化消息 ID、presentation 和成功后状态同步。 |
 | [src/components/trip-workspace/workspace-chat-transport.ts](../src/components/trip-workspace/workspace-chat-transport.ts) | 表现层 | 把完整聊天 JSON 响应适配为 AI SDK ChatTransport 事件，同步已提交 ID 和状态。 |
 | [src/components/trip-workspace/workspace-conversation-model.test.ts](../src/components/trip-workspace/workspace-conversation-model.test.ts) | 测试（对应模块边界） | 验证合法/非法响应、浏览器 fetch 接收者及失败提示，不把未确认发送当已保存。 |
-| [src/components/trip-workspace/workspace-conversation-model.ts](../src/components/trip-workspace/workspace-conversation-model.ts) | 表现层 | 请求聊天、解析响应及 selection/推荐过期相关错误类型，校验服务端返回状态和消息。 |
+| [src/components/trip-workspace/workspace-conversation-model.ts](../src/components/trip-workspace/workspace-conversation-model.ts) | 表现层 | 请求聊天、解析响应及 selection/推荐过期相关错误类型，校验服务端返回状态和消息。；第 2 步：接口回 503 带 `daily_quota` / `paid_calls_paused` 时抛 `WorkspaceLimitError`，聊天显示额度用完或演示暂停，不提示刷新 |
 | [src/components/trip-workspace/workspace-header.tsx](../src/components/trip-workspace/workspace-header.tsx) | 表现层 | 品牌/返回首页、旅程标题（左侧缩略图为第一个地点的照片，没有时为默认图）、日期/出发地/交通摘要；日期与“何时”同一写法；保存标签为当前 UI 展示。 |
 | [src/components/trip-workspace/workspace-presentation.ts](../src/components/trip-workspace/workspace-presentation.ts) | 表现层 | 页头使用的字段和日期（复用 tripDatesSummary，按传入的字典）显示转换。 |
 | [src/components/trip-workspace/workspace-title.ts](../src/components/trip-workspace/workspace-title.ts) | 表现层 | 从当前 name 字段派生 Workspace 标题，缺失时显示调用方传入的默认标题。 |
@@ -352,7 +352,7 @@ Generate plan 背后的计划页先用示例数据做出完整页面（设计决
 | [src/components/trip-plan/plan-memories.tsx](../src/components/trip-plan/plan-memories.tsx) | 表现层 | 「Meri 记得」：交接提取的偏好、用户在计划页添加的偏好和回答计划问题得到的偏好（后者算作已用于本次计划），添加面板复用 PreferenceSheet；新偏好不触发重新规划。 |
 | [src/components/trip-plan/plan-memories.module.css](../src/components/trip-plan/plan-memories.module.css) | 样式 | 偏好卡片、标签和提示。 |
 | [src/components/trip-plan/plan-preferences-model.ts](../src/components/trip-plan/plan-preferences-model.ts) | 表现层模型 | 调用偏好接口读取、添加、删除；常用选项按顺序对应类型。 |
-| [src/components/trip-plan/plan-draft-model.ts](../src/components/trip-plan/plan-draft-model.ts) | 表现层模型 | 调用 plan-runs、回答与 plan 接口并映射错误；SSE 地址（可带 after）和事件解析（只认本次运行）；运行错误码到页面说明；按时段分组和列出有出处的事实。 |
+| [src/components/trip-plan/plan-draft-model.ts](../src/components/trip-plan/plan-draft-model.ts) | 表现层模型 | 调用 plan-runs、回答与 plan 接口并映射错误；SSE 地址（可带 after）和事件解析（只认本次运行）；运行错误码到页面说明；按时段分组和列出有出处的事实。；第 2 步加三种上限失败（`daily_runs`、`daily_quota`、`paid_calls_paused`），不给重试 |
 | [src/components/trip-plan/plan-progress-view.ts](../src/components/trip-plan/plan-progress-view.ts) | 表现层纯函数 | 把进度事件逐条推成页面状态：十个阶段（1.2106 起含查转场）的状态、计时起点、摘要和当前活动（调研按城市各一行，其他阶段只留最新一行），路线、已到的天、景点卡、照片、等待中的问题、等待时长和已回答的问题、结束状态；重复事件不改变状态；路线已定但未到的天；记下每站的核实结果（spot.checked） |
 | [src/components/trip-plan/plan-run-activity.tsx](../src/components/trip-plan/plan-run-activity.tsx) | 表现层 | 实时活动流：运行中的阶段转动 ✻、计时，⎿ 显示正在做什么；等待回答时显示「?」和标签、总计时停住；完成的阶段收成 ✓ 一行带数字和用时，调研、定位、路线（含问答）可展开明细；问题卡（选项、「你来定」，1.2018 起还有写自己想法的输入框）；中英文案。 |
 | [src/components/trip-plan/plan-run-activity.module.css](../src/components/trip-plan/plan-run-activity.module.css) | 样式 | 活动流的终端式排版、等宽计时、⎿ 缩进行、等待标签、问题卡和选项按钮、减少动态效果时停止转动和动画、窄屏换行。 |
@@ -582,9 +582,9 @@ Generate plan 背后的计划页先用示例数据做出完整页面（设计决
 | [src/capabilities/planning/planning-handoff-route.test.ts](../src/capabilities/planning/planning-handoff-route.test.ts) | 测试 | 验证归属、准备度、偏好保存与替换、删除过的不回来、提取不可用时保留已存的、快照传递和客户端响应解析。 |
 | [src/capabilities/planning/getting-there.ts](../src/capabilities/planning/getting-there.ts) | 应用层 | 1.2107：计划生成后补填一次出发地：请求校验（必须是带天地图坐标、在中国范围内的地点，交通选择四选一）；只对最新的成功运行和它的版本、出发地还空着、行程其他部分没改过时进行；依次写 TripState（出发地，交通方式没填时一并写）、更新版本的 TripState 和计划（只重算启程和回程，转场保留）、把运行的交接换成新的；重发同样的请求能补完中途失败；HTTP 映射（400/404/409/500）。不调用模型。 |
 | [src/capabilities/planning/getting-there.test.ts](../src/capabilities/planning/getting-there.test.ts) | 测试 | 三处写入和只查启程回程、只能填一次与中途失败后补完、计划过期和没有计划、交通方式已有时忽略选择、接口状态码。 |
-| [src/capabilities/planning/plan-run-handler.ts](../src/capabilities/planning/plan-run-handler.ts) | 应用层 | 四个接口的处理：校验交接和归属、与已保存 TripState 比对（409）、没有城市不建运行；开始或复用运行；回答问题（404/409/400 映射）；读取最新版本并判断是否过期；把运行事件写成 SSE（id 为 seq、心跳、重连间隔，运行开始等待回答时结束）。 |
-| [src/capabilities/planning/plan-run-service.ts](../src/capabilities/planning/plan-run-service.ts) | 应用层 | 在后台运行 plan-generation 工作流：同一份交接复用运行、等待中的运行或已保存的计划；把 Mastra 事件流转成进度事件、编号、立即推给页面并依次写库；运行暂停时标为 suspended；回答时认领、把答案存成偏好、用 resumeStream 从快照恢复并接着编号；8 分钟兜底时限（每段分别计时）；结束时记状态、错误码、用量和不含等待的用时；服务器重启留下的运行标为中断。1.2018：自写的答案先经 `labelAnswer`，原话存成偏好，要放弃的城市随恢复数据交给路线。 |
-| [src/capabilities/planning/plan-run-service-instance.ts](../src/capabilities/planning/plan-run-service-instance.ts) | 装配 | 用 Postgres 的运行和偏好 repository、Mastra 注册的工作流组装 PlanRunService（第一次运行时才加载 Agent）。 |
+| [src/capabilities/planning/plan-run-handler.ts](../src/capabilities/planning/plan-run-handler.ts) | 应用层 | 四个接口的处理：校验交接和归属、与已保存 TripState 比对（409）、没有城市不建运行；开始或复用运行；回答问题（404/409/400 映射）；读取最新版本并判断是否过期；把运行事件写成 SSE（id 为 seq、心跳、重连间隔，运行开始等待回答时结束）。；第 2 步：被站点上限拒绝时回 `{ status: "limited", reason }` |
+| [src/capabilities/planning/plan-run-service.ts](../src/capabilities/planning/plan-run-service.ts) | 应用层 | 在后台运行 plan-generation 工作流：同一份交接复用运行、等待中的运行或已保存的计划；把 Mastra 事件流转成进度事件、编号、立即推给页面并依次写库；运行暂停时标为 suspended；回答时认领、把答案存成偏好、用 resumeStream 从快照恢复并接着编号；8 分钟兜底时限（每段分别计时）；结束时记状态、错误码、用量和不含等待的用时；服务器重启留下的运行标为中断。1.2018：自写的答案先经 `labelAnswer`，原话存成偏好，要放弃的城市随恢复数据交给路线。；第 2 步：新开规划前查站点上限（总开关、Kimi 当天的钱、当天已新建的规划数），被拒回 `limited`；跑到一半 Kimi 被拒时错误码写 `daily_quota` / `paid_calls_paused` |
+| [src/capabilities/planning/plan-run-service-instance.ts](../src/capabilities/planning/plan-run-service-instance.ts) | 装配 | 用 Postgres 的运行和偏好 repository、Mastra 注册的工作流组装 PlanRunService（第一次运行时才加载 Agent）。；第 2 步接上每天规划数和 Kimi 的拒绝判断 |
 | [src/capabilities/planning/plan-run-repository-instance.ts](../src/capabilities/planning/plan-run-repository-instance.ts) | 装配 | 计划运行 repository 的 Postgres 实例。 |
 | [src/capabilities/planning/plan-run-route.test.ts](../src/capabilities/planning/plan-run-route.test.ts) | 测试 | 经客户端模型验证开始运行与已保存计划、旅程变化 409、没有城市、错误映射、版本过期判断、SSE 按 Last-Event-ID 续传及页面按事件推出状态、调研每城一行而选点只留一行、每天照片的选择，以及时段分组和出处列表。 |
 
@@ -629,8 +629,10 @@ Generate plan 背后的计划页先用示例数据做出完整页面（设计决
 | [src/platform/locale/locale-preference.test.ts](../src/platform/locale/locale-preference.test.ts) | 测试（对应模块边界） | 验证浏览器语言排序与权重、cookie 优先且坏值被忽略、cookie 字符串。 |
 | [src/platform/locale/request-locale.ts](../src/platform/locale/request-locale.ts) | 基础设施端口/适配器 | 服务端从当前请求的 cookies/headers 取语言。 |
 | [src/platform/llm/ai-sdk-kimi-client.test.ts](../src/platform/llm/ai-sdk-kimi-client.test.ts) | 测试（对应模块边界） | mock 验证 schema/历史转发、旧新 SDK 契约、非法/截断输出、超时/HTTP 错误及配置校验。 |
-| [src/platform/llm/ai-sdk-kimi-client.ts](../src/platform/llm/ai-sdk-kimi-client.ts) | 基础设施端口/适配器 | Kimi 的 Vercel AI SDK 适配器，结构化输出、finish reason/usage 归一化、60 秒超时、零自动重试和日志。 |
-| [src/platform/llm/moonshot-chat-model.ts](../src/platform/llm/moonshot-chat-model.ts) | 基础设施端口/适配器 | 唯一构造 Kimi 模型的地方（关闭 thinking、默认 kimi-k2.6 与 api.moonshot.cn），结构化输出客户端和 Agent 共用；可从环境变量构造。 |
+| [src/platform/llm/ai-sdk-kimi-client.ts](../src/platform/llm/ai-sdk-kimi-client.ts) | 基础设施端口/适配器 | Kimi 的 Vercel AI SDK 适配器，结构化输出、finish reason/usage 归一化、60 秒超时、零自动重试和日志。；第 2 步起从环境创建的客户端用 `kimiFetch` 计费 |
+| [src/platform/llm/moonshot-chat-model.ts](../src/platform/llm/moonshot-chat-model.ts) | 基础设施端口/适配器 | 唯一构造 Kimi 模型的地方（关闭 thinking、默认 kimi-k2.6 与 api.moonshot.cn），结构化输出客户端和 Agent 共用；可从环境变量构造。；第 2 步起从环境创建的模型都用 `kimiFetch` 计费 |
+| [src/platform/llm/kimi-spend.ts](../src/platform/llm/kimi-spend.ts) | 基础设施/限额 | 第 2 步：Kimi 每天花多少钱。价格表（k2.6、k2.7、k3.1-pro、k3，表外的按最贵算）、按输入/输出/缓存命中 token 算分、读 JSON 和流式返回里的用量；`meteredKimiFetch` 调用前查总开关和当天余额，被拒回 403（带标记，`kimiRefusalOf` 能认出来），返回后记账；`kimiRefusalNow` 给规划说明停下的原因。 |
+| [src/platform/llm/kimi-spend.test.ts](../src/platform/llm/kimi-spend.test.ts) | 测试 | 价格和缓存命中、两种缓存字段、记账后到上限拒绝、总开关、流式用量、经过 AI SDK 的错误仍能认出拒绝。 |
 | [src/platform/llm/kimi-client.ts](../src/platform/llm/kimi-client.ts) | 基础设施端口/适配器 | StructuredOutputModelClient 端口及通用模型错误，同时保留旧 OpenAI SDK Kimi 实现；当前应用入口默认 AI SDK 客户端。 |
 | [src/platform/location-provider/location-provider.ts](../src/platform/location-provider/location-provider.ts) | 基础设施端口/适配器 | 地点搜索端口与 success/failure 规范化结果，隔离高德响应格式。 |
 | [src/platform/location-provider/location-suggestion-provider.ts](../src/platform/location-provider/location-suggestion-provider.ts) | 基础设施端口/适配器 | 输入建议端口及规范化错误类型。 |
@@ -692,7 +694,7 @@ Generate plan 背后的计划页先用示例数据做出完整页面（设计决
 | [src/platform/flight/fixtures/variflight-train-ljg-dali-2026-12-21.txt](../src/platform/flight/fixtures/variflight-train-ljg-dali-2026-12-21.txt) | 测试数据 | 同上 12-21：「暂无数据」，和 12306 一样受约 15 天预售期限制。 |
 | [src/platform/flight/fixtures/variflight-air-rail-sha-ljg-2026-12-21.txt](../src/platform/flight/fixtures/variflight-air-rail-sha-ljg-2026-12-21.txt) | 测试数据 | 同日实测：`getFlightAndTrainTransferInfo` 上海→丽江，只返回 3 个单段航班（没有火车段、没有价格、目的地误写鹤庆县、混入 12-22）。 |
 | [src/platform/flight/fixtures/variflight-flight-transfer-sha-dig-2026-12-21.txt](../src/platform/flight/fixtures/variflight-flight-transfer-sha-dig-2026-12-21.txt) | 测试数据 | 同日实测：`getFlightTransferInfo` 上海→迪庆，经成都中转（MU9181 + MU5780），没有价格，同一组航班重复 12-21、22、23 三天。 |
-| [src/platform/http/daily-budget.ts](../src/platform/http/daily-budget.ts) | 基础设施/限流 | 1.2111 从 rail-budget 抽出：按次付费或易被封的提供方共用的每日预算：一次一个请求、按间隔排队、按北京时间每天计数（存 `.cache`）、失败后暂停（可指定时长）。；1.2113 起上限按各自的单位计（12306 按请求、飞常准按分），每天第一次到上限打一条 warn 日志，写明服务、用了多少、上限多少和北京时间 0 点恢复 |
+| [src/platform/http/daily-budget.ts](../src/platform/http/daily-budget.ts) | 基础设施/限流 | 1.2111 从 rail-budget 抽出：按次付费或易被封的提供方共用的每日预算：一次一个请求、按间隔排队、按北京时间每天计数（存 `.cache`）、失败后暂停（可指定时长）。；1.2113 起上限按各自的单位计（12306 按请求、飞常准按分），每天第一次到上限打一条 warn 日志，写明服务、用了多少、上限多少和北京时间 0 点恢复；第 2 步加 `DailyMeter`：调用前看余额（`room`），调用后记账（`record`） |
 | [src/platform/rail/rail-mcp.ts](../src/platform/rail/rail-mcp.ts) | 外部集成适配器 | 1.2108：12306-mcp 0.3.10 的子进程，`@mastra/mcp` 客户端；只有 `RAIL_PROVIDER=12306` 时可用，第一次调用 `railTools()` 才启动并一直复用，进程退出时关掉；导入和 `next dev` 不启动；启动本身向 12306 发 3 个请求。 |
 | [src/platform/rail/rail-budget.ts](../src/platform/rail/rail-budget.ts) | 基础设施/限流 | 1.2108（1.2111 起用共享的 daily-budget）：全进程一个队列，请求间隔 ≥3 秒；每天（北京时间）最多 100 个请求，计数存 `.cache/rail-requests.json`；失败后暂停 30 分钟。 |
 | [src/platform/rail/rail-budget.test.ts](../src/platform/rail/rail-budget.test.ts) | 测试 | 每日上限、跨天重新计数、失败后的暂停。 |
@@ -713,7 +715,7 @@ Generate plan 背后的计划页先用示例数据做出完整页面（设计决
 | [src/platform/tianditu/tianditu-input-tips-provider.ts](../src/platform/tianditu/tianditu-input-tips-provider.ts) | 基础设施端口/适配器 | 天地图建议词搜索（queryType 4）做输入提示：gbCode 去掉 156 变成六位 adcode，行政区文字放 region，坐标 CGCS2000。 |
 | [src/platform/tianditu/tianditu-input-tips-provider.test.ts](../src/platform/tianditu/tianditu-input-tips-provider.test.ts) | 测试（对应模块边界） | 验证建议规范化、空结果、超时、拒绝与畸形响应。 |
 | [src/platform/map-providers.ts](../src/platform/map-providers.ts) | 基础设施装配 | 创建地点核验、输入提示和照片提供方：1.0702 起只有天地图（`TiandituLocationProvider`、`TiandituInputTipsProvider`），照片用 CatalogPhotoProvider（本地图集 + 已下载照片）；createRemotePhotoFinders 在有媒体目录时返回进程内唯一的远程补图器（先 Wikimedia，有 PIXABAY_API_KEY 再加 Pixabay），只有推荐卡照片接口使用。 |
-| [src/platform/provider-limits.ts](../src/platform/provider-limits.ts) | 基础设施配置 | 1.2113：花钱或要客气使用的服务的上限，集中一处，可在 `.env.local` 设：`VARIFLIGHT_MAX_YUAN_PER_PLAN`（默认 ¥2）、`VARIFLIGHT_MAX_YUAN_PER_DAY`（默认 ¥20）、`RAIL_MAX_SEARCHES_PER_PLAN`（默认 8）、`RAIL_MAX_REQUESTS_PER_DAY`（默认 100）；不是正数时用默认值并打日志。每次调用的价格是服务方的事实，留在各自适配器里。；1.2113 第 1 步加 `BOCHA_MAX_CALLS_PER_DAY`（默认 500）和 `KIMI_MAX_SEARCHES_PER_DAY`（默认 500） |
+| [src/platform/provider-limits.ts](../src/platform/provider-limits.ts) | 基础设施配置 | 1.2113：花钱或要客气使用的服务的上限，集中一处，可在 `.env.local` 设：`VARIFLIGHT_MAX_YUAN_PER_PLAN`（默认 ¥2）、`VARIFLIGHT_MAX_YUAN_PER_DAY`（默认 ¥20）、`RAIL_MAX_SEARCHES_PER_PLAN`（默认 8）、`RAIL_MAX_REQUESTS_PER_DAY`（默认 100）；不是正数时用默认值并打日志。每次调用的价格是服务方的事实，留在各自适配器里。；1.2113 第 1 步加 `BOCHA_MAX_CALLS_PER_DAY`（默认 500）和 `KIMI_MAX_SEARCHES_PER_DAY`（默认 500）；第 2 步加 `KIMI_MAX_YUAN_PER_DAY`（默认 ¥40）、`PLAN_RUNS_PER_DAY`（默认 15）和总开关 `paidCallsEnabled`（`PAID_CALLS_ENABLED=false` 才关），Kimi 搜索默认改为 300 |
 | [src/platform/provider-limits.test.ts](../src/platform/provider-limits.test.ts) | 测试 | 默认值、元换成分、无效值用默认。 |
 | [src/platform/map-providers.test.ts](../src/platform/map-providers.test.ts) | 测试（对应模块边界） | 验证只用天地图和本地图集、页面照片不联网、只有推荐卡照片接口能调用远程补图。 |
 | [src/platform/search/bocha-web-search.test.ts](../src/platform/search/bocha-web-search.test.ts) | 测试（对应模块边界） | mock 验证 POST/envelope、webPages/images 区段、缺密钥不请求及错误脱敏。 |
@@ -740,14 +742,14 @@ Generate plan 背后的计划页先用示例数据做出完整页面（设计决
 | [src/platform/persistence/in-memory/in-memory-trip-repository.ts](../src/platform/persistence/in-memory/in-memory-trip-repository.ts) | 基础设施端口/适配器 | 内存 TripRepository，测试中保留 owner 读写隔离。 |
 | [src/platform/persistence/in-memory/in-memory-trip-state-repository.test.ts](../src/platform/persistence/in-memory/in-memory-trip-state-repository.test.ts) | 测试（对应模块边界） | 验证创建/读取、替换更新及内存比较更新。 |
 | [src/platform/persistence/in-memory/in-memory-trip-state-repository.ts](../src/platform/persistence/in-memory/in-memory-trip-state-repository.ts) | 基础设施端口/适配器 | 内存 TripStateRepository，实现存取和 CAS，供应用测试模拟状态冲突。 |
-| [src/platform/persistence/in-memory/in-memory-plan-run-repository.ts](../src/platform/persistence/in-memory/in-memory-plan-run-repository.ts) | 基础设施端口/适配器 | 内存 PlanRunRepository，供工作流测试和验证脚本使用；含 1.2107 的 `fillPlanFacts`。 |
+| [src/platform/persistence/in-memory/in-memory-plan-run-repository.ts](../src/platform/persistence/in-memory/in-memory-plan-run-repository.ts) | 基础设施端口/适配器 | 内存 PlanRunRepository，供工作流测试和验证脚本使用；含 1.2107 的 `fillPlanFacts`。；第 2 步加 `countRunsStartedSince` |
 | [src/platform/persistence/journey-summary-repository.ts](../src/platform/persistence/journey-summary-repository.ts) | 持久化端口/读模型 | JourneySummary 读模型（含已保存的省/市/景点，供封面照片用）和按 owner 列表接口，不作为可变状态仓库。 |
 | [src/platform/persistence/postgres/postgres-journey-summary-repository.test.ts](../src/platform/persistence/postgres/postgres-journey-summary-repository.test.ts) | 测试（对应模块边界） | mock 验证权威状态投影、owner 过滤、缺状态、certainty 保留及已保存地点的投影。 |
 | [src/platform/persistence/postgres/postgres-journey-summary-repository.ts](../src/platform/persistence/postgres/postgres-journey-summary-repository.ts) | 基础设施端口/适配器 | 关联 Trip 与当前状态，按 owner 查询并投影列表摘要（含已保存的地点结构），不使用旧 Trip 字段。 |
 | [src/platform/persistence/postgres/postgres-trip-message-repository.test.ts](../src/platform/persistence/postgres/postgres-trip-message-repository.test.ts) | 测试（对应模块边界） | mock 验证完整 turn 单次插入、原话/助手 presentation、时间顺序和重复 ID 处理。 |
 | [src/platform/persistence/postgres/postgres-trip-preference-repository.ts](../src/platform/persistence/postgres/postgres-trip-preference-repository.ts) | 基础设施/存储 | Drizzle 实现：替换对话提取是先删后插两步、没有事务；删除只改状态；读出的时间转成 ISO（交接 schema 要求）。 |
 | [src/platform/persistence/postgres/postgres-trip-preference-repository.test.ts](../src/platform/persistence/postgres/postgres-trip-preference-repository.test.ts) | 测试 | 用数据库替身验证先删后插、只改状态、错误包装，以及 Postgres 时间格式读回为 ISO。 |
-| [src/platform/persistence/postgres/postgres-plan-run-repository.ts](../src/platform/persistence/postgres/postgres-plan-run-repository.ts) | 基础设施/存储 | Drizzle 实现：建运行、按条件在 running 与 suspended 之间切换（认领回答）、只结束仍在运行的行、找最近运行、按 seq 写读事件、按旅程递增版本号、补填出发地时更新版本和运行的交接（1.2107 `fillPlanFacts`，先版本后运行）；读出的交接、事件、计划、TripState 和偏好都重新校验，时间转成 ISO。 |
+| [src/platform/persistence/postgres/postgres-plan-run-repository.ts](../src/platform/persistence/postgres/postgres-plan-run-repository.ts) | 基础设施/存储 | Drizzle 实现：建运行、按条件在 running 与 suspended 之间切换（认领回答）、只结束仍在运行的行、找最近运行、按 seq 写读事件、按旅程递增版本号、补填出发地时更新版本和运行的交接（1.2107 `fillPlanFacts`，先版本后运行）；读出的交接、事件、计划、TripState 和偏好都重新校验，时间转成 ISO。；第 2 步加 `countRunsStartedSince`（按 `started_at` 计数） |
 | [src/platform/persistence/postgres/postgres-trip-message-repository.ts](../src/platform/persistence/postgres/postgres-trip-message-repository.ts) | 基础设施端口/适配器 | PostgreSQL 消息插入/读取，完整双边 turn 单次 insert，稳定 ID 重试及 presentation 校验；按 id+trip+assistant 替换 presentation（推荐卡照片，唯一的消息更新）。 |
 | [src/platform/persistence/postgres/postgres-trip-repository.test.ts](../src/platform/persistence/postgres/postgres-trip-repository.test.ts) | 测试（对应模块边界） | mock 数据库验证字段映射、owner 条件、列表/删除及错误 cause。 |
 | [src/platform/persistence/postgres/postgres-trip-repository.ts](../src/platform/persistence/postgres/postgres-trip-repository.ts) | 基础设施端口/适配器 | PostgreSQL Trip 增查删适配，显式字段映射、owner 过滤和错误包装。 |
@@ -755,7 +757,7 @@ Generate plan 背后的计划页先用示例数据做出完整页面（设计决
 | [src/platform/persistence/postgres/postgres-trip-state-repository.ts](../src/platform/persistence/postgres/postgres-trip-state-repository.ts) | 基础设施端口/适配器 | 状态 JSONB 存取、领域读取校验/兼容，原始 JSONB 条件 CAS 与错误包装。 |
 | [src/platform/persistence/trip-message-repository.ts](../src/platform/persistence/trip-message-repository.ts) | 持久化端口/读模型 | 消息存储端口，定义完整 turn、单消息、列表及助手消息 presentation 替换能力。 |
 | [src/platform/persistence/trip-preference-repository.ts](../src/platform/persistence/trip-preference-repository.ts) | 基础设施/接口 | 偏好 repository：列出、替换对话提取、新增、标为删除。 |
-| [src/platform/persistence/plan-run-repository.ts](../src/platform/persistence/plan-run-repository.ts) | 基础设施/接口 | 计划运行 repository：运行（含暂停与恢复的状态切换）、事件和计划版本的读写契约；1.2107 加补填事实后的版本与交接更新。 |
+| [src/platform/persistence/plan-run-repository.ts](../src/platform/persistence/plan-run-repository.ts) | 基础设施/接口 | 计划运行 repository：运行（含暂停与恢复的状态切换）、事件和计划版本的读写契约；1.2107 加补填事实后的版本与交接更新。；第 2 步加 `countRunsStartedSince` |
 | [src/platform/persistence/trip-repository.ts](../src/platform/persistence/trip-repository.ts) | 持久化端口/读模型 | Trip 存储端口，定义创建、owner-scoped 查询/删除等，不写具体 SQL。 |
 | [src/platform/persistence/trip-state-repository.ts](../src/platform/persistence/trip-state-repository.ts) | 持久化端口/读模型 | TripState 存储端口，包含读取/更新及可选 compareAndUpdate；生产实现使用 CAS。 |
 
