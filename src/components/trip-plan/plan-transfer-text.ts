@@ -258,9 +258,21 @@ export function changeWarning(train: TrainOption, locale: Locale): string | null
  * fare, the airport and fuel charges said apart, and VariFlight as the source.
  */
 
-/** The middle of a plane ticket: 9C6733 · 4 小时 15 分, and a stop or codeshare when there is one. */
+/**
+ * The middle of a plane ticket: 9C6733 · 4 小时 15 分, and a stop or codeshare when there is one. A change
+ * of plane (1.2113) reads like a change of train: 在成都转机 · 共 6 小时 30 分, then MU9181 → MU5780 · 等 1 小时 50 分.
+ */
 export function flightCaption(flight: FlightOption, locale: Locale): { readonly caption: string; readonly note: string | null } {
   const zh = locale === "zh";
+  if (flight.change) {
+    const { city, first, second, waitMinutes } = flight.change;
+    const total = trainDuration(flight.durationMinutes, zh);
+    const wait = trainDuration(waitMinutes, zh);
+    return {
+      caption: zh ? `在${city}转机 · 共 ${total}` : `Change planes at ${city} · ${total} in all`,
+      note: `${first.flightNo} → ${second.flightNo} · ${zh ? `等 ${wait}` : `${wait} wait`}`,
+    };
+  }
   const notes = [
     flight.stopCity ? (zh ? `经停${flight.stopCity}` : `stops at ${flight.stopCity}`) : null,
     flight.codeshare ? (zh ? "代码共享" : "codeshare") : null,
@@ -268,11 +280,25 @@ export function flightCaption(flight: FlightOption, locale: Locale): { readonly 
   return { caption: `${flight.flightNo} · ${trainDuration(flight.durationMinutes, zh)}`, note: notes.length > 0 ? notes.join(" · ") : null };
 }
 
-/** The cheapest cabin, its fare and seats left: 经济舱 ¥460 · 剩 9 张. */
+/**
+ * The cheapest cabin, its fare and seats left: 经济舱 ¥460 · 剩 9 张. A change of plane is two tickets,
+ * so it says so rather than passing the sum off as one fare: 两段分开买 ¥1130 · 剩 4 张.
+ */
 export function flightSeat(flight: FlightOption, locale: Locale): string {
   const zh = locale === "zh";
   const left = flight.seatsLeft === null ? null : zh ? `剩 ${flight.seatsLeft} 张` : `${flight.seatsLeft} left`;
-  return `${flight.cabin} ¥${flight.price}${left ? ` · ${left}` : ""}`;
+  const fare = flight.change ? (zh ? `两段分开买 ¥${flight.price}` : `two tickets, ¥${flight.price}`) : `${flight.cabin} ¥${flight.price}`;
+  return `${fare}${left ? ` · ${left}` : ""}`;
+}
+
+/** A change to the city's other airport, said plainly, since the ride between them is not in the times. */
+export function flightChangeWarning(flight: FlightOption, locale: Locale): string | null {
+  if (!flight.change || flight.change.sameAirport) return null;
+  const { first, second, waitMinutes } = flight.change;
+  const zh = locale === "zh";
+  const wait = trainDuration(waitMinutes, zh);
+  return zh ? `${first.toAirport}落地，${second.fromAirport}起飞，要换机场，市内交通另算，换乘时间共 ${wait}`
+    : `Lands at ${first.toAirport}, leaves from ${second.fromAirport}: a change of airport, the ride across town not included (${wait} to change)`;
 }
 
 /** Airport and fuel charges on top of the fare, said apart so the fare is not mistaken for the total. */

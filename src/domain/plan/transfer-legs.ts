@@ -107,6 +107,21 @@ export type FlightOption = {
   readonly stopCity: string | null;
   /** Sold under another airline's number. */
   readonly codeshare: boolean;
+  /**
+   * A journey with one change of plane (1.2113), joined by code from two fare searches. The
+   * journey's own fields cover it whole; its price and charges are the two flights bought apart.
+   */
+  readonly change?: FlightChange;
+};
+
+export type FlightChange = {
+  /** The city changed in: 成都. */
+  readonly city: string;
+  readonly waitMinutes: number;
+  /** False when the second flight leaves from another airport of the city: 成都天府 to 成都双流. */
+  readonly sameAirport: boolean;
+  readonly first: FlightOption;
+  readonly second: FlightOption;
 };
 
 export type LegFlights = {

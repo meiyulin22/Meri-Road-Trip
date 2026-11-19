@@ -16,7 +16,7 @@ import { createTiandituCityPoint } from "@/platform/tianditu/tianditu-city-point
 import { create12306Rail } from "@/platform/rail/rail-12306";
 import { sharedRailBudget } from "@/platform/rail/rail-budget";
 import { railEnabled, railTools } from "@/platform/rail/rail-mcp";
-import { createVariflightSearch, flightEnabled, sharedFlightBudget, variflightTools } from "@/platform/flight/variflight";
+import { createVariflightHubs, createVariflightSearch, flightEnabled, sharedFlightBudget, variflightTools } from "@/platform/flight/variflight";
 
 import { researchCity } from "./planner/research-agent";
 import { verifySpots } from "./planner/verify-spots";
@@ -32,6 +32,7 @@ let drive: ReturnType<typeof createTiandituDrive> | null = null;
 let cityPoint: ReturnType<typeof createTiandituCityPoint> | null = null;
 let rail: ReturnType<typeof create12306Rail> | null = null;
 let flights: ReturnType<typeof createVariflightSearch> | null = null;
+let flightHubs: ReturnType<typeof createVariflightHubs> | null = null;
 let photos: ReturnType<typeof createPlacePhotoProvider> | null = null;
 
 /**
@@ -80,6 +81,10 @@ export function planGenerationDependencies(
       searchTrains: (search) => (rail ??= create12306Rail({ enabled: railEnabled, tools: railTools, budget: sharedRailBudget, now: () => new Date() }))(search),
       // VariFlight only when FLIGHT_PROVIDER=variflight and a key are set; each fare search costs ¥0.25.
       searchFlights: (search) => (flights ??= createVariflightSearch({
+        enabled: flightEnabled, tools: variflightTools, budget: sharedFlightBudget, now: () => new Date(),
+      }))(search),
+      // VariFlight's own change cities (¥0.25), only when the agent's hub for a change of plane did not join (1.2113).
+      flightHubs: (search) => (flightHubs ??= createVariflightHubs({
         enabled: flightEnabled, tools: variflightTools, budget: sharedFlightBudget, now: () => new Date(),
       }))(search),
       model: createMoonshotChatModelFromEnvironment,

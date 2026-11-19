@@ -5,7 +5,7 @@ import type { TrainOption, TransferLeg } from "@/domain/plan/transfer-legs";
 import { createMoonshotChatModel } from "@/platform/llm/moonshot-chat-model";
 import type { RailAnswer, TrainSearch } from "@/platform/rail/rail-12306";
 
-import { applyTransport, flightCandidates, maxFlightSearches, maxTrainSearches, planTransport, trainCandidates, type TransportInput } from "./transport-agent";
+import { applyTransport, flightCandidates, maxVariflightFen, maxTrainSearches, planTransport, trainCandidates, type TransportInput } from "./transport-agent";
 
 type ChatRequest = {
   readonly messages: readonly { readonly role: string; readonly content: string | null; readonly tool_calls?: unknown }[];
@@ -227,15 +227,17 @@ test("letting Meri decide, the agent may pick the flight over a day on the train
 
 test("flight searches stop at their budget, and a flight with nothing found says so", async () => {
   let asked = 0;
-  const many: TransferLeg[] = Array.from({ length: 6 }, (_, index) =>
+  const many: TransferLeg[] = Array.from({ length: 9 }, (_, index) =>
     ({ kind: "between", day: index + 2, from: `城${index}`, to: `城${index + 1}`, estimate: drive(700) }));
   const outcome = await planTransport(many, input({ choice: "auto", dates: new Map(many.map(({ day }) => [day, "2026-11-22"])) }), {
     searchTrains: async () => ({ status: "none", queriedDate: "2026-11-22", reference: false }),
     searchFlights: async () => { asked += 1; return { status: "none" }; },
     model: fakeModelCalling(many.map((_, leg) => ({ tool: "searchFlights", args: { leg, fromCode: "AAA", toCode: "BBB" } })), { legs: [] }),
   });
-  assert.equal(asked, maxFlightSearches);
-  assert.equal(outcome.legs.filter(({ flightsMissing }) => flightsMissing === "none").length, maxFlightSearches);
+  // ¥2 at ¥0.25 a search: eight of the nine legs, and the run says what it spent.
+  assert.equal(asked, maxVariflightFen / 25);
+  assert.equal(outcome.variflightFen, maxVariflightFen);
+  assert.equal(outcome.legs.filter(({ flightsMissing }) => flightsMissing === "none").length, maxVariflightFen / 25);
 });
 
 /**
@@ -369,4 +371,92 @@ test("no train at all: the comparison flight is used without a question, and the
   assert.equal(outcome.legs[0].trainsMissing, "none");
   assert.deepEqual(outcome.legs[0].recommendation,
     { mode: "flight", trainCode: null, flightNo: "CA8559", reason: "没查到火车，这是用时最短的一班飞机", by: "code" });
+});
+
+// Changing planes (1.2113): 上海 → 迪庆 has no direct flight; VariFlight's recorded connection is via 成都.
+const toDiqing: TransferLeg = { kind: "outbound", day: 1, from: "上海虹桥站", to: "迪庆藏族自治州", estimate: drive(2900) };
+const mu9181 = { ...flight("MU9181", "12:30", 190, 980), fromAirport: "上海虹桥", toAirport: "成都天府", arrives: "15:40" };
+const mu5780 = { ...flight("MU5780", "17:30", 90, 650), fromAirport: "成都天府", toAirport: "迪庆香格里拉", arrives: "19:00" };
+function airline(direct: ReturnType<typeof flight>[] = []) {
+  const asked: string[] = [];
+  return {
+    asked,
+    searchTrains: async () => ({ status: "none" as const, queriedDate: "2026-12-21", reference: false }),
+    searchFlights: async (search: { fromCode: string; toCode: string; date: string }) => {
+      asked.push(`${search.fromCode}>${search.toCode} ${search.date}`);
+      const route = `${search.fromCode}>${search.toCode}`;
+      if (route === "SHA>DIG") return direct.length > 0 ? flightsFound(...direct) : { status: "none" as const };
+      if (route === "SHA>CTU") return flightsFound(mu9181);
+      if (route === "CTU>DIG") return flightsFound(mu5780);
+      return { status: "none" as const };
+    },
+  };
+}
+const diqingInput = input({ choice: "flight", dates: new Map([[1, "2026-12-21"]]) });
+
+test("with no direct flight the agent names a change city; code joins two fare searches (1.2113)", async () => {
+  const { asked, ...providers } = airline();
+  const outcome = await planTransport([toDiqing], diqingInput, { ...providers, model: fakeModelSteps([
+    [{ tool: "searchFlights", args: { leg: 0, fromCode: "SHA", toCode: "DIG" } }],
+    [{ tool: "searchFlightConnection", args: { leg: 0, viaCode: "ctu", viaCity: "成都市" } }],
+  ], { legs: [{ leg: 0, mode: "flight", trainCode: null, flightNo: "MU9181/MU5780", reason: "经成都转机，当天 19:00 到" }] }) });
+  assert.deepEqual(asked, ["SHA>DIG 2026-12-21", "SHA>CTU 2026-12-21", "CTU>DIG 2026-12-21"]);
+  const leg = outcome.legs[0];
+  assert.deepEqual(leg.recommendation, { mode: "flight", trainCode: null, flightNo: "MU9181/MU5780", reason: "经成都转机，当天 19:00 到", by: "agent" });
+  const journey = leg.flights?.options[0];
+  assert.deepEqual(journey && [journey.price, journey.change?.city, journey.change?.waitMinutes, journey.change?.sameAirport], [1630, "成都", 110, true]);
+  // Three fare searches at ¥0.25; the direct search's "none" no longer shows once a connection is found.
+  assert.equal(outcome.variflightFen, 75);
+  assert.equal(leg.flightsMissing, undefined);
+});
+
+test("a change of plane is refused before the direct search, and when a direct flight exists", async () => {
+  const early = airline();
+  await planTransport([toDiqing], diqingInput, { ...early, model: fakeModelSteps([
+    [{ tool: "searchFlightConnection", args: { leg: 0, viaCode: "CTU", viaCity: "成都" } }],
+  ], { legs: [] }) });
+  assert.deepEqual(early.asked, []);
+  const direct = airline([flight("MU1", "08:00", 240, 900)]);
+  await planTransport([toDiqing], diqingInput, { ...direct, model: fakeModelSteps([
+    [{ tool: "searchFlights", args: { leg: 0, fromCode: "SHA", toCode: "DIG" } }],
+    [{ tool: "searchFlightConnection", args: { leg: 0, viaCode: "CTU", viaCity: "成都" } }],
+  ], { legs: [] }) });
+  assert.deepEqual(direct.asked, ["SHA>DIG 2026-12-21"]);
+});
+
+test("when its own hub does not join, the agent may ask VariFlight's change cities and try one", async () => {
+  const { asked, ...providers } = airline();
+  const hubsAsked: string[] = [];
+  const outcome = await planTransport([toDiqing], diqingInput, {
+    ...providers,
+    flightHubs: async (search) => { hubsAsked.push(`${search.fromCode}>${search.toCode}`); return { status: "found", hubs: [{ code: "CTU", city: "成都" }] }; },
+    model: fakeModelSteps([
+      [{ tool: "searchFlights", args: { leg: 0, fromCode: "SHA", toCode: "DIG" } }],
+      [{ tool: "searchFlightConnection", args: { leg: 0, viaCode: "KMG", viaCity: "昆明" } }],
+      [{ tool: "suggestFlightHubs", args: { leg: 0 } }],
+      [{ tool: "searchFlightConnection", args: { leg: 0, viaCode: "CTU", viaCity: "成都" } }],
+    ], { legs: [] }),
+  });
+  assert.deepEqual(hubsAsked, ["SHA>DIG"]);
+  assert.deepEqual(asked, ["SHA>DIG 2026-12-21", "SHA>KMG 2026-12-21", "SHA>CTU 2026-12-21", "CTU>DIG 2026-12-21"]);
+  // No pick: the traveller chose to fly, so code takes the quickest flight found, the connection.
+  assert.equal(outcome.legs[0].recommendation?.flightNo, "MU9181/MU5780");
+  assert.equal(outcome.variflightFen, 125);
+});
+
+test("a change of plane that would pass the run's ¥2 is refused before any search", async () => {
+  const many: TransferLeg[] = Array.from({ length: 7 }, (_, index) =>
+    ({ kind: "between", day: index + 2, from: `城${index}`, to: `城${index + 1}`, estimate: drive(700) }));
+  let asked = 0;
+  const outcome = await planTransport([...many, { ...toDiqing, kind: "return", day: 9 }], input({ choice: "auto", dates: new Map([...many.map(({ day }) => [day, "2026-12-21"] as const), [9, "2026-12-21"]]) }), {
+    searchTrains: async () => ({ status: "none", queriedDate: "2026-12-21", reference: false }),
+    searchFlights: async () => { asked += 1; return { status: "none" }; },
+    model: fakeModelSteps([
+      many.map((_, leg) => ({ tool: "searchFlights", args: { leg, fromCode: "AAA", toCode: "BBB" } })),
+      [{ tool: "searchFlightConnection", args: { leg: 0, viaCode: "CTU", viaCity: "成都" } }],
+    ], { legs: [] }),
+  });
+  // Seven searches spent ¥1.75; a change of plane needs ¥0.50.
+  assert.equal(asked, 7);
+  assert.equal(outcome.variflightFen, 175);
 });

@@ -50,6 +50,20 @@ test("a saved plan's transfers are checked when read; plans from before 1.2106 h
   assert.ok(!planDraftSchema.safeParse({ ...draft, transfers: [{ ...transfers[1], estimate: { status: "by_train" } }] }).success);
 });
 
+test("a saved change of plane reads back, with both flights and the change (1.2113)", () => {
+  const draft = { mode: "full", totalDays: 4, route: { source: "agent", cities: [], omitted: [] }, days: [], conflicts: [], unverified: [] };
+  const part = { fromAirport: "上海虹桥", toAirport: "成都天府", departs: "12:30", arrives: "15:40", arriveDayOffset: 0, durationMinutes: 190,
+    cabin: "经济舱", price: 980, seatsLeft: 9, charges: 100, stopCity: null, codeshare: false };
+  const first = { ...part, flightNo: "MU9181" };
+  const second = { ...part, flightNo: "MU5780", fromAirport: "成都天府", toAirport: "迪庆香格里拉", departs: "17:30", arrives: "19:00", durationMinutes: 90, price: 650 };
+  const journey = { ...first, flightNo: "MU9181/MU5780", toAirport: "迪庆香格里拉", arrives: "19:00", durationMinutes: 390, price: 1630, charges: 200,
+    change: { city: "成都", waitMinutes: 110, sameAirport: true, first, second } };
+  const leg = { kind: "outbound", day: 1, from: "上海", to: "迪庆藏族自治州", estimate: { status: "not_looked_up" },
+    flights: { queriedDate: "2026-12-21", checkedAt: "2026-11-19T06:30:00.000Z", options: [journey] },
+    recommendation: { mode: "flight", trainCode: null, flightNo: "MU9181/MU5780", reason: "经成都转机", by: "agent" } };
+  assert.ok(planDraftSchema.safeParse({ ...draft, transfers: [leg] }).success);
+});
+
 test("a choice stands for a transport preference, and only a picked Tianditu origin has a point (1.2107)", () => {
   assert.deepEqual(["drive", "train", "flight", "auto"].map((choice) => transportPreferenceFor(choice as TravelChoice)),
     ["self_drive", "public_transport", "public_transport", "flexible"]);

@@ -12,6 +12,7 @@ import {
   changeWarning,
   driveSummary,
   flightCaption,
+  flightChangeWarning,
   flightCharges,
   flightChecked,
   flightSeat,
@@ -127,7 +128,7 @@ function Between({ leg, picked, flight, drive, locale }: {
   const subcaption = flown ? flown.note
     : picked ? changeTrains(picked, locale) : leg.estimate.status === "estimated" ? drive?.detail ?? null : null;
   return (
-    <div className={styles.between} data-known={Boolean(flight || picked || drive)} data-change={Boolean(picked?.change)}>
+    <div className={styles.between} data-known={Boolean(flight || picked || drive)} data-change={Boolean(picked?.change || flight?.change)}>
       <span className={styles.line} aria-hidden="true"><Icon size={15} /></span>
       {caption ? <span className={styles.caption}>{caption}</span> : null}
       {subcaption ? <span className={styles.subcaption}>{subcaption}</span> : null}
@@ -215,8 +216,10 @@ function FlightDetails({ leg, picked, drive, locale }: {
   const others = flights.options.filter((flight) => flight !== picked);
   const charges = picked ? flightCharges(picked, locale) : null;
   const other = otherWay(leg, "flight", locale);
+  const otherAirport = picked ? flightChangeWarning(picked, locale) : null;
   return (
     <div className={styles.details}>
+      {otherAirport ? <p className={styles.reference}>{zh ? "换机场转机" : "Change of airport"}<span>{otherAirport}</span></p> : null}
       <div className={styles.facts}>
         {picked ? <span className={styles.seat}>{flightSeat(picked, locale)}</span> : (
           <span className={styles.seat} data-drive="true"><Car aria-hidden="true" size={12} />{zh ? "这段建议开车" : "Driving suits this leg"}</span>

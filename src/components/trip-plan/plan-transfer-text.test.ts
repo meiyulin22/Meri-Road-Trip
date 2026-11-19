@@ -4,7 +4,7 @@ import test from "node:test";
 import type { TransferLeg } from "@/domain/plan/transfer-legs";
 
 import {
-  flightCaption, flightCharges, flightChecked, flightSeat, otherWay,
+  flightCaption, flightChangeWarning, flightCharges, flightChecked, flightSeat, otherWay,
   changeCaption, changeSeats, changeTrains, changeWarning, driveDuration, driveSummary, legDayLabel, trainChecked, trainClock, trainLine, trainReferenceNote, trainSeat, trainSource,
   transferEnds, transferLabel, transferNote, transferText,
 } from "./plan-transfer-text";
@@ -114,4 +114,19 @@ test("a flight reads as its number and time, the cheapest cabin, charges apart, 
   assert.equal(otherWay(both, "train", "zh"), "也有航班：最快 4 小时 15 分，¥460 起");
   assert.equal(otherWay(both, "flight", "zh"), "火车参考：最快 28 小时 32 分");
   assert.equal(otherWay(leg(drive(163, 186)), "flight", "zh"), null);
+});
+
+test("a change of plane reads like a change of train, its fare as two tickets, another airport said plainly (1.2113)", () => {
+  const part = { fromAirport: "上海虹桥", toAirport: "成都天府", departs: "12:30", arrives: "15:40", arriveDayOffset: 0,
+    cabin: "经济舱", seatsLeft: 9, charges: 100, stopCity: null, codeshare: false };
+  const first = { ...part, flightNo: "MU9181", durationMinutes: 190, price: 980 };
+  const second = { ...part, flightNo: "MU5780", fromAirport: "成都天府", toAirport: "迪庆香格里拉", departs: "17:30", arrives: "19:00", durationMinutes: 90, price: 650, seatsLeft: 4 };
+  const journey = { ...first, flightNo: "MU9181/MU5780", toAirport: "迪庆香格里拉", arrives: "19:00", durationMinutes: 390, price: 1630, seatsLeft: 4, charges: 200,
+    change: { city: "成都", waitMinutes: 110, sameAirport: true, first, second } };
+  assert.deepEqual(flightCaption(journey, "zh"), { caption: "在成都转机 · 共 6 小时 30 分", note: "MU9181 → MU5780 · 等 1 小时 50 分" });
+  assert.deepEqual(flightCaption(journey, "en"), { caption: "Change planes at 成都 · 6 h 30 min in all", note: "MU9181 → MU5780 · 1 h 50 min wait" });
+  assert.equal(flightSeat(journey, "zh"), "两段分开买 ¥1630 · 剩 4 张");
+  assert.equal(flightChangeWarning(journey, "zh"), null);
+  const across = { ...journey, change: { ...journey.change, sameAirport: false, waitMinutes: 220, second: { ...second, fromAirport: "成都双流" } } };
+  assert.equal(flightChangeWarning(across, "zh"), "成都天府落地，成都双流起飞，要换机场，市内交通另算，换乘时间共 3 小时 40 分");
 });

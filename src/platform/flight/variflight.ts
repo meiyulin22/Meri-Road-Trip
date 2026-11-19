@@ -6,19 +6,30 @@ import { z } from "zod";
 import type { FlightOption, LegFlights } from "@/domain/plan/transfer-legs";
 import { createDailyBudget, type DailyBudget } from "@/platform/http/daily-budget";
 import { logger } from "@/platform/observability/logger";
+import { providerLimits } from "@/platform/provider-limits";
 
 import { parseLabelledLiteral } from "./python-literal";
 
 /**
- * VariFlight costs money per call (¥0.25 for a fare search, prepaid, 2026-11-18), so it is asked
- * one call at a time, at most 40 a Beijing day across restarts, and paused half an hour after any
- * failure. An empty balance answers 403 and stops flights until the next day.
+ * VariFlight costs money per call, prepaid (2026-11-18), so the budget counts money in fen (¥0.01,
+ * one VariFlight credit) since 1.2113: one call at a time, at most ¥20 a Beijing day (by default;
+ * VARIFLIGHT_MAX_YUAN_PER_DAY) across
+ * restarts, and paused half an hour after any failure. An empty balance answers 403 and stops
+ * flights until the next day.
  */
-export const flightLimits = { intervalMs: 1_000, dailyRequests: 40, pauseMs: 30 * 60 * 1_000 } as const;
+export const flightLimits = { intervalMs: 1_000, dailyUnits: providerLimits.variflightFenPerDay, pauseMs: 30 * 60 * 1_000 } as const;
+/** What each tool Meri calls costs, in fen, from VariFlight's price list. */
+export const variflightFen = { getFlightPriceByCities: 25, getFlightTransferInfo: 25 } as const;
+/** Fen as the logs and the agent read it: ¥0.25. */
+export const yuan = (fen: number) => `¥${(fen / 100).toFixed(2)}`;
 const emptyBalancePauseMs = 12 * 60 * 60 * 1_000;
 const endpoint = "https://ai.variflight.com/servers/aviation/mcp";
 
-export const sharedFlightBudget = createDailyBudget(flightLimits, { file: join(process.cwd(), ".cache", "flight-calls.json") });
+// A new file: the 1.2111 one counted calls, not fen.
+export const sharedFlightBudget = createDailyBudget(flightLimits, {
+  file: join(process.cwd(), ".cache", "flight-credits.json"),
+  label: { provider: "VariFlight", units: yuan },
+});
 
 /** A VariFlight tool called by name; the answer is its text, and a tool error throws. */
 export type FlightToolCaller = (name: string, input: Record<string, unknown>) => Promise<string>;
@@ -145,7 +156,7 @@ export function createVariflightSearch(deps: FlightDependencies): (search: Fligh
     }
     try {
       const tools = await deps.tools();
-      const asked = await deps.budget.run(1, () => tools("getFlightPriceByCities", {
+      const asked = await deps.budget.run(variflightFen.getFlightPriceByCities, () => tools("getFlightPriceByCities", {
         dep_city: search.fromCode, arr_city: search.toCode, dep_date: search.date,
       }));
       if (!asked.ok) return { status: "unavailable", reason: asked.reason };
@@ -160,12 +171,72 @@ export function createVariflightSearch(deps: FlightDependencies): (search: Fligh
       const options = ours.map(flightOf).sort((left, right) => left.departs.localeCompare(right.departs));
       return { status: "found", flights: { queriedDate: search.date, checkedAt: deps.now().toISOString(), options } };
     } catch (error) {
-      const message = error instanceof Error ? error.message : "";
-      const empty = /\b403\b|balance|余额/u.test(message);
-      deps.budget.pause(empty ? emptyBalancePauseMs : undefined);
-      logger.warn({ from: search.fromCode, to: search.toCode, error: message.slice(0, 120) },
-        empty ? "VariFlight balance used up; flights paused until tomorrow" : "VariFlight lookup failed; paused with no retry");
-      return { status: "unavailable", reason: empty ? "balance" : "failed" };
+      return { status: "unavailable", reason: failed(deps, search, error) };
+    }
+  };
+}
+
+/** A failed call pauses VariFlight, an empty balance until the next day; no retry. */
+function failed(deps: FlightDependencies, search: FlightSearch, error: unknown): "balance" | "failed" {
+  const message = error instanceof Error ? error.message : "";
+  const empty = /\b403\b|balance|余额/u.test(message);
+  deps.budget.pause(empty ? emptyBalancePauseMs : undefined);
+  logger.warn({ from: search.fromCode, to: search.toCode, error: message.slice(0, 120) },
+    empty ? "VariFlight balance used up; flights paused until tomorrow" : "VariFlight lookup failed; paused with no retry");
+  return empty ? "balance" : "failed";
+}
+
+/** A city a connection changes in, as VariFlight names it: CTU, 成都. */
+export type FlightHub = { readonly code: string; readonly city: string };
+
+export type HubAnswer =
+  | { readonly status: "found"; readonly hubs: readonly FlightHub[] }
+  | { readonly status: "none" }
+  | { readonly status: "bad_code" }
+  | { readonly status: "unavailable"; readonly reason: "disabled" | "daily_limit" | "paused" | "failed" | "balance" };
+
+// The fields Meri reads from getFlightTransferInfo (probe 2026-11-18, SHA → DIG). It has no fares,
+// and it repeats the same pair for the next days, so only the hubs of the day asked are kept.
+const segmentSchema = z.object({
+  DepTime: z.string(),
+  DepCityZh: z.string(),
+  ArrCityZh: z.string(),
+  ArrCityCode: z.string().regex(/^[A-Z]{3}$/u),
+});
+const transferAnswerSchema = z.object({ code: z.number(), data: z.array(z.unknown()).nullable().optional() });
+/** Hubs worth offering the agent; each costs it two fare searches to try. */
+const maxHubs = 3;
+
+/**
+ * Where VariFlight's connections between two cities change (1.2113), for the agent to try with
+ * fares when the hub it chose did not join: getFlightTransferInfo has no fares of its own, so only
+ * the change cities are read. A connection counts when it has two flights, leaves the leg's start
+ * city on the leg's day and reaches its end city.
+ */
+export function createVariflightHubs(deps: FlightDependencies): (search: FlightSearch) => Promise<HubAnswer> {
+  return async (search) => {
+    if (!deps.enabled()) return { status: "unavailable", reason: "disabled" };
+    if (!/^[A-Z]{3}$/u.test(search.fromCode) || !/^[A-Z]{3}$/u.test(search.toCode) || search.fromCode === search.toCode) {
+      return { status: "bad_code" };
+    }
+    try {
+      const tools = await deps.tools();
+      const asked = await deps.budget.run(variflightFen.getFlightTransferInfo, () => tools("getFlightTransferInfo", {
+        depcity: search.fromCode, arrcity: search.toCode, depdate: search.date,
+      }));
+      if (!asked.ok) return { status: "unavailable", reason: asked.reason };
+      const answer = transferAnswerSchema.parse(parseLabelledLiteral(asked.value));
+      const hubs = (answer.data ?? []).flatMap((itinerary): FlightHub[] => {
+        const parsed = z.array(segmentSchema).length(2).safeParse(itinerary);
+        if (!parsed.success) return [];
+        const [first, second] = parsed.data;
+        if (!first.DepTime.startsWith(search.date)) return [];
+        if (!first.DepCityZh.startsWith(search.fromCity) || !second.ArrCityZh.startsWith(search.toCity)) return [];
+        return [{ code: first.ArrCityCode, city: first.ArrCityZh }];
+      }).filter((hub, at, all) => all.findIndex(({ code }) => code === hub.code) === at).slice(0, maxHubs);
+      return hubs.length > 0 ? { status: "found", hubs } : { status: "none" };
+    } catch (error) {
+      return { status: "unavailable", reason: failed(deps, search, error) };
     }
   };
 }

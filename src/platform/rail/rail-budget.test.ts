@@ -12,11 +12,11 @@ test("requests count against the day, and the day's limit refuses without runnin
   let now = Date.parse("2026-11-17T08:00:00Z");
   const budget = createRailBudget({ file: null, gate: straightThrough, clock: { now: () => now, sleep: async () => {} } });
   let ran = 0;
-  for (let index = 0; index < railLimits.dailyRequests / 2; index += 1) {
+  for (let index = 0; index < railLimits.dailyUnits / 2; index += 1) {
     assert.deepEqual(await budget.run(2, async () => { ran += 1; return ran; }), { ok: true, value: ran });
   }
   assert.deepEqual(await budget.run(2, async () => { ran += 1; return ran; }), { ok: false, reason: "daily_limit" });
-  assert.equal(ran, railLimits.dailyRequests / 2);
+  assert.equal(ran, railLimits.dailyUnits / 2);
   // A new day in Beijing starts the count again.
   now = Date.parse("2026-11-17T16:30:00Z");
   assert.equal((await budget.run(2, async () => "next day")).ok, true);

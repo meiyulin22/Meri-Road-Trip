@@ -113,6 +113,24 @@ const trainOptionSchema = z.strictObject({
   seats: z.array(z.strictObject({ name: z.string().min(1), price: z.number().nonnegative().nullable(), left: z.string() })),
 });
 
+/** One flight as a leg keeps it (1.2111); a journey with a change of plane wraps two (1.2113). */
+const flightOptionSchema = z.strictObject({
+  // Two numbers with a slash for a change of plane: MU9181/MU5780.
+  flightNo: z.string().min(2).max(25),
+  fromAirport: z.string().min(1),
+  toAirport: z.string().min(1),
+  departs: z.string().regex(/^\d{2}:\d{2}$/u),
+  arrives: z.string().regex(/^\d{2}:\d{2}$/u),
+  arriveDayOffset: z.number().int().min(0).max(2),
+  durationMinutes: z.number().int().positive(),
+  cabin: z.string().min(1),
+  price: z.number().nonnegative(),
+  seatsLeft: z.number().int().nonnegative().nullable(),
+  charges: z.number().nonnegative().nullable(),
+  stopCity: z.string().min(1).nullable(),
+  codeshare: z.boolean(),
+});
+
 /** One leg to, between or back from the trip's cities (1.2106). */
 const transferLegSchema: z.ZodType<TransferLeg> = z.strictObject({
   kind: z.enum(["outbound", "between", "return"]),
@@ -153,20 +171,14 @@ const transferLegSchema: z.ZodType<TransferLeg> = z.strictObject({
   flights: z.strictObject({
     queriedDate: z.iso.date(),
     checkedAt: z.iso.datetime(),
-    options: z.array(z.strictObject({
-      flightNo: z.string().min(2).max(10),
-      fromAirport: z.string().min(1),
-      toAirport: z.string().min(1),
-      departs: z.string().regex(/^\d{2}:\d{2}$/u),
-      arrives: z.string().regex(/^\d{2}:\d{2}$/u),
-      arriveDayOffset: z.number().int().min(0).max(2),
-      durationMinutes: z.number().int().positive(),
-      cabin: z.string().min(1),
-      price: z.number().nonnegative(),
-      seatsLeft: z.number().int().nonnegative().nullable(),
-      charges: z.number().nonnegative().nullable(),
-      stopCity: z.string().min(1).nullable(),
-      codeshare: z.boolean(),
+    options: z.array(flightOptionSchema.extend({
+      change: z.strictObject({
+        city: z.string().min(1),
+        waitMinutes: z.number().int().nonnegative(),
+        sameAirport: z.boolean(),
+        first: flightOptionSchema,
+        second: flightOptionSchema,
+      }).optional(),
     })).max(5),
   }).optional(),
   flightsMissing: z.enum(["none", "no_airport", "unavailable"]).optional(),

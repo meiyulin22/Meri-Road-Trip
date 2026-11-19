@@ -526,7 +526,7 @@ remote MCP paid per call from prepaid credits: `getFlightPriceByCities` at ¥0.2
 literal parser, never evaluated. Code decides which legs may fly (setting off and heading home for a
 flight or let-Meri-decide choice; a change of city only when the drive is over six hours); the agent
 gives the two IATA city codes in `search-flights`, and code drops any row whose airport cities are not
-the leg's, telling the agent its code was wrong. At most 4 flight searches a plan and 40 a day; any
+the leg's, telling the agent its code was wrong. At most 4 flight searches a plan and 40 a day (money since 1.2113); any
 failure pauses half an hour, an empty balance until the next day. The pick may now be train, flight or
 drive; a bound leg keeps the traveller's kind when one was found, and a picked flight must be one
 returned. Measured 2026-11-18: 上海 → 丽江 on 12-21, let Meri decide: no direct train; 5 flights; the
@@ -553,6 +553,23 @@ transport), and its clock leaves out both waits. No train at all: the comparison
 without a question, and the card says no train was found. The plan page's origin fill-in cannot
 pause, so it neither asks nor searches the comparison flight; a 「改坐飞机」 button there is later.
 Built with unit tests only; not yet run live.
+
+**Changing planes, and a budget in money (1.2113).** VariFlight has no tool that returns connections
+with fares: `getFlightTransferInfo` (¥0.25) names the flights and the change city but no price, and
+the fare tools list direct flights only. So a change of plane is built like a change of train: when
+a leg's direct search finds no flight, the agent names a change city in `search-flight-connection`
+(code and city), code makes two fare searches (¥0.50) and joins them
+([flight-connections.ts](../domain/plan/flight-connections.ts)): the second must leave at least 1.5 h
+after the first lands in the same airport (VariFlight's own 上海 → 迪庆 connection changes in 成都天府
+in 1 h 50 min) and 3.5 h at the city's other airport, within 6 hours; the quickest three are kept. Its
+fare is the two tickets added, and the card says "两段分开买", never a through fare; another airport is
+said plainly. When the agent's city does not join, `suggest-flight-hubs` reads VariFlight's own change
+cities from `getFlightTransferInfo` (¥0.25), keeping only connections leaving on the leg's day (the
+answer repeats the next days). The cap is now money: ¥2 a plan and ¥20 a Beijing day, reserved before a
+call goes out (the agent's calls in one step may run at once) and given back when nothing was sent;
+every flight answer tells the agent `budgetLeftYuan`. Both caps, and 12306's searches a plan and
+requests a day, can be set in `.env.local` ([provider-limits.ts](../platform/provider-limits.ts));
+reaching a daily cap is logged once with what was used. Built with unit tests only; not run live.
 
 ### Evaluation (1.2014)
 
