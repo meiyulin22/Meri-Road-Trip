@@ -51,7 +51,8 @@ export async function searchJourneyDiscovery(
 }
 
 export class DiscoverySearchError extends Error {
-  constructor(readonly kind: "configuration" | "http" | "api" | "invalid_response" | "timeout" | "network") {
+  /** `daily_limit`: the provider's day is spent (1.2113 budgets); nothing was sent. */
+  constructor(readonly kind: "configuration" | "http" | "api" | "invalid_response" | "timeout" | "network" | "daily_limit") {
     super(`Discovery search failed: ${kind}.`);
     this.name = "DiscoverySearchError";
   }

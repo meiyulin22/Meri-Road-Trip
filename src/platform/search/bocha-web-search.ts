@@ -27,6 +27,8 @@ export type BochaWebSearchRequest = {
   /** Ask for the fuller page text in `summary` as well as the short `snippet`. */
   readonly summary: boolean;
   readonly fetcher?: typeof fetch;
+  /** Stops the request when the caller gives up, such as a city's research running out of time. */
+  readonly signal?: AbortSignal;
 };
 
 function record(value: unknown): Record<string, unknown> | null {
@@ -76,7 +78,7 @@ export async function requestBochaWebSearch(request: BochaWebSearchRequest): Pro
         query: request.query, freshness: "noLimit", summary: request.summary, count: request.count,
       }),
       redirect: "error",
-      signal: AbortSignal.timeout(TIMEOUT_MS),
+      signal: request.signal ? AbortSignal.any([request.signal, AbortSignal.timeout(TIMEOUT_MS)]) : AbortSignal.timeout(TIMEOUT_MS),
     });
   } catch (error) {
     // Fetch errors may include the full URL (and key); expose only a fixed reason.

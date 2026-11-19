@@ -167,7 +167,8 @@ const transferLegSchema: z.ZodType<TransferLeg> = z.strictObject({
     reason: z.string().max(200),
     by: z.enum(["agent", "code"]),
   }).optional(),
-  trainsMissing: z.enum(["none", "no_station", "unavailable"]).optional(),
+  // `off` (1.2113 step 1): train search is switched off on this server, so nothing was looked up.
+  trainsMissing: z.enum(["none", "no_station", "unavailable", "off"]).optional(),
   flights: z.strictObject({
     queriedDate: z.iso.date(),
     checkedAt: z.iso.datetime(),
@@ -181,7 +182,7 @@ const transferLegSchema: z.ZodType<TransferLeg> = z.strictObject({
       }).optional(),
     })).max(5),
   }).optional(),
-  flightsMissing: z.enum(["none", "no_airport", "unavailable"]).optional(),
+  flightsMissing: z.enum(["none", "no_airport", "unavailable", "off"]).optional(),
 });
 
 export const planDraftSchema: z.ZodType<PlanDraft> = z.strictObject({

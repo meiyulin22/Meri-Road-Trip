@@ -391,7 +391,7 @@ export function createPlanGenerationWorkflow(deps: PlanGenerationDependencies) {
         return suspend({
           question, usage: transport.usage,
           pause: {
-            legs: outcome.legs, transferLookups: outcome.lookups,
+            legs: [...transport.question.legs], transferLookups: outcome.lookups,
             findings: transport.question.findings, askedLegs: [...transport.question.askedLegs],
           },
         });

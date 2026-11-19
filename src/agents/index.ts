@@ -5,7 +5,7 @@ import { WorkflowsPG } from "@mastra/pg";
 import { findPlaceImage } from "@/capabilities/destination/place-images";
 import { createMoonshotChatModelFromEnvironment } from "@/platform/llm/moonshot-chat-model";
 import { createPlacePhotoProvider } from "@/platform/map-providers";
-import { createKimiSearchProFromEnvironment } from "@/platform/search/kimi-search-pro";
+import { createPlanSearchFromEnvironment, type PlanSearch } from "@/platform/search/plan-search";
 import { createTiandituClient } from "@/platform/tianditu/tianditu-fetch";
 import { TiandituLocationProvider } from "@/platform/tianditu/tianditu-location-provider";
 import { driveLegKey, sharedDriveLegMemory } from "@/platform/tianditu/drive-leg-memory";
@@ -13,10 +13,10 @@ import { sharedSpotLocationMemory } from "@/platform/tianditu/spot-location-memo
 import { createTiandituDrive } from "@/platform/tianditu/tianditu-drive";
 import { sharedCityPointMemory } from "@/platform/tianditu/city-point-memory";
 import { createTiandituCityPoint } from "@/platform/tianditu/tianditu-city-point";
-import { create12306Rail } from "@/platform/rail/rail-12306";
+import { create12306Rail, type TrainSearch } from "@/platform/rail/rail-12306";
 import { sharedRailBudget } from "@/platform/rail/rail-budget";
 import { railEnabled, railTools } from "@/platform/rail/rail-mcp";
-import { createVariflightHubs, createVariflightSearch, flightEnabled, sharedFlightBudget, variflightTools } from "@/platform/flight/variflight";
+import { createVariflightHubs, createVariflightSearch, flightEnabled, type FlightSearch, sharedFlightBudget, variflightTools } from "@/platform/flight/variflight";
 
 import { researchCity } from "./planner/research-agent";
 import { verifySpots } from "./planner/verify-spots";
@@ -33,6 +33,7 @@ let cityPoint: ReturnType<typeof createTiandituCityPoint> | null = null;
 let rail: ReturnType<typeof create12306Rail> | null = null;
 let flights: ReturnType<typeof createVariflightSearch> | null = null;
 let flightHubs: ReturnType<typeof createVariflightHubs> | null = null;
+let planSearch: PlanSearch | null = null;
 let photos: ReturnType<typeof createPlacePhotoProvider> | null = null;
 
 /**
@@ -43,13 +44,16 @@ export function planGenerationDependencies(
   overrides: Partial<PlanGenerationDependencies> = {},
 ): PlanGenerationDependencies {
   return {
+    // Bocha first, Kimi when Bocha fails or its day is spent; Kimi again when the agent wants a second look (1.2113 step 1).
     researchCity: (task, handoff, onProgress) => researchCity(task, handoff, {
-      search: (query, signal) => createKimiSearchProFromEnvironment().search(query, signal),
+      search: (query, signal) => (planSearch ??= createPlanSearchFromEnvironment()).search(query, signal),
+      deepSearch: (query, signal) => (planSearch ??= createPlanSearchFromEnvironment()).deep(query, signal),
       model: createMoonshotChatModelFromEnvironment,
     }, onProgress),
     planModel: { model: createMoonshotChatModelFromEnvironment },
     verifySpots: (cards, options, onProgress) => verifySpots(cards, options, {
-      search: (query, signal) => createKimiSearchProFromEnvironment().search(query, signal),
+      search: (query, signal) => (planSearch ??= createPlanSearchFromEnvironment()).search(query, signal),
+      deepSearch: (query, signal) => (planSearch ??= createPlanSearchFromEnvironment()).deep(query, signal),
       model: createMoonshotChatModelFromEnvironment,
     }, onProgress),
     map: {
@@ -76,17 +80,22 @@ export function planGenerationDependencies(
         key: driveLegKey,
       },
     },
+    // A search switched off is left out, so the transport agent is not run for it and the card says so (1.2113 step 1).
     transport: {
       // 12306 only when RAIL_PROVIDER=12306; its server starts on the first search, not on import.
-      searchTrains: (search) => (rail ??= create12306Rail({ enabled: railEnabled, tools: railTools, budget: sharedRailBudget, now: () => new Date() }))(search),
+      ...(railEnabled() ? {
+        searchTrains: (search: TrainSearch) => (rail ??= create12306Rail({ enabled: railEnabled, tools: railTools, budget: sharedRailBudget, now: () => new Date() }))(search),
+      } : {}),
       // VariFlight only when FLIGHT_PROVIDER=variflight and a key are set; each fare search costs ¥0.25.
-      searchFlights: (search) => (flights ??= createVariflightSearch({
-        enabled: flightEnabled, tools: variflightTools, budget: sharedFlightBudget, now: () => new Date(),
-      }))(search),
-      // VariFlight's own change cities (¥0.25), only when the agent's hub for a change of plane did not join (1.2113).
-      flightHubs: (search) => (flightHubs ??= createVariflightHubs({
-        enabled: flightEnabled, tools: variflightTools, budget: sharedFlightBudget, now: () => new Date(),
-      }))(search),
+      ...(flightEnabled() ? {
+        searchFlights: (search: FlightSearch) => (flights ??= createVariflightSearch({
+          enabled: flightEnabled, tools: variflightTools, budget: sharedFlightBudget, now: () => new Date(),
+        }))(search),
+        // VariFlight's own change cities (¥0.25), only when the agent's hub for a change of plane did not join (1.2113).
+        flightHubs: (search: FlightSearch) => (flightHubs ??= createVariflightHubs({
+          enabled: flightEnabled, tools: variflightTools, budget: sharedFlightBudget, now: () => new Date(),
+        }))(search),
+      } : {}),
       model: createMoonshotChatModelFromEnvironment,
     },
     // The local catalog and photos already downloaded: no remote photo service is asked.

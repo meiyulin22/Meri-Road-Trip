@@ -130,3 +130,9 @@ test("a change of plane reads like a change of train, its fare as two tickets, a
   const across = { ...journey, change: { ...journey.change, sameAirport: false, waitMinutes: 220, second: { ...second, fromAirport: "成都双流" } } };
   assert.equal(flightChangeWarning(across, "zh"), "成都天府落地，成都双流起飞，要换机场，市内交通另算，换乘时间共 3 小时 40 分");
 });
+
+test("a search switched off on this server is said plainly, not as a passing failure (1.2113 step 1)", () => {
+  const off = leg({ status: "estimated", distanceKm: 2400, durationMinutes: 1500, path: [[121, 31], [100, 26]] }, { trainsMissing: "off" });
+  assert.match(transferText(off, null, "zh"), /^没有开启火车查询；先给开车参考：/u);
+  assert.equal(transferNote({ ...off, trainsMissing: undefined, flightsMissing: "off" }, "flight", "en"), "Flight search isn't switched on");
+});

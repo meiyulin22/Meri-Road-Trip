@@ -46,6 +46,8 @@ export function transferText(
   const missing = leg.trainsMissing === "none" ? (zh ? "这段没查到合适的直达车次（可能要中转）" : "No suitable direct train for this leg (a change may be needed)")
     : leg.trainsMissing === "no_station" ? (zh ? "这段有一头没有火车站" : "One end of this leg has no railway station")
       : leg.trainsMissing === "unavailable" ? (zh ? "车次暂时查不到" : "Trains couldn't be looked up just now")
+        : leg.trainsMissing === "off" ? (zh ? "没有开启火车查询" : "Train search isn't switched on")
+        : leg.flightsMissing === "off" ? (zh ? "没有开启航班查询" : "Flight search isn't switched on")
         : leg.flightsMissing === "none" ? (zh ? "这段没查到航班" : "No flight found for this leg")
           : leg.flightsMissing === "unavailable" ? (zh ? "航班暂时查不到" : "Flights couldn't be looked up just now")
             : travelChoice === "flight" ? (zh ? "你选了飞机，航班暂时查不到" : "You chose to fly; flights can't be looked up just now")
@@ -184,6 +186,8 @@ export function transferNote(leg: TransferLeg, travelChoice: TravelChoice | null
   if (leg.trainsMissing === "none") return zh ? "这段没查到合适的直达车次，可能要中转" : "No suitable direct train for this leg; a change may be needed";
   if (leg.trainsMissing === "no_station") return zh ? "这段有一头没有火车站" : "One end of this leg has no railway station";
   if (leg.trainsMissing === "unavailable") return zh ? "车次暂时查不到" : "Trains couldn't be looked up just now";
+  if (leg.trainsMissing === "off") return zh ? "没有开启火车查询" : "Train search isn't switched on";
+  if (leg.flightsMissing === "off") return zh ? "没有开启航班查询" : "Flight search isn't switched on";
   if (leg.flightsMissing === "none") return zh ? "这段没查到航班" : "No flight found for this leg";
   if (leg.flightsMissing === "unavailable") return zh ? "航班暂时查不到" : "Flights couldn't be looked up just now";
   if (travelChoice === "flight") return zh ? "你选了飞机，航班暂时查不到" : "You chose to fly; flights can't be looked up just now";

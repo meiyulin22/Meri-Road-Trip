@@ -571,6 +571,28 @@ every flight answer tells the agent `budgetLeftYuan`. Both caps, and 12306's sea
 requests a day, can be set in `.env.local` ([provider-limits.ts](../platform/provider-limits.ts));
 reaching a daily cap is logged once with what was used. Built with unit tests only; not run live.
 
+**Bocha first, Kimi to fill the gaps (1.2113 step 1).** Both of Generate plan's searches used Kimi's
+search_pro. Bocha costs a fraction as much and merlin has prepaid calls, so the first look is now
+Bocha ([plan-search.ts](../platform/search/plan-search.ts)): one adapter interface, so research and
+the checks did not change, and a Bocha failure or spent day falls back to Kimi for that search. Two
+places look again with Kimi, both agent decisions with code guards. In research, the agent's one
+follow-up has two tools, `search-city` (Bocha) and `search-city-deeper` (Kimi), for results that are
+thin, miss a named spot or lack hours and booking; code still allows one follow-up whichever it picks.
+In the second round (plan C, agreed 2026-11-19), code first checks each spot's Bocha results for a
+fact worth extracting (a clock time, 预约, 闭馆, 全天开放…); only the spots without one go to the model,
+one call per city, which says for each whether a second, Kimi look could find its rules and words the
+query, or that there is nothing to find (a lake, an old town open all day). Code keeps the second
+looks within the run's 24 searches; if the model cannot be asked, every such spot gets the fixed
+wording. A skipped spot stays "not checked": the model's reason is never shown as a fact. Daily caps:
+Bocha 500 and Kimi search 150, from `.env.local`, each logged once when reached. Bocha pages are read
+to 550 characters for plans, as Kimi's were. Not measured live yet: whether Bocha's summaries give the
+extraction as much to quote as Kimi's chunks did.
+
+**A switched-off search says so (1.2113 step 1).** Without `RAIL_PROVIDER` or `FLIGHT_PROVIDER`, that
+search is not wired at all: the transport agent is not run for it, and a leg bound to the traveller's
+choice reads "没有开启火车查询" / "没有开启航班查询" (`trainsMissing` / `flightsMissing: "off"`) instead
+of "couldn't be looked up just now".
+
 ### Evaluation (1.2014)
 
 [scripts/eval-plan.ts](../../scripts/eval-plan.ts) runs the cases in

@@ -460,3 +460,16 @@ test("a change of plane that would pass the run's ¥2 is refused before any sear
   assert.equal(asked, 7);
   assert.equal(outcome.variflightFen, 175);
 });
+
+test("with train and flight search switched off, the agent is not run and the bound legs say so (1.2113 step 1)", async () => {
+  const noModel = () => { throw new Error("no transport model expected"); };
+  const byTrain = await planTransport(legs, input(), { model: noModel });
+  assert.deepEqual(byTrain.legs.map(({ trainsMissing, flightsMissing }) => [trainsMissing, flightsMissing]),
+    [["off", undefined], [undefined, undefined], ["off", undefined]]);
+  assert.equal(byTrain.searches, 0);
+  const byAir = await planTransport(legs, input({ choice: "flight" }), { model: noModel });
+  assert.deepEqual(byAir.legs.map(({ flightsMissing }) => flightsMissing), ["off", undefined, "off"]);
+  // Letting Meri decide binds nothing, so nothing is said to be off.
+  const open = await planTransport(legs, input({ choice: "auto" }), { model: noModel });
+  assert.ok(open.legs.every(({ trainsMissing, flightsMissing }) => trainsMissing === undefined && flightsMissing === undefined));
+});

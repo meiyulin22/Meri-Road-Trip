@@ -97,3 +97,18 @@ test("a missing key makes no HTTP request", async () => {
     error instanceof DiscoverySearchError && error.kind === "configuration");
   assert.equal(calls, 0);
 });
+
+test("a spent day refuses without calling Bocha, a missing key never counts, and plans read longer pages (1.2113)", async () => {
+  let fetched = 0;
+  let counted = 0;
+  const refusing = { run: async () => { counted += 1; return { ok: false as const, reason: "daily_limit" as const }; }, pause: () => {} };
+  const spent = new BochaDiscoverySearch({ apiKey: "key", budget: refusing, fetcher: async () => { fetched += 1; return Response.json(body([page(1)])); } });
+  await assert.rejects(spent.search("丽江 景点"), (error: unknown) => error instanceof DiscoverySearchError && error.kind === "daily_limit");
+  assert.equal(fetched, 0);
+  const keyless = new BochaDiscoverySearch({ apiKey: " ", budget: refusing });
+  await assert.rejects(keyless.search("丽江 景点"), (error: unknown) => error instanceof DiscoverySearchError && error.kind === "configuration");
+  assert.equal(counted, 1);
+  const long = { ...page(1), summary: "长".repeat(600) };
+  assert.equal(normalizeBochaDiscoveryResponse(body([long]))[0].snippet?.length, 280);
+  assert.equal(normalizeBochaDiscoveryResponse(body([long]), 550)[0].snippet?.length, 550);
+});

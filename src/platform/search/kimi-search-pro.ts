@@ -1,7 +1,9 @@
 import { z } from "zod";
 
+import type { DailyBudget } from "@/platform/http/daily-budget";
 import { DEFAULT_MOONSHOT_BASE_URL } from "@/platform/llm/moonshot-chat-model";
 import { DiscoverySearchError, type DiscoverySearch, type DiscoverySearchResult } from "./discovery-search";
+import { sharedKimiSearchBudget, withinBudget } from "./search-budgets";
 
 const MAX_RESULTS = 5;
 const MAX_QUERY_CHARACTERS = 160;
@@ -86,6 +88,8 @@ export class KimiSearchPro implements DiscoverySearch {
     readonly apiKey: string;
     readonly baseUrl?: string;
     readonly fetcher?: typeof fetch;
+    /** Searches a day (1.2113 step 1); a spent day throws `daily_limit` without calling Kimi. */
+    readonly budget?: DailyBudget;
   }) {}
 
   async search(query: string, signal?: AbortSignal): Promise<readonly DiscoverySearchResult[]> {
@@ -97,6 +101,10 @@ export class KimiSearchPro implements DiscoverySearch {
     if (!searchQuery) return [];
     if (signal?.aborted) throw new DiscoverySearchError("network");
 
+    return withinBudget(this.options.budget, () => this.send(baseUrl, apiKey, searchQuery, signal));
+  }
+
+  private async send(baseUrl: URL, apiKey: string, searchQuery: string, signal?: AbortSignal): Promise<readonly DiscoverySearchResult[]> {
     const endpoint = baseUrl.href.replace(/\/+$/u, "") + "/tools/search_pro";
     const timeout = AbortSignal.timeout(REQUEST_TIMEOUT_MS);
     let response: Response;
@@ -129,5 +137,6 @@ export function createKimiSearchProFromEnvironment(): KimiSearchPro {
   return new KimiSearchPro({
     apiKey: process.env.MOONSHOT_API_KEY ?? "",
     baseUrl: process.env.MOONSHOT_BASE_URL?.trim() || DEFAULT_MOONSHOT_BASE_URL,
+    budget: sharedKimiSearchBudget,
   });
 }

@@ -156,11 +156,11 @@ export type TransferLeg = {
    * Searched for trains but none to show: no direct train, a city without a station, or 12306 not
    * reachable or out of requests. Absent when no search was made.
    */
-  readonly trainsMissing?: "none" | "no_station" | "unavailable";
+  readonly trainsMissing?: "none" | "no_station" | "unavailable" | "off";
   /** Flights looked up for this leg (1.2111); absent when none were. */
   readonly flights?: LegFlights;
   /** Searched for flights but none to show: no flight that day, no airport, or VariFlight not reachable or out of calls. */
-  readonly flightsMissing?: "none" | "no_airport" | "unavailable";
+  readonly flightsMissing?: "none" | "no_airport" | "unavailable" | "off";
 };
 
 /** How many days ahead 12306 sells, counting today as day 0 (probe 2026-11-17: +3 answered, +34 did not). */

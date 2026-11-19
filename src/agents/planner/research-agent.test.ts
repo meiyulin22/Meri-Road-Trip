@@ -294,3 +294,32 @@ test("a card whose quote names the prefecture stays, though the model wrote the 
     ["松赞林寺", "https://example.com/songzanlin"],
   ]);
 });
+
+test("the agent may take its one follow-up to the second engine when the first results are thin (1.2113 step 1)", async () => {
+  const asked: string[] = [];
+  let toolNames: string[] = [];
+  const model = createMoonshotChatModel({
+    apiKey: "test", baseUrl: "https://model.test/v1", model: "test",
+    fetch: async (_url, init) => {
+      const request = JSON.parse(String(init?.body)) as ChatRequest;
+      if (schemaName(request) === "spot_nominations") return chatResponse(request, { content: JSON.stringify({ spots: ["宽窄巷子"] }) });
+      toolNames = request.tools?.map(({ function: { name } }) => name) ?? [];
+      // Both tools at once: code still sends only the first, as the one follow-up.
+      return chatResponse(request, { content: null, tool_calls: [
+        { index: 0, id: "deep", type: "function", function: { name: "searchDeeper", arguments: JSON.stringify({ keywords: "宽窄巷子 开放时间" }) } },
+        { index: 1, id: "plain", type: "function", function: { name: "search", arguments: JSON.stringify({ keywords: "博物馆" }) } },
+      ] }, "tool_calls");
+    },
+  });
+  const result = await runFirstRoundResearch({
+    ...handoff,
+    tripState: { ...handoff.tripState, destination: { state: "known", source: "user", areas: [{ province: "四川省", places: [{ name: "成都市", spots: [] }] }] } },
+  }, {
+    model: () => model,
+    async search(query) { asked.push(`first:${query}`); return []; },
+    async deepSearch(query) { asked.push(`deep:${query}`); return []; },
+  });
+  assert.deepEqual(toolNames.sort(), ["search", "searchDeeper"]);
+  assert.deepEqual(asked, ["first:四川省 成都市 景点 宽窄巷子", "deep:四川省 成都市 宽窄巷子 开放时间"]);
+  assert.equal(result.cities[0].searchCalls, 2);
+});

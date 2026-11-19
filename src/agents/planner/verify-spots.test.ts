@@ -73,3 +73,61 @@ test("stays within the search budget, and a spot without results stays unchecked
   assert.deepEqual(result.availability.get(yulong.id)?.closedWeekdays, []);
   assert.equal(result.availability.has(lijiang.id), false);
 });
+
+// The second look (1.2113 step 1, plan C): code finds the spots the first look left without facts,
+// the model decides which deserve a Kimi search and words it.
+const mufu: SpotCard = card("木府");
+const erhai: SpotCard = card("洱海");
+const firstLook = async (query: string) => query.includes("玉龙雪山") ? search(query)
+  : query.includes("木府") ? [{ source: "web", url: "https://example.com/mufu", title: "木府介绍", snippet: "木府是丽江古城里的土司府邸。" }]
+    : [];
+function deciding(secondLook: unknown | "fail", seen: unknown[] = []) {
+  return () => createMoonshotChatModel({
+    apiKey: "test", baseUrl: "https://model.test/v1", model: "test",
+    fetch: async (_url, init) => {
+      const request = JSON.parse(String(init?.body)) as { messages: { content: string }[]; response_format?: { json_schema?: { name?: string } } };
+      const name = request.response_format?.json_schema?.name;
+      if (name === "second_look") {
+        seen.push(JSON.parse(request.messages.at(-1)?.content ?? "null"));
+        if (secondLook === "fail") return new Response("unavailable", { status: 503 });
+      }
+      const content = name === "second_look" ? secondLook : { spots: [] };
+      return Response.json({ id: "t", model: "test", created: 1,
+        choices: [{ index: 0, message: { role: "assistant", content: JSON.stringify(content) }, finish_reason: "stop" }],
+        usage: { prompt_tokens: 50, completion_tokens: 10, total_tokens: 60 } });
+    },
+  });
+}
+
+test("only spots without facts go to the model; it searches the gated site again and leaves the lake (1.2113)", async () => {
+  const deep: string[] = [];
+  const seen: unknown[] = [];
+  const result = await verifySpots([yulong, mufu, erhai], options, {
+    search: firstLook,
+    deepSearch: async (query) => { deep.push(query); return []; },
+    model: deciding({ spots: [
+      { spot: "木府", search: true, query: "丽江木府 门票 开放时间 官网" },
+      { spot: "洱海", search: false, query: null, reason: "开放水域，没有开放时间" },
+    ] }, seen),
+  });
+  // 玉龙雪山's first results already say its hours, so the model never sees it.
+  assert.deepEqual((seen[0] as { spots: { spot: string }[] }).spots.map(({ spot }) => spot), ["木府", "洱海"]);
+  assert.deepEqual(deep, ["丽江市 丽江木府 门票 开放时间 官网"]);
+  assert.equal(result.searches, 4);
+});
+
+test("when the model cannot decide, every spot without facts gets the fixed wording; the budget still holds", async () => {
+  const deep: string[] = [];
+  const result = await verifySpots([yulong, mufu, erhai], { ...options, budget: 4 }, {
+    search: firstLook, deepSearch: async (query) => { deep.push(query); return []; }, model: deciding("fail"),
+  });
+  // One search left after the three first looks: the first spot without facts.
+  assert.deepEqual(deep, ["丽江市 木府 门票 是否需要预约 开放时间 2026"]);
+  assert.equal(result.searches, 4);
+  // No room at all: no second look and no model call for it.
+  const seen: unknown[] = [];
+  await verifySpots([yulong, mufu, erhai], { ...options, budget: 3 }, {
+    search: firstLook, deepSearch: async () => { throw new Error("no second look expected"); }, model: deciding({ spots: [] }, seen),
+  });
+  assert.deepEqual(seen, []);
+});

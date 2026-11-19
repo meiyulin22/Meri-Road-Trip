@@ -33,7 +33,8 @@ const shownTrains = 3;
 const flightWorthDriveMinutes = 6 * 60;
 
 export type TransportDependencies = {
-  readonly searchTrains: (search: TrainSearch) => Promise<RailAnswer>;
+  /** 12306's train search; absent when RAIL_PROVIDER is not set, and no train is looked up (1.2113 step 1). */
+  readonly searchTrains?: (search: TrainSearch) => Promise<RailAnswer>;
   /** VariFlight's fare search (1.2111); absent, no flight is looked up. */
   readonly searchFlights?: (search: FlightSearch) => Promise<FlightAnswer>;
   /** Where VariFlight's connections change (1.2113), for when the agent's own hub does not join. */
@@ -98,6 +99,8 @@ export type TransportFindings = { readonly legs: readonly LegFindings[] };
 
 /** A transport question: its text and options, the legs it is about, and what was found. */
 export type TransportPause = {
+  /** The legs before the agent's decisions, which the answer decides again. */
+  readonly legs: readonly TransferLeg[];
   readonly question: Omit<PlanQuestion, "id">;
   readonly askedLegs: readonly number[];
   readonly findings: TransportFindings;
@@ -277,13 +280,29 @@ export async function planTransport(
   deps: TransportDependencies,
   onProgress: TransportProgress = () => {},
 ): Promise<TransportOutcome> {
-  const { findings, searches, flightSearches, variflightFen: spent, usage } = await findTransport(legs, input, deps, onProgress);
+  const base = switchedOff(legs, input, deps);
+  const { findings, searches, flightSearches, variflightFen: spent, usage } = await findTransport(base, input, deps, onProgress);
   const question = input.allowQuestion ? transportQuestionFor(findings, input.preferences, input.locale) : null;
   return {
-    legs: applyTransport(legs, findings, input.locale, null),
+    legs: applyTransport(base, findings, input.locale, null),
     searches, flightSearches, variflightFen: spent, usage,
-    question: question && { ...question, findings },
+    question: question && { ...question, legs: base, findings },
   };
+}
+
+/**
+ * The legs bound to what the traveller chose, when this server has that search switched off (1.2113
+ * step 1): said on the card as switched off, not as "couldn't be looked up just now", and the agent
+ * is not run for a search that cannot happen.
+ */
+function switchedOff(legs: readonly TransferLeg[], input: TransportInput, deps: TransportDependencies): TransferLeg[] {
+  const trainsOff = new Set(deps.searchTrains ? [] : trainCandidates(legs, input).filter(({ bound }) => bound).map(({ index }) => index));
+  const flightsOff = new Set(deps.searchFlights ? [] : flightCandidates(legs, input).filter(({ bound }) => bound).map(({ index }) => index));
+  return legs.map((leg, index) => ({
+    ...leg,
+    ...(trainsOff.has(index) ? { trainsMissing: "off" as const } : {}),
+    ...(flightsOff.has(index) ? { flightsMissing: "off" as const } : {}),
+  }));
 }
 
 /** The searches and the pick, without deciding the legs yet. */
@@ -298,7 +317,11 @@ async function findTransport(
     usage.inputTokens += call?.inputTokens ?? 0;
     usage.outputTokens += call?.outputTokens ?? 0;
   };
-  const units = transportUnits(legs, input).filter((unit) => unit.trains || ((unit.flights || unit.comparison) && deps.searchFlights));
+  const searchTrains = deps.searchTrains;
+  // A search switched off is not offered to the agent at all.
+  const units = transportUnits(legs, input)
+    .map((unit) => ({ ...unit, trains: unit.trains && Boolean(searchTrains) }))
+    .filter((unit) => unit.trains || ((unit.flights || unit.comparison) && deps.searchFlights));
   if (units.length === 0) return { findings: { legs: [] }, searches: 0, flightSearches: 0, variflightFen: 0, usage };
 
   const found = new Map<number, { trains: LegTrains | null; answers: RailAnswer[] }>();
@@ -316,7 +339,8 @@ async function findTransport(
     if (searches >= maxTrainSearches) return { status: "unavailable", reason: "daily_limit" };
     searches += 1;
     onProgress({ mode: "train", from: search.fromCity, to: search.toCity, done: searches, total: Math.min(maxTrainSearches, units.length) });
-    const answer = await deps.searchTrains(search);
+    if (!searchTrains) return { status: "unavailable", reason: "disabled" };
+    const answer = await searchTrains(search);
     asked.set(key, answer);
     return answer;
   };
@@ -648,7 +672,7 @@ export function transportQuestionFor(
   findings: TransportFindings,
   preferences: readonly string[],
   locale: "zh" | "en",
-): Omit<TransportPause, "findings"> | null {
+): Omit<TransportPause, "findings" | "legs"> | null {
   const askable = findings.legs.filter(({ askable: can, trains, flights }) => can && trains && flights);
   const mustAsk = !mentionsTravelMode(preferences);
   const asked = mustAsk ? askable : askable.filter(({ pick }) => pick?.askTraveller === true);
