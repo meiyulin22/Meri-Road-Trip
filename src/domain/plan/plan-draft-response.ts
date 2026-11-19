@@ -161,9 +161,10 @@ const transferLegSchema: z.ZodType<TransferLeg> = z.strictObject({
     })).max(5),
   }).optional(),
   recommendation: z.strictObject({
-    mode: z.enum(["train", "drive", "flight"]),
+    mode: z.enum(["train", "drive", "flight", "air_rail"]),
     trainCode: z.string().min(1).nullable(),
     flightNo: z.string().min(1).nullable().optional(),
+    airRailCode: z.string().min(1).nullable().optional(),
     reason: z.string().max(200),
     // `traveller` (1.2115): switched on the plan page between a train and a flight already found.
     by: z.enum(["agent", "code", "traveller"]),
@@ -184,6 +185,22 @@ const transferLegSchema: z.ZodType<TransferLeg> = z.strictObject({
     })).max(5),
   }).optional(),
   flightsMissing: z.enum(["none", "no_airport", "unavailable", "off"]).optional(),
+  // 1.2114: a flight to a city near the destination, then a train on.
+  airRail: z.strictObject({
+    checkedAt: z.iso.datetime(),
+    options: z.array(z.strictObject({
+      code: z.string().min(3).max(25),
+      city: z.string().min(1),
+      flight: flightOptionSchema,
+      train: trainOptionSchema,
+      waitMinutes: z.number().int().nonnegative(),
+      departs: z.string().regex(/^\d{2}:\d{2}$/u),
+      arrives: z.string().regex(/^\d{2}:\d{2}$/u),
+      arriveDayOffset: z.number().int().min(0).max(3),
+      durationMinutes: z.number().int().positive(),
+      price: z.number().nonnegative().nullable(),
+    })).max(5),
+  }).optional(),
 });
 
 export const planDraftSchema: z.ZodType<PlanDraft> = z.strictObject({

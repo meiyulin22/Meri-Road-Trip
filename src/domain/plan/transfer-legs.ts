@@ -130,12 +130,38 @@ export type LegFlights = {
   readonly options: readonly FlightOption[];
 };
 
+/**
+ * A flight to a city near the destination, then a train on (1.2114), joined by code from one fare
+ * search and one 12306 search. The price is the two tickets bought apart, when the train has a fare.
+ */
+export type AirRailOption = {
+  /** Both numbers with a slash: MU5122/G1234. */
+  readonly code: string;
+  readonly city: string;
+  readonly flight: FlightOption;
+  readonly train: TrainOption;
+  /** From the plane landing to the train leaving, the ride to the station inside it. */
+  readonly waitMinutes: number;
+  readonly departs: string;
+  readonly arrives: string;
+  readonly arriveDayOffset: number;
+  readonly durationMinutes: number;
+  readonly price: number | null;
+};
+
+export type LegAirRail = {
+  readonly checkedAt: string;
+  readonly options: readonly AirRailOption[];
+};
+
 export type LegRecommendation = {
-  readonly mode: "train" | "drive" | "flight";
+  readonly mode: "train" | "drive" | "flight" | "air_rail";
   /** The train picked, one of the leg's options; null otherwise. */
   readonly trainCode: string | null;
   /** The flight picked, one of the leg's flights (1.2111); absent or null otherwise. */
   readonly flightNo?: string | null;
+  /** The flight-then-train journey picked, one of the leg's air-rail options (1.2114). */
+  readonly airRailCode?: string | null;
   readonly reason: string;
   /** Who chose: the transport agent, code's fallback, or the traveller on the plan page (1.2115). */
   readonly by: "agent" | "code" | "traveller";
@@ -162,6 +188,8 @@ export type TransferLeg = {
   readonly flights?: LegFlights;
   /** Searched for flights but none to show: no flight that day, no airport, or VariFlight not reachable or out of calls. */
   readonly flightsMissing?: "none" | "no_airport" | "unavailable" | "off";
+  /** Flight-then-train journeys looked up for this leg (1.2114); absent when none were. */
+  readonly airRail?: LegAirRail;
 };
 
 /** How many days ahead 12306 sells, counting today as day 0 (probe 2026-11-17: +3 answered, +34 did not). */

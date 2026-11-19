@@ -64,6 +64,19 @@ test("a saved change of plane reads back, with both flights and the change (1.21
   assert.ok(planDraftSchema.safeParse({ ...draft, transfers: [leg] }).success);
 });
 
+test("a saved flight-then-train journey reads back (1.2114)", () => {
+  const draft = { mode: "full", totalDays: 4, route: { source: "agent", cities: [], omitted: [] }, days: [], conflicts: [], unverified: [] };
+  const flight = { flightNo: "MU5122", fromAirport: "北京首都", toAirport: "景德镇罗家", departs: "08:00", arrives: "10:20", arriveDayOffset: 0,
+    durationMinutes: 140, cabin: "经济舱", price: 600, seatsLeft: 9, charges: 100, stopCity: null, codeshare: false };
+  const train = { code: "G1234", from: "景德镇北", to: "婺源", departs: "12:40", arrives: "13:10", arriveDayOffset: 0, durationMinutes: 30,
+    seats: [{ name: "二等座", price: 38, left: "有" }] };
+  const leg = { kind: "outbound", day: 1, from: "北京", to: "婺源", estimate: { status: "not_looked_up" },
+    airRail: { checkedAt: "2026-11-19T06:30:00.000Z", options: [{ code: "MU5122/G1234", city: "景德镇", flight, train, waitMinutes: 140,
+      departs: "08:00", arrives: "13:10", arriveDayOffset: 0, durationMinutes: 310, price: 638 }] },
+    recommendation: { mode: "air_rail", trainCode: null, flightNo: null, airRailCode: "MU5122/G1234", reason: "飞到景德镇换高铁", by: "agent" } };
+  assert.ok(planDraftSchema.safeParse({ ...draft, transfers: [leg] }).success);
+});
+
 test("a choice stands for a transport preference, and only a picked Tianditu origin has a point (1.2107)", () => {
   assert.deepEqual(["drive", "train", "flight", "auto"].map((choice) => transportPreferenceFor(choice as TravelChoice)),
     ["self_drive", "public_transport", "public_transport", "flexible"]);

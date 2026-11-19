@@ -473,3 +473,79 @@ test("with train and flight search switched off, the agent is not run and the bo
   const open = await planTransport(legs, input({ choice: "auto" }), { model: noModel });
   assert.ok(open.legs.every(({ trainsMissing, flightsMissing }) => trainsMissing === undefined && flightsMissing === undefined));
 });
+
+// Flying near, then the train on (1.2114): 北京 → 婺源 has no airport; fly to 景德镇 and take the train.
+const toWuyuan: TransferLeg = { kind: "outbound", day: 1, from: "北京", to: "婺源", estimate: drive(900) };
+const landing = { ...flight("MU5122", "08:00", 140, 600), fromAirport: "北京首都", toAirport: "景德镇罗家", arrives: "10:20" };
+const onward = { ...train("G1234", "12:40", 30), from: "景德镇北", to: "婺源" };
+function nearAirport() {
+  const flightsAsked: string[] = [];
+  const trainsAsked: string[] = [];
+  return {
+    flightsAsked, trainsAsked,
+    searchFlights: async (search: { fromCode: string; toCode: string }) => {
+      flightsAsked.push(`${search.fromCode}>${search.toCode}`);
+      return search.toCode === "JDZ" ? flightsFound(landing) : { status: "none" as const };
+    },
+    searchTrains: async (search: TrainSearch) => {
+      trainsAsked.push(`${search.fromCity}>${search.toCity}`);
+      return search.fromCity === "景德镇" ? onDay(search, onward) : { status: "none" as const, queriedDate: search.date, reference: false };
+    },
+  };
+}
+/** Trains found on the day asked, as 12306 answers inside its presale window. */
+const onDay = (search: TrainSearch, ...options: TrainOption[]): RailAnswer =>
+  ({ status: "found", trains: { queriedDate: search.date, reference: false, checkedAt: "2026-11-18T08:00:00.000Z", options } });
+const wuyuanInput = input({ choice: "auto", originRailCity: "北京", dates: new Map([[1, "2026-11-20"]]) });
+
+test("where the end has no airport, the agent flies to a city near it and code joins the train on (1.2114)", async () => {
+  const { flightsAsked, trainsAsked, ...providers } = nearAirport();
+  const outcome = await planTransport([toWuyuan], wuyuanInput, { ...providers, model: fakeModelSteps([
+    [{ tool: "searchTrains", args: { leg: 0 } }, { tool: "searchFlights", args: { leg: 0, fromCode: "BJS", toCode: "WUY" } }],
+    [{ tool: "searchAirRail", args: { leg: 0, fromCode: "BJS", viaCode: "JDZ", viaCity: "景德镇市" } }],
+  ], { legs: [] }) });
+  assert.deepEqual(flightsAsked, ["BJS>WUY", "BJS>JDZ"]);
+  assert.deepEqual(trainsAsked, ["北京>婺源", "景德镇>婺源"]);
+  // No pick, no direct train or flight: code takes the flight-then-train journey and says why.
+  const leg = outcome.legs[0];
+  assert.deepEqual(leg.recommendation, { mode: "air_rail", trainCode: null, flightNo: null, airRailCode: "MU5122/G1234", by: "code",
+    reason: "没有直飞，这是用时最短的飞机转火车（经景德镇）" });
+  assert.deepEqual(leg.airRail?.options.map(({ code, waitMinutes, price }) => [code, waitMinutes, price]), [["MU5122/G1234", 140, 680]]);
+  assert.equal(outcome.variflightFen, 50);
+});
+
+test("flying near is refused before the flight search, and is not offered without trains", async () => {
+  const early = nearAirport();
+  await planTransport([toWuyuan], wuyuanInput, { ...early, model: fakeModelSteps([
+    [{ tool: "searchAirRail", args: { leg: 0, fromCode: "BJS", viaCode: "JDZ", viaCity: "景德镇" } }],
+  ], { legs: [] }) });
+  assert.deepEqual(early.flightsAsked, []);
+  // Train search switched off: the tool is not there for the agent at all.
+  const toolNames: string[][] = [];
+  const noTrains = nearAirport();
+  await planTransport([toWuyuan], wuyuanInput, {
+    searchFlights: noTrains.searchFlights,
+    model: () => createMoonshotChatModel({
+      apiKey: "test", baseUrl: "https://model.test/v1", model: "test",
+      fetch: async (_url, init) => {
+        const request = JSON.parse(String(init?.body)) as ChatRequest;
+        toolNames.push(request.tools?.map(({ function: { name } }) => name) ?? []);
+        return reply({ content: "done" });
+      },
+    }),
+  });
+  assert.ok(toolNames.length > 0 && toolNames.every((names) => !names.includes("searchAirRail")));
+});
+
+test("the agent may pick the flight-then-train journey over a long train", async () => {
+  const providers = { ...nearAirport(), searchTrains: async (search: TrainSearch) => search.fromCity === "景德镇" ? onDay(search, onward)
+    : onDay(search, { ...train("K1", "06:00", 900), from: "北京西", to: "婺源" }) };
+  const outcome = await planTransport([toWuyuan], wuyuanInput, { ...providers, model: fakeModelSteps([
+    [{ tool: "searchTrains", args: { leg: 0 } }, { tool: "searchFlights", args: { leg: 0, fromCode: "BJS", toCode: "WUY" } }],
+    [{ tool: "searchAirRail", args: { leg: 0, fromCode: "BJS", viaCode: "JDZ", viaCity: "景德镇" } }],
+  ], { legs: [{ leg: 0, mode: "air_rail", trainCode: null, flightNo: null, airRailCode: "MU5122/G1234", reason: "飞到景德镇换高铁，5 小时到" }] }) });
+  assert.deepEqual(outcome.legs[0].recommendation, { mode: "air_rail", trainCode: null, flightNo: null, airRailCode: "MU5122/G1234",
+    reason: "飞到景德镇换高铁，5 小时到", by: "agent" });
+  // The 15-hour train is still listed for comparison.
+  assert.equal(outcome.legs[0].trains?.options[0]?.code, "K1");
+});

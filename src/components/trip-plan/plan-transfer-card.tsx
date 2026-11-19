@@ -2,10 +2,13 @@ import { Car, ChevronDown, Home, MapPinned, Plane, Route, Sparkles, TrainFront }
 import type { ReactNode } from "react";
 
 import type { Locale } from "@/domain/locale/locale";
-import type { FlightOption, TrainOption, TransferLeg, TravelChoice } from "@/domain/plan/transfer-legs";
+import type { AirRailOption, FlightOption, TrainOption, TransferLeg, TravelChoice } from "@/domain/plan/transfer-legs";
 import type { TransportPreference } from "@/domain/trip-draft/trip-draft";
 
 import {
+  airRailCaption,
+  airRailFare,
+  airRailRide,
   changeCaption,
   changeSeats,
   changeTrains,
@@ -55,9 +58,12 @@ export function PlanTransferCard({ leg, legDate = null, transport, travelChoice 
   const picked = leg.recommendation?.mode === "train" ? trains?.options.find(({ code }) => code === leg.recommendation?.trainCode) ?? null : null;
   const flight = leg.recommendation?.mode === "flight"
     ? leg.flights?.options.find(({ flightNo }) => flightNo === leg.recommendation?.flightNo) ?? null : null;
+  const airRail = leg.recommendation?.mode === "air_rail"
+    ? leg.airRail?.options.find(({ code }) => code === leg.recommendation?.airRailCode) ?? null : null;
   const drive = driveSummary(leg, transport, locale);
-  const mode = flight ? "flight" : picked ? "train" : drive ? "drive" : "none";
-  const found = Boolean(leg.recommendation && (leg.trains || leg.flights));
+  // A flight then a train is drawn as a flight: the plane leaves first (1.2114).
+  const mode = flight || airRail ? "flight" : picked ? "train" : drive ? "drive" : "none";
+  const found = Boolean(leg.recommendation && (leg.trains || leg.flights || leg.airRail));
   const KindIcon = leg.kind === "between" ? MapPinned : Home;
   return (
     <section className={styles.ticket} data-kind={leg.kind} data-mode={mode} aria-label={`${label}: ${from} → ${to}`}>
@@ -67,7 +73,14 @@ export function PlanTransferCard({ leg, legDate = null, transport, travelChoice 
       </div>
       <div className={styles.body}>
         <div className={styles.way}>
-          {flight ? (
+          {airRail ? (
+            <>
+              <End place={from} missing={false} time={airRail.departs} station={airRail.flight.fromAirport} />
+              <AirRailBetween journey={airRail} locale={locale} />
+              <End place={to} missing={false} time={airRail.arrives} nextDay={airRail.arriveDayOffset > 0 ? (locale === "zh" ? "次日" : "+1d") : null}
+                station={ownStation(airRail.train.to, to)} alignEnd />
+            </>
+          ) : flight ? (
             <>
               <End place={from} missing={false} time={flight.departs} station={flight.fromAirport} />
               <Between leg={leg} picked={null} flight={flight} drive={drive} locale={locale} />
@@ -83,12 +96,74 @@ export function PlanTransferCard({ leg, legDate = null, transport, travelChoice 
             </>
           )}
         </div>
-        {children ?? (!found ? <DriveDetails leg={leg} drive={drive} transport={transport} travelChoice={travelChoice} locale={locale} />
+        {children ?? (airRail ? <AirRailDetails leg={leg} picked={airRail} drive={drive} locale={locale} />
+          : !found ? <DriveDetails leg={leg} drive={drive} transport={transport} travelChoice={travelChoice} locale={locale} />
           : flight || !trains ? <FlightDetails leg={leg} picked={flight} drive={drive} locale={locale} />
             : <TrainDetails leg={leg} picked={picked} legDate={legDate} drive={drive} locale={locale} />)}
         {below}
       </div>
     </section>
+  );
+}
+
+/** The middle of a flight-then-train ticket (1.2114): where to change, and the flight and train with the wait. */
+function AirRailBetween({ journey, locale }: { readonly journey: AirRailOption; readonly locale: Locale }) {
+  const { caption, note } = airRailCaption(journey, locale);
+  return (
+    <div className={styles.between} data-known="true" data-change="true">
+      <span className={styles.line} aria-hidden="true"><Plane size={15} /></span>
+      <span className={styles.caption}>{caption}</span>
+      <span className={styles.subcaption}>{note}</span>
+    </div>
+  );
+}
+
+/**
+ * A flight-then-train journey picked for a leg (1.2114): the ride from the airport to the station said
+ * first, the fare as two tickets, Meri's reason, the other such journeys folded, the drive as a reference.
+ */
+function AirRailDetails({ leg, picked, drive, locale }: {
+  readonly leg: TransferLeg;
+  readonly picked: AirRailOption;
+  readonly drive: ReturnType<typeof driveSummary>;
+  readonly locale: Locale;
+}) {
+  const zh = locale === "zh";
+  const recommendation = leg.recommendation;
+  const others = (leg.airRail?.options ?? []).filter((journey) => journey !== picked);
+  return (
+    <div className={styles.details}>
+      <p className={styles.reference}>{zh ? "机场换火车" : "Airport to station"}<span>{airRailRide(picked, locale)}</span></p>
+      <div className={styles.facts}>
+        <span className={styles.seat}>{airRailFare(picked, locale)}</span>
+        {recommendation?.reason ? (
+          <span className={styles.reason}>
+            {recommendation.by === "agent" ? <Sparkles aria-hidden="true" size={12} /> : null}{recommendation.reason}
+          </span>
+        ) : null}
+      </div>
+      {others.length > 0 ? (
+        <details className={styles.others}>
+          <summary><ChevronDown aria-hidden="true" size={13} />{zh ? `其他 ${others.length} 种走法` : `${others.length} more ${others.length === 1 ? "way" : "ways"}`}</summary>
+          <table>
+            <tbody>
+              {others.map((journey) => (
+                <tr key={journey.code}>
+                  <th scope="row">{journey.code}</th>
+                  <td>{journey.departs} → {journey.arrives}{journey.arriveDayOffset > 0 ? <sup>{zh ? "次日" : "+1d"}</sup> : null}</td>
+                  <td>{airRailCaption(journey, locale).caption.split(" · ")[1]}</td>
+                  <td>{airRailFare(journey, locale)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </details>
+      ) : null}
+      <p className={styles.meta}>
+        {drive ? <span><Car aria-hidden="true" size={11} />{drive.headline} · {drive.detail}</span> : null}
+        <span><TrainFront aria-hidden="true" size={11} />{zh ? "航班来自飞常准，火车来自 12306" : "Flights from VariFlight, trains from 12306"}</span>
+      </p>
+    </div>
   );
 }
 

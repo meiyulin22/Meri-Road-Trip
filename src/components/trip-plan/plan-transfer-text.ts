@@ -1,6 +1,6 @@
 import type { Locale } from "@/domain/locale/locale";
 import {
-  type FlightOption, type LegFlights, type LegTrains, longDriveMinutes, type TrainOption, type TransferKind, type TransferLeg, type TravelChoice,
+  type AirRailOption, type FlightOption, type LegFlights, type LegTrains, longDriveMinutes, type TrainOption, type TransferKind, type TransferLeg, type TravelChoice,
 } from "@/domain/plan/transfer-legs";
 import type { TransportPreference } from "@/domain/trip-draft/trip-draft";
 
@@ -333,4 +333,34 @@ export function otherWay(leg: TransferLeg, shown: "train" | "flight", locale: Lo
     return zh ? `火车参考：最快 ${trainDuration(quickest, zh)}` : `By train: from ${trainDuration(quickest, zh)}`;
   }
   return null;
+}
+
+/*
+ * Flying near, then the train on (1.2114): where the change is and how long it all takes, the flight
+ * and train with the wait, the fare as two tickets, and the ride from the airport to the station.
+ */
+
+/** 飞到景德镇，换火车 · 共 5 小时 30 分, then MU5122 → G1234 · 等 2 小时 10 分. */
+export function airRailCaption(journey: AirRailOption, locale: Locale): { readonly caption: string; readonly note: string } {
+  const zh = locale === "zh";
+  const total = trainDuration(journey.durationMinutes, zh);
+  const wait = trainDuration(journey.waitMinutes, zh);
+  return {
+    caption: zh ? `飞到${journey.city}，换火车 · 共 ${total}` : `Fly to ${journey.city}, then the train · ${total} in all`,
+    note: `${journey.flight.flightNo} → ${journey.train.code} · ${zh ? `等 ${wait}` : `${wait} wait`}`,
+  };
+}
+
+/** 两段分开买 ¥850 起, or the fare alone when the train shows no price. */
+export function airRailFare(journey: AirRailOption, locale: Locale): string {
+  const zh = locale === "zh";
+  if (journey.price === null) return zh ? `机票 ¥${journey.flight.price}，火车票价未查到` : `Flight ¥${journey.flight.price}; no train fare shown`;
+  return zh ? `两段分开买 ¥${journey.price} 起` : `two tickets, from ¥${journey.price}`;
+}
+
+/** The ride between the two, said plainly, since it is inside the wait and not looked up. */
+export function airRailRide(journey: AirRailOption, locale: Locale): string {
+  return locale === "zh"
+    ? `从${journey.flight.toAirport}到${journey.train.from}站，市内交通另算，换乘时间共 ${trainDuration(journey.waitMinutes, true)}`
+    : `From ${journey.flight.toAirport} to ${journey.train.from} station; the ride is not included (${trainDuration(journey.waitMinutes, false)} to change)`;
 }

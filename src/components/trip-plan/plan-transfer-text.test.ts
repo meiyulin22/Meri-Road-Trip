@@ -4,7 +4,7 @@ import test from "node:test";
 import type { TransferLeg } from "@/domain/plan/transfer-legs";
 
 import {
-  flightCaption, flightChangeWarning, flightCharges, flightChecked, flightSeat, otherWay,
+  airRailCaption, airRailFare, airRailRide, flightCaption, flightChangeWarning, flightCharges, flightChecked, flightSeat, otherWay,
   changeCaption, changeSeats, changeTrains, changeWarning, driveDuration, driveSummary, legDayLabel, trainChecked, trainClock, trainLine, trainReferenceNote, trainSeat, trainSource,
   transferEnds, transferLabel, transferNote, transferText,
 } from "./plan-transfer-text";
@@ -135,4 +135,17 @@ test("a search switched off on this server is said plainly, not as a passing fai
   const off = leg({ status: "estimated", distanceKm: 2400, durationMinutes: 1500, path: [[121, 31], [100, 26]] }, { trainsMissing: "off" });
   assert.match(transferText(off, null, "zh"), /^没有开启火车查询；先给开车参考：/u);
   assert.equal(transferNote({ ...off, trainsMissing: undefined, flightsMissing: "off" }, "flight", "en"), "Flight search isn't switched on");
+});
+
+test("flying near then the train reads as one ticket: where to change, the wait, two fares, the ride to the station (1.2114)", () => {
+  const flight = { flightNo: "MU5122", fromAirport: "北京首都", toAirport: "景德镇罗家", departs: "08:00", arrives: "10:20", arriveDayOffset: 0,
+    durationMinutes: 140, cabin: "经济舱", price: 600, seatsLeft: 9, charges: 100, stopCity: null, codeshare: false };
+  const train = { code: "G1234", from: "景德镇北", to: "婺源", departs: "12:40", arrives: "13:10", arriveDayOffset: 0, durationMinutes: 30,
+    seats: [{ name: "二等座", price: 38, left: "有" }] };
+  const journey = { code: "MU5122/G1234", city: "景德镇", flight, train, waitMinutes: 140, departs: "08:00", arrives: "13:10", arriveDayOffset: 0, durationMinutes: 310, price: 638 };
+  assert.deepEqual(airRailCaption(journey, "zh"), { caption: "飞到景德镇，换火车 · 共 5 小时 10 分", note: "MU5122 → G1234 · 等 2 小时 20 分" });
+  assert.equal(airRailFare(journey, "zh"), "两段分开买 ¥638 起");
+  assert.equal(airRailFare({ ...journey, price: null }, "zh"), "机票 ¥600，火车票价未查到");
+  assert.equal(airRailRide(journey, "zh"), "从景德镇罗家到景德镇北站，市内交通另算，换乘时间共 2 小时 20 分");
+  assert.equal(airRailCaption(journey, "en").caption, "Fly to 景德镇, then the train · 5 h 10 min in all");
 });

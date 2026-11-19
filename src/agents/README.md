@@ -631,6 +631,19 @@ heading home shows a train over 12 hours and a flight was also found, 「改坐�
 changes that leg of this plan from what was already found (`by: "traveller"`), with no model call and
 no lookup, and TripState untouched.
 
+**Flying near, then the train (1.2114).** VariFlight's air-rail tool came back with single flights, no
+train leg and no fares (probe 2026-11-18), and it only takes airport codes, so a place with no airport
+(婺源, 凤凰) cannot even be asked. The journey is built by code instead, like a change of plane: when a
+leg's flight search finds no direct flight and trains may be searched, the agent names a city with an
+airport near the end in `search-air-rail` (景德镇 for 婺源, 铜仁 for 凤凰); code makes one fare search to
+it and one 12306 search from it on the landing day, and joins them
+([air-rail.ts](../domain/plan/air-rail.ts)): the train leaves at least two hours after landing (the ride
+to the station is not looked up, so it is generous) and within six; the quickest three are kept, the
+fare is the two tickets added. The pick may be `air_rail` with its code; with no pick, code takes the
+quickest such journey when there is no train, or when it beats the quickest train for a leg not bound
+to the train. The card draws it as a plane ticket, "飞到景德镇，换火车 · 共…", says the ride from the
+airport to the station is not included, and names both sources. Built with unit tests only.
+
 **A switched-off search says so (1.2113 step 1).** Without `RAIL_PROVIDER` or `FLIGHT_PROVIDER`, that
 search is not wired at all: the transport agent is not run for it, and a leg bound to the traveller's
 choice reads "没有开启火车查询" / "没有开启航班查询" (`trainsMissing` / `flightsMissing: "off"`) instead
