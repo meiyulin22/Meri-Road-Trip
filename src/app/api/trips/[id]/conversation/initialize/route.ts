@@ -19,6 +19,7 @@ import { serializeError } from "@/platform/observability/serialize-error";
 import { OpeningConversationNotEligibleError } from "@/capabilities/conversation/opening-conversation-service";
 import { openingConversationService } from "@/capabilities/conversation/opening-conversation-service-instance";
 import { requestLocale } from "@/platform/locale/request-locale";
+import { kimiRequestRefusal } from "@/platform/http/visitor-limits";
 
 function getRequestContext(): { referenceDate: string; timezone: string } {
   const timezone = process.env.MERI_TIMEZONE?.trim() ||
@@ -34,9 +35,12 @@ function getRequestContext(): { referenceDate: string; timezone: string } {
 }
 
 export async function POST(
-  _request: Request,
+  request: Request,
   { params }: { readonly params: Promise<{ id: string }> },
 ) {
+  // Per-address and per-visitor limits on Kimi (step 3); the site's daily caps hold behind them.
+  const limited = kimiRequestRefusal(request);
+  if (limited) return limited;
   const requestId = randomUUID();
   const { id: tripId } = await params;
   const ownerGuestId = readGuestId(await cookies());

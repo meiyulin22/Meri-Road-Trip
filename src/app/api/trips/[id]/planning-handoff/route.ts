@@ -6,8 +6,12 @@ import { z } from "zod";
 import { handlePlanningHandoffPost, planningJourneyNotFound } from "@/capabilities/planning/planning-handoff-handler";
 import { readGuestId } from "@/platform/identity/guest-identity";
 import { requestLocale } from "@/platform/locale/request-locale";
+import { kimiRequestRefusal } from "@/platform/http/visitor-limits";
 
-export async function POST(_request: Request, context: { params: Promise<{ id: string }> }): Promise<Response> {
+export async function POST(request: Request, context: { params: Promise<{ id: string }> }): Promise<Response> {
+  // Per-address and per-visitor limits on Kimi (step 3); the site's daily caps hold behind them.
+  const limited = kimiRequestRefusal(request);
+  if (limited) return limited;
   const { id: tripId } = await context.params;
   const ownerGuestId = readGuestId(await cookies());
   if (!ownerGuestId || !z.uuid().safeParse(tripId).success) return planningJourneyNotFound();

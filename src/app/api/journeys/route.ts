@@ -20,6 +20,7 @@ import { logger, logEvents } from "@/platform/observability/logger";
 import { serializeError } from "@/platform/observability/serialize-error";
 import { openingConversationService } from "@/capabilities/conversation/opening-conversation-service-instance";
 import { requestLocale } from "@/platform/locale/request-locale";
+import { kimiRequestRefusal } from "@/platform/http/visitor-limits";
 
 function getRequestContext(): { referenceDate: string; timezone: string } {
   const timezone = process.env.MERI_TIMEZONE?.trim() ||
@@ -35,6 +36,9 @@ function getRequestContext(): { referenceDate: string; timezone: string } {
 }
 
 export async function POST(request: Request) {
+  // Per-address and per-visitor limits on Kimi (step 3); the site's daily caps hold behind them.
+  const limited = kimiRequestRefusal(request);
+  if (limited) return limited;
   const requestId = randomUUID();
   const startedAt = performance.now();
 

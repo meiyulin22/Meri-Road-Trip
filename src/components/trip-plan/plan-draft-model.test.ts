@@ -8,5 +8,5 @@ test("a run Kimi stopped at a site limit reads as that limit, with no retry offe
   assert.equal(runFailure("paid_calls_paused"), "paid_calls_paused");
   assert.equal(runFailure("planner_unavailable"), "unavailable");
   assert.equal(runFailure(null), "failed");
-  assert.deepEqual([...limitFailures].sort(), ["daily_quota", "daily_runs", "paid_calls_paused"]);
+  assert.deepEqual([...limitFailures].sort(), ["address_runs", "daily_quota", "daily_runs", "guest_runs", "paid_calls_paused"]);
 });

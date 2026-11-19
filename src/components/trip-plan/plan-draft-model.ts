@@ -14,10 +14,12 @@ type Fetcher = (input: RequestInfo | URL, init?: RequestInit) => Promise<Respons
 
 export type PlanDraftFailure = "journey_changed" | "unavailable" | "failed" | "time_limit" | "interrupted"
   // The site's limits (step 2): today's plans are used up, Kimi's money is spent, or paid calls are off.
-  | "daily_runs" | "daily_quota" | "paid_calls_paused";
+  | "daily_runs" | "daily_quota" | "paid_calls_paused"
+  // Step 3: this visitor's or this address's plans for today are used up.
+  | "guest_runs" | "address_runs";
 
 /** Limits a retry today cannot get past, so the page offers no retry button. */
-export const limitFailures: readonly PlanDraftFailure[] = ["daily_runs", "daily_quota", "paid_calls_paused"];
+export const limitFailures: readonly PlanDraftFailure[] = ["daily_runs", "daily_quota", "paid_calls_paused", "guest_runs", "address_runs"];
 
 export class PlanDraftRequestError extends Error {
   constructor(readonly reason: PlanDraftFailure) {

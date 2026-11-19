@@ -18,6 +18,7 @@ import {
   pendingRecommendationRequest,
   type DestinationRecommendationUseCaseDependencies,
 } from "@/capabilities/recommendation/destination-recommendation-use-case";
+import { kimiRequestRefusal } from "@/platform/http/visitor-limits";
 
 type Dependencies = DestinationRecommendationUseCaseDependencies & {
   /** The language chosen on the landing page. */
@@ -85,6 +86,9 @@ export async function handleDestinationRecommendationsPost(
 }
 
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }): Promise<Response> {
+  // Per-address and per-visitor limits on Kimi (step 3); the site's daily caps hold behind them.
+  const limited = kimiRequestRefusal(request);
+  if (limited) return limited;
   const { id } = await params;
   let body: unknown;
   try { body = await request.json(); }

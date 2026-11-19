@@ -121,7 +121,8 @@ function begun(start: PlanRunStart): Exclude<PlanRunStart, { status: "limited" }
 }
 
 async function followToEnd(service: PlanRunService, repository: InMemoryPlanRunRepository, runId: string, afterSeq = 0) {
-  const run = await repository.findRun(tripId, runId);
+  // By id alone: a few tests start runs on trips of their own.
+  const run = repository.runs.get(runId);
   assert.ok(run);
   const events: PlanProgressEnvelope[] = [];
   for await (const envelope of service.follow(run, afterSeq, new AbortController().signal)) events.push(envelope);
@@ -547,4 +548,42 @@ test("with paid calls off or Kimi's day spent, no run starts, and a run Kimi sto
   const events = await followToEnd(spent.service, spent.repository, started.runId);
   const finished = events.at(-1)?.event;
   assert.deepEqual(finished?.type === "run.finished" && [finished.status, finished.errorCode], ["failed", "daily_quota"]);
+});
+
+test("one visitor and one address get their own runs a day; a run that failed on our side gives the turn back (step 3)", async () => {
+  const otherTrip = (n: number) => `8c3f9f0e-6f4b-4d0a-9f55-${String(n).padStart(12, "0")}`;
+  let guestCount = 0;
+  // Two runs succeed here, so the fake planner answers twice.
+  const twice = [[day(1, "s1", "s2"), day(2, "s3"), day(3, "s4")], [afternoon(day(4, "s1")), day(5, "s2")]];
+  const { repository, service } = setup({ planModel: { model: modelAnswering({ routes: [route, route], days: [...twice, ...twice] }) } }, undefined, {
+    runsPerDay: 30, kimiRefusal: () => null,
+    runsPerGuest: 1, guestRuns: async () => guestCount,
+    runsPerAddress: 2,
+  });
+  const visitor = { guestId: "guest-a", address: "203.0.113.70" };
+  const first = begun(await service.start(otherTrip(1), trip, visitor));
+  await followToEnd(service, repository, first.runId);
+  assert.equal(repository.runs.get(first.runId)?.status, "succeeded");
+  guestCount = 1;
+  // The same visitor again: its one run a day is used.
+  assert.deepEqual(await service.start(otherTrip(2), trip, visitor), { status: "limited", reason: "guest_runs" });
+  // A new cookie from the same address gets the address's second run, then no more.
+  const fresh = { guestId: "guest-b", address: "203.0.113.70" };
+  guestCount = 0;
+  const second = begun(await service.start(otherTrip(3), trip, fresh));
+  await followToEnd(service, repository, second.runId);
+  assert.equal(repository.runs.get(second.runId)?.status, "succeeded");
+  assert.deepEqual(await service.start(otherTrip(4), trip, { guestId: "guest-c", address: "203.0.113.70" }), { status: "limited", reason: "address_runs" });
+});
+
+test("a run that fails on Meri's side does not use up the address's runs", async () => {
+  const { repository, service } = setup({ planModel: { model() {
+    throw new Error("MOONSHOT_API_KEY is required");
+  } } }, undefined, { runsPerDay: 30, kimiRefusal: () => null, runsPerAddress: 1 });
+  const visitor = { guestId: "guest-d", address: "203.0.113.71" };
+  const failed = begun(await service.start(tripId, trip, visitor));
+  await followToEnd(service, repository, failed.runId);
+  assert.equal(repository.runs.get(failed.runId)?.status, "failed");
+  // The failed run was given back: the same address may start again.
+  assert.notEqual((await service.start("8c3f9f0e-6f4b-4d0a-9f55-000000000099", handoff(["丽江市"], fiveDays), visitor)).status, "limited");
 });

@@ -16,6 +16,7 @@ import { destinationSelectionReply } from "@/capabilities/destination/destinatio
 import { meriReplies, type MeriReplies } from "@/capabilities/conversation/meri-replies";
 import { requestLocale } from "@/platform/locale/request-locale";
 import { destinationRecommendationSelectionMessageId } from "@/capabilities/conversation/destination-selection-message-id";
+import { kimiRequestRefusal } from "@/platform/http/visitor-limits";
 
 type Dependencies = {
   readonly loadJourney: (tripId: string, ownerGuestId: string) => Promise<{ tripState: TripState }>;
@@ -152,6 +153,9 @@ export async function handleDestinationRecommendationSelectionPost(
 }
 
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }): Promise<Response> {
+  // Per-address and per-visitor limits on Kimi (step 3); the site's daily caps hold behind them.
+  const limited = kimiRequestRefusal(request);
+  if (limited) return limited;
   const { id } = await params;
   let body: unknown;
   try { body = await request.json(); }

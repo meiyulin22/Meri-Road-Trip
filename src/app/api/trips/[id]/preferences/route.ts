@@ -5,6 +5,7 @@ import { handlePreferencesGet, handlePreferencesPost } from "@/capabilities/plan
 import { readGuestId } from "@/platform/identity/guest-identity";
 
 import { preferenceDependencies } from "./dependencies";
+import { kimiRequestRefusal } from "@/platform/http/visitor-limits";
 
 type Context = { params: Promise<{ id: string }> };
 
@@ -20,6 +21,9 @@ export async function GET(_request: Request, context: Context): Promise<Response
 }
 
 export async function POST(request: Request, context: Context): Promise<Response> {
+  // Per-address and per-visitor limits on Kimi (step 3); the site's daily caps hold behind them.
+  const limited = kimiRequestRefusal(request);
+  if (limited) return limited;
   const { tripId, ownerGuestId } = await owner(context);
   const body: unknown = await request.json().catch(() => null);
   return handlePreferencesPost(tripId, ownerGuestId, body, await preferenceDependencies());

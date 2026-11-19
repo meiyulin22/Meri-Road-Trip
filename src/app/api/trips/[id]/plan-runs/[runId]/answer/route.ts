@@ -3,9 +3,13 @@ import { z } from "zod";
 
 import { handlePlanAnswerPost } from "@/capabilities/planning/plan-run-handler";
 import { readGuestId } from "@/platform/identity/guest-identity";
+import { kimiRequestRefusal } from "@/platform/http/visitor-limits";
 
 /** Answers the question a plan run is waiting on, and resumes it. */
 export async function POST(request: Request, context: { params: Promise<{ id: string; runId: string }> }): Promise<Response> {
+  // Per-address and per-visitor limits on Kimi (step 3); the site's daily caps hold behind them.
+  const limited = kimiRequestRefusal(request);
+  if (limited) return limited;
   const { id: tripId, runId } = await context.params;
   const ownerGuestId = readGuestId(await cookies());
   if (!z.uuid().safeParse(tripId).success || !z.uuid().safeParse(runId).success) {

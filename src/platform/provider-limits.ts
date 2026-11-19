@@ -16,12 +16,20 @@ export type ProviderLimits = {
   readonly railRequestsPerDay: number;
   /** BOCHA_MAX_CALLS_PER_DAY: Bocha web searches a Beijing day, plans and Workspace together. Default 500. */
   readonly bochaCallsPerDay: number;
-  /** KIMI_MAX_SEARCHES_PER_DAY: Kimi web searches (search_pro) a Beijing day; 5–14 a plan measured. Default 300. */
+  /** KIMI_MAX_SEARCHES_PER_DAY: Kimi web searches (search_pro) a Beijing day; 5–14 a plan measured, 30 plans. Default 450. */
   readonly kimiSearchesPerDay: number;
   /** KIMI_MAX_YUAN_PER_DAY: Kimi model money a Beijing day, chat and plans together, in fen. Default ¥40 (merlin, 2026-11-19). */
   readonly kimiFenPerDay: number;
-  /** PLAN_RUNS_PER_DAY: Generate plan runs started a Beijing day, the whole site. Default 15. */
+  /** PLAN_RUNS_PER_DAY: Generate plan runs started a Beijing day, the whole site. Default 30. */
   readonly planRunsPerDay: number;
+  /** PLAN_RUNS_PER_GUEST_PER_DAY: runs one visitor may start a Beijing day; runs that failed on Meri's side do not count. Default 3. */
+  readonly planRunsPerGuestPerDay: number;
+  /** PLAN_RUNS_PER_IP_PER_DAY: runs one address may start in 24 hours, kept high for shared office networks. Default 6. */
+  readonly planRunsPerIpPerDay: number;
+  /** CHAT_TURNS_PER_GUEST_PER_HOUR: Workspace messages one visitor may send an hour. Default 30. */
+  readonly chatTurnsPerGuestPerHour: number;
+  /** KIMI_REQUESTS_PER_IP_PER_HOUR: requests to any endpoint that calls Kimi, one address an hour. Default 120. */
+  readonly kimiRequestsPerIpPerHour: number;
 };
 
 export const defaultProviderLimits: ProviderLimits = {
@@ -30,9 +38,13 @@ export const defaultProviderLimits: ProviderLimits = {
   railSearchesPerPlan: 8,
   railRequestsPerDay: 100,
   bochaCallsPerDay: 500,
-  kimiSearchesPerDay: 300,
+  kimiSearchesPerDay: 450,
   kimiFenPerDay: 4_000,
-  planRunsPerDay: 15,
+  planRunsPerDay: 30,
+  planRunsPerGuestPerDay: 3,
+  planRunsPerIpPerDay: 6,
+  chatTurnsPerGuestPerHour: 30,
+  kimiRequestsPerIpPerHour: 120,
 };
 
 type Environment = Readonly<Record<string, string | undefined>>;
@@ -60,6 +72,10 @@ export function providerLimitsFrom(env: Environment): ProviderLimits {
     kimiSearchesPerDay: positive(env, "KIMI_MAX_SEARCHES_PER_DAY", defaultProviderLimits.kimiSearchesPerDay, 1, true),
     kimiFenPerDay: positive(env, "KIMI_MAX_YUAN_PER_DAY", defaultProviderLimits.kimiFenPerDay, 100, false),
     planRunsPerDay: positive(env, "PLAN_RUNS_PER_DAY", defaultProviderLimits.planRunsPerDay, 1, true),
+    planRunsPerGuestPerDay: positive(env, "PLAN_RUNS_PER_GUEST_PER_DAY", defaultProviderLimits.planRunsPerGuestPerDay, 1, true),
+    planRunsPerIpPerDay: positive(env, "PLAN_RUNS_PER_IP_PER_DAY", defaultProviderLimits.planRunsPerIpPerDay, 1, true),
+    chatTurnsPerGuestPerHour: positive(env, "CHAT_TURNS_PER_GUEST_PER_HOUR", defaultProviderLimits.chatTurnsPerGuestPerHour, 1, true),
+    kimiRequestsPerIpPerHour: positive(env, "KIMI_REQUESTS_PER_IP_PER_HOUR", defaultProviderLimits.kimiRequestsPerIpPerHour, 1, true),
   };
 }
 

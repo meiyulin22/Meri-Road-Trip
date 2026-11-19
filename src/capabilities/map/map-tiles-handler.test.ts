@@ -63,7 +63,10 @@ test("tiles go only to Meri's own pages, within the limit, and say little when t
   assert.equal(fromOwnPage(own({ referer: "http://localhost:3000/trips/x/plan" })), true);
   assert.equal(fromOwnPage(own({ referer: "https://elsewhere.example/" })), false);
   assert.equal(fromOwnPage(own({})), false);
-  assert.equal(clientAddress(own({ "x-forwarded-for": "203.0.113.7, 10.0.0.1" })), "203.0.113.7");
+  // The entry the nearest proxy appended, not one the client could have written (step 3).
+  assert.equal(clientAddress(own({ "x-forwarded-for": "203.0.113.7, 10.0.0.1" })), "10.0.0.1");
+  assert.equal(clientAddress(own({ "x-forwarded-for": "1.2.3.4", "x-real-ip": "203.0.113.7" })), "203.0.113.7");
+  assert.equal(clientAddress(own({ "cf-connecting-ip": "198.51.100.9", "x-real-ip": "203.0.113.7" })), "198.51.100.9");
 
   const png = new Uint8Array([137, 80, 78, 71]).buffer;
   const deps = (allow: boolean, ok = true) => ({

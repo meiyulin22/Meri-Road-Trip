@@ -609,6 +609,17 @@ Workspace chat shows "today's demo allowance is used up" or "the demo is paused"
 The switch also stops Kimi search, Bocha and VariFlight. Measured from 16 saved runs: 10–28k tokens a
 plan (11-16/17), 5–14 searches.
 
+**A ceiling on one visitor and one address (step 3).** Defaults raised with merlin on 2026-11-19: 30 plans
+a day site-wide, Kimi search 450. A new Generate plan is refused once the visitor has started 3 that
+Beijing day on their own trips (counted in the database, leaving out runs that failed on Meri's side), or
+once the address has started 6 in 24 hours (kept high for shared office networks, counted in memory and
+given back when a run fails; no address is stored). The eleven endpoints that call Kimi share one count,
+120 requests an address an hour, and a Workspace message also counts 30 an hour for its visitor; over a
+limit the answer is 429 `too_many_requests`, which the chat explains. The address comes only from a
+header a trusted proxy writes ([client-address.ts](../platform/http/client-address.ts)):
+CF-Connecting-IP, then x-real-ip, then the last x-forwarded-for entry, since a client can forge the first.
+A pool of rotating addresses still gets through; the site's daily caps and Turnstile are for that.
+
 **A switched-off search says so (1.2113 step 1).** Without `RAIL_PROVIDER` or `FLIGHT_PROVIDER`, that
 search is not wired at all: the transport agent is not run for it, and a leg bound to the traveller's
 choice reads "没有开启火车查询" / "没有开启航班查询" (`trainsMissing` / `flightsMissing: "off"`) instead

@@ -365,7 +365,7 @@ export function ConversationPanel({
           ) : null}
           {hasError && chatError instanceof WorkspaceLimitError ? (
             <div className={styles.conversationError} role="alert">
-              <span>{chatError.limit === "daily_quota" ? words.dailyQuota : words.demoPaused}</span>
+              <span>{chatError.limit === "daily_quota" ? words.dailyQuota : chatError.limit === "too_many_requests" ? words.tooManyMessages : words.demoPaused}</span>
             </div>
           ) : hasError ? (
             <div className={styles.conversationError} role="alert">

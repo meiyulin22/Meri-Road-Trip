@@ -1,5 +1,6 @@
 import { parseMapTile, type MapTile } from "@/domain/map/map-tile";
 import type { TileAnswer } from "@/platform/tianditu/tianditu-tiles";
+import { clientAddress } from "@/platform/http/client-address";
 
 export type MapTileDependencies = {
   readonly fetchTile: (tile: MapTile) => Promise<TileAnswer>;
@@ -26,11 +27,8 @@ export function fromOwnPage(request: Request): boolean {
   }
 }
 
-/** The visitor's address as the proxy in front of the app reports it, or one shared bucket locally. */
-export function clientAddress(request: Request): string {
-  const forwarded = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim();
-  return forwarded || request.headers.get("x-real-ip")?.trim() || "local";
-}
+// One rule for every per-address limit since step 3: a header only a trusted proxy writes.
+export { clientAddress };
 
 function plain(status: number, message: string): Response {
   return new Response(message, { status, headers: { "Content-Type": "text/plain; charset=utf-8", "Cache-Control": "no-store" } });

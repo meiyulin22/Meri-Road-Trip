@@ -7,9 +7,13 @@ import { TripNotFoundError } from "@/domain/trip/trip-errors";
 import { readGuestId } from "@/platform/identity/guest-identity";
 import { logger } from "@/platform/observability/logger";
 import { serializeError } from "@/platform/observability/serialize-error";
+import { kimiRequestRefusal } from "@/platform/http/visitor-limits";
 
 /** Fills in where the traveller starts, once, after the plan is made (1.2107). */
 export async function POST(request: Request, context: { params: Promise<{ id: string }> }): Promise<Response> {
+  // Per-address and per-visitor limits on Kimi (step 3); the site's daily caps hold behind them.
+  const limited = kimiRequestRefusal(request);
+  if (limited) return limited;
   const { id: tripId } = await context.params;
   const ownerGuestId = readGuestId(await cookies());
   if (!z.uuid().safeParse(tripId).success) {

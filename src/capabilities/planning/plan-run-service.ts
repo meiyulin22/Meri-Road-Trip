@@ -56,7 +56,12 @@ export type PlanRunStart =
   /** No run was started (step 2): today's runs are used up, Kimi's money is spent, or paid calls are off. */
   | { readonly status: "limited"; readonly reason: PlanRunLimit };
 
-export type PlanRunLimit = "daily_runs" | "daily_quota" | "paid_calls_paused";
+export type PlanRunLimit = "daily_runs" | "daily_quota" | "paid_calls_paused"
+  // Step 3: this visitor's runs today, or this address's in the last 24 hours, are used up.
+  | "guest_runs" | "address_runs";
+
+/** Who asks for a run (step 3): the visitor's cookie and the address a trusted proxy reported. */
+export type PlanVisitor = { readonly guestId: string | null; readonly address: string | null };
 
 /**
  * The site's limits a new run must pass (step 2): runs a Beijing day, counted in the database, and
@@ -65,7 +70,17 @@ export type PlanRunLimit = "daily_runs" | "daily_quota" | "paid_calls_paused";
 export type PlanRunLimits = {
   readonly runsPerDay: number;
   readonly kimiRefusal: () => "daily_quota" | "paid_calls_paused" | null;
+  /** Step 3: runs one visitor may start a Beijing day, counted without the runs that failed on Meri's side. */
+  readonly runsPerGuest?: number;
+  readonly guestRuns?: (guestId: string, since: string) => Promise<number>;
+  /** Step 3: runs one address may start in 24 hours, counted in memory. */
+  readonly runsPerAddress?: number;
 };
+
+const day = 24 * 60 * 60 * 1_000;
+const addressKey = Symbol.for("meri.plan-run-addresses");
+// Each address's recent runs, kept across hot reloads; a run that fails on Meri's side is taken off.
+const addressRuns = ((globalThis as Record<symbol, unknown>)[addressKey] ??= new Map()) as Map<string, { runId: string; at: number }[]>;
 
 /** Midnight in Beijing on the day of `now`, as an instant. */
 export function beijingDayStart(now: Date): string {
@@ -167,18 +182,18 @@ export class PlanRunService {
    * in progress when one is, or a new run. A run left running by a restarted server is
    * marked interrupted first, and a failed run is tried again.
    */
-  start(tripId: string, handoff: PlanHandoff): Promise<PlanRunStart> {
+  start(tripId: string, handoff: PlanHandoff, visitor: PlanVisitor = { guestId: null, address: null }): Promise<PlanRunStart> {
     const key = handoffKey(handoff);
     const startKey = tripId + ":" + key;
     // React's development double effect and two tabs ask at once; both get one run.
     const pending = startingRuns.get(startKey);
     if (pending) return pending;
-    const starting = this.startOnce(tripId, handoff, key).finally(() => startingRuns.delete(startKey));
+    const starting = this.startOnce(tripId, handoff, key, visitor).finally(() => startingRuns.delete(startKey));
     startingRuns.set(startKey, starting);
     return starting;
   }
 
-  private async startOnce(tripId: string, handoff: PlanHandoff, key: string): Promise<PlanRunStart> {
+  private async startOnce(tripId: string, handoff: PlanHandoff, key: string, visitor: PlanVisitor): Promise<PlanRunStart> {
     const latest = await this.deps.repository.findLatestRun(tripId);
     if (latest?.handoffKey === key) {
       if (latest.status === "running" && activeRuns.has(latest.id)) return { status: "running", runId: latest.id };
@@ -192,7 +207,7 @@ export class PlanRunService {
     }
 
     // Only a new run counts: a saved plan, a run in progress or one waiting for an answer never does.
-    const limited = await this.limitFor();
+    const limited = await this.limitFor(visitor);
     if (limited) {
       logger.info({ tripId, reason: limited }, "Plan run not started: a site limit is reached");
       return { status: "limited", reason: limited };
@@ -203,6 +218,9 @@ export class PlanRunService {
       errorCode: null, usage: null, startedAt: this.now().toISOString(), finishedAt: null, durationMs: null,
     };
     await this.deps.repository.createRun(run);
+    if (visitor.address && this.deps.limits?.runsPerAddress) {
+      addressRuns.set(visitor.address, [...this.recentRuns(visitor.address), { runId: run.id, at: this.now().getTime() }]);
+    }
     activeRuns.set(run.id, { events: [], listeners: new Set() });
     void this.execute(run).catch((error: unknown) => {
       logger.error({ runId: run.id, error: serializeError(error) }, "Plan run could not finish");
@@ -211,13 +229,24 @@ export class PlanRunService {
     return { status: "running", runId: run.id };
   }
 
-  private async limitFor(): Promise<PlanRunLimit | null> {
+  private async limitFor(visitor: PlanVisitor): Promise<PlanRunLimit | null> {
     const limits = this.deps.limits;
     if (!limits) return null;
     const refusal = limits.kimiRefusal();
     if (refusal) return refusal;
-    const started = await this.deps.repository.countRunsStartedSince(beijingDayStart(this.now()));
-    return started >= limits.runsPerDay ? "daily_runs" : null;
+    const since = beijingDayStart(this.now());
+    const started = await this.deps.repository.countRunsStartedSince(since);
+    if (started >= limits.runsPerDay) return "daily_runs";
+    if (visitor.guestId && limits.runsPerGuest && limits.guestRuns
+      && await limits.guestRuns(visitor.guestId, since) >= limits.runsPerGuest) return "guest_runs";
+    if (visitor.address && limits.runsPerAddress && this.recentRuns(visitor.address).length >= limits.runsPerAddress) return "address_runs";
+    return null;
+  }
+
+  /** An address's runs in the last 24 hours. */
+  private recentRuns(address: string): { runId: string; at: number }[] {
+    const after = this.now().getTime() - day;
+    return (addressRuns.get(address) ?? []).filter(({ at }) => at > after);
   }
 
   /** The newest saved plan and the newest run of a trip. */
@@ -478,6 +507,10 @@ export class PlanRunService {
       return;
     }
     const status = output ? "succeeded" : "failed";
+    // A run that failed on Meri's side gives the address its turn back (step 3), as it does the visitor.
+    if (status === "failed") {
+      for (const [address, runs] of addressRuns) addressRuns.set(address, runs.filter(({ runId }) => runId !== run.id));
+    }
     try {
       await this.deps.repository.finishRun(run.id, {
         status, errorCode, usage: output?.usage ?? null, finishedAt: this.now().toISOString(), durationMs,

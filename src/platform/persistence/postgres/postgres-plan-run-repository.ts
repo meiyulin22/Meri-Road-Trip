@@ -1,4 +1,4 @@
-import { and, asc, count, desc, eq, gt, gte, max } from "drizzle-orm";
+import { and, asc, count, desc, eq, gt, gte, inArray, max } from "drizzle-orm";
 import { z } from "zod";
 
 import { readyPlanSchema } from "@/domain/plan/plan-draft-response";
@@ -8,6 +8,7 @@ import type { PlanRun, PlanRunFinish, PlanVersion } from "@/domain/plan/plan-run
 import { planPreferenceSchema } from "@/domain/plan/trip-preference";
 import { validateTripState } from "@/domain/trip-state/trip-state";
 import { planRunEvents, planRuns, planVersions } from "@/platform/persistence/database/schema/plan-runs";
+import { trips } from "@/platform/persistence/database/schema/trips";
 import type { FilledPlanFacts, PlanRunRepository } from "@/platform/persistence/plan-run-repository";
 
 type PlanRunDatabase = typeof import("@/platform/persistence/database/db").db;
@@ -15,7 +16,8 @@ type PlanRunRow = typeof planRuns.$inferSelect;
 type PlanVersionRow = typeof planVersions.$inferSelect;
 
 type PostgresPlanRunOperation =
-  | "createRun" | "moveRun" | "finishRun" | "findRun" | "findLatestRun" | "countRunsStartedSince" | "appendEvent" | "listEvents"
+  | "createRun" | "moveRun" | "finishRun" | "findRun" | "findLatestRun" | "countRunsStartedSince" | "countOwnerRunsStartedSince"
+  | "appendEvent" | "listEvents"
   | "createVersion" | "findVersionByRun" | "findLatestVersion" | "fillPlanFacts";
 
 export class PostgresPlanRunRepositoryError extends Error {
@@ -136,6 +138,21 @@ export class PostgresPlanRunRepository implements PlanRunRepository {
       return rows[0]?.runs ?? 0;
     } catch (error) {
       throw new PostgresPlanRunRepositoryError("countRunsStartedSince", since, error);
+    }
+  }
+
+  /**
+   * Runs one visitor started at or after `since` on their own trips (step 3), leaving out the runs that
+   * ended without a plan: a timeout or an error on Meri's side does not use up the visitor's turns.
+   */
+  async countOwnerRunsStartedSince(ownerGuestId: string, since: string): Promise<number> {
+    try {
+      const rows = await this.database.select({ runs: count() }).from(planRuns)
+        .innerJoin(trips, eq(trips.id, planRuns.tripId))
+        .where(and(eq(trips.ownerGuestId, ownerGuestId), gte(planRuns.startedAt, since), inArray(planRuns.status, ["running", "suspended", "succeeded"])));
+      return rows[0]?.runs ?? 0;
+    } catch (error) {
+      throw new PostgresPlanRunRepositoryError("countOwnerRunsStartedSince", ownerGuestId, error);
     }
   }
 

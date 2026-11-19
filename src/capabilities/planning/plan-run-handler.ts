@@ -12,6 +12,8 @@ import { canonicalJson, type PlanRunService } from "./plan-run-service";
 export type PlanRunDependencies = {
   readonly loadJourney: (tripId: string, ownerGuestId: string) => Promise<{ tripState: TripState }>;
   readonly service: Pick<PlanRunService, "start" | "latest" | "findRun" | "follow" | "answer">;
+  /** The visitor's address as a trusted proxy reported it, for the per-address run limit (step 3). */
+  readonly address?: string | null;
 };
 
 /** A comment line every 15 s keeps proxies from closing a quiet stream. */
@@ -55,7 +57,7 @@ export async function handlePlanRunPost(
     if (scope.status === "unsupported") {
       return noStore({ status: "unsupported", reason: scope.reason } satisfies PlanRunStartResponse);
     }
-    const started = await deps.service.start(tripId, handoff);
+    const started = await deps.service.start(tripId, handoff, { guestId: ownerGuestId, address: deps.address ?? null });
     if (started.status === "limited") {
       return noStore({ status: "limited", reason: started.reason } satisfies PlanRunStartResponse);
     }

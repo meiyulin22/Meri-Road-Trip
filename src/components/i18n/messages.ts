@@ -128,6 +128,7 @@ const en = {
     // Step 2: Meri did not answer because a site limit is reached; nothing was sent, so there is nothing to refresh.
     dailyQuota: "Today's demo allowance is used up. Please come back tomorrow.",
     demoPaused: "Meri's demo is paused for now. Please come back a little later.",
+    tooManyMessages: "That's a lot of messages for one hour. Take a short break and carry on later.",
     pickingCards: "Picking places to recommend…",
     cardsFailed: "The recommendations didn't come through.",
     retry: "Retry",
@@ -552,6 +553,7 @@ const zh: Messages = {
     refresh: "刷新核对",
     dailyQuota: "今天的演示额度用完了，明天再来吧。",
     demoPaused: "Meri 的演示暂停中，稍后再来吧。",
+    tooManyMessages: "这一小时发得有点多，休息一下再继续吧。",
     pickingCards: "正在挑选推荐的地方…",
     cardsFailed: "推荐暂时没有生成出来。",
     retry: "重试",

@@ -13,5 +13,12 @@ export const planRunService = new PlanRunService({
   // Imported on first run, so a route that only reads plans never loads the agents.
   workflow: async () => ({ workflow: (await import("@/agents")).mastra.getWorkflow("planGeneration") }),
   // PLAN_RUNS_PER_DAY, KIMI_MAX_YUAN_PER_DAY and PAID_CALLS_ENABLED (step 2).
-  limits: { runsPerDay: providerLimits.planRunsPerDay, kimiRefusal: () => kimiRefusalNow() },
+  // PLAN_RUNS_PER_GUEST_PER_DAY and PLAN_RUNS_PER_IP_PER_DAY (step 3).
+  limits: {
+    runsPerDay: providerLimits.planRunsPerDay,
+    kimiRefusal: () => kimiRefusalNow(),
+    runsPerGuest: providerLimits.planRunsPerGuestPerDay,
+    guestRuns: (guestId, since) => planRunRepository.countOwnerRunsStartedSince(guestId, since),
+    runsPerAddress: providerLimits.planRunsPerIpPerDay,
+  },
 });

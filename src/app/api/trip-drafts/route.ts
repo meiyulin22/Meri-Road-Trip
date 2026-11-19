@@ -16,6 +16,7 @@ import {
 import { logger, logEvents } from "@/platform/observability/logger";
 import { serializeError } from "@/platform/observability/serialize-error";
 import { requestLocale } from "@/platform/locale/request-locale";
+import { kimiRequestRefusal } from "@/platform/http/visitor-limits";
 
 type ErrorResponse = {
   status: number;
@@ -66,6 +67,9 @@ function mapError(error: unknown): ErrorResponse {
 }
 
 export async function POST(request: Request) {
+  // Per-address and per-visitor limits on Kimi (step 3); the site's daily caps hold behind them.
+  const limited = kimiRequestRefusal(request);
+  if (limited) return limited;
   const requestId = randomUUID();
   const startedAt = performance.now();
   const context = {

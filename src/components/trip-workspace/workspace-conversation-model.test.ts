@@ -88,7 +88,7 @@ test("failed AI request does not produce replacement state", async () => {
 });
 
 test("a reached site limit is its own error, so the chat explains it instead of asking to refresh (step 2)", async () => {
-  for (const code of ["daily_quota", "paid_calls_paused"] as const) {
+  for (const code of ["daily_quota", "paid_calls_paused", "too_many_requests"] as const) {
     const refused = requestWorkspaceConversation("推荐一下", "trip-1", async () => Response.json({ error: "limited", code }, { status: 503 }));
     await assert.rejects(refused, (error: unknown) => error instanceof WorkspaceLimitError && error.limit === code);
   }
