@@ -117,3 +117,23 @@ test("a remembered spot saved before 1.2100 has no coordinates, so it is looked 
     { status: "located", district: "古城区", mapName: "黑龙潭公园", longitude: 100.23, latitude: 26.88 });
   rmSync(folder, { recursive: true, force: true });
 });
+
+test("one run's stop is shared: a failure in one city stops the lookups of every city (1.2116)", async () => {
+  const asked: string[] = [];
+  const stop = { stopped: false };
+  const deps = {
+    search: async (name: string) => {
+      asked.push(name);
+      return name === "蓝月谷" ? { status: "failure" as const, reason: "http_error" as const } : { status: "success" as const, candidates: [] };
+    },
+    memory: { get: () => null, set: () => {} },
+  };
+  const city = (name: string, spots: string[]) => ({ province: "云南省", city: name, status: "ready" as const, searchCalls: 1,
+    spots: spots.map((spot) => ({ ...card(spot), city: name })) });
+  const first = await checkSpotsOnMap([city("丽江市", ["蓝月谷", "玉龙雪山"])], deps, () => {}, stop);
+  const second = await checkSpotsOnMap([city("大理白族自治州", ["洱海"])], deps, () => {}, stop);
+  assert.deepEqual(asked, ["蓝月谷"]);
+  assert.equal(first.status, "stopped");
+  assert.equal(second.status, "stopped");
+  assert.equal(second.lookups, 0);
+});

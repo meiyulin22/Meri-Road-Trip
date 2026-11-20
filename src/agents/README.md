@@ -175,6 +175,14 @@ day 1, the 古城区 spots on day 2 and 狮子山 on day 3. A first prompt that 
 "prefer located" left day 3 empty rather than use 狮子山, so the prompt now also says
 every day needs a stop.
 
+**Inside each city's research since 1.2116.** Research is plan-and-execute with one replan (nominate,
+search, one follow-up, extract); locating is now its next fixed step in the same `research-city` step,
+so a city goes on the map as soon as its research is done instead of waiting for the slowest city.
+The rules hold across cities: Tianditu's own client queue spaces every request 0.3 s apart, process
+wide, and one stop shared by the run's cities (`MapCheckStop`) makes the first failure in any city stop
+every city's lookups, no retry. `map-check` now only adds the deferred cities and reports the run's
+map check as one line. Weather (1.2117) follows as the step after locating.
+
 ### Plan Agent: route and days
 
 The Plan Agent is two functions, so the plan page's future chat (routed by Jev) can call
@@ -216,7 +224,7 @@ workflow (`@mastra/core` 1.74). It only imports the planner functions and orders
 plan-generation   input { runId, tripId, handoff }   state { handoff, scope, deferred, pendingProvinces }
   .then(load-scope)                       planScope and the cities to research → one task per city
   .foreach(research-city, concurrency 2)  researchCity: nominate → search → one follow-up → extract → check quotes
-  .then(map-check)                        Tianditu, one lookup a spot; the first failure stops it, no retry
+  .then(map-check)                        since 1.2116 each city locates inside research-city; this step sums it up
   .then(plan-route)                       planRoute
   .then(plan-days)                        draftCityDays per city in route order, then finishDraft
   (validation stage: verify-facts, dountil verify-repair; see below)

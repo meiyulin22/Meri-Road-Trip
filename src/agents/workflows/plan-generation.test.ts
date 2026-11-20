@@ -147,10 +147,14 @@ test("streams real progress city by city, stops the map at its first failure, an
   assert.deepEqual(events.flatMap(({ event }) => event.type === "day.ready" ? [[event.day.day, event.day.city, event.spots.length]] : []),
     [[1, "丽江市", 2], [2, "丽江市", 1], [3, "丽江市", 1], [4, "大理白族自治州", 1], [5, "大理白族自治州", 1]]);
 
-  // The first failed Tianditu lookup stops the check: no retry, no later lookup.
-  assert.deepEqual(lookups, ["黑龙潭", "玉龙雪山", "丽江古城", "蓝月谷"]);
+  // Each city locates its spots right after its research (1.2116), so the two cities' lookups take
+  // turns on Tianditu's queue. The first failure (蓝月谷) still stops the run: no retry, no lookup after it.
+  assert.deepEqual(lookups, ["黑龙潭", "洱海", "玉龙雪山", "崇圣寺三塔", "丽江古城", "喜洲古镇", "蓝月谷"]);
+  assert.equal(lookups.at(-1), "蓝月谷");
   const map = events.find(({ event }) => event.type === "map.checked")?.event;
-  assert.deepEqual(map && map.type === "map.checked" && [map.status, map.located, map.lookups], ["stopped", 3, 4]);
+  assert.deepEqual(map && map.type === "map.checked" && [map.status, map.located, map.lookups], ["stopped", 6, 7]);
+  // Locating shows under research now, city by city.
+  assert.ok(events.some(({ event }) => event.type === "stage.activity" && event.stage === "research" && event.activity.kind === "locating"));
 
   const research = events.find(({ event }) => event.type === "stage.finished" && event.stage === "research")?.event;
   assert.deepEqual(research && research.type === "stage.finished" && research.summary, { cities: 2, cards: 11, sourced: 11, searches: 4 });
@@ -178,7 +182,8 @@ test("streams real progress city by city, stops the map at its first failure, an
 
   const run = repository.runs.get(started.runId);
   assert.equal(run?.status, "succeeded");
-  assert.deepEqual(run?.usage, { inputTokens: 300, outputTokens: 60, searches: 4, mapLookups: 8 });
+  // Seven spot lookups and four for setting off, changing city and the drive between stops.
+  assert.deepEqual(run?.usage, { inputTokens: 300, outputTokens: 60, searches: 4, mapLookups: 11 });
 
   // A page that reconnects gets only what it missed; the same handoff reads the saved plan.
   const missed = await followToEnd(service, repository, started.runId, events.length - 2);

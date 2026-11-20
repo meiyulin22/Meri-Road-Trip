@@ -67,4 +67,6 @@ export type CityResearch = {
   readonly spots: readonly SpotCard[];
   /** Model tokens the city's research spent; absent on research saved before 1.2014. */
   readonly usage?: { readonly inputTokens: number; readonly outputTokens: number };
+  /** Tianditu lookups the city's own map check made (1.2116); absent before it moved into research. */
+  readonly mapLookups?: number;
 };

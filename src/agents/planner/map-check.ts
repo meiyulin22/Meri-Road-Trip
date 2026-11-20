@@ -21,6 +21,13 @@ export type MapCheckDependencies = {
 /** Hears each spot as its check finishes, cached or looked up, for the plan page's live line. */
 export type MapCheckProgress = (progress: { city: string; spot: string; done: number; total: number }) => void;
 
+/**
+ * One run's stop for Tianditu (1.2116): each city now checks its spots right after its research,
+ * two cities at a time, so the first failure in any city has to stop every city, as it did when one
+ * step checked them all. Tianditu's own queue already spaces the requests 0.3 s apart.
+ */
+export type MapCheckStop = { stopped: boolean };
+
 export type MapCheckOutcome = {
   readonly cities: CityResearch[];
   readonly status: "complete" | "stopped";
@@ -67,8 +74,8 @@ export async function checkSpotsOnMap(
   cities: readonly CityResearch[],
   deps: MapCheckDependencies,
   onProgress: MapCheckProgress = () => {},
+  stop: MapCheckStop = { stopped: false },
 ): Promise<MapCheckOutcome> {
-  let stopped = false;
   let lookups = 0;
   const checkable = (city: CityResearch) => city.status === "deferred"
     ? 0
@@ -97,7 +104,7 @@ export async function checkSpotsOnMap(
         finished(card);
         continue;
       }
-      if (stopped) {
+      if (stop.stopped) {
         spots.push(card);
         finished(card);
         continue;
@@ -105,7 +112,7 @@ export async function checkSpotsOnMap(
       lookups += 1;
       const result = await deps.search(card.name, [card.province, card.city]);
       if (result.status === "failure") {
-        stopped = true;
+        stop.stopped = true;
         logger.warn({ spot: card.name, city: card.city, reason: result.reason, lookups },
           "Tianditu spot check stopped at a failed lookup");
         spots.push(card);
@@ -119,5 +126,5 @@ export async function checkSpotsOnMap(
     }
     checked.push({ ...city, spots });
   }
-  return { cities: checked, status: stopped ? "stopped" : "complete", lookups };
+  return { cities: checked, status: stop.stopped ? "stopped" : "complete", lookups };
 }

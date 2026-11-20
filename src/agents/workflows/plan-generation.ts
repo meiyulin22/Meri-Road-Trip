@@ -8,7 +8,7 @@ import { type DriveLegDependencies, planDriveLegs } from "@/agents/transport/leg
 import { applyTransport, planTransport, type TransportDependencies, type TransportPause } from "@/agents/transport/transport-agent";
 import { planTransfers, type TransferDependencies } from "@/agents/transport/transfers";
 import { maxVerifySearches, type VerifyProgress, type VerifyResult } from "@/agents/planner/verify-spots";
-import { checkSpotsOnMap, type MapCheckDependencies } from "@/agents/planner/map-check";
+import { checkSpotsOnMap, type MapCheckDependencies, type MapCheckStop } from "@/agents/planner/map-check";
 import { draftCityDays } from "@/agents/planner/plan-days";
 import { planRoute, type PlanModelDependencies, type PlanUsage, type ReadyScope } from "@/agents/planner/plan-route";
 import {
@@ -85,6 +85,19 @@ type VerifyResultState = DaysResult & {
 /** After the drive step: the draft carries its legs, and the lookups count toward the map's. */
 type DriveResultState = VerifyResultState & { driveLookups: number };
 type PhotosResult = DriveResultState & { dayPhotos: { day: number; image: PlaceImage }[] };
+
+/**
+ * Each run's Tianditu stop, shared by its cities (1.2116): the first failed lookup in any city stops
+ * the rest of the run's lookups. Kept in memory by run ID; a run resumed after a restart is past it.
+ */
+const mapStops = new Map<string, MapCheckStop>();
+const mapStopOf = (runId: string) => {
+  const known = mapStops.get(runId);
+  if (known) return known;
+  const stop: MapCheckStop = { stopped: false };
+  mapStops.set(runId, stop);
+  return stop;
+};
 
 /** Repair rounds after the first check; a conflict still left after them is shown, not hidden. */
 export const maxRepairRounds = 2;
@@ -250,8 +263,14 @@ export function createPlanGenerationWorkflow(deps: PlanGenerationDependencies) {
     execute: async ({ inputData, state, writer }) => {
       const { emit, flush } = emitter(writer);
       const startedAt = performance.now();
-      const city = await deps.researchCity(inputData, state.handoff,
+      const researched = await deps.researchCity(inputData, state.handoff,
         (activity) => emit({ type: "stage.activity", stage: "research", activity }));
+      // The city's spots go on the map as soon as its research is done (1.2116), with the run's one
+      // Tianditu stop: the city that finishes first no longer waits for the other.
+      const located = await checkSpotsOnMap([researched], deps.map,
+        ({ city: name, spot, done, total }) => emit({ type: "stage.activity", stage: "research", activity: { kind: "locating", city: name, spot, done, total } }),
+        mapStopOf(state.runId));
+      const city: CityResearch = { ...located.cities[0], mapLookups: located.lookups };
       emit({
         type: "city.researched", province: city.province, city: city.city, status: city.status,
         cards: city.spots.length, sourced: city.spots.filter(({ location }) => location !== null).length,
@@ -269,9 +288,15 @@ export function createPlanGenerationWorkflow(deps: PlanGenerationDependencies) {
     stateSchema: runState,
     execute: async ({ inputData, state, writer }) => {
       const { emit, flush } = emitter(writer);
-      // Deferred cities keep their named spots but are not looked up.
-      const outcome = await checkSpotsOnMap([...inputData, ...state.deferred], deps.map,
-        ({ city, spot, done, total }) => emit({ type: "stage.activity", stage: "map", activity: { kind: "locating", city, spot, done, total } }));
+      // Each city was checked inside its research (1.2116); this step adds the deferred cities, which
+      // keep their named spots unlooked-up, and reports the run's map check as one line.
+      const stop = mapStopOf(state.runId);
+      mapStops.delete(state.runId);
+      const outcome: MapResult = {
+        cities: [...inputData, ...state.deferred],
+        status: stop.stopped ? "stopped" : "complete",
+        lookups: inputData.reduce((sum, { mapLookups }) => sum + (mapLookups ?? 0), 0),
+      };
       const checks = outcome.cities.flatMap(({ spots }) => spots.map(({ mapCheck: check }) => check.status));
       emit({
         type: "map.checked", status: outcome.status, lookups: outcome.lookups,
