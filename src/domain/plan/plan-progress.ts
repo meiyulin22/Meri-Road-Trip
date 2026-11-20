@@ -24,6 +24,8 @@ export const planActivitySchema = z.discriminatedUnion("kind", [
   z.strictObject({ kind: z.literal("reviewing"), city: name, sources: count }),
   z.strictObject({ kind: z.literal("extracting"), city: name, sources: count }),
   z.strictObject({ kind: z.literal("locating"), city: name, spot: name, done: count, total: count }),
+  /** One city's weather asked of Open-Meteo, for this many points (1.2117). */
+  z.strictObject({ kind: z.literal("forecasting"), city: name, points: count }),
   z.strictObject({ kind: z.literal("routing"), cities: count, days: count, attempt: count }),
   z.strictObject({ kind: z.literal("drafting"), city: name, days: z.array(z.number().int().positive()), attempt: count }),
   z.strictObject({ kind: z.literal("verifying"), city: name, spot: name, done: count, total: count }),

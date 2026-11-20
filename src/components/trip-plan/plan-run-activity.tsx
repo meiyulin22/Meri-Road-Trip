@@ -52,6 +52,7 @@ const copy = {
         case "reviewing": return `${activity.city} · reading ${activity.sources} results, one more search if needed`;
         case "extracting": return `${activity.city} · quoting sources from ${activity.sources} results`;
         case "locating": return `${activity.spot} · ${activity.done}/${activity.total}`;
+        case "forecasting": return `${activity.city} · weather at ${activity.points} ${activity.points === 1 ? "place" : "places"}`;
         case "routing": return `${activity.cities} ${activity.cities === 1 ? "city" : "cities"}, ${activity.days} days` + (activity.attempt > 1 ? ` · attempt ${activity.attempt}` : "");
         case "drafting": return `${activity.city} · day ${activity.days.join(", ")}` + (activity.attempt > 1 ? ` · attempt ${activity.attempt}` : "");
         case "verifying": return `${activity.spot} · ${activity.done}/${activity.total}`;
@@ -101,6 +102,7 @@ const copy = {
         case "reviewing": return `${activity.city} · 检查 ${activity.sources} 条结果，必要时补查一次`;
         case "extracting": return `${activity.city} · 从 ${activity.sources} 条结果摘录出处`;
         case "locating": return `${activity.spot} · ${activity.done}/${activity.total}`;
+        case "forecasting": return `${activity.city} · 查 ${activity.points} 处天气`;
         case "routing": return `${activity.cities} 座城市、${activity.days} 天` + (activity.attempt > 1 ? ` · 第 ${activity.attempt} 次` : "");
         case "drafting": return `${activity.city} · 第 ${activity.days.join("、")} 天` + (activity.attempt > 1 ? ` · 第 ${activity.attempt} 次` : "");
         case "verifying": return `${activity.spot} · ${activity.done}/${activity.total}`;

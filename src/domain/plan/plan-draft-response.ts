@@ -5,6 +5,7 @@ import { parsePlaceImage, type PlaceImage } from "@/domain/location/place-image"
 import { daySlots, spotFacts, type PlanDay, type PlanDraft, type PlanRoute } from "./plan-draft";
 import type { CityResearch, SpotAvailability, SpotCard, SpotEvidence, SpotMapCheck } from "./spot-card";
 import { type TransferLeg, travelChoices } from "./transfer-legs";
+import type { DayForecast, SpotWeather } from "./weather";
 
 export const spotEvidenceSchema: z.ZodType<SpotEvidence> = z.strictObject({
   url: z.string(),
@@ -43,6 +44,30 @@ export const spotAvailabilitySchema: z.ZodType<SpotAvailability> = z.strictObjec
   uncertain: z.array(z.strictObject({ note: z.string().min(1), evidence: spotEvidenceSchema })),
 });
 
+const isoDate = z.string().regex(/^\d{4}-\d{2}-\d{2}$/u);
+const dayForecastSchema: z.ZodType<DayForecast> = z.strictObject({
+  date: isoDate,
+  code: z.number().int(),
+  high: z.number(),
+  low: z.number(),
+  precipitationMm: z.number().nonnegative(),
+  precipitationChance: z.number().min(0).max(100).nullable(),
+  snowfallCm: z.number().nonnegative(),
+  gustKmh: z.number().nonnegative(),
+});
+
+const spotWeatherSchema: z.ZodType<SpotWeather> = z.discriminatedUnion("status", [
+  z.strictObject({
+    status: z.literal("forecast"),
+    source: z.enum(["spot", "city"]),
+    elevation: z.number().nullable(),
+    days: z.array(dayForecastSchema),
+    beyond: z.array(isoDate),
+  }),
+  z.strictObject({ status: z.literal("beyond_range") }),
+  z.strictObject({ status: z.literal("unavailable") }),
+]);
+
 export const spotCardSchema: z.ZodType<SpotCard> = z.strictObject({
   id: z.string().min(1),
   province: z.string().min(1),
@@ -56,6 +81,8 @@ export const spotCardSchema: z.ZodType<SpotCard> = z.strictObject({
   walking: spotEvidenceSchema.nullable(),
   suggestedDuration: spotEvidenceSchema.nullable(),
   mapCheck: spotMapCheckSchema,
+  outdoor: z.boolean().nullable().optional(),
+  weather: spotWeatherSchema.optional(),
   availability: spotAvailabilitySchema.optional(),
 });
 

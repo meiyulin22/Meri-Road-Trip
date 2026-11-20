@@ -331,6 +331,26 @@ export function fallbackRoute(scope: Extract<PlanScope, { status: "ready" }>): R
   };
 }
 
+/**
+ * The same route with its cities in another order (1.2117), when the Plan Agent's order still ran
+ * more than 30% longer than the shortest after it was sent back once. Each city keeps its days and
+ * reason; each of its days keeps its focus and theme, in the same sequence, on its new day numbers
+ * and dates. `order` names every routed city once.
+ */
+export function reorderRoute(plan: RoutedPlan, order: readonly string[], dates: readonly (string | null)[]): RoutedPlan {
+  const cities = order.map((name) => {
+    const city = plan.route.cities.find(({ city: routed }) => routed === name);
+    if (!city) throw new Error(`Cannot reorder the route: ${name} is not routed.`);
+    return city;
+  });
+  const details = cities.flatMap(({ city }) =>
+    plan.frames.filter((frame) => frame.city === city).map(({ focus, theme }) => ({ focus, theme })));
+  return {
+    route: { ...plan.route, cities },
+    frames: framesFor(cities, dates, new Map(details.map((detail, index) => [index + 1, detail]))),
+  };
+}
+
 /** What the Plan Agent returns, before code checks it. */
 export type PlanProposal = {
   readonly days: readonly {

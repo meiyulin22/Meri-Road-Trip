@@ -453,3 +453,30 @@
   .slot { grid-template-columns: minmax(0, 1fr); gap: 8px; }
   .facts > div { grid-template-columns: 56px minmax(0, 1fr); }
 }
+
+/* Weather (1.2117): the day's forecast, an outdoor stop's own, and Open-Meteo's credit. */
+.weatherLine {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 8px;
+  margin: 10px 18px 0;
+  color: var(--muted);
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+.weatherLine svg { color: #d39b2f; flex: none; }
+.weatherLine[data-kind="beyond"] { font-style: italic; }
+.weatherPoor { color: #a4532a; }
+.stopWeather {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+.stopWeather[data-outdoor="poor"] { color: #a4532a; }
+.weatherCredit { display: flex; flex-wrap: wrap; gap: 4px 10px; }
+.weatherCredit a { display: inline-flex; align-items: center; gap: 3px; color: inherit; text-decoration: underline; text-underline-offset: 2px; }

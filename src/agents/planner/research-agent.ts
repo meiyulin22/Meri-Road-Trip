@@ -43,6 +43,8 @@ type SpotProposal = {
   readonly setting: Citation | null;
   readonly walking: Citation | null;
   readonly suggestedDuration: Citation | null;
+  /** The model's own judgement whether the visit is outdoors (1.2117); not a quoted fact. */
+  readonly outdoor: boolean | null;
 };
 
 // The model answers in this looser shape, so one overlong quote or a missing fact cannot
@@ -58,6 +60,7 @@ const extractionAnswerSchema = z.object({
     setting: looseCitation.nullable().optional(),
     walking: looseCitation.nullable().optional(),
     suggestedDuration: looseCitation.nullable().optional(),
+    outdoor: z.boolean().nullable().optional(),
   })),
 });
 
@@ -75,6 +78,7 @@ function checkedProposals(answer: z.infer<typeof extractionAnswerSchema>): SpotP
       name: name.data, location: location.data,
       opening: fact(spot.opening), reservation: fact(spot.reservation), setting: fact(spot.setting),
       walking: fact(spot.walking), suggestedDuration: fact(spot.suggestedDuration),
+      outdoor: typeof spot.outdoor === "boolean" ? spot.outdoor : null,
     });
   }
   return proposals;
@@ -188,6 +192,7 @@ function buildCards(
       setting: fact(proposal.setting),
       walking: fact(proposal.walking),
       suggestedDuration: fact(proposal.suggestedDuration),
+      outdoor: proposal.outdoor,
     });
   }
   for (const [key, card] of cards) {
@@ -410,7 +415,8 @@ export async function researchCity(
             "Attach a quote to a fact only if it supports that fact for this attraction and its title or quote names the attraction. Use null for unknown or conflicting details.",
             "Preserve qualifiers and dates. Treat seasonal and temporary notices as notices, not proof the spot will open on the trip date.",
             `Match preferences when selecting alternatives. Return short names in Chinese and at most ${Math.min(maxCardsPerCity, target + city.requested.length)} cards.`,
-            'Return one JSON object with a spots array, for example {"spots":[{"name":"某景点","location":{"sourceId":1,"quote":"某景点位于某市","cityName":"某市"},"opening":null,"reservation":null,"setting":null,"walking":null,"suggestedDuration":null}]}.',
+            'Return one JSON object with a spots array, for example {"spots":[{"name":"某景点","location":{"sourceId":1,"quote":"某景点位于某市","cityName":"某市"},"opening":null,"reservation":null,"setting":null,"walking":null,"suggestedDuration":null,"outdoor":true}]}.',
+            "outdoor is your own judgement whether the visit is mostly outdoors, where rain or wind spoils it (a mountain, lake, old town street, park): true, false for mostly indoors (a museum, temple hall, show), null when unsure. It needs no quote.",
             'Each non-null fact uses exactly {"sourceId":1,"quote":"原文"}. With no supported spots return {"spots":[]}.',
           ].join(" "),
           prompt: JSON.stringify({ scope, preferences, sources }),

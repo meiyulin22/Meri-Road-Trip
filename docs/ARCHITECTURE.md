@@ -46,7 +46,8 @@ flowchart TB
 | 已实现但有范围限制 | PWA manifest/图标，无离线缓存；推荐使用搜索启发，无访问检查或排序；地点照片只作装饰 |
 | 已实现（Generate plan 首版） | 计划页由 Mastra 工作流生成全部日程：各城调研（带来源的景点卡）→ 天地图定位 → Plan Agent 路线与逐城选点 → 配图 → 保存计划版本；进度以 SSE 实时推送，运行记录与事件存库（1.2010）；偏好不足时可暂停提问，快照存在 Postgres，回答后恢复（1.2011）。见 [src/agents/README.md](../src/agents/README.md) |
 | 试验阶段 | Scout 验证 Mastra 工具调用 |
-| 未实现 | 第二轮精查与审核 Agent、实时天气/路线研究、Agent 运行追踪与评估、后台监控、Adaptive Workspace |
+| 已实现（1.2117） | Generate plan 的天气：每个景点的 Open-Meteo 预报；路线先就近再照顾天气，绕路超过 30% 退回一次、仍超过按最短顺序重排；户外景点避开天气差的日子 |
+| 未实现 | 审核 Agent、出发前天气复查、Agent 运行追踪与评估、后台监控、Adaptive Workspace |
 
 ## 2. 技术栈与接入位置
 
@@ -75,6 +76,7 @@ flowchart TB
 | Pixabay API（运行时补图，天地图模式） | 只给推荐卡：图集和已下载的都没有、卡片有地标时，当场按英文名、中文名（`lang=zh`）和别名搜图，主地标没有再试一个备选地标，下载、发布 | `pixabay-client.ts`（一次一个请求、任意 60 秒不超过 80 次并遵守 `X-RateLimit-Remaining`、超时、字节上限、只从 Pixabay 主机下载）、`pixabay-photo-match.ts`（按中英文 tags 判断身份、地区冲突、必须表明在中国）、`pixabay-photo-finder.ts`（每批 20 次搜索 / 10 次下载 / 45 秒，每个地标最多 3 次搜索，同一地标共用一次操作，限流和被拒时整批停止并暂停，记录未配图原因）、`media-photo-store.ts`（`MERI_MEDIA_DIR`，原子写入，500 MB 上限，按市索引）、`/media/place-photos/[file]` 路由、`scripts/photo-misses.ts` | 只凭上传者 tags，不证明拍摄地点，也不判断好不好看，照片未经人工审核（记 `reviewed: false`）；搜索响应和"没有合适的图"各缓存 24 小时（后者跟规则版本走），临时失败不缓存；其他照片消费方（服务端渲染、封面、地点候选卡、已选地点）只读本地 |
 | Bocha Web Search | 推荐的启发性搜索上下文；`PLAN_SEARCH_PROVIDER=bocha` 时也是 Generate plan 的第一次搜索（默认不是） | `src/platform/search/` | 最多 8 条；失败降级，不当作已核验证据；每天全站默认 500 次（`BOCHA_MAX_CALLS_PER_DAY`），规划里失败或到上限改用 Kimi 搜索 |
 | Kimi 联网搜索（search_pro） | Generate plan 调研和第二轮核实的搜索（默认），以及 Agent 的补充搜索、第二轮核实里模型判断要再查的景点 | `src/platform/search/kimi-search-pro.ts`、`plan-search.ts` | 每天全站默认 300 次（`KIMI_MAX_SEARCHES_PER_DAY`，¥0.015/次），到上限打一条日志 |
+| Open-Meteo（1.2117，免费、无 key、非商用） | Generate plan 每个景点在行程日期的每日预报：每城定位之后由代码查（不是 Agent 工具），一城一次请求，2 km 内的景点共用一个点，没定位的用城市中心 | `src/platform/weather/`（端口 + 适配器）、`src/agents/planner/spot-weather.ts` | 每天默认最多 2000 次（`OPEN_METEO_MAX_CALLS_PER_DAY`，免费额度 10,000）；失败暂停 10 分钟、不重试，计划照常；页面必须写「Weather data by Open-Meteo.com」和「天气为预报，出发前请再查看」；没有官方预警 |
 | Pino 10 | 结构化事件与错误日志 | `src/platform/observability/` | requestId 关联请求；错误序列化脱敏 |
 | Node test runner / tsx / ESLint 9 / tsc | 相邻单元/边界测试、lint、类型检查 | `*.test.ts(x)`、`package.json`、`eslint.config.mjs` | mock 回归不代表真实外部接口验收 |
 

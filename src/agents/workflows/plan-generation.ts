@@ -9,6 +9,7 @@ import { applyTransport, planTransport, type TransportDependencies, type Transpo
 import { planTransfers, type TransferDependencies } from "@/agents/transport/transfers";
 import { maxVerifySearches, type VerifyProgress, type VerifyResult } from "@/agents/planner/verify-spots";
 import { checkSpotsOnMap, type MapCheckDependencies, type MapCheckStop } from "@/agents/planner/map-check";
+import { addCityWeather, cityCentreLookup } from "@/agents/planner/spot-weather";
 import { draftCityDays } from "@/agents/planner/plan-days";
 import { planRoute, type PlanModelDependencies, type PlanUsage, type ReadyScope } from "@/agents/planner/plan-route";
 import {
@@ -30,6 +31,8 @@ import { railCityOfRegion } from "@/platform/rail/rail-names";
 import { stopVerdict } from "@/domain/plan/availability";
 import { closedStops, type Moved, moveClosedStops, stopChecks, verdictsFor } from "@/domain/plan/plan-repair";
 import { maxStopsForPreferences, type PlanPreference } from "@/domain/plan/trip-preference";
+import type { GeoPoint } from "@/domain/plan/weather";
+import type { WeatherForecast } from "@/platform/weather/weather-forecast";
 
 /** What the workflow needs from outside; tests pass fakes, src/agents/index.ts the real ones. */
 export type PlanGenerationDependencies = {
@@ -43,6 +46,8 @@ export type PlanGenerationDependencies = {
   readonly transfers: TransferDependencies;
   /** Train searches on 12306 and the transport agent's pick (1.2108). */
   readonly transport: TransportDependencies;
+  /** Daily forecasts for points (1.2117); the real one is Open-Meteo, one request a city. */
+  readonly weather: WeatherForecast;
   /** The second round on these cards; the real one is verifySpots with Kimi search and model. */
   readonly verifySpots: (
     cards: readonly SpotCard[],
@@ -98,6 +103,9 @@ const mapStopOf = (runId: string) => {
   mapStops.set(runId, stop);
   return stop;
 };
+
+/** Today in Beijing, which is the day the forecast's reach counts from. */
+const beijingDate = (now: Date) => new Date(now.getTime() + 8 * 60 * 60 * 1_000).toISOString().slice(0, 10);
 
 /** Repair rounds after the first check; a conflict still left after them is shown, not hidden. */
 export const maxRepairRounds = 2;
@@ -255,6 +263,22 @@ export function createPlanGenerationWorkflow(deps: PlanGenerationDependencies) {
     },
   });
 
+  /**
+   * City centres and the origin's point for the route's detour guard (1.2117), from the cache the
+   * transfers fill or one Tianditu search each; none once the map check stopped at a failure.
+   */
+  async function routeGeography(cities: readonly string[], handoff: PlanHandoff, mapStopped: boolean) {
+    const centreOf = cityCentreLookup(deps.transfers, { stopped: mapStopped });
+    const points = new Map<string, GeoPoint>();
+    for (const city of cities) {
+      const point = await centreOf(city);
+      if (point) points.set(city, point);
+    }
+    const origin = handoff.tripState.origin;
+    const originAt = originPoint(origin) ?? (origin.state === "known" ? await centreOf(origin.value) : null);
+    return { points, origin: originAt };
+  }
+
   const researchCityStep = createStep({
     id: "research-city",
     inputSchema: z.custom<ResearchTask>(),
@@ -270,7 +294,12 @@ export function createPlanGenerationWorkflow(deps: PlanGenerationDependencies) {
       const located = await checkSpotsOnMap([researched], deps.map,
         ({ city: name, spot, done, total }) => emit({ type: "stage.activity", stage: "research", activity: { kind: "locating", city: name, spot, done, total } }),
         mapStopOf(state.runId));
-      const city: CityResearch = { ...located.cities[0], mapLookups: located.lookups };
+      // Then the weather at its spots on the trip's dates (1.2117), a fixed code step, one request a city.
+      const weathered = await addCityWeather(located.cities[0], scopeOf(state).dates, beijingDate(deps.now()), {
+        forecast: deps.weather,
+        cityCentre: cityCentreLookup(deps.transfers, mapStopOf(state.runId)),
+      }, ({ city: name, points }) => emit({ type: "stage.activity", stage: "research", activity: { kind: "forecasting", city: name, points } }));
+      const city: CityResearch = { ...weathered.city, mapLookups: located.lookups, weatherCalls: weathered.calls };
       emit({
         type: "city.researched", province: city.province, city: city.city, status: city.status,
         cards: city.spots.length, sourced: city.spots.filter(({ location }) => location !== null).length,
@@ -331,11 +360,15 @@ export function createPlanGenerationWorkflow(deps: PlanGenerationDependencies) {
       }
       // Asked at most once a run, and only where cities compete for the days.
       const allowQuestion = !resumeData && scope.mode === "full" && scope.cities.length > 1;
+      const geography = scope.mode === "full" && scope.cities.length > 1
+        ? await routeGeography(scope.cities.map(({ city }) => city), handoff, inputData.status === "stopped")
+        : undefined;
       const result = await planRoute(handoff, scope, inputData.cities, deps.planModel,
         ({ attempt }) => emit({ type: "stage.activity", stage: "route",
           activity: { kind: "routing", cities: scope.cities.length, days: scope.dates.length, attempt } }),
         {
           allowQuestion,
+          geography,
           // The city the traveller chose to leave out when asked, if the answer was that.
           leaveOut: resumeData && suspendData
             ? [

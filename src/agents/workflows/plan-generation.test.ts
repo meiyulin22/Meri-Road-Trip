@@ -29,6 +29,12 @@ const researched: Record<string, CityResearch> = {
   大理白族自治州: { ...dali, spots: dali.spots.map((card) => ({ ...card, mapCheck: { status: "unchecked" as const } })) },
 };
 
+function datesBetween(from: string, to: string): string[] {
+  const dates: string[] = [];
+  for (let at = Date.parse(from); at <= Date.parse(to); at += 86_400_000) dates.push(new Date(at).toISOString().slice(0, 10));
+  return dates;
+}
+
 function setup(overrides: Partial<PlanGenerationDependencies> = {}, timeLimitMs?: number, limits?: PlanRunLimits) {
   const repository = new InMemoryPlanRunRepository();
   const preferences: TripPreference[] = [];
@@ -85,6 +91,9 @@ function setup(overrides: Partial<PlanGenerationDependencies> = {}, timeLimitMs?
       searchTrains: async () => { throw new Error("no train search expected"); },
       model: () => { throw new Error("no transport model expected"); },
     },
+    // Clear and mild at every point on every date asked; a trip without dates never asks (1.2117).
+    weather: async (points, range) => ({ status: "ok", points: points.map(() => ({ elevation: 2400, days: datesBetween(range.from, range.to)
+      .map((date) => ({ date, code: 1, high: 15, low: 3, precipitationMm: 0, precipitationChance: 0, snowfallCm: 0, gustKmh: 20 })) })) }),
     // No facts by default: every stop stays unchecked and the loop has nothing to repair.
     verifySpots: async () => ({ availability: new Map(), searches: 0, usage: { inputTokens: 0, outputTokens: 0 } }),
     findImage: async (subject) => subject.spot ? null : { url: `/photos/${subject.place}.jpg`, caption: subject.place ?? "城市" },
@@ -591,4 +600,32 @@ test("a run that fails on Meri's side does not use up the address's runs", async
   assert.equal(repository.runs.get(failed.runId)?.status, "failed");
   // The failed run was given back: the same address may start again.
   assert.notEqual((await service.start("8c3f9f0e-6f4b-4d0a-9f55-000000000099", handoff(["丽江市"], fiveDays), visitor)).status, "limited");
+});
+
+test("each city's spots get their forecast inside research, and the saved plan keeps it (1.2117)", async () => {
+  const dated = { ...trip, tripState: { ...trip.tripState, startDate: { state: "known" as const, value: "2026-11-20", source: "user" as const } } };
+  const asked: { points: number; from: string; to: string }[] = [];
+  const { repository, service } = setup({
+    weather: async (points, range) => {
+      asked.push({ points: points.length, ...range });
+      return { status: "ok", points: points.map(() => ({ elevation: 2454, days: ["2026-11-20", "2026-11-21", "2026-11-22", "2026-11-23", "2026-11-24"]
+        .map((date) => ({ date, code: date === "2026-11-21" ? 95 : 1, high: 15, low: 3, precipitationMm: date === "2026-11-21" ? 30 : 0,
+          precipitationChance: 0, snowfallCm: 0, gustKmh: 20 })) })) };
+    },
+  });
+  const started = begun(await service.start(tripId, dated));
+  const events = await followToEnd(service, repository, started.runId);
+
+  // The fake map fails at 蓝月谷, which stops Tianditu for the run: a spot left unlocated then has no
+  // centre to fall back on and no weather; every other spot has its forecast.
+  // One request a city, over the whole trip's dates (now is 2026-11-15, so all five are inside the forecast).
+  assert.equal(asked.length, 2);
+  assert.ok(asked.every(({ from, to }) => from === "2026-11-20" && to === "2026-11-24"));
+  assert.ok(events.some(({ event }) => event.type === "stage.activity" && event.activity.kind === "forecasting"));
+  const spots = repository.versions[0].plan.spots;
+  assert.ok(spots.length > 0);
+  const forecasts = spots.filter(({ weather }) => weather?.status === "forecast");
+  assert.ok(forecasts.length > 0);
+  assert.ok(forecasts.every(({ weather }) => weather?.status === "forecast" && weather.days.length === 5));
+  assert.ok(spots.filter(({ mapCheck }) => mapCheck.status !== "located").every(({ weather }) => weather?.status === "unavailable"));
 });

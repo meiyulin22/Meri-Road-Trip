@@ -112,3 +112,48 @@ test("reads an anchor written as a bare time, and gives a malformed answer a sec
   assert.equal(retried.status, "ready");
   assert.equal(retried.status === "ready" && retried.attempts, 2);
 });
+
+test("an outdoor stop on its poor-weather day is sent back once when another day is better; still there, it stays (1.2117)", async () => {
+  const twoDays = handoff(["丽江市"], { state: "known", value: "2天", source: "user" });
+  const trip = { ...twoDays, tripState: { ...twoDays.tripState, startDate: { state: "known" as const, value: "2026-11-21", source: "user" as const } } };
+  const scope = planScope(trip.tripState);
+  if (scope.status !== "ready") throw new Error("expected a ready scope");
+  const frames = fallbackRoute(scope).frames;
+  const forecast = (gustOnFirst: number) => ({
+    status: "forecast" as const, source: "spot" as const, elevation: 5026, beyond: [],
+    days: [
+      { date: "2026-11-21", code: 2, high: 0, low: -10, precipitationMm: 0, precipitationChance: 0, snowfallCm: 0, gustKmh: gustOnFirst },
+      { date: "2026-11-22", code: 1, high: 0, low: -10, precipitationMm: 0, precipitationChance: 0, snowfallCm: 0, gustKmh: 30 },
+    ],
+  });
+  // 玉龙雪山 (s2) is outdoors with a gale on day 1; 黑龙潭 (s1) is indoors as far as this test cares.
+  const cards = lijiang.spots.slice(0, 3).map((card, index) => ({
+    ...card, outdoor: index === 1, weather: forecast(index === 1 ? 64 : 20),
+  }));
+  const windy = [day(1, "s1", "s2"), day(2, "s3")];
+  const calm = [day(1, "s1"), day(2, "s2", "s3")];
+  const dayPrompts: { candidates: { name: string; outdoor?: boolean; poorWeatherDays?: number[] }[]; days: { weather?: unknown }[];
+    problemsWithPreviousAnswer?: string[] }[] = [];
+  const moved = await draftCityDays(trip, scope.mode, frames, cards, { model: modelAnswering({ days: [windy, calm], dayPrompts }) });
+
+  assert.equal(moved.status, "ready");
+  if (moved.status !== "ready") return;
+  assert.equal(moved.attempts, 2);
+  assert.deepEqual(dayPrompts[0].candidates.map(({ name, outdoor, poorWeatherDays }) => [name, outdoor, poorWeatherDays]),
+    [["黑龙潭", false, []], ["玉龙雪山", true, [1]], ["丽江古城", false, []]]);
+  assert.deepEqual(dayPrompts[0].days[0].weather, { sky: "cloudy", outdoor: "good", rainMm: 0, low: -10, high: 0 });
+  assert.deepEqual(dayPrompts[1].problemsWithPreviousAnswer, [
+    "Day 1: 玉龙雪山 is outdoors and its forecast that day is poor (gale); day 2 has better weather there and room. Move it, or choose an indoor candidate for day 1.",
+  ]);
+  assert.deepEqual(moved.days.map(({ stops }) => spotNames(stops)), [["黑龙潭"], ["玉龙雪山", "丽江古城"]]);
+
+  const kept = await draftCityDays(trip, scope.mode, frames, cards, { model: modelAnswering({ days: [windy, windy] }) });
+  assert.equal(kept.status === "ready" && kept.attempts, 2);
+  assert.deepEqual(kept.status === "ready" && kept.days.map(({ stops }) => spotNames(stops)), [["黑龙潭", "玉龙雪山"], ["丽江古城"]]);
+
+  // No forecast: one attempt, and the model sees no weather fields.
+  const plainPrompts: { candidates: Record<string, unknown>[] }[] = [];
+  const plain = await draftCityDays(trip, scope.mode, frames, lijiang.spots.slice(0, 3), { model: modelAnswering({ days: [windy], dayPrompts: plainPrompts }) });
+  assert.equal(plain.status === "ready" && plain.attempts, 1);
+  assert.equal("poorWeatherDays" in plainPrompts[0].candidates[1], false);
+});

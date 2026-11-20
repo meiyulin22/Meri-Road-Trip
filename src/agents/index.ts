@@ -16,6 +16,8 @@ import { createTiandituCityPoint } from "@/platform/tianditu/tianditu-city-point
 import { create12306Rail, type TrainSearch } from "@/platform/rail/rail-12306";
 import { sharedRailBudget } from "@/platform/rail/rail-budget";
 import { railEnabled, railTools } from "@/platform/rail/rail-mcp";
+import { createOpenMeteoForecast } from "@/platform/weather/open-meteo";
+import type { WeatherForecast } from "@/platform/weather/weather-forecast";
 import { createVariflightHubs, createVariflightSearch, flightEnabled, type FlightSearch, sharedFlightBudget, variflightTools } from "@/platform/flight/variflight";
 
 import { researchCity } from "./planner/research-agent";
@@ -29,6 +31,7 @@ process.env.MASTRA_TELEMETRY_DISABLED ??= "1";
 
 let map: TiandituLocationProvider | null = null;
 let drive: ReturnType<typeof createTiandituDrive> | null = null;
+let weather: WeatherForecast | null = null;
 let cityPoint: ReturnType<typeof createTiandituCityPoint> | null = null;
 let rail: ReturnType<typeof create12306Rail> | null = null;
 let flights: ReturnType<typeof createVariflightSearch> | null = null;
@@ -80,6 +83,8 @@ export function planGenerationDependencies(
         key: driveLegKey,
       },
     },
+    // Open-Meteo: free, no key; one request a city, capped by OPEN_METEO_MAX_CALLS_PER_DAY (1.2117).
+    weather: (points, range) => (weather ??= createOpenMeteoForecast())(points, range),
     // A search switched off is left out, so the transport agent is not run for it and the card says so (1.2113 step 1).
     transport: {
       // 12306 only when RAIL_PROVIDER=12306; its server starts on the first search, not on import.

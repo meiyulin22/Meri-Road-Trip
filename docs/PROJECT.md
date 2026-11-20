@@ -135,8 +135,8 @@ Photos come from a bundled local catalog, then from photos fetched at run time f
 require an explicit region and a matching place name or registered alias; administrative
 representatives are configured separately. Missing coverage produces no photo. Photos
 decorate a place and are not evidence about its identity or current conditions.
-The Planner agent, generated Plan, live weather intelligence, and route
-research remain planned. The Scout trial exercises tool calls through Mastra. The first-round
+Generate plan uses forecasts from Open-Meteo for the trip's dates (1.2117); a near-departure
+weather refresh and route research remain planned. The Scout trial exercises tool calls through Mastra. The first-round
 Research Agent runs from a PlanHandoff JSON file and returns candidate spot cards with search sources.
 See [the agents README](../src/agents/README.md).
 
@@ -191,7 +191,8 @@ routes the trip and chooses each day's spots, then saves the plan as a
 version; a later change to the Journey marks it stale. Every fact carries its
 source and date, and anything not found is listed as unknown. Its real
 progress streams to the page, and it can pause to ask the traveller one question
-(1.2011). A second round of verification, routes and weather are next. The design is in
+(1.2011). The second round checks opening and booking (1.2013), and since 1.2117 each spot's
+forecast shapes the route order and keeps outdoor stops off poor-weather days. The design is in
 [the agents README](../src/agents/README.md).
 
 The next planning input should come from current TripState, including city-level

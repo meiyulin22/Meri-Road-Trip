@@ -13,6 +13,8 @@ import {
   spotFacts,
 } from "@/domain/plan/plan-draft";
 import type { PlanHandoff } from "@/domain/plan/plan-handoff";
+import { poorDaysOf, weatherIssues, weatherIssueText } from "@/domain/plan/plan-weather";
+import { cityForecast, forecastOn, forecastSummary } from "@/domain/plan/weather";
 import type { SpotCard } from "@/domain/plan/spot-card";
 import { maxStopsForPreferences } from "@/domain/plan/trip-preference";
 import { createMoonshotChatModelFromEnvironment } from "@/platform/llm/moonshot-chat-model";
@@ -69,8 +71,8 @@ function anchorOf(
   return { time, reason: reason.slice(0, 120) };
 }
 
-/** What the model reads about one candidate: short IDs and the quoted facts, nothing more. */
-function candidateSummary(card: SpotCard, shortId: string) {
+/** What the model reads about one candidate: short IDs, the quoted facts, and (1.2117) outdoors and its poor-weather days. */
+function candidateSummary(card: SpotCard, shortId: string, frames: readonly DayFrame[]) {
   const facts = Object.fromEntries(spotFacts
     .filter((fact) => fact !== "location")
     .map((fact) => [fact, card[fact]?.quote.slice(0, maxQuoteCharacters) ?? null]));
@@ -78,6 +80,7 @@ function candidateSummary(card: SpotCard, shortId: string) {
   return {
     id: shortId, name: card.name, requested: card.requested,
     located, district: card.mapCheck.status === "located" ? card.mapCheck.district : null, ...facts,
+    ...(card.weather?.status === "forecast" ? { outdoor: card.outdoor ?? null, poorWeatherDays: poorDaysOf(card, frames) } : {}),
   };
 }
 
@@ -111,19 +114,32 @@ export async function draftCityDays(
   // The model sees s1, s2… instead of the long card IDs, which it would copy imperfectly.
   const shortIds = new Map(cards.map((card, index) => ["s" + (index + 1), card.id]));
   const signal = AbortSignal.timeout(draftTimeoutMs);
+  // The city's own weather each day (1.2117), when there is a forecast.
+  const cityWeather = cityForecast(cards.map(({ weather }) => weather));
+  const weatherOn = (date: string | null) => {
+    const day = cityWeather ? forecastOn(cityWeather, date) : null;
+    if (!day) return null;
+    const { sky, outdoor, rainMm, low, high } = forecastSummary(day);
+    return { sky, outdoor, rainMm, low, high };
+  };
   const input = {
     referenceDate: handoff.referenceDate,
     mode,
-    days: frames.map(({ day, date, city, focus, theme, arrivingFrom }) => ({ day, date, city, focus, theme, arrivingFrom })),
+    days: frames.map(({ day, date, city, focus, theme, arrivingFrom }) => ({
+      day, date, city, focus, theme, arrivingFrom, ...(cityWeather ? { weather: weatherOn(date) } : {}),
+    })),
     // The planner reads the traveller's own words; the kind says what each is about.
     preferences: handoff.preferences.map(({ kind, quote }) => ({ kind, quote })),
-    candidates: cards.map((card, index) => ({ ...candidateSummary(card, "s" + (index + 1)), city: card.city })),
+    candidates: cards.map((card, index) => ({ ...candidateSummary(card, "s" + (index + 1), frames), city: card.city })),
   };
+  const cardsById = new Map(cards.map((card) => [card.id, card]));
   const maxStops = maxStopsForPreferences(handoff.preferences, maxStopsPerDay);
   let review: ProposalReview | null = null;
+  // Outdoor stops on a poor-weather day that another day of the city could take (1.2117).
+  let weatherCount = 0;
   let problems: readonly string[] = [];
   let attempts = 0;
-  while (attempts < maxAttempts && (review === null || review.errors.length > 0) && !signal.aborted) {
+  while (attempts < maxAttempts && (review === null || review.errors.length > 0 || weatherCount > 0) && !signal.aborted) {
     attempts += 1;
     onProgress({ attempt: attempts });
     try {
@@ -141,6 +157,10 @@ export async function draftCityDays(
           "In full mode, schedule every requested candidate. In preview mode, plan the best single day and leave the rest for later days.",
           "Put each stop in the morning, afternoon or evening. Match the user's preferences when choosing among candidates.",
           "A day's focus is the district it mostly spends in: prefer candidates there, and follow the day's theme.",
+          ...(cityWeather ? [
+            "Each day lists the city's forecast. A candidate with outdoor true is mostly outdoors; its poorWeatherDays are the days its own forecast is poor (heavy rain, thunderstorm, heavy snow or a gale).",
+            "Put outdoor candidates on days not in their poorWeatherDays when the city has such a day with room; on a poor day prefer indoor candidates.",
+          ] : []),
           "Prefer candidates with located true: the map found them in the city. A candidate with located false is still valid and should be used rather than leave a day empty. Give every listed day at least one stop while candidates remain.",
           "Add an anchor only when a candidate's quoted fact states a clock time that matters, such as a last entry or a sunrise. Copy the time as HH:MM. Otherwise anchor is null.",
           `Write anchor reasons in ${handoff.locale === "zh" ? "Chinese" : "English"}, under 20 words.`,
@@ -161,9 +181,21 @@ export async function draftCityDays(
         })),
       };
       const reviewed = reviewProposal(mode, frames, cards, proposal, maxStops);
-      // A second answer replaces the first only when it is not worse.
-      if (review === null || reviewed.errors.length <= review.errors.length) review = reviewed;
-      problems = reviewed.errors;
+      const issues = weatherIssues(reviewed.days, cardsById, maxStops);
+      // A second answer replaces the first only when it is not worse: fewer errors, then no more weather issues.
+      if (review === null || reviewed.errors.length < review.errors.length
+        || (reviewed.errors.length === review.errors.length && issues.length <= weatherCount)) {
+        review = reviewed;
+        weatherCount = issues.length;
+      }
+      const dateOf = (day: number) => frames.find((frame) => frame.day === day)?.date ?? null;
+      problems = [
+        ...reviewed.errors,
+        ...issues.flatMap((issue) => {
+          const card = cardsById.get(issue.spotId);
+          return card ? [weatherIssueText(issue, card, dateOf(issue.day))] : [];
+        }),
+      ];
     } catch (error) {
       // A malformed answer is one more attempt, like one that fails the checks; a failed
       // second attempt still leaves the first reviewed proposal to work with.

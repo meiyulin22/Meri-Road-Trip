@@ -1,3 +1,5 @@
+import type { SpotWeather } from "./weather";
+
 export type SpotEvidence = {
   readonly url: string;
   readonly title: string;
@@ -34,6 +36,13 @@ export type SpotCard = {
   readonly walking: SpotEvidence | null;
   readonly suggestedDuration: SpotEvidence | null;
   readonly mapCheck: SpotMapCheck;
+  /**
+   * Whether the visit is mostly outdoors, as the research model judged it (1.2117): a judgement
+   * for arranging days by weather, never shown as a fact. Null when unsure; absent before 1.2117.
+   */
+  readonly outdoor?: boolean | null;
+  /** The forecast at this spot on the trip's dates (1.2117); absent without dates or before it. */
+  readonly weather?: SpotWeather;
   /** What the second round found about opening on the trip's dates; absent until it runs. */
   readonly availability?: SpotAvailability;
 };
@@ -69,4 +78,6 @@ export type CityResearch = {
   readonly usage?: { readonly inputTokens: number; readonly outputTokens: number };
   /** Tianditu lookups the city's own map check made (1.2116); absent before it moved into research. */
   readonly mapLookups?: number;
+  /** Open-Meteo calls the city's weather counted (1.2117); absent before weather was added. */
+  readonly weatherCalls?: number;
 };

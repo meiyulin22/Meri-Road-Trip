@@ -21,7 +21,8 @@ shapes the Planner — business, page, run, tools, memory — is kept in Chinese
 | Implemented (1.2011) | The Plan Agent may pause the run to ask one question; the answer becomes a preference and the run resumes from its snapshot in Postgres, also after a restart ("Asking the traveller") |
 | Implemented (1.2013) | The validation stage: the second round checks opening, closures and booking for the trip's dates; code moves a closed stop, the Plan Agent re-plans what code cannot fix, in a Mastra `dountil` loop ("The validation stage") |
 | Implemented (1.2014) | The evaluation set: ten sample trips run through the real workflow, with numbers and code-judged expectations saved per version ("Evaluation") |
-| Planned | Weather and route checkers in the validation stage, a reviewer agent, tracing storage |
+| Implemented (1.2117) | Weather from Open-Meteo at each spot inside research; the route's detour guard; outdoor stops kept off poor-weather days ("Weather") |
+| Planned | A near-departure weather refresh, a reviewer agent, tracing storage |
 
 ## 1. Why an agent here
 
@@ -181,7 +182,91 @@ so a city goes on the map as soon as its research is done instead of waiting for
 The rules hold across cities: Tianditu's own client queue spaces every request 0.3 s apart, process
 wide, and one stop shared by the run's cities (`MapCheckStop`) makes the first failure in any city stop
 every city's lookups, no retry. `map-check` now only adds the deferred cities and reports the run's
-map check as one line. Weather (1.2117) follows as the step after locating.
+map check as one line. Weather (1.2117) follows as the step after locating (next section).
+
+### Weather (1.2117)
+
+Weather is code, not an agent tool: once a city's spots are located, the same `research-city` step
+asks for their forecast, and the Plan Agent reads it when it routes the trip and chooses the days.
+The provider sits behind Meri's own port, so Jev can later call the same function as a tool and
+QWeather could replace Open-Meteo without touching the planner.
+
+**Provider.** [Open-Meteo](../platform/weather/open-meteo.ts): free, no key, no account and no
+bill, for non-commercial use (decided 2026-11-20: Meri charges nothing and has no accounts). It
+must be credited wherever weather is shown. Its free tier allows 10,000 calls a day per address;
+Meri stops itself at `OPEN_METEO_MAX_CALLS_PER_DAY` (2000 by default), counted across restarts in
+`.cache/open-meteo-calls.json` the way Open-Meteo counts: one call per point, double for a range
+past two weeks. Requests are 0.2 s apart; a failure pauses weather for ten minutes with no retry,
+and the plan goes on without it. One probe on 2026-11-20 is the recorded fixture
+(`fixtures/open-meteo-lijiang-2026-11-21.json`): 丽江古城 at 2454 m read 2–16°, 玉龙雪山 at
+5026 m read −11 to −1° on the same day, because Open-Meteo corrects each point to its elevation.
+The same answer had a thunderstorm with 22.5 mm in the town and 64 km/h gusts on the mountain,
+the two cases the tests use.
+
+**Which points** ([spot-weather.ts](planner/spot-weather.ts), rules in
+[domain/plan/weather.ts](../domain/plan/weather.ts)):
+
+| Step | Rule | Why |
+| --- | --- | --- |
+| 1. Dates | The trip's dates inside today + 15 days (Beijing); later dates are marked `beyond` and read "check again before you go"; a trip without dates asks nothing | The forecast reaches 16 days |
+| 2. Points | A located spot uses its own point; a spot within 2 km of an earlier point shares it; unlocated spots use the city's centre (the transfers' cache, else one Tianditu search under the run's stop) | Altitude matters, a mountain and the town below it never share; an old town's sights do |
+| 3. Request | One request a city for all its points, the dates from first to last | 3–6 points a city stays far under the cap |
+| 4. Failure | The city's spots read `unavailable`; nothing is retried | Weather improves a plan, it never blocks one |
+
+Each card keeps its forecast (`SpotCard.weather`: `forecast` with the point's source, elevation,
+days and the dates past the reach; or `beyond_range`; or `unavailable`). A city's own weather is
+the forecast most of its cards share (`cityForecast`), which is the town where most sights are,
+not one mountain top.
+
+**How a day is judged** (agreed 2026-11-20, `outdoorRating`):
+
+| Rating | When | Effect |
+| --- | --- | --- |
+| poor | rain ≥ 25 mm (大雨), a thunderstorm (WMO 95–99), a heavy-rain or heavy-snow code, snow ≥ 5 cm, or gusts ≥ 62 km/h (Beaufort 8, when cable cars often stop) | Outdoor stops are moved off it when they can be |
+| fair | rain ≥ 5 mm, or a 60% chance of rain | Shown only |
+| good | anything else | — |
+
+**Outdoor or not.** The extraction call that writes the cards also judges each spot outdoor, indoor
+or unsure (`SpotCard.outdoor`). It is the model's judgement, needs no quote, is never shown as a
+fact, and is used only to arrange days by weather.
+
+**Route: distance first, then weather, with a detour guard.**
+
+1. The route call sees each city's forecast for every trip date (sky, outdoor rating, rain,
+   temperatures), and is told: order by distance first; only among orders of about the same length,
+   put a city's days on its good-weather dates; never more than 30% longer for weather.
+2. Code measures the order: straight lines between city centres (the transfers' cache, else one
+   Tianditu search each, none once the map check stopped), from the origin and back to it when the
+   origin's point is known. The shortest order is found exactly up to 8 cities (8! = 40,320
+   orders) and by nearest-first plus 2-opt above that ([route-distance.ts](../domain/plan/route-distance.ts)).
+3. More than 30% longer than the shortest (and more than 5 km, so rounding never counts): the
+   route is sent back once with both lengths and both orders.
+4. Still too long, or the second answer unusable: code puts the cities in the shortest order
+   ([reorderRoute](../domain/plan/plan-draft.ts)). Each city keeps its days and its reason; its days
+   keep their focus and theme in the same sequence; the transfer days follow the new order.
+5. Without centres for every city, or with one city and no origin, nothing is measured.
+
+**Days: outdoor stops on good days.** `draftCityDays` shows each day's city forecast, and for each
+candidate whether it is outdoors and the days its own forecast is poor (`poorWeatherDays`). Code then
+looks for an outdoor stop on a poor day of its own point while another day of the same city is not
+poor there and has room ([plan-weather.ts](../domain/plan/plan-weather.ts)). Those go back with the
+existing second attempt ("Day 1: 玉龙雪山 is outdoors and its forecast that day is poor (gale); day 2
+has better weather there and room…"). An answer replaces the first only with fewer errors, or as many
+errors and no more weather issues. A stop still on a poor day stays, and the page shows its forecast
+under it. The validation stage's re-planning goes through the same function, so it heeds weather too.
+
+**Page.** Each day's header shows the city's sky and range; the open day says the forecast (and
+"not good for being outdoors: …" on a poor day) or "too far ahead, check again before you go"; an
+outdoor stop shows its own forecast when its day is poor there or it sits 300 m or more above or below
+the town. The plan ends with 「天气为预报，出发前请再查看」 and "Weather data by Open-Meteo.com" linked
+to open-meteo.com ([plan-weather.tsx](../components/trip-plan/plan-weather.tsx)).
+
+**How it connects.** The map check decides the weather points (a spot not located falls back to the
+city centre, and after a Tianditu failure has no weather at all); the city weather feeds the route
+order, bounded by the detour guard; the route's dates decide which day's forecast each stop meets;
+the days avoid poor days for outdoor stops; the validation stage's repairs reuse the same rules.
+Not built: a near-departure refresh within three days of setting off (thresholds and a 「按新天气重排这一天」
+action), and official warnings, which Open-Meteo does not have.
 
 ### Plan Agent: route and days
 
@@ -223,9 +308,10 @@ workflow (`@mastra/core` 1.74). It only imports the planner functions and orders
 ```text
 plan-generation   input { runId, tripId, handoff }   state { handoff, scope, deferred, pendingProvinces }
   .then(load-scope)                       planScope and the cities to research → one task per city
-  .foreach(research-city, concurrency 2)  researchCity: nominate → search → one follow-up → extract → check quotes
+  .foreach(research-city, concurrency 2)  researchCity: nominate → search → one follow-up → extract → check quotes,
+                                          then locate on Tianditu (1.2116) and forecast each spot (1.2117)
   .then(map-check)                        since 1.2116 each city locates inside research-city; this step sums it up
-  .then(plan-route)                       planRoute
+  .then(plan-route)                       planRoute, with each city's weather and the detour guard (1.2117)
   .then(plan-days)                        draftCityDays per city in route order, then finishDraft
   (validation stage: verify-facts, dountil verify-repair; see below)
   .then(drive-legs)                       transport/legs.ts: walk or drive between neighbouring stops (1.2102–1.2103)
@@ -780,7 +866,7 @@ rather than guessed: ticket prices, opening hours, road conditions, availability
 - A place counts as verified when it has valid place-lookup evidence, including
   eligible cached results.
 - Distances and travel times come from route tool results, not from the model.
-- Weather numbers appear only from a forecast tool result for dates it covers.
+- Weather numbers appear only from a forecast result for dates it covers (since 1.2117, Open-Meteo, fetched by code).
 - A plan that fails validation is not saved; the run records why.
 
 ### Plan versions and staleness
@@ -796,7 +882,7 @@ offers to regenerate. A plan never writes TripState.
 | `resolve-place` | Tianditu place search (Amap until 1.0702) | Implemented |
 | `web-search` | Bocha Web Search | Implemented |
 | `get-route` | Tianditu directions: driving or transit, distance and time | Planned |
-| `get-weather` | QWeather: hourly forecast up to 10 days, sunrise and sunset | Planned |
+| `get-weather` | Meri's weather port (Open-Meteo since 1.2117, called by code in research); as a tool for Jev | Planned |
 
 All Tianditu calls share one paced queue ([../platform/tianditu/tianditu-fetch.ts](../platform/tianditu/tianditu-fetch.ts),
 one start every 0.3 s), so parallel tool calls queue rather than fail.

@@ -274,3 +274,67 @@ test("with fewer days than cities and no taste preference, a route without a que
   const resumed = await planRoute(trip, scope, [lijiang, dali], { model: modelAnswering({ routes: [unasked] }) });
   assert.equal(resumed.status === "ready" && resumed.attempts, 1);
 });
+
+test("a route over 30% longer than the shortest is sent back once; still too long, code puts the cities in the shortest order (1.2117)", async () => {
+  const trip = handoff(["丽江市", "大理白族自治州", "迪庆藏族自治州"], { state: "known", value: "6天", source: "user" });
+  const geography = { origin: null, points: new Map([
+    ["大理白族自治州", { longitude: 100.27, latitude: 25.61 }],
+    ["丽江市", { longitude: 100.23, latitude: 26.86 }],
+    ["迪庆藏族自治州", { longitude: 99.71, latitude: 27.83 }],
+  ]) };
+  // 大理 → 迪庆 → 丽江 doubles back past 丽江.
+  const zigzag = {
+    cities: [{ id: "c2", days: 2, reason: "洱海" }, { id: "c3", days: 2, reason: "高原" }, { id: "c1", days: 2, reason: "古城" }],
+    days: [{ day: 1, focus: "大理市", theme: "洱海一圈" }, { day: 3, focus: "香格里拉市", theme: "松赞林寺" }, { day: 5, focus: "古城区", theme: "古城" }],
+    omitted: [],
+  };
+  const routePrompts: { problemsWithPreviousAnswer?: string[] }[] = [];
+  const stubborn = await planRoute(trip, ready(planScope(trip.tripState)), [lijiang, dali, diqing], {
+    model: modelAnswering({ routes: [zigzag, zigzag], routePrompts }),
+  }, () => {}, { geography });
+
+  assert.equal(stubborn.status, "ready");
+  if (stubborn.status !== "ready") return;
+  assert.equal(stubborn.attempts, 2);
+  assert.match(routePrompts[1].problemsWithPreviousAnswer?.[0] ?? "", /^Your order 大理白族自治州 → 迪庆藏族自治州 → 丽江市 runs about \d+ km/u);
+  const order = stubborn.plan.route.cities.map(({ city }) => city);
+  assert.equal(order[1], "丽江市");
+  // Each city keeps its days, reason and themes; the transfer days follow the new order.
+  assert.deepEqual(stubborn.plan.route.cities.find(({ city }) => city === "迪庆藏族自治州")?.reason, "高原");
+  assert.deepEqual(stubborn.plan.frames.filter(({ city }) => city === "丽江市").map(({ theme }) => theme), ["古城", null]);
+  assert.equal(stubborn.plan.frames[2].arrivingFrom, order[0]);
+
+  // A second answer within 30% is used as given.
+  const fixed = { ...zigzag, cities: [zigzag.cities[0], zigzag.cities[2], zigzag.cities[1]],
+    days: [{ day: 1, focus: "大理市", theme: null }, { day: 3, focus: "古城区", theme: null }, { day: 5, focus: "香格里拉市", theme: null }] };
+  const listened = await planRoute(trip, ready(planScope(trip.tripState)), [lijiang, dali, diqing], {
+    model: modelAnswering({ routes: [zigzag, fixed] }),
+  }, () => {}, { geography });
+  assert.equal(listened.status === "ready" && listened.plan.route.cities.map(({ city }) => city).join(), "大理白族自治州,丽江市,迪庆藏族自治州");
+
+  // Without geography the order is not measured.
+  const unmeasured = await planRoute(trip, ready(planScope(trip.tripState)), [lijiang, dali, diqing], {
+    model: modelAnswering({ routes: [zigzag] }),
+  });
+  assert.equal(unmeasured.status === "ready" && unmeasured.attempts, 1);
+});
+
+test("each city's forecast reaches the route call when the trip's dates are inside the forecast (1.2117)", async () => {
+  const dated = handoff(["丽江市", "大理白族自治州"], fiveDays);
+  const trip = { ...dated, tripState: { ...dated.tripState, startDate: { state: "known" as const, value: "2026-11-24", source: "user" as const } } };
+  const forecast = (code: number, precipitationMm: number) => ({
+    status: "forecast" as const, source: "spot" as const, elevation: 2454, beyond: [],
+    days: [{ date: "2026-11-24", code, high: 12, low: 5, precipitationMm, precipitationChance: 100, snowfallCm: 0, gustKmh: 28 }],
+  });
+  const wetLijiang = { ...lijiang, spots: lijiang.spots.map((card) => ({ ...card, weather: forecast(95, 22.5) })) };
+  const dryDali = { ...dali, spots: dali.spots.map((card) => ({ ...card, weather: forecast(1, 0) })) };
+  const routePrompts: { cities: { city: string; weather?: unknown }[] }[] = [];
+  const routeSystems: string[] = [];
+  await planRoute(trip, ready(planScope(trip.tripState)), [wetLijiang, dryDali], {
+    model: modelAnswering({ routePrompts, routeSystems, routes: [{
+      cities: [{ id: "c2", days: 2, reason: "先去晴天的大理" }, { id: "c1", days: 3, reason: "雪山" }], days: [], omitted: [],
+    }] }),
+  });
+  assert.deepEqual(routePrompts[0].cities[0].weather, [{ date: "2026-11-24", sky: "thunderstorm", outdoor: "poor", rainMm: 22.5, low: 5, high: 12 }]);
+  assert.match(routeSystems[0], /never make the route more than 30% longer for weather/u);
+});

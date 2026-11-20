@@ -41,6 +41,8 @@ import { PlanTiandituMap } from "./plan-tianditu-map";
 import { PlanOriginPicker } from "./plan-origin-picker";
 import { PlanLegModeButton } from "./plan-leg-mode-button";
 import { PlanTransferCard } from "./plan-transfer-card";
+import { DayWeatherBadge, DayWeatherLine, StopWeatherLine, WeatherCredit } from "./plan-weather";
+import { dayWeather, hasForecast, stopWeather } from "./plan-weather-view";
 import draftStyles from "./plan-draft.module.css";
 import styles from "./trip-plan.module.css";
 
@@ -501,10 +503,11 @@ function DraftDays({ response, text, locale, transport, gettingThere }: {
         {transferCard("return", null)}
       </div>
 
-      {partial.length > 0 || response.pendingProvinces.length > 0 ? (
+      {partial.length > 0 || response.pendingProvinces.length > 0 || hasForecast(response.spots) ? (
         <div className={draftStyles.footnotes}>
           {partial.length > 0 ? <p>{text.researchPartial(partial.join("、"))}</p> : null}
           {response.pendingProvinces.length > 0 ? <p>{text.pendingProvinces(response.pendingProvinces.join("、"))}</p> : null}
+          {hasForecast(response.spots) ? <WeatherCredit locale={locale} /> : null}
         </div>
       ) : null}
     </section>
@@ -549,6 +552,9 @@ function DraftDay({ day, cards, unverified, checks, arriving, transport = null, 
   const reduce = useReducedMotion() ?? false;
   const headingId = `draft-day-${day.day}`;
   const title = day.theme ?? day.stops.map(({ spotId }) => cards.get(spotId)?.name ?? spotId).join(" · ");
+  // The day's weather from its city's cards, and each outdoor stop's own where it matters (1.2117).
+  const cityCards = [...cards.values()].filter(({ city }) => city === day.city);
+  const weather = dayWeather(day, cityCards);
 
   return (
     <motion.article className={styles.dayCard} data-open={open} aria-labelledby={headingId}
@@ -572,6 +578,7 @@ function DraftDay({ day, cards, unverified, checks, arriving, transport = null, 
           <span className={styles.dayTitle} id={headingId}>{title || "—"}</span>
         </span>
         <span className={styles.dayAside}>
+          <DayWeatherBadge view={weather} locale={locale} />
           {open ? null : <span className={styles.daySights}>{text.stopCount(day.stops.length)}</span>}
           {photo && !open ? (
             <span className={draftStyles.thumb}>
@@ -587,6 +594,7 @@ function DraftDay({ day, cards, unverified, checks, arriving, transport = null, 
             initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }}
             transition={{ duration: reduce ? 0 : 0.32, ease: [0.22, 1, 0.36, 1] }}>
             {photo ? <DayPhoto photo={photo} /> : null}
+            <DayWeatherLine view={weather} locale={locale} />
             <div className={draftStyles.slots}>
               {stopsBySlot(day).map(({ slot, stops }) => {
                 const SlotIcon = slotIcon[slot];
@@ -628,6 +636,7 @@ function DraftDay({ day, cards, unverified, checks, arriving, transport = null, 
                               <StopCheckBadges check={checks.get(stop.spotId)} text={text} />
                             </div>
                             {stop.anchor ? <p className={draftStyles.anchorReason}>{stop.anchor.reason}</p> : null}
+                            <StopWeatherLine line={card ? stopWeather(card, day.date, cityCards) : null} locale={locale} />
                             {card ? <StopFacts card={card} missing={missing} text={text} locale={locale} /> : null}
                           </li>
                         );
