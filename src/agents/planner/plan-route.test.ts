@@ -338,3 +338,50 @@ test("each city's forecast reaches the route call when the trip's dates are insi
   assert.deepEqual(routePrompts[0].cities[0].weather, [{ date: "2026-11-24", sky: "thunderstorm", outdoor: "poor", rainMm: 22.5, low: 5, high: 12 }]);
   assert.match(routeSystems[0], /never make the route more than 30% longer for weather/u);
 });
+
+test("distance first, weather second: an order meeting a storm another equal order avoids is sent back once, then code reorders (1.2117)", async () => {
+  // The first live run, 2026-11-20: 丽江 put on its thunderstorm day, 2026-11-24, when 大理 first avoided it.
+  const fourDays = handoff(["丽江市", "大理白族自治州"], { state: "known", value: "4天", source: "user" });
+  const trip = { ...fourDays, tripState: { ...fourDays.tripState, startDate: { state: "known" as const, value: "2026-11-24", source: "user" as const } } };
+  const forecast = (stormOn: string | null) => ({
+    status: "forecast" as const, source: "spot" as const, elevation: 2400, beyond: [],
+    days: ["2026-11-24", "2026-11-25", "2026-11-26", "2026-11-27"].map((date) => ({
+      date, code: date === stormOn ? 95 : 1, high: 14, low: 3, precipitationMm: date === stormOn ? 22.5 : 0,
+      precipitationChance: 0, snowfallCm: 0, gustKmh: 20,
+    })),
+  });
+  const cities = [
+    { ...lijiang, spots: lijiang.spots.map((item) => ({ ...item, weather: forecast("2026-11-24") })) },
+    { ...dali, spots: dali.spots.map((item) => ({ ...item, weather: forecast(null) })) },
+  ];
+  const geography = { origin: null, points: new Map([
+    ["丽江市", { longitude: 100.23, latitude: 26.86 }], ["大理白族自治州", { longitude: 100.27, latitude: 25.61 }],
+  ]) };
+  const lijiangFirst = {
+    cities: [{ id: "c1", days: 2, reason: "雪山" }, { id: "c2", days: 2, reason: "洱海" }],
+    days: [{ day: 1, focus: "古城区", theme: "古城" }, { day: 3, focus: "大理市", theme: "洱海" }], omitted: [],
+  };
+  const routePrompts: { problemsWithPreviousAnswer?: string[] }[] = [];
+  const stubborn = await planRoute(trip, ready(planScope(trip.tripState)), cities, {
+    model: modelAnswering({ routes: [lijiangFirst, lijiangFirst], routePrompts }),
+  }, () => {}, { geography });
+
+  assert.equal(stubborn.status === "ready" && stubborn.attempts, 2);
+  assert.equal(routePrompts[1].problemsWithPreviousAnswer?.[0],
+    "Your order 丽江市 → 大理白族自治州 meets poor outdoor weather on: 丽江市 on 2026-11-24. "
+    + `大理白族自治州 → 丽江市 is no more than 30% longer (about 139 km against 139 km) and meets poor weather on: none. `
+    + "Keep each city's days and prefer that order.");
+  if (stubborn.status !== "ready") return;
+  assert.deepEqual(stubborn.plan.frames.map(({ day, date, city, theme }) => [day, date, city, theme]), [
+    [1, "2026-11-24", "大理白族自治州", "洱海"], [2, "2026-11-25", "大理白族自治州", null],
+    [3, "2026-11-26", "丽江市", "古城"], [4, "2026-11-27", "丽江市", null],
+  ]);
+
+  // Without weather the same order stands after one call.
+  const dryCities = cities.map((city) => ({ ...city, spots: city.spots.map((item) => ({ ...item, weather: forecast(null) })) }));
+  const dry = await planRoute(trip, ready(planScope(trip.tripState)), dryCities, {
+    model: modelAnswering({ routes: [lijiangFirst] }),
+  }, () => {}, { geography });
+  assert.equal(dry.status === "ready" && dry.attempts, 1);
+  assert.equal(dry.status === "ready" && dry.plan.route.cities[0].city, "丽江市");
+});

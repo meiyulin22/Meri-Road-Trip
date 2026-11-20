@@ -230,7 +230,17 @@ not one mountain top.
 or unsure (`SpotCard.outdoor`). It is the model's judgement, needs no quote, is never shown as a
 fact, and is used only to arrange days by weather.
 
-**Route: distance first, then weather, with a detour guard.**
+**Route: distance first, then weather, with one route guard.** What decides the order, top first:
+
+| Priority | What | Who holds it |
+| --- | --- | --- |
+| 1 | The route's rules: every city once, the days add up, only a city the traveller chose may go | Code (`reviewRoute`) |
+| 2 | Distance: never more than 30% longer than the shortest order | Code (route guard) |
+| 3 | Weather: among the orders within that 30%, the fewest poor-weather days | Code (route guard) |
+| 4 | Taste: which city gets more days, each day's theme | The model |
+
+Weather never buys a longer route; what the route cannot avoid is left to the days, which move
+outdoor stops inside a city (below).
 
 1. The route call sees each city's forecast for every trip date (sky, outdoor rating, rain,
    temperatures), and is told: order by distance first; only among orders of about the same length,
@@ -239,12 +249,21 @@ fact, and is used only to arrange days by weather.
    Tianditu search each, none once the map check stopped), from the origin and back to it when the
    origin's point is known. The shortest order is found exactly up to 8 cities (8! = 40,320
    orders) and by nearest-first plus 2-opt above that ([route-distance.ts](../domain/plan/route-distance.ts)).
-3. More than 30% longer than the shortest (and more than 5 km, so rounding never counts): the
-   route is sent back once with both lengths and both orders.
-4. Still too long, or the second answer unusable: code puts the cities in the shortest order
+3. Code also counts the poor-weather days of every order ([route-weather.ts](../domain/plan/route-weather.ts)):
+   each city keeps the days the model gave it, its days take the trip's dates in order, and a date
+   counts when the city's own weather rates it poor. A transfer day counts like any other (merlin,
+   2026-11-20). Only orders within 30% of the shortest are compared.
+4. Sent back once, sharing the route's one send-back: when the order is more than 30% longer than
+   the shortest (and more than 5 km, so rounding never counts), with both lengths and the best
+   order; or, when it is within 30% but another order within 30% meets fewer poor days, with the
+   poor days of both ("Your order 丽江市 → 大理白族自治州 meets poor outdoor weather on: 丽江市 on
+   2026-11-24. 大理白族自治州 → 丽江市 is no more than 30% longer … and meets poor weather on: none.").
+5. Still not the best, or the second answer unusable: code puts the cities in the best order, the
+   one within 30% with the fewest poor days, then the shortest; a tie keeps the model's order
    ([reorderRoute](../domain/plan/plan-draft.ts)). Each city keeps its days and its reason; its days
    keep their focus and theme in the same sequence; the transfer days follow the new order.
-5. Without centres for every city, or with one city and no origin, nothing is measured.
+6. Without centres for every city, with one city, or without forecasts (no dates, or past 16
+   days), weather does not count; with fewer than two cities nothing is measured.
 
 **Days: outdoor stops on good days.** `draftCityDays` shows each day's city forecast, and for each
 candidate whether it is outdoors and the days its own forecast is poor (`poorWeatherDays`). Code then
@@ -279,7 +298,8 @@ day. Two faults were fixed after the first run: a strict `outdoor` field could t
 city's whole extraction for one stray value (迪庆 came back with no cards), and the send-back only
 said "move it", so 黑龙潭公园 stayed on its thunderstorm day; it now names a swap. Still open: in
 the first run the route put 丽江 first, on its thunderstorm day, when 大理 had only rain; with two
-cities both orders are the same length, so the weather choice is the model's alone.
+cities both orders are the same length, so the weather choice was the model's alone. Since then the
+route guard also counts poor-weather days (steps 3–5 above); that case is a unit test, not yet a live run.
 
 Not built: a near-departure refresh within three days of setting off (thresholds and a 「按新天气重排这一天」
 action), and official warnings, which Open-Meteo does not have.

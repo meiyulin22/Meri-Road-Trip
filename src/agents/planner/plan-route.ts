@@ -15,8 +15,9 @@ import { type PlanQuestion, planQuestionSchema } from "@/domain/plan/plan-progre
 import { maxPreferenceLabelLength, preferenceKinds, wantsPackedPace, wantsRelaxedPace } from "@/domain/plan/trip-preference";
 import { placeNameStem } from "@/capabilities/destination/resolve-destination-place";
 import type { CityResearch, SpotCard } from "@/domain/plan/spot-card";
-import { detourOf, maxDetourRatio } from "@/domain/plan/route-distance";
-import { cityForecast, forecastSummary, type GeoPoint } from "@/domain/plan/weather";
+import { maxDetourRatio } from "@/domain/plan/route-distance";
+import { type PoorDay, routeChoice } from "@/domain/plan/route-weather";
+import { cityForecast, forecastSummary, type GeoPoint, outdoorRating } from "@/domain/plan/weather";
 import { createMoonshotChatModelFromEnvironment } from "@/platform/llm/moonshot-chat-model";
 import { logger } from "@/platform/observability/logger";
 import { serializeError } from "@/platform/observability/serialize-error";
@@ -248,26 +249,43 @@ export async function planRoute(
   let askAgain = false;
   // The route that came back without a question, used if the second answer has no usable one either.
   let unaskedRoute: RoutedPlan | null = null;
-  // The detour guard (1.2117): a route over 30% longer than the shortest order is sent back once;
-  // if it is still too long, code puts the cities in the shortest order, keeping each one's days.
-  let detourSentBack = false;
-  let detourFallback: RoutedPlan | null = null;
+  // The route guard (1.2117), distance first and weather second: a route over 30% longer than the
+  // shortest order, or one meeting more poor-weather days than another order within that 30%, is
+  // sent back once. If the second answer is no better, code puts the cities in the best order,
+  // keeping each one's days. One send-back serves both checks.
+  const poorDates = new Map(scope.cities.map(({ province, city }) => {
+    const forecast = cityForecast(cardsOf(province, city).map(({ weather }) => weather));
+    return [city, new Set((forecast?.days ?? []).filter((day) => outdoorRating(day) === "poor").map(({ date }) => date))] as const;
+  }));
+  let guardSentBack = false;
+  let guardFallback: RoutedPlan | null = null;
+  const poorText = (poor: readonly PoorDay[]) => poor.length === 0 ? "none"
+    : poor.map(({ city, date }) => `${city} on ${date}`).join(", ");
   const guarded = (plan: RoutedPlan, finalAttempt: boolean): { plan: RoutedPlan } | { sendBack: string } => {
     if (!options.geography) return { plan };
-    const order = plan.route.cities.map(({ city }) => city);
-    const detour = detourOf(order, options.geography.points, options.geography.origin);
-    if (!detour?.tooLong) return { plan };
-    const shortest = reorderRoute(plan, detour.shortest, scope.dates);
-    if (detourSentBack || finalAttempt) {
-      logger.info({ order, routeKm: detour.routeKm, shortest: detour.shortest, shortestKm: detour.shortestKm },
-        "Plan Agent route still too long; code put the cities in the shortest order");
-      return { plan: shortest };
+    const choice = routeChoice(plan.route.cities, scope.dates, poorDates, options.geography.points, options.geography.origin);
+    if (!choice) return { plan };
+    const { current, best } = choice;
+    const wetter = !choice.tooLong && best.poor.length < current.poor.length;
+    if (!choice.tooLong && !wetter) return { plan };
+    const better = reorderRoute(plan, best.order, scope.dates);
+    if (guardSentBack || finalAttempt) {
+      logger.info({ order: current.order, routeKm: current.km, poorDays: current.poor.length, best: best.order, bestKm: best.km,
+        bestPoorDays: best.poor.length, shortestKm: choice.shortestKm, reason: choice.tooLong ? "detour" : "weather" },
+      "Plan Agent route still not the best order; code reordered the cities");
+      return { plan: better };
     }
-    detourSentBack = true;
-    detourFallback = shortest;
-    return { sendBack: `Your order ${order.join(" → ")} runs about ${detour.routeKm} km in straight lines between city centres, `
-      + `but ${detour.shortest.join(" → ")} runs about ${detour.shortestKm} km. Order the cities by distance first; `
-      + `weather may justify an order at most ${Math.round((maxDetourRatio - 1) * 100)}% longer than the shortest.` };
+    guardSentBack = true;
+    guardFallback = better;
+    const limit = Math.round((maxDetourRatio - 1) * 100);
+    return { sendBack: choice.tooLong
+      ? `Your order ${current.order.join(" → ")} runs about ${current.km} km in straight lines between city centres, `
+        + `but the shortest order runs about ${choice.shortestKm} km. Order the cities by distance first; `
+        + `weather may justify an order at most ${limit}% longer than the shortest. `
+        + `${best.order.join(" → ")} runs about ${best.km} km and meets poor weather on: ${poorText(best.poor)}.`
+      : `Your order ${current.order.join(" → ")} meets poor outdoor weather on: ${poorText(current.poor)}. `
+        + `${best.order.join(" → ")} is no more than ${limit}% longer (about ${best.km} km against ${current.km} km) `
+        + `and meets poor weather on: ${poorText(best.poor)}. Keep each city's days and prefer that order.` };
   };
 
   const signal = AbortSignal.timeout(routeTimeoutMs);
@@ -344,8 +362,8 @@ export async function planRoute(
         errors = [checked.sendBack];
         continue;
       }
-      // A second answer that fails its checks after a detour was sent back: the first route, reordered.
-      if (detourFallback) return { status: "ready", plan: detourFallback, attempts, usage };
+      // A second answer that fails its checks after the guard sent the route back: the first route, reordered.
+      if (guardFallback) return { status: "ready", plan: guardFallback, attempts, usage };
       errors = review.errors;
     } catch (error) {
       // A malformed answer is one more attempt, like one that fails the checks.
@@ -356,7 +374,7 @@ export async function planRoute(
   // The traveller must choose even when the model gave no usable answer at all.
   const built = codeQuestion();
   if (built) return { status: "question", question: built, usage };
-  if (detourFallback) return { status: "ready", plan: detourFallback, attempts, usage };
+  if (guardFallback) return { status: "ready", plan: guardFallback, attempts, usage };
   logger.warn({ attempts, errors }, "Plan Agent route not usable; days shared out in order");
   return { status: "ready", plan: fallbackRoute(scope), attempts, usage };
 }

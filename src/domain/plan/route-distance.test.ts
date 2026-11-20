@@ -2,7 +2,8 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { fallbackRoute, planScope, reorderRoute } from "./plan-draft";
-import { detourOf, pathKm, shortestOrder } from "./route-distance";
+import { pathKm, shortestOrder } from "./route-distance";
+import { routeChoice } from "./route-weather";
 import type { TripState } from "@/domain/trip-state/trip-state";
 
 // City centres, roughly: 昆明, 大理, 丽江, 迪庆 run south to north in Yunnan.
@@ -20,18 +21,23 @@ test("the shortest order runs south to north; with the origin it starts and ends
   assert.ok(Math.abs(best.km - pathKm([kunming, dali, lijiang, diqing], null)) < 1e-6);
 });
 
-test("an order zig-zagging over 30% longer is too long; a small weather swap is not", () => {
-  const zigzag = detourOf(["丽江市", "昆明市", "迪庆藏族自治州", "大理白族自治州"], points, null);
+const days = (...cities: string[]) => cities.map((city) => ({ city, days: 1 }));
+const fourDates = ["2026-11-24", "2026-11-25", "2026-11-26", "2026-11-27"];
+const dry = new Map<string, Set<string>>();
+
+test("an order zig-zagging over 30% longer is too long; a small swap is not", () => {
+  const zigzag = routeChoice(days("丽江市", "昆明市", "迪庆藏族自治州", "大理白族自治州"), fourDates, dry, points, null);
   assert.ok(zigzag?.tooLong);
-  assert.ok(zigzag.routeKm > zigzag.shortestKm * 1.3);
-  // 大理 and 丽江 swapped from Kunming: a little longer, fine for weather.
-  const swap = detourOf(["昆明市", "丽江市", "大理白族自治州"], points, null);
+  assert.ok(zigzag.current.km > zigzag.shortestKm * 1.3);
+  const swap = routeChoice(days("昆明市", "丽江市", "大理白族自治州"), fourDates, dry, points, null);
   assert.equal(swap?.tooLong, false);
+  // Dry everywhere: the order already within 30% is kept.
+  assert.deepEqual(swap?.best.order, ["昆明市", "丽江市", "大理白族自治州"]);
 });
 
-test("nothing is measured for one city without an origin or a city without a centre", () => {
-  assert.equal(detourOf(["丽江市"], points, null), null);
-  assert.equal(detourOf(["丽江市", "上海市"], points, null), null);
+test("nothing is measured for one city or a city without a centre", () => {
+  assert.equal(routeChoice(days("丽江市"), fourDates, dry, points, null), null);
+  assert.equal(routeChoice(days("丽江市", "上海市"), fourDates, dry, points, null), null);
 });
 
 test("more cities than the exact limit still find a short order", () => {
