@@ -37,21 +37,23 @@ function forecastRecording(asked: { points: readonly GeoPoint[]; from: string; t
   };
 }
 
-test("one request a city: nearby spots share a point, the mountain has its own, unlocated spots use the centre", async () => {
+test("one request a city: nearby spots share a point, the mountain has its own, unlocated spots share the town's", async () => {
   const asked: { points: readonly GeoPoint[]; from: string; to: string }[] = [];
   const progress: number[] = [];
   const { city: weathered, calls } = await addCityWeather(city, ["2026-11-22", "2026-11-23"], "2026-11-20", {
-    forecast: forecastRecording(asked), cityCentre: async () => centre,
+    forecast: forecastRecording(asked), cityCentre: async () => { throw new Error("the centre is not needed"); },
   }, ({ points }) => progress.push(points));
 
-  assert.deepEqual(asked, [{ points: [oldTown, snowMountain, centre], from: "2026-11-22", to: "2026-11-23" }]);
-  assert.equal(calls, 3);
-  assert.deepEqual(progress, [3]);
+  assert.deepEqual(asked, [{ points: [oldTown, snowMountain], from: "2026-11-22", to: "2026-11-23" }]);
+  assert.equal(calls, 2);
+  assert.deepEqual(progress, [2]);
   const [town, mufu, mountain, lake] = weathered.spots.map(({ weather }) => weather);
   assert.equal(town?.status === "forecast" && town.source, "spot");
   assert.deepEqual(mufu, town);
   assert.equal(mountain?.status === "forecast" && mountain.elevation, 5026);
+  // 黑龙潭 was not located: it shares the old town's forecast, marked as the city's.
   assert.equal(lake?.status === "forecast" && lake.source, "city");
+  assert.equal(lake?.status === "forecast" && lake.elevation, 2454);
   // Only the trip's own dates are kept.
   assert.deepEqual(town?.status === "forecast" && town.days.map(({ date }) => date), ["2026-11-22", "2026-11-23"]);
 });
@@ -83,11 +85,16 @@ test("a failed forecast leaves the city's weather unavailable and the plan goes 
   assert.deepEqual(weathered.spots.map(({ weather }) => weather?.status), ["unavailable", "unavailable", "unavailable", "unavailable"]);
 });
 
-test("without a city centre the unlocated spot has no weather; the centre comes from memory, else one search under the run's stop", async () => {
-  const { city: weathered } = await addCityWeather(city, ["2026-11-22"], "2026-11-20", {
+test("nothing located and no city centre: no weather; the centre comes from memory, else one search under the run's stop", async () => {
+  const unlocated = { ...city, spots: city.spots.map((item) => ({ ...item, mapCheck: { status: "not_located" as const } })) };
+  const { city: weathered } = await addCityWeather(unlocated, ["2026-11-22"], "2026-11-20", {
     forecast: forecastRecording([]), cityCentre: async () => null,
   });
-  assert.equal(weathered.spots[3].weather?.status, "unavailable");
+  assert.deepEqual(weathered.spots.map(({ weather }) => weather?.status), ["unavailable", "unavailable", "unavailable", "unavailable"]);
+  const centred = await addCityWeather(unlocated, ["2026-11-22"], "2026-11-20", {
+    forecast: forecastRecording([]), cityCentre: async () => centre,
+  });
+  assert.ok(centred.city.spots.every(({ weather }) => weather?.status === "forecast" && weather.source === "city"));
 
   const searched: string[] = [];
   const stop = { stopped: false };

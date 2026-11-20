@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowRight, CalendarCheck, Car, ChevronDown, Footprints, Clock, ExternalLink, Info, MapPin, MoonStar, RotateCw, Route, Sparkles, Star, Sun, Sunrise, TriangleAlert } from "lucide-react";
+import { ArrowRight, CalendarCheck, Car, ChevronDown, Footprints, Clock, ExternalLink, Info, MapPin, MoonStar, RotateCw, Route, Shirt, Sparkles, Star, Sun, Sunrise, TriangleAlert } from "lucide-react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import Image from "next/image";
 import { type CSSProperties, Fragment, useEffect, useMemo, useReducer, useState } from "react";
@@ -43,6 +43,9 @@ import { PlanLegModeButton } from "./plan-leg-mode-button";
 import { PlanTransferCard } from "./plan-transfer-card";
 import { DayWeatherBadge, DayWeatherLine, StopWeatherLine, WeatherCredit } from "./plan-weather";
 import { dayWeather, hasForecast, stopWeather } from "./plan-weather-view";
+import { OutfitRoom, PackingList } from "./plan-outfit";
+import { outfitLine } from "./plan-outfit-view";
+import type { DayOutfit } from "@/domain/plan/outfit";
 import draftStyles from "./plan-draft.module.css";
 import styles from "./trip-plan.module.css";
 
@@ -81,6 +84,7 @@ const copy = {
     pendingProvinces: (provinces: string) => `${provinces}: choose a city to include it.`,
     routeDays: (days: number) => `${days} ${days === 1 ? "day" : "days"}`,
     routeTitle: "Route",
+    dressLine: "Today's kit",
     routeFallback: "Days shared out automatically",
     omittedTitle: "Not in this trip",
     omittedFallback: (days: number) => `Only ${days} ${days === 1 ? "day" : "days"}: kept the first cities in the order you added them.`,
@@ -135,6 +139,7 @@ const copy = {
     pendingProvinces: (provinces: string) => `${provinces}：选定城市后才会纳入规划。`,
     routeDays: (days: number) => `${days} 天`,
     routeTitle: "路线",
+    dressLine: "今日穿搭",
     routeFallback: "自动分配天数",
     omittedTitle: "这次没排入",
     omittedFallback: (days: number) => `只有 ${days} 天，按添加顺序保留了前面的城市。`,
@@ -487,6 +492,10 @@ function DraftDays({ response, text, locale, transport, gettingThere }: {
 
       <PlanTiandituMap plan={response} locale={locale} selectedDay={openDay} onSelectDay={setOpenDay} />
 
+      {/* One red panda for the trip, a tab a day, following the day opened below (1.2117 outfit). */}
+      <OutfitRoom days={draft.days} outfits={draft.outfits ?? []} locale={locale} selectedDay={openDay} onSelectDay={setOpenDay}
+        weatherOf={(day) => dayWeather(day, [...cards.values()].filter(({ city }) => city === day.city))} />
+
       <div className={draftStyles.days}>
         {transferCard("outbound", null)}
         {draft.days.map((day, index) => (
@@ -497,11 +506,18 @@ function DraftDays({ response, text, locale, transport, gettingThere }: {
             unverified={new Map(draft.unverified.map(({ spotId, fields }) => [spotId, fields]))}
             checks={new Map((draft.checks ?? []).filter(({ day: number }) => number === day.day).map((check) => [check.spotId, check]))}
             arriving={arrivingLegs(day, draft.legs ?? [])} transport={transport}
+            outfit={draft.outfits?.find(({ day: number }) => number === day.day) ?? null}
+            onDress={() => {
+              setOpenDay(day.day);
+              document.getElementById("plan-outfit")?.scrollIntoView({ behavior: "smooth", block: "start" });
+            }}
             open={openDay === day.day} onOpen={() => setOpenDay(openDay === day.day ? null : day.day)} />
           </Fragment>
         ))}
         {transferCard("return", null)}
       </div>
+
+      <PackingList outfits={draft.outfits ?? []} locale={locale} storageKey={`meri:packing:v1:${gettingThere?.tripId ?? "plan"}`} />
 
       {partial.length > 0 || response.pendingProvinces.length > 0 || hasForecast(response.spots) ? (
         <div className={draftStyles.footnotes}>
@@ -530,7 +546,10 @@ function arrivingLegs(day: PlanDay, legs: readonly DriveLeg[]): ReadonlyMap<stri
   }));
 }
 
-function DraftDay({ day, cards, unverified, checks, arriving, transport = null, text, locale, preview, showTransferTag, open, onOpen, index, photo }: {
+function DraftDay({ day, cards, unverified, checks, arriving, transport = null, text, locale, preview, showTransferTag, open, onOpen, index, photo, outfit = null, onDress }: {
+  /** The day's outfit (1.2117), shown as one line that jumps to the dressing room. */
+  readonly outfit?: DayOutfit | null;
+  readonly onDress?: () => void;
   /** Plans before 1.2106 mark a transfer day with a tag; later ones have a strip between the days. */
   readonly showTransferTag: boolean;
   readonly transport?: TransportPreference | null;
@@ -595,6 +614,14 @@ function DraftDay({ day, cards, unverified, checks, arriving, transport = null, 
             transition={{ duration: reduce ? 0 : 0.32, ease: [0.22, 1, 0.36, 1] }}>
             {photo ? <DayPhoto photo={photo} /> : null}
             <DayWeatherLine view={weather} locale={locale} />
+            {outfit && onDress ? (
+              <button type="button" className={draftStyles.dressLine} onClick={onDress}>
+                <Shirt aria-hidden="true" size={14} />
+                <span>{text.dressLine}</span>
+                <span className={draftStyles.dressItems}>{outfitLine(outfit, locale)}</span>
+                <ArrowRight aria-hidden="true" size={13} />
+              </button>
+            ) : null}
             <div className={draftStyles.slots}>
               {stopsBySlot(day).map(({ slot, stops }) => {
                 const SlotIcon = slotIcon[slot];

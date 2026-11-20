@@ -1,13 +1,13 @@
 import { z } from "zod";
 
 import { maxPreferenceLabelLength, paceDirections, preferenceKinds } from "./trip-preference";
-import { placeImageSchema, planDaySchema, planRouteSchema, spotCardSchema, stopCheckSchema } from "./plan-draft-response";
+import { dayOutfitSchema, placeImageSchema, planDaySchema, planRouteSchema, spotCardSchema, stopCheckSchema } from "./plan-draft-response";
 
 /**
  * The stages of a plan run, in the order the plan page shows them. Each is one step of
  * the plan-generation workflow; the page renders its own words for them, in zh or en.
  */
-export const planStages = ["scope", "research", "map", "route", "transfers", "days", "verify", "drive", "photos", "save"] as const;
+export const planStages = ["scope", "research", "map", "route", "transfers", "days", "verify", "drive", "outfit", "photos", "save"] as const;
 export type PlanStage = (typeof planStages)[number];
 
 const count = z.number().int().nonnegative();
@@ -101,6 +101,8 @@ export const planProgressEventSchema = z.discriminatedUnion("type", [
   /** One day as soon as its city is drafted, with the cards its stops refer to. */
   z.strictObject({ type: z.literal("day.ready"), day: planDaySchema, spots: z.array(spotCardSchema) }),
   z.strictObject({ type: z.literal("day.photo"), day: z.number().int().positive(), image: placeImageSchema }),
+  /** One day's outfit once the whole trip is dressed (1.2117). */
+  z.strictObject({ type: z.literal("day.outfit"), outfit: dayOutfitSchema }),
   /** The second round's verdict for one stop where it now is; sent again when a repair moves it. */
   z.strictObject({ type: z.literal("spot.checked"), check: stopCheckSchema }),
   /** The run is paused until the traveller answers; it is saved and survives a restart. */

@@ -1,0 +1,212 @@
+/*
+ * The dressing room and packing list (1.2117 outfit): a game's equipment screen on the plan
+ * page's paper. Pixel details (hard corners, stepped shadows, a pixel thermometer) carry the
+ * Meri world's pixel style; colours are the page tokens from trip-plan.module.css.
+ */
+.room,
+.pack {
+  display: grid;
+  gap: 12px;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  background: #fffdf8;
+}
+
+.roomHeader,
+.packHeader { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.roomHeader h3,
+.packHeader h3 { font-size: 14px; font-weight: 650; }
+.roomHeader p,
+.packHeader p { color: var(--muted); font-size: 12px; }
+.roomIcon {
+  display: inline-grid;
+  flex: none;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
+  color: var(--green);
+  background: var(--green-soft);
+}
+
+/* One tab a day, like the map's. */
+.dayTabs { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 2px; scrollbar-width: thin; }
+.dayTab {
+  display: grid;
+  flex: none;
+  gap: 2px;
+  min-width: 76px;
+  padding: 6px 10px;
+  border: 2px solid transparent;
+  border-radius: 6px;
+  color: var(--muted);
+  background: var(--paper-deep);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  box-shadow: 0 2px 0 rgba(23, 53, 44, .12);
+  transition: transform .12s ease, box-shadow .12s ease;
+}
+.dayTab:hover { transform: translateY(-1px); }
+.dayTab[aria-selected="true"] { color: var(--ink); border-color: var(--ink); background: #fff; box-shadow: 0 3px 0 var(--ink); }
+.dayTab[data-empty="true"] { opacity: .6; }
+.dayTab:focus-visible { outline: 2px solid var(--green); outline-offset: 2px; }
+.dayTabLabel { font-size: 11px; font-weight: 700; letter-spacing: .02em; }
+.dayTabWeather { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; font-variant-numeric: tabular-nums; }
+.dayTabWeather svg { color: #d39b2f; }
+
+.roomBody { display: grid; grid-template-columns: minmax(180px, 260px) minmax(0, 1fr); gap: 16px; align-items: start; }
+
+/* The stage: a little pixel diorama the panda stands on. */
+.stage {
+  position: relative;
+  display: grid;
+  place-items: end center;
+  min-height: 300px;
+  padding: 18px 12px 26px;
+  border: 2px solid var(--ink);
+  border-radius: 6px;
+  overflow: hidden;
+  background:
+    linear-gradient(to bottom, transparent 78%, #cfe0c4 78%, #cfe0c4 84%, #b8cfa9 84%),
+    linear-gradient(#e6f1f4, #f6f2e6);
+  box-shadow: 4px 4px 0 rgba(33, 62, 64, .18);
+}
+.stage[data-weather="rain"] { background: linear-gradient(to bottom, transparent 78%, #b9cbb7 78%, #b9cbb7 84%, #a5bba2 84%), linear-gradient(#c9d5dc, #e5e8e2); }
+.stage[data-weather="snow"] { background: linear-gradient(to bottom, transparent 78%, #f4f6f7 78%, #f4f6f7 84%, #dde5ea 84%), linear-gradient(#d7e3ec, #f2f5f6); }
+.stage[data-weather="sun"] { background: linear-gradient(to bottom, transparent 78%, #d8e3b4 78%, #d8e3b4 84%, #c4d39b 84%), linear-gradient(#f7ecc8, #fbf6e6); }
+.dollWrap { position: relative; z-index: 1; width: min(100%, 208px); }
+.dollPixels { display: block; width: 100%; height: auto; image-rendering: pixelated; }
+.dollImages { position: relative; width: 100%; }
+.dollImages img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; }
+.dollImages[data-pixelated="true"] img { image-rendering: pixelated; }
+.plinth { position: absolute; bottom: 10px; left: 50%; width: 46%; height: 6px; transform: translateX(-50%); background: rgba(23, 53, 44, .14); }
+
+/* Weather pixels. */
+.particles { position: absolute; inset: 0; pointer-events: none; }
+.particles i {
+  position: absolute;
+  top: -8%;
+  left: var(--x);
+  width: 3px;
+  height: 7px;
+  background: rgba(79, 111, 145, .55);
+  animation: fall 1.1s linear var(--delay) infinite;
+}
+.particles[data-weather="snow"] i { width: 4px; height: 4px; background: #fff; box-shadow: 0 0 0 1px rgba(79, 111, 145, .25); animation-duration: 3.2s; }
+.particles[data-weather="wind"] i { top: calc(var(--x) * .6 + 10%); left: -20%; width: 22px; height: 2px; background: rgba(33, 62, 64, .2); animation: gust 1.8s linear var(--delay) infinite; }
+.particles[data-still="true"] i { animation: none; top: calc(var(--x) * .7); }
+.sun {
+  position: absolute;
+  top: 16px;
+  right: 18px;
+  width: 22px;
+  height: 22px;
+  background: #f2c94c;
+  box-shadow: 0 -6px 0 -3px #f2c94c, 0 6px 0 -3px #f2c94c, 6px 0 0 -3px #f2c94c, -6px 0 0 -3px #f2c94c, 0 0 0 4px rgba(242, 201, 76, .25);
+}
+@keyframes fall { to { transform: translateY(340px); } }
+@keyframes gust { to { transform: translateX(420px); } }
+
+/* The kit: thermometer, slots, and why. */
+.kit { display: grid; gap: 12px; min-width: 0; }
+.thermometer { display: grid; gap: 6px; }
+.thermoTrack {
+  position: relative;
+  height: 12px;
+  border: 2px solid var(--ink);
+  border-radius: 3px;
+  background: repeating-linear-gradient(90deg, transparent 0 calc(100% / 11 - 2px), rgba(255, 255, 255, .7) calc(100% / 11 - 2px) calc(100% / 11)),
+    linear-gradient(90deg, #5d86b5, #9fc2d8 36%, #e8d58f 64%, #d9784f);
+  overflow: hidden;
+}
+.thermoRange { position: absolute; top: 0; bottom: 0; border-left: 3px solid var(--ink); border-right: 3px solid var(--ink); background: rgba(255, 255, 255, .35); }
+.thermoLabels { display: flex; justify-content: space-between; gap: 10px; color: var(--muted); font-size: 12px; }
+.thermoLabels b { color: var(--ink); font-variant-numeric: tabular-nums; }
+
+.slots { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 6px; list-style: none; }
+.slot {
+  display: grid;
+  align-content: start;
+  gap: 5px;
+  min-height: 58px;
+  padding: 7px 8px;
+  border: 2px dashed rgba(33, 62, 64, .16);
+  border-radius: 6px;
+  background: rgba(242, 238, 227, .55);
+}
+.slot[data-filled="true"] { border-style: solid; border-color: rgba(33, 62, 64, .22); background: #fff; }
+.slotLabel { color: var(--soft); font-size: 10px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
+.slotEmpty { color: var(--soft); font-size: 12px; }
+.slotItems { display: flex; flex-wrap: wrap; gap: 4px; }
+.item {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 7px;
+  border: 1.5px solid rgba(33, 62, 64, .25);
+  border-radius: 4px;
+  color: var(--ink);
+  background: var(--paper);
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+  transition: transform .12s ease, box-shadow .12s ease;
+}
+.item:hover { transform: translateY(-1px); box-shadow: 0 2px 0 rgba(33, 62, 64, .18); }
+.item[data-kind="extra"] { border-style: dashed; border-color: #9f7fb3; }
+.item[aria-pressed="true"] { border-color: var(--ink); background: #fff; box-shadow: 0 2px 0 var(--ink); }
+.item:focus-visible { outline: 2px solid var(--green); outline-offset: 1px; }
+.swatch { flex: none; width: 10px; height: 10px; border: 1px solid rgba(33, 62, 64, .35); }
+.extraMark { flex: none; color: #8a68a3; }
+
+.detail { min-height: 56px; padding: 9px 11px; border-radius: 6px; background: var(--paper-deep); font-size: 13px; }
+.detailHint { color: var(--muted); }
+.detailName { display: flex; align-items: center; gap: 8px; font-weight: 650; }
+.detailName span { padding: 1px 6px; border-radius: 4px; color: var(--green); background: var(--green-soft); font-size: 11px; font-weight: 600; }
+.detailName span[data-kind="extra"] { color: #6f4f87; background: #efe5f4; }
+.detail ul { margin-top: 4px; padding-left: 16px; color: var(--ink); }
+
+.notes { display: grid; gap: 4px; padding-top: 10px; border-top: 1px solid var(--line); color: var(--ink); font-size: 13px; line-height: 1.6; }
+.notes p + p { color: var(--muted); }
+.noOutfit { color: var(--muted); font-size: 13px; }
+
+/* The packing list: a backpack of tiles. */
+.packCount { margin-left: auto; padding: 3px 9px; border: 2px solid var(--ink); border-radius: 4px; font-size: 12px; font-weight: 700; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.packBar { display: flex; gap: 2px; }
+.packBar i { flex: 1; height: 6px; background: var(--paper-deep); }
+.packBar i[data-on="true"] { background: var(--green); }
+.packGrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 6px; list-style: none; }
+.packTile {
+  position: relative;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 2px 7px;
+  padding: 8px 10px;
+  border: 2px solid rgba(33, 62, 64, .18);
+  border-radius: 6px;
+  background: #fff;
+  cursor: pointer;
+  transition: background .15s ease, border-color .15s ease;
+}
+.packTile input { position: absolute; opacity: 0; pointer-events: none; }
+.packTile:focus-within { outline: 2px solid var(--green); outline-offset: 1px; }
+.packTile[data-extra="true"] { border-style: dashed; border-color: #b9a2c8; }
+.packTile[data-packed="true"] { border-color: var(--green); background: var(--green-soft); }
+.packTile[data-packed="true"] .packName { text-decoration: line-through; text-decoration-color: rgba(79, 131, 107, .6); }
+.packName { font-size: 13px; font-weight: 600; }
+.packDays { grid-column: 2; color: var(--muted); font-size: 11px; }
+
+@media (max-width: 720px) {
+  .roomBody { grid-template-columns: minmax(0, 1fr); }
+  .stage { min-height: 260px; }
+  .dollWrap { width: min(70%, 190px); }
+  .slots { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dayTab, .item { transition: none; }
+  .particles i { animation: none; }
+}

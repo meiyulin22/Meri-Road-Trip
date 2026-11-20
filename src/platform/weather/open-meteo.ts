@@ -17,7 +17,10 @@ import type { ForecastAnswer, PointForecast, WeatherForecast } from "./weather-f
  */
 export const openMeteoLimits = { intervalMs: 200, dailyUnits: providerLimits.openMeteoCallsPerDay, pauseMs: 10 * 60 * 1_000 } as const;
 const endpoint = "https://api.open-meteo.com/v1/forecast";
-const timeoutMs = 10_000;
+// Measured 2026-11-20 from this Mac without the proxy: about 7 s and often past 10 s to Open-Meteo's
+// servers abroad; through the proxy about 1.3 s. merlin chose no proxy and a generous wait: a slower
+// Generate plan is fine (2026-11-20). The China VPS will meet the same route.
+const timeoutMs = 30_000;
 const dailyVariables = [
   "weather_code", "temperature_2m_max", "temperature_2m_min", "precipitation_sum",
   "precipitation_probability_max", "snowfall_sum", "wind_gusts_10m_max",

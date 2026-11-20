@@ -128,8 +128,11 @@ export function kmBetween(from: GeoPoint, to: GeoPoint): number {
 
 /**
  * Which points a city's spots are forecast at: each located spot joins the first point within
- * `sharedPointKm` of it, or starts its own; a spot the map did not locate uses the city's centre,
- * when there is one. Spots with neither get no point and no weather.
+ * `sharedPointKm` of it, or starts its own. A spot the map did not locate shares the point most
+ * located spots share, which is the town where the sights are; only when nothing in the city was
+ * located does it use the city's centre. Measured 2026-11-20: Tianditu's centre for 大理白族自治州
+ * sits in the mountains at 3,304 m, so 大理 read 0–9° while the town is near 2,000 m. Spots with
+ * neither get no point and no weather.
  */
 export function weatherPoints(
   spots: readonly { readonly id: string; readonly point: GeoPoint | null }[],
@@ -147,7 +150,14 @@ export function weatherPoints(
     assigned.set(spot.id, { index, source: "spot" });
   }
   const unlocated = spots.filter(({ point }) => point === null);
-  if (unlocated.length > 0 && cityCentre) {
+  if (unlocated.length === 0) return { points, assigned };
+  if (points.length > 0) {
+    const members = points.map((_, index) => [...assigned.values()].filter((at) => at.index === index).length);
+    const town = members.indexOf(Math.max(...members));
+    for (const spot of unlocated) assigned.set(spot.id, { index: town, source: "city" });
+    return { points, assigned };
+  }
+  if (cityCentre) {
     points.push(cityCentre);
     for (const spot of unlocated) assigned.set(spot.id, { index: points.length - 1, source: "city" });
   }

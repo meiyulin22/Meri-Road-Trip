@@ -13,6 +13,12 @@ const skyIcon: Record<WeatherSky, typeof Sun> = {
   clear: Sun, cloudy: CloudSun, overcast: Cloud, fog: CloudFog, drizzle: CloudDrizzle, rain: CloudRain, snow: Snowflake, thunderstorm: CloudLightning,
 };
 
+/** A sky's icon, for other parts of the plan that show the day's weather (1.2117 outfit). */
+export function SkyIcon({ sky, size }: { readonly sky: WeatherSky; readonly size: number }) {
+  const Icon = skyIcon[sky];
+  return <Icon aria-hidden="true" size={size} />;
+}
+
 type Reason = WeatherLine["reasons"][number];
 
 const copy = {

@@ -28,7 +28,7 @@ const copy = {
     answered: (question: string, choice: string | null) => `${question} → ${choice ?? "left to Meri"}`,
     stages: {
       scope: "Read the trip", research: "Research spots", map: "Locate on Tianditu", route: "Plan the route", transfers: "Between cities",
-      days: "Choose each day's spots", verify: "Check opening and booking", drive: "Getting around", photos: "Pick day photos", save: "Save the plan",
+      days: "Choose each day's spots", verify: "Check opening and booking", drive: "Getting around", outfit: "Dress for the weather", photos: "Pick day photos", save: "Save the plan",
     } satisfies Record<PlanStage, string>,
     summary: (stage: PlanStage, s: Readonly<Record<string, number>>): string => {
       switch (stage) {
@@ -41,6 +41,7 @@ const copy = {
           + (s.moved ? ` · ${s.moved} moved` : "") + (s.closed ? ` · ${s.closed} closed` : "");
         case "transfers": return `${s.estimated}/${s.legs} ${s.legs === 1 ? "leg" : "legs"} estimated` + (s.lookups ? ` · ${s.lookups} lookups` : "");
         case "drive": return `${s.legs} ${s.legs === 1 ? "leg" : "legs"}` + (s.lookups ? ` · ${s.lookups} lookups` : "");
+        case "outfit": return `${s.days} ${s.days === 1 ? "day" : "days"} dressed` + (s.extras ? ` · ${s.extras} extras from Meri` : "");
         case "photos": return `${s.photos} ${s.photos === 1 ? "photo" : "photos"}`;
         case "save": return `version ${s.version}`;
       }
@@ -78,7 +79,7 @@ const copy = {
     answered: (question: string, choice: string | null) => `${question} → ${choice ?? "交给 Meri 决定"}`,
     stages: {
       scope: "读取行程范围", research: "调研景点", map: "天地图定位", route: "规划路线", transfers: "查转场",
-      days: "按天选景点", verify: "核实开放与预约", drive: "查交通", photos: "配图", save: "保存计划",
+      days: "按天选景点", verify: "核实开放与预约", drive: "查交通", outfit: "搭配穿衣", photos: "配图", save: "保存计划",
     } satisfies Record<PlanStage, string>,
     summary: (stage: PlanStage, s: Readonly<Record<string, number>>): string => {
       switch (stage) {
@@ -91,6 +92,7 @@ const copy = {
           + (s.moved ? ` · ${s.moved} 处换日` : "") + (s.closed ? ` · ${s.closed} 处关闭` : "");
         case "transfers": return `估算 ${s.estimated}/${s.legs} 段` + (s.lookups ? ` · 查询 ${s.lookups} 次` : "");
         case "drive": return `${s.legs} 段路程` + (s.lookups ? ` · 查询 ${s.lookups} 次` : "");
+        case "outfit": return `${s.days} 天穿搭` + (s.extras ? ` · Meri 补充 ${s.extras} 样` : "");
         case "photos": return `${s.photos} 张`;
         case "save": return `第 ${s.version} 版`;
       }

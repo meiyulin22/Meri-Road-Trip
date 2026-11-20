@@ -70,7 +70,8 @@ export async function addCityWeather(
     return { city: withWeather(() => (beyond.length > 0 ? { status: "beyond_range" } : { status: "unavailable" })), calls: 0 };
   }
 
-  const needsCentre = city.spots.some((card) => pointOf(card) === null);
+  // The centre only when nothing in the city was located; otherwise unlocated spots share the town's point.
+  const needsCentre = city.spots.every((card) => pointOf(card) === null);
   const centre = needsCentre ? await deps.cityCentre(city.city) : null;
   const { points, assigned } = weatherPoints(city.spots.map((card) => ({ id: card.id, point: pointOf(card) })), centre);
   if (points.length === 0) return { city: withWeather(() => ({ status: "unavailable" })), calls: 0 };

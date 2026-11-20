@@ -10,6 +10,7 @@ import { planTransfers, type TransferDependencies } from "@/agents/transport/tra
 import { maxVerifySearches, type VerifyProgress, type VerifyResult } from "@/agents/planner/verify-spots";
 import { checkSpotsOnMap, type MapCheckDependencies, type MapCheckStop } from "@/agents/planner/map-check";
 import { addCityWeather, cityCentreLookup } from "@/agents/planner/spot-weather";
+import { dressDays } from "@/agents/planner/day-outfits";
 import { draftCityDays } from "@/agents/planner/plan-days";
 import { planRoute, type PlanModelDependencies, type PlanUsage, type ReadyScope } from "@/agents/planner/plan-route";
 import {
@@ -134,6 +135,7 @@ export const stepStages = {
   "verify-facts": "verify",
   "verify-repair": "verify",
   "drive-legs": "drive",
+  "day-outfits": "outfit",
   "day-photos": "photos",
   "save-plan": "save",
 } as const satisfies Record<string, PlanStage>;
@@ -227,6 +229,10 @@ export function stageSummary(stepId: string, output: unknown): { stage: PlanStag
     case "drive": {
       const { draft, driveLookups } = output as DriveResultState;
       return { stage, summary: { legs: draft.legs?.length ?? 0, lookups: driveLookups } };
+    }
+    case "outfit": {
+      const outfits = (output as DriveResultState).draft.outfits ?? [];
+      return { stage, summary: { days: outfits.length, extras: outfits.reduce((sum, { extras }) => sum + extras.length, 0) } };
     }
     case "photos":
       return { stage, summary: { photos: (output as PhotosResult).dayPhotos.length } };
@@ -692,6 +698,28 @@ export function createPlanGenerationWorkflow(deps: PlanGenerationDependencies) {
     },
   });
 
+  /**
+   * What to wear each day with a forecast (1.2117 outfit), once the days are final: code's basics
+   * from the weather, then one Kimi call for additions; the plan never waits on it failing.
+   */
+  const outfitsStep = createStep({
+    id: "day-outfits",
+    inputSchema: z.custom<DriveResultState>(),
+    outputSchema: z.custom<DriveResultState>(),
+    stateSchema: runState,
+    execute: async ({ inputData, state, writer }) => {
+      const { emit, flush } = emitter(writer);
+      const result = await dressDays(state.handoff, inputData.draft.days, cardsOf(inputData.cities), deps.planModel);
+      for (const outfit of result.outfits) emit({ type: "day.outfit", outfit });
+      await flush();
+      return {
+        ...inputData,
+        draft: result.outfits.length > 0 ? { ...inputData.draft, outfits: [...result.outfits] } : inputData.draft,
+        usage: addUsage(inputData.usage, result.usage),
+      };
+    },
+  });
+
   const photosStep = createStep({
     id: "day-photos",
     inputSchema: z.custom<DriveResultState>(),
@@ -758,6 +786,7 @@ export function createPlanGenerationWorkflow(deps: PlanGenerationDependencies) {
     // The validation loop: repair and re-check until nothing is closed, at most maxRepairRounds rounds.
     .dountil(verifyRepairStep, async ({ inputData }) => inputData.verify.done)
     .then(driveStep)
+    .then(outfitsStep)
     .then(photosStep)
     .then(saveStep)
     .commit();

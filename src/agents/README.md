@@ -22,6 +22,7 @@ shapes the Planner — business, page, run, tools, memory — is kept in Chinese
 | Implemented (1.2013) | The validation stage: the second round checks opening, closures and booking for the trip's dates; code moves a closed stop, the Plan Agent re-plans what code cannot fix, in a Mastra `dountil` loop ("The validation stage") |
 | Implemented (1.2014) | The evaluation set: ten sample trips run through the real workflow, with numbers and code-judged expectations saved per version ("Evaluation") |
 | Implemented (1.2117) | Weather from Open-Meteo at each spot inside research; the route's detour guard; outdoor stops kept off poor-weather days ("Weather") |
+| Implemented (1.2117 outfit) | What to wear each day: code's basics from the weather, Kimi's checked additions, a dressing room and a packing list on the plan page ("What to wear") |
 | Planned | A near-departure weather refresh, a reviewer agent, tracing storage |
 
 ## 1. Why an agent here
@@ -196,7 +197,9 @@ bill, for non-commercial use (decided 2026-11-20: Meri charges nothing and has n
 must be credited wherever weather is shown. Its free tier allows 10,000 calls a day per address;
 Meri stops itself at `OPEN_METEO_MAX_CALLS_PER_DAY` (2000 by default), counted across restarts in
 `.cache/open-meteo-calls.json` the way Open-Meteo counts: one call per point, double for a range
-past two weeks. Requests are 0.2 s apart; a failure pauses weather for ten minutes with no retry,
+past two weeks. Requests are 0.2 s apart and wait up to 30 s: from this Mac without the proxy a request
+took about 7 s and often more than 10 s (2026-11-20), which first left a whole run without weather;
+merlin chose a longer wait over the proxy. A failure pauses weather for ten minutes with no retry,
 and the plan goes on without it. One probe on 2026-11-20 is the recorded fixture
 (`fixtures/open-meteo-lijiang-2026-11-21.json`): 丽江古城 at 2454 m read 2–16°, 玉龙雪山 at
 5026 m read −11 to −1° on the same day, because Open-Meteo corrects each point to its elevation.
@@ -209,7 +212,7 @@ the two cases the tests use.
 | Step | Rule | Why |
 | --- | --- | --- |
 | 1. Dates | The trip's dates inside today + 15 days (Beijing); later dates are marked `beyond` and read "check again before you go"; a trip without dates asks nothing | The forecast reaches 16 days |
-| 2. Points | A located spot uses its own point; a spot within 2 km of an earlier point shares it; unlocated spots use the city's centre (the transfers' cache, else one Tianditu search under the run's stop) | Altitude matters, a mountain and the town below it never share; an old town's sights do |
+| 2. Points | A located spot uses its own point; a spot within 2 km of an earlier point shares it; an unlocated spot shares the point most located spots share (the town), and only when nothing in the city was located uses the city's centre (the transfers' cache, else one Tianditu search under the run's stop) | Altitude matters, a mountain and the town below it never share; an old town's sights do. Tianditu's centre for 大理白族自治州 sits at 3,304 m in the mountains (found 2026-11-20), so it is the last resort |
 | 3. Request | One request a city for all its points, the dates from first to last | 3–6 points a city stays far under the cap |
 | 4. Failure | The city's spots read `unavailable`; nothing is retried | Weather improves a plan, it never blocks one |
 
@@ -304,6 +307,67 @@ route guard also counts poor-weather days (steps 3–5 above); that case is a un
 Not built: a near-departure refresh within three days of setting off (thresholds and a 「按新天气重排这一天」
 action), and official warnings, which Open-Meteo does not have.
 
+### What to wear (1.2117 outfit)
+
+Agreed with merlin on 2026-11-20: code decides the basics so nothing needed is ever missing, and
+Kimi adds what only the day's spots reveal. It runs as `day-outfits`, after the drive legs, once
+the days are final ([day-outfits.ts](planner/day-outfits.ts), rules in
+[domain/plan/outfit.ts](../domain/plan/outfit.ts)).
+
+**Basics, by code.** A day meets the forecasts of its own stops (or its city's weather when no stop
+has one). Layers follow the **coldest** point, because the traveller is out all day and does not go
+back to change (merlin), so there is no morning and afternoon split:
+
+| Coldest point of the day | Basics |
+| --- | --- |
+| ≥ 20° | T-shirt |
+| 12–20° | long sleeves + windbreaker |
+| 5–12° | long sleeves + fleece + waterproof shell |
+| 0–5° | thermal top + fleece + down jacket |
+| < 0° | the same + thermal leggings + beanie + gloves |
+
+Then: rain ≥ 5 mm or a 60% chance → umbrella; a thunderstorm, ≥ 25 mm, or gusts ≥ 62 km/h → a
+waterproof shell instead (an umbrella does not hold in a gale), and waterproof shoes in a storm;
+snow → waterproof shoes and gloves; a stop at 3,000 m or more → sunglasses and sunscreen; clear and
+25° or more → sun hat and sunscreen; trousers and walking shoes always. Altitude counts only at a
+stop's own point, never at the city's weather point. High and low 10° or more
+apart: the page reminds the traveller to wear a layer they can take off and carry. Every basic keeps
+why, as data (the place and the number), so the page words it in either language. Measured case:
+玉龙雪山 −11° at 5,369 m and 丽江古城 2° on one day give down jacket, thermal layers, beanie,
+gloves, sunglasses and sunscreen, and the layers reminder.
+
+**Additions, by Kimi.** One structured call for the whole trip sees each day's city, stops (outdoor
+flag, setting quote), weather per place and the basics, and may add up to four things a day the
+basics miss (knee support for many steps, a hand warmer on a cold cable car, an oxygen can above
+4,000 m), each with a slot (head, face, neck, top, mid, outer, hands, legs, feet, bag) and one
+reason, plus one tip for the day. Code keeps an addition only with a name of 10 characters or less,
+a known slot and a reason, never one named like any basic, worn that day or not (the first live run
+added "Umbrella" and "Rain shell"), and no repeats; a long reason or tip is cut. A failed, slow (30 s) or unbuildable call leaves the basics; a trip without any forecast
+makes no call. About 300 input and 60 output tokens a day.
+
+**Page.** One dressing room for the trip, placed under the map and like it one tab a day, following
+the day opened below ([plan-outfit.tsx](../components/trip-plan/plan-outfit.tsx)): the red panda on
+a small pixel stage with rain, snow, wind or sun from the day's reasons; its kit arrives one piece at
+a time, bottom layer first; ten equipment slots list what goes where (Meri's additions dashed and
+marked); a chosen piece stays bright on the panda and says why; a pixel thermometer shows the
+coldest and warmest and where; under it the layers reminder and Meri's tip. Each day card has one
+line ("今日穿搭：羽绒服 · 毛线帽 · 手套 · 墨镜") that jumps there. After the days, a packing list
+gathers everything with the days it is worn; ticks stay in this browser only. A day past the
+forecast says to decide once the forecast is out.
+
+**Measured on 2026-11-20** through the plan page (大理 + 丽江 + 迪庆, 4 days from 2026-11-26): the step
+took 10 s for one call over four days and dressed all four; Kimi added ten things (knee brace, face
+mask, crampons, an oxygen can for 玉龙雪山 at −12°). The page drew the panda, the slots, the reasons,
+the day line and the packing list on desktop and at phone width. Three faults it found were fixed:
+Open-Meteo timing out from this Mac (the wait is now 30 s), the city-centre point at 3,304 m (now
+the last resort, and altitude counts only at a stop's own point), and additions naming basics.
+
+**Art.** Placeholder pixels on a 32 × 40 grid until Codex draws the red panda as a paper doll: one
+still base and one transparent overlay per basic on the same canvas, listed in
+`public/companion/outfit/manifest.json` (`version`, `canvas`, `pixelated`, `base`, `items` with
+`file` and `z`, optional `icons`), checked by `outfitManifestSchema`. A missing or malformed manifest
+means placeholders, never an error; the whole stack bobs in code, so the base must be still.
+
 ### Plan Agent: route and days
 
 The Plan Agent is two functions, so the plan page's future chat (routed by Jev) can call
@@ -351,6 +415,7 @@ plan-generation   input { runId, tripId, handoff }   state { handoff, scope, def
   .then(plan-days)                        draftCityDays per city in route order, then finishDraft
   (validation stage: verify-facts, dountil verify-repair; see below)
   .then(drive-legs)                       transport/legs.ts: walk or drive between neighbouring stops (1.2102–1.2103)
+  .then(day-outfits)                      dressDays: what to wear each day with a forecast (1.2117 outfit)
   .then(day-photos)                       dayPhotos from the local catalog only
   .then(save-plan)                        a new plan version
 ```

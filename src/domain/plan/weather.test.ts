@@ -46,7 +46,7 @@ test("the trip's dates split by the forecast's sixteen-day reach; days gone are 
   });
 });
 
-test("spots within 2 km share a point; a mountain keeps its own; unlocated spots use the city centre", () => {
+test("spots within 2 km share a point; a mountain keeps its own; unlocated spots share the town's point", () => {
   const oldTown = { longitude: 100.2299, latitude: 26.8721 };
   const muFu = { longitude: 100.2330, latitude: 26.8700 };
   const snowMountain = { longitude: 100.1836, latitude: 27.1006 };
@@ -55,10 +55,16 @@ test("spots within 2 km share a point; a mountain keeps its own; unlocated spots
   const { points, assigned } = weatherPoints([
     { id: "a", point: oldTown }, { id: "b", point: muFu }, { id: "c", point: snowMountain }, { id: "d", point: null },
   ], centre);
-  assert.deepEqual(points, [oldTown, snowMountain, centre]);
+  // The unlocated spot shares the town's point, which two located spots share; the centre is not asked.
+  assert.deepEqual(points, [oldTown, snowMountain]);
   assert.deepEqual(assigned.get("b"), { index: 0, source: "spot" });
   assert.deepEqual(assigned.get("c"), { index: 1, source: "spot" });
-  assert.deepEqual(assigned.get("d"), { index: 2, source: "city" });
+  assert.deepEqual(assigned.get("d"), { index: 0, source: "city" });
+
+  // Nothing located: the city's centre.
+  const nothingLocated = weatherPoints([{ id: "d", point: null }], centre);
+  assert.deepEqual(nothingLocated.points, [centre]);
+  assert.deepEqual(nothingLocated.assigned.get("d"), { index: 0, source: "city" });
 
   const noCentre = weatherPoints([{ id: "d", point: null }], null);
   assert.deepEqual(noCentre.points, []);

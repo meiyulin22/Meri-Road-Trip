@@ -148,7 +148,7 @@ test("streams real progress city by city, stops the map at its first failure, an
   // Sequence numbers have no gaps, and the page sees the stages in workflow order.
   assert.deepEqual(events.map(({ seq }) => seq), events.map((_, index) => index + 1));
   assert.deepEqual(events.filter(({ event }) => event.type === "stage.started").map(({ event }) => "stage" in event && event.stage),
-    ["scope", "research", "map", "route", "transfers", "days", "verify", "drive", "photos", "save"]);
+    ["scope", "research", "map", "route", "transfers", "days", "verify", "drive", "outfit", "photos", "save"]);
   assert.equal(types[0], "stage.started");
   assert.equal(types.at(-1), "run.finished");
   // Route before any day, and each day as its city is drafted.
@@ -616,8 +616,8 @@ test("each city's spots get their forecast inside research, and the saved plan k
   const started = begun(await service.start(tripId, dated));
   const events = await followToEnd(service, repository, started.runId);
 
-  // The fake map fails at 蓝月谷, which stops Tianditu for the run: a spot left unlocated then has no
-  // centre to fall back on and no weather; every other spot has its forecast.
+  // The fake map fails at 蓝月谷, which stops Tianditu for the run: a spot left unlocated shares the
+  // forecast of its city's located spots, so every spot has one.
   // One request a city, over the whole trip's dates (now is 2026-11-15, so all five are inside the forecast).
   assert.equal(asked.length, 2);
   assert.ok(asked.every(({ from, to }) => from === "2026-11-20" && to === "2026-11-24"));
@@ -627,5 +627,14 @@ test("each city's spots get their forecast inside research, and the saved plan k
   const forecasts = spots.filter(({ weather }) => weather?.status === "forecast");
   assert.ok(forecasts.length > 0);
   assert.ok(forecasts.every(({ weather }) => weather?.status === "forecast" && weather.days.length === 5));
-  assert.ok(spots.filter(({ mapCheck }) => mapCheck.status !== "located").every(({ weather }) => weather?.status === "unavailable"));
+  assert.ok(spots.filter(({ mapCheck }) => mapCheck.status !== "located").every(({ weather }) => weather?.status === "forecast" && weather.source === "city"));
+
+  // Every dated day with a forecast is dressed (1.2117 outfit); the scripted model has no outfit
+  // answer, so the days keep code's basics and the run still finishes.
+  const outfits = repository.versions[0].plan.draft.outfits ?? [];
+  assert.equal(outfits.length, 5);
+  assert.ok(outfits.every(({ items, extras }) => items.some(({ id }) => id === "trousers") && extras.length === 0));
+  assert.ok(events.some(({ event }) => event.type === "day.outfit"));
+  const stormDay = outfits.find(({ date }) => date === "2026-11-21");
+  assert.ok(stormDay?.items.some(({ id }) => id === "shell_jacket"));
 });
