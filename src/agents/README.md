@@ -234,7 +234,7 @@ fact, and is used only to arrange days by weather.
 
 | Priority | What | Who holds it |
 | --- | --- | --- |
-| 1 | The route's rules: every city once, the days add up, only a city the traveller chose may go | Code (`reviewRoute`) |
+| 1 | The route's rules: every city once, at least a day each and the days add up; no city is left out without cause (fewer days than cities, research found nothing there, or the traveller chose it when asked) | Code (`reviewRoute`) |
 | 2 | Distance: never more than 30% longer than the shortest order | Code (route guard) |
 | 3 | Weather: among the orders within that 30%, the fewest poor-weather days | Code (route guard) |
 | 4 | Taste: which city gets more days, each day's theme | The model |
