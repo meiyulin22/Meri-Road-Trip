@@ -60,7 +60,8 @@ const extractionAnswerSchema = z.object({
     setting: looseCitation.nullable().optional(),
     walking: looseCitation.nullable().optional(),
     suggestedDuration: looseCitation.nullable().optional(),
-    outdoor: z.boolean().nullable().optional(),
+    // Anything but true or false reads as unsure: a stray "unsure" must not cost the city its cards.
+    outdoor: z.unknown().optional(),
   })),
 });
 

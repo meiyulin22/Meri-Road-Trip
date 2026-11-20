@@ -267,8 +267,9 @@ test("a card whose quote names the prefecture stays, though the model wrote the 
         return chatResponse(request, { content: JSON.stringify({ spots: ["独克宗古城", "松赞林寺", "梅里雪山"] }) });
       }
       return chatResponse(request, { content: JSON.stringify({ spots: [
-        { name: "独克宗古城", location: location(1, "独克宗古城位于云南省迪庆藏族自治州香格里拉市"), ...unknown },
-        { name: "松赞林寺", location: location(2, "松赞林寺位于迪庆州香格里拉市北郊"), ...unknown },
+        // outdoor (1.2117) is read only as true or false; a stray word is unsure, never a failed extraction.
+        { name: "独克宗古城", location: location(1, "独克宗古城位于云南省迪庆藏族自治州香格里拉市"), ...unknown, outdoor: true },
+        { name: "松赞林寺", location: location(2, "松赞林寺位于迪庆州香格里拉市北郊"), ...unknown, outdoor: "unsure" },
         // The quote names no city: the model's 香格里拉 alone is not enough.
         { name: "梅里雪山", location: location(3, "梅里雪山,并在附近饭店办理入住"), ...unknown },
       ] }) });
@@ -293,6 +294,7 @@ test("a card whose quote names the prefecture stays, though the model wrote the 
     ["独克宗古城", "https://example.com/dukezong"],
     ["松赞林寺", "https://example.com/songzanlin"],
   ]);
+  assert.deepEqual(city.spots.map(({ outdoor }) => outdoor), [true, null]);
 });
 
 test("the agent may take its one follow-up to the second engine when the first results are thin (1.2113 step 1)", async () => {

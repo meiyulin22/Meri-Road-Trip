@@ -249,9 +249,12 @@ fact, and is used only to arrange days by weather.
 **Days: outdoor stops on good days.** `draftCityDays` shows each day's city forecast, and for each
 candidate whether it is outdoors and the days its own forecast is poor (`poorWeatherDays`). Code then
 looks for an outdoor stop on a poor day of its own point while another day of the same city is not
-poor there and has room ([plan-weather.ts](../domain/plan/plan-weather.ts)). Those go back with the
-existing second attempt ("Day 1: 玉龙雪山 is outdoors and its forecast that day is poor (gale); day 2
-has better weather there and room…"). An answer replaces the first only with fewer errors, or as many
+poor there and has room, or holds a stop that would be fine on the poor day
+([plan-weather.ts](../domain/plan/plan-weather.ts)). Those go back with the existing second attempt,
+naming a swap when there is one ("Day 1: 玉龙雪山 is outdoors and its forecast that day is poor (gale);
+day 2 has better weather there. Swap it with 丽江古城 from day 2, which is fine on day 1, or move it to
+day 2."). The swap was added after the first live run, where the model was told only to move 黑龙潭公园
+and kept it on its thunderstorm day. An answer replaces the first only with fewer errors, or as many
 errors and no more weather issues. A stop still on a poor day stays, and the page shows its forecast
 under it. The validation stage's re-planning goes through the same function, so it heeds weather too.
 
@@ -265,6 +268,19 @@ to open-meteo.com ([plan-weather.tsx](../components/trip-plan/plan-weather.tsx))
 city centre, and after a Tianditu failure has no weather at all); the city weather feeds the route
 order, bounded by the detour guard; the route's dates decide which day's forecast each stop meets;
 the days avoid poor days for outdoor stops; the validation stage's repairs reuse the same rules.
+**Measured on 2026-11-20** (four live runs, 大理 + 丽江 + 迪庆 over 4 days from 2026-11-24, then 丽江
+alone over 2 days; 丽江 had a thunderstorm with 22.5 mm forecast for the 24th): weather took one
+request per city (2–3 points each), and every card had its forecast. The page showed each day's sky
+and range, the 「不宜户外」 line, 黑龙潭公园's own thunderstorm line and the Open-Meteo credit. The
+detour guard fired once: the model ordered 丽江 → 大理 → 迪庆 (346 km) twice and code put the cities
+in the shortest order, 大理 → 丽江 → 迪庆 (252 km); another run chose that order itself. On the
+2-day 丽江 trip the stormy day went to 玉龙雪山 and 拉市海, and 丽江古城 and 束河古镇 moved to the dry
+day. Two faults were fixed after the first run: a strict `outdoor` field could throw away a
+city's whole extraction for one stray value (迪庆 came back with no cards), and the send-back only
+said "move it", so 黑龙潭公园 stayed on its thunderstorm day; it now names a swap. Still open: in
+the first run the route put 丽江 first, on its thunderstorm day, when 大理 had only rain; with two
+cities both orders are the same length, so the weather choice is the model's alone.
+
 Not built: a near-departure refresh within three days of setting off (thresholds and a 「按新天气重排这一天」
 action), and official warnings, which Open-Meteo does not have.
 

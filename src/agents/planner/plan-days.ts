@@ -193,7 +193,8 @@ export async function draftCityDays(
         ...reviewed.errors,
         ...issues.flatMap((issue) => {
           const card = cardsById.get(issue.spotId);
-          return card ? [weatherIssueText(issue, card, dateOf(issue.day))] : [];
+          const swap = issue.swapWith ? cardsById.get(issue.swapWith)?.name ?? null : null;
+          return card ? [weatherIssueText(issue, card, dateOf(issue.day), swap)] : [];
         }),
       ];
     } catch (error) {

@@ -143,7 +143,7 @@ test("an outdoor stop on its poor-weather day is sent back once when another day
     [["黑龙潭", false, []], ["玉龙雪山", true, [1]], ["丽江古城", false, []]]);
   assert.deepEqual(dayPrompts[0].days[0].weather, { sky: "cloudy", outdoor: "good", rainMm: 0, low: -10, high: 0 });
   assert.deepEqual(dayPrompts[1].problemsWithPreviousAnswer, [
-    "Day 1: 玉龙雪山 is outdoors and its forecast that day is poor (gale); day 2 has better weather there and room. Move it, or choose an indoor candidate for day 1.",
+    "Day 1: 玉龙雪山 is outdoors and its forecast that day is poor (gale); day 2 has better weather there. Swap it with 丽江古城 from day 2, which is fine on day 1, or move it to day 2.",
   ]);
   assert.deepEqual(moved.days.map(({ stops }) => spotNames(stops)), [["黑龙潭"], ["玉龙雪山", "丽江古城"]]);
 
@@ -156,4 +156,24 @@ test("an outdoor stop on its poor-weather day is sent back once when another day
   const plain = await draftCityDays(trip, scope.mode, frames, lijiang.spots.slice(0, 3), { model: modelAnswering({ days: [windy], dayPrompts: plainPrompts }) });
   assert.equal(plain.status === "ready" && plain.attempts, 1);
   assert.equal("poorWeatherDays" in plainPrompts[0].candidates[1], false);
+});
+
+test("a full better day still offers a swap with a stop that is fine on the poor day (1.2117)", async () => {
+  const { weatherIssues } = await import("@/domain/plan/plan-weather");
+  const forecast = (poorFirst: boolean) => ({
+    status: "forecast" as const, source: "spot" as const, elevation: 2400, beyond: [],
+    days: [
+      { date: "2026-11-24", code: poorFirst ? 95 : 1, high: 12, low: 5, precipitationMm: poorFirst ? 22.5 : 0, precipitationChance: 100, snowfallCm: 0, gustKmh: 28 },
+      { date: "2026-11-25", code: 1, high: 14, low: 2, precipitationMm: 0, precipitationChance: 0, snowfallCm: 0, gustKmh: 22 },
+    ],
+  });
+  const [lake, mountain, town] = lijiang.spots.slice(0, 3).map((item, index) => ({ ...item, outdoor: true, weather: forecast(index !== 1) }));
+  const frame = { province: "云南省", city: "丽江市", arrivingFrom: null, focus: null, theme: null };
+  const days = [
+    { ...frame, day: 1, date: "2026-11-24", stops: [{ spotId: lake.id, slot: "evening" as const, anchor: null }] },
+    { ...frame, day: 2, date: "2026-11-25", stops: [mountain, town].map(({ id }) => ({ spotId: id, slot: "morning" as const, anchor: null })) },
+  ];
+  const cards = new Map([lake, mountain, town].map((item) => [item.id, item]));
+  // Two stops a day at most: day 2 is full, but 玉龙雪山 is fine on day 1.
+  assert.deepEqual(weatherIssues(days, cards, 2), [{ day: 1, spotId: lake.id, betterDay: 2, swapWith: mountain.id }]);
 });
