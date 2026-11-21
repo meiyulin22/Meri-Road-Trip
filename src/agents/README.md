@@ -211,6 +211,31 @@ and the plan goes on without it. One probe on 2026-11-20 is the recorded fixture
 The same answer had a thunderstorm with 22.5 mm in the town and 64 km/h gusts on the mountain,
 the two cases the tests use.
 
+**Fallback: MET Norway** (2026-11-21, [met-norway.ts](../platform/weather/met-norway.ts), joined in
+[fallback-forecast.ts](../platform/weather/fallback-forecast.ts)). A plan for 大理 on 2026-11-22..24 came back
+with no weather and so no outfit: Open-Meteo's connection was lost twice (`reason: network`). Measured from
+this Mac over three minutes, Node's own fetch lost 4 of 30 Open-Meteo requests, each at Node's ten-second
+limit on opening a connection (`UND_ERR_CONNECT_TIMEOUT`, which the 30 s wait does not cover; the cause is now
+logged), two of them back to back; MET Norway's Locationforecast answered all 30. So when Open-Meteo gives a
+city nothing, for any reason, the same points go to MET Norway: free, no key or account, CC BY 4.0 and usable
+commercially, a User-Agent naming the app (`MET_NORWAY_USER_AGENT`, never a personal address), its own cap
+(`MET_NORWAY_MAX_CALLS_PER_DAY`, 1000), one request a point, no retry, a ten-minute pause after an error answer.
+It corrects each point to its own terrain height (大理古城 2041 m, 玉龙雪山 4838 m in the recorded fixture) and
+reaches about ten days. Over China it lacks three of Open-Meteo's fields, and code works them out, marking
+the day `estimated` (merlin agreed: an estimate beats no outfit):
+
+| Missing | Worked out from | Rule |
+| --- | --- | --- |
+| Gusts | The mean wind at each step | × 1.5, the middle of WMO's 1.4–1.6 for open land; a gale (62 km/h) is then a mean of about 41 km/h |
+| Snowfall | Precipitation on a snowy step, or any step at or below 0° | 1 mm of water ≈ 1 cm of snow (10:1); sleet counts half |
+| Chance of rain | Hours with 0.1 mm or more (`wetHours`) | 3 wet hours count like a 60% chance: a "fair" day and an umbrella |
+
+Steps are hourly for two or three days and six-hourly after; each counts on the Beijing day it starts, and a
+day covered for under 12 hours (the answer starts at the current hour and ends on one reading) is left out.
+A day's code is its worst symbol, mapped to WMO (anything with thunder is 95). The page credits "Weather data
+by MET Norway (CC BY 4.0)" beside Open-Meteo whenever a card's forecast came from it (`SpotWeather.provider`),
+and estimated gusts and snow read "about" / 「约」「估算」. Not yet checked in a live plan run.
+
 **Which points** ([spot-weather.ts](planner/spot-weather.ts), rules in
 [domain/plan/weather.ts](../domain/plan/weather.ts)):
 
@@ -219,7 +244,7 @@ the two cases the tests use.
 | 1. Dates | The trip's dates inside today + 15 days (Beijing); later dates are marked `beyond` and read "check again before you go"; a trip without dates asks nothing | The forecast reaches 16 days |
 | 2. Points | A located spot uses its own point; a spot within 2 km of an earlier point shares it; an unlocated spot shares the point most located spots share (the town), and only when nothing in the city was located uses the city's centre (the transfers' cache, else one Tianditu search under the run's stop) | Altitude matters, a mountain and the town below it never share; an old town's sights do. Tianditu's centre for 大理白族自治州 sits at 3,304 m in the mountains (found 2026-11-20), so it is the last resort |
 | 3. Request | One request a city for all its points, the dates from first to last | 3–6 points a city stays far under the cap |
-| 4. Failure | The city's spots read `unavailable`; nothing is retried | Weather improves a plan, it never blocks one |
+| 4. Failure | MET Norway is asked instead (below); when it fails too, the city's spots read `unavailable` | Weather improves a plan, it never blocks one |
 
 Each card keeps its forecast (`SpotCard.weather`: `forecast` with the point's source, elevation,
 days and the dates past the reach; or `beyond_range`; or `unavailable`). A city's own weather is

@@ -17,6 +17,16 @@ export type DayForecast = {
   readonly snowfallCm: number;
   /** Strongest gust of the day, km/h. */
   readonly gustKmh: number;
+  /**
+   * Hours of the day with rain or snow, given instead of a chance by a forecast that has none
+   * (MET Norway over China). Absent from Open-Meteo forecasts and plans made before it.
+   */
+  readonly wetHours?: number;
+  /**
+   * Gusts and snowfall worked out by Meri rather than forecast: gusts from the mean wind, snow from
+   * the precipitation on snowy or freezing hours (MET Norway). The page says "about".
+   */
+  readonly estimated?: true;
 };
 
 export const weatherSkies = ["clear", "cloudy", "overcast", "fog", "drizzle", "rain", "snow", "thunderstorm"] as const;
@@ -39,9 +49,15 @@ export type SpotWeather =
     readonly elevation: number | null;
     readonly days: readonly DayForecast[];
     readonly beyond: readonly string[];
+    /** Who forecast it, for the credit the page owes; absent means Open-Meteo, the usual provider. */
+    readonly provider?: WeatherProvider;
   }
   | { readonly status: "beyond_range" }
   | { readonly status: "unavailable" };
+
+/** Open-Meteo first; MET Norway when Open-Meteo cannot be reached (2026-11-21). */
+export const weatherProviders = ["open-meteo", "met-norway"] as const;
+export type WeatherProvider = (typeof weatherProviders)[number];
 
 /** Agreed thresholds (2026-11-20). 25 mm a day is 大雨; 62 km/h is the bottom of Beaufort 8, when cable cars often stop. */
 export const weatherThresholds = {
@@ -50,6 +66,8 @@ export const weatherThresholds = {
   galeGustKmh: 62,
   wetMm: 5,
   wetChance: 60,
+  /** Without a chance of rain (MET Norway), this many wet hours count as a wet day. */
+  wetHours: 3,
 } as const;
 
 /** The forecast reaches today and fifteen days after it, sixteen days in all. */
@@ -83,7 +101,8 @@ export function outdoorRating(day: DayForecast): OutdoorRating {
     || day.snowfallCm >= weatherThresholds.heavySnowCm
     || day.gustKmh >= weatherThresholds.galeGustKmh
   ) return "poor";
-  if (day.precipitationMm >= weatherThresholds.wetMm || (day.precipitationChance ?? 0) >= weatherThresholds.wetChance) return "fair";
+  if (day.precipitationMm >= weatherThresholds.wetMm || (day.precipitationChance ?? 0) >= weatherThresholds.wetChance
+    || (day.wetHours ?? 0) >= weatherThresholds.wetHours) return "fair";
   return "good";
 }
 

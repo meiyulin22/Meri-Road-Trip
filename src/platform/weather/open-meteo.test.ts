@@ -119,5 +119,5 @@ test("an answer that is not the asked shape is a failure, never a throw", async 
 
 test("no points asks nothing", async () => {
   const forecast = createOpenMeteoForecast({ fetch: async () => { throw new Error("must not send"); }, budget: budget() });
-  assert.deepEqual(await forecast([], { from: "2026-11-21", to: "2026-11-21" }), { status: "ok", points: [] });
+  assert.deepEqual(await forecast([], { from: "2026-11-21", to: "2026-11-21" }), { status: "ok", provider: "open-meteo", points: [] });
 });

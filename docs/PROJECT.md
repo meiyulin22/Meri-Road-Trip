@@ -135,7 +135,7 @@ Photos come from a bundled local catalog, then from photos fetched at run time f
 require an explicit region and a matching place name or registered alias; administrative
 representatives are configured separately. Missing coverage produces no photo. Photos
 decorate a place and are not evidence about its identity or current conditions.
-Generate plan uses forecasts from Open-Meteo for the trip's dates (1.2117); a near-departure
+Generate plan uses forecasts from Open-Meteo for the trip's dates (1.2117), and MET Norway when Open-Meteo cannot be reached; a near-departure
 weather refresh and route research remain planned. The Scout trial exercises tool calls through Mastra. The first-round
 Research Agent runs from a PlanHandoff JSON file and returns candidate spot cards with search sources.
 See [the agents README](../src/agents/README.md).

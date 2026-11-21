@@ -3,7 +3,7 @@
 import { Cloud, CloudDrizzle, CloudFog, CloudLightning, CloudRain, CloudSun, ExternalLink, Snowflake, Sun, TriangleAlert } from "lucide-react";
 
 import type { Locale } from "@/domain/locale/locale";
-import type { WeatherSky } from "@/domain/plan/weather";
+import type { WeatherProvider, WeatherSky } from "@/domain/plan/weather";
 
 import type { DayWeatherView, WeatherLine } from "./plan-weather-view";
 import draftStyles from "./plan-draft.module.css";
@@ -31,6 +31,7 @@ const copy = {
     stopForecast: "Here that day",
     poor: (reasons: string) => `Not good for being outdoors: ${reasons}.`,
     disclaimer: "Weather is a forecast; check again before you set off.",
+    estimated: "estimated",
   },
   zh: {
     sky: { clear: "晴", cloudy: "多云", overcast: "阴", fog: "雾", drizzle: "小雨", rain: "雨", snow: "雪", thunderstorm: "雷阵雨" } satisfies Record<WeatherSky, string>,
@@ -41,11 +42,19 @@ const copy = {
     stopForecast: "该处当天",
     poor: (reasons: string) => `不宜户外：${reasons}。`,
     disclaimer: "天气为预报，出发前请再查看。",
+    estimated: "估算",
   },
 } as const;
 
 function joined(locale: Locale, items: readonly string[]): string {
   return items.join(locale === "zh" ? "、" : ", ");
+}
+
+/** A poor day's reasons; gusts and snow say "estimated" when Meri worked them out (MET Norway). */
+function reasonsText(line: WeatherLine, locale: Locale): string {
+  const text = copy[locale];
+  return joined(locale, line.reasons.map((reason) => line.estimated && (reason === "gale" || reason === "heavy_snow")
+    ? `${text.reasons[reason]}${locale === "zh" ? "（估算）" : ` (${text.estimated})`}` : text.reasons[reason]));
 }
 
 /** The sky, the temperatures and any rain worth saying, in one run of text. */
@@ -76,7 +85,7 @@ export function DayWeatherLine({ view, locale }: { readonly view: DayWeatherView
     <p className={draftStyles.weatherLine} data-outdoor={view.line.outdoor}>
       <Icon aria-hidden="true" size={15} />
       <span>{text.forecast} · {lineText(view.line, locale)}</span>
-      {view.line.outdoor === "poor" ? <span className={draftStyles.weatherPoor}>{text.poor(joined(locale, view.line.reasons.map((reason) => text.reasons[reason])))}</span> : null}
+      {view.line.outdoor === "poor" ? <span className={draftStyles.weatherPoor}>{text.poor(reasonsText(view.line, locale))}</span> : null}
     </p>
   );
 }
@@ -90,19 +99,33 @@ export function StopWeatherLine({ line, locale }: { readonly line: WeatherLine |
     <p className={draftStyles.stopWeather} data-outdoor={line.outdoor}>
       <Icon aria-hidden="true" size={12} />
       {text.stopForecast} · {lineText(line, locale)}
-      {line.outdoor === "poor" ? ` · ${joined(locale, line.reasons.map((reason) => text.reasons[reason]))}` : ""}
+      {line.outdoor === "poor" ? ` · ${reasonsText(line, locale)}` : ""}
     </p>
   );
 }
 
-/** Open-Meteo's required credit and the forecast's caveat, wherever the plan shows weather (agreed 2026-11-20). */
-export function WeatherCredit({ locale }: { readonly locale: Locale }) {
+const credits: Record<WeatherProvider, { readonly href: string; readonly label: string }> = {
+  "open-meteo": { href: "https://open-meteo.com/", label: "Weather data by Open-Meteo.com" },
+  // CC BY 4.0 asks for the source by name (MET Norway, 2026-11-21).
+  "met-norway": { href: "https://api.met.no/", label: "Weather data by MET Norway (CC BY 4.0)" },
+};
+
+/**
+ * Each provider's required credit and the forecast's caveat, wherever the plan shows weather (agreed
+ * 2026-11-20; MET Norway added 2026-11-21 for cities Open-Meteo could not answer).
+ */
+export function WeatherCredit({ locale, providers = ["open-meteo"] }: {
+  readonly locale: Locale;
+  readonly providers?: readonly WeatherProvider[];
+}) {
   return (
     <p className={draftStyles.weatherCredit}>
       <span>{copy[locale].disclaimer}</span>
-      <a href="https://open-meteo.com/" target="_blank" rel="noopener noreferrer">
-        Weather data by Open-Meteo.com<ExternalLink aria-hidden="true" size={11} />
-      </a>
+      {providers.map((provider) => (
+        <a key={provider} href={credits[provider].href} target="_blank" rel="noopener noreferrer">
+          {credits[provider].label}<ExternalLink aria-hidden="true" size={11} />
+        </a>
+      ))}
     </p>
   );
 }

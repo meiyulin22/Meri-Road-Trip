@@ -103,13 +103,20 @@ export type OpenMeteoDependencies = {
 
 const retryAfterMs = 2_000;
 
+/** The low-level code under a failed fetch (UND_ERR_CONNECT_TIMEOUT, ECONNRESET, …), for the log. */
+export function causeCode(error: unknown): string | null {
+  if (!(error instanceof Error)) return null;
+  const cause = error.cause as { code?: unknown } | undefined;
+  return typeof cause?.code === "string" ? cause.code : error.name;
+}
+
 /** The weather port on Open-Meteo: all of a city's points in one request. */
 export function createOpenMeteoForecast(
   given: OpenMeteoDependencies = { fetch: globalThis.fetch, budget: sharedOpenMeteoBudget },
 ): WeatherForecast {
   const deps = { sleep: (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms)), ...given };
   return async (points, { from, to }) => {
-    if (points.length === 0) return { status: "ok", points: [] };
+    if (points.length === 0) return { status: "ok", provider: "open-meteo", points: [] };
     const query = new URLSearchParams({
       latitude: points.map(({ latitude }) => latitude.toFixed(4)).join(","),
       longitude: points.map(({ longitude }) => longitude.toFixed(4)).join(","),
@@ -128,6 +135,9 @@ export function createOpenMeteoForecast(
           response = await deps.fetch(`${endpoint}?${query}`, { signal: AbortSignal.timeout(timeoutMs) });
         } catch (error) {
           lost = error instanceof Error && error.name === "TimeoutError" ? "timeout" : "network";
+          // The cause names what broke: on 2026-11-21 it was UND_ERR_CONNECT_TIMEOUT, Node's own
+          // ten-second limit on opening the connection, which the 30 s wait does not cover.
+          logger.warn({ provider: "Open-Meteo", attempt, lost, cause: causeCode(error) }, "Open-Meteo request lost");
           if (attempt === 1) await deps.sleep(retryAfterMs);
         }
       }
@@ -143,7 +153,7 @@ export function createOpenMeteoForecast(
         return { status: "failure", reason: "invalid_response" };
       }
       const parsed = parseOpenMeteo(body, points.length);
-      return parsed ? { status: "ok", points: parsed } : { status: "failure", reason: "invalid_response" };
+      return parsed ? { status: "ok", provider: "open-meteo", points: parsed } : { status: "failure", reason: "invalid_response" };
     });
     if (!outcome.ok) return { status: "failure", reason: outcome.reason };
     // Only an answer from Open-Meteo itself pauses weather; a lost connection does not.

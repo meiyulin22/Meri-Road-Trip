@@ -5,7 +5,7 @@ import { card } from "@/agents/planner/plan-test-fixtures";
 import type { PlanDay } from "@/domain/plan/plan-draft";
 import type { DayForecast, SpotWeather } from "@/domain/plan/weather";
 
-import { dayWeather, hasForecast, stopWeather } from "./plan-weather-view";
+import { dayWeather, forecastProviders, hasForecast, stopWeather, weatherLine } from "./plan-weather-view";
 
 const on = (date: string, overrides: Partial<DayForecast> = {}): DayForecast => ({
   date, code: 1, high: 16, low: 2, precipitationMm: 0, precipitationChance: 0, snowfallCm: 0, gustKmh: 20, ...overrides,
@@ -25,7 +25,7 @@ const planDay = (date: string | null): PlanDay => ({
 
 test("the day heads with the town's forecast, which most of the city's spots share", () => {
   assert.deepEqual(dayWeather(planDay("2026-11-24"), cards), { kind: "forecast", line: {
-    sky: "thunderstorm", low: 5, high: 12, rainMm: 22.5, outdoor: "poor", reasons: ["thunderstorm"],
+    sky: "thunderstorm", low: 5, high: 12, rainMm: 22.5, outdoor: "poor", reasons: ["thunderstorm"], estimated: false,
   } });
   assert.deepEqual(dayWeather(planDay("2026-12-10"), cards), { kind: "beyond" });
   assert.equal(dayWeather(planDay(null), cards), null);
@@ -44,4 +44,17 @@ test("the credit shows whenever a card carries weather", () => {
   assert.equal(hasForecast(cards), true);
   assert.equal(hasForecast([card("丽江古城")]), false);
   assert.equal(hasForecast([{ ...card("丽江古城"), weather: { status: "beyond_range" } }]), true);
+});
+
+test("each provider whose forecast the plan shows is credited, Open-Meteo first", () => {
+  assert.deepEqual(forecastProviders(cards), ["open-meteo"]);
+  const fromMet = { ...card("大理古城"), weather: { ...town, provider: "met-norway" as const } };
+  assert.deepEqual(forecastProviders([fromMet]), ["met-norway"]);
+  assert.deepEqual(forecastProviders([fromMet, ...cards]), ["open-meteo", "met-norway"]);
+  assert.deepEqual(forecastProviders([card("丽江古城")]), []);
+});
+
+test("a day worked out from MET Norway's mean wind is marked as estimated", () => {
+  assert.equal(weatherLine(on("2026-11-24")).estimated, false);
+  assert.equal(weatherLine(on("2026-11-24", { gustKmh: 65, estimated: true })).estimated, true);
 });

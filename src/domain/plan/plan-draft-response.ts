@@ -5,7 +5,7 @@ import { parsePlaceImage, type PlaceImage } from "@/domain/location/place-image"
 import { daySlots, spotFacts, type PlanDay, type PlanDraft, type PlanRoute } from "./plan-draft";
 import type { CityResearch, SpotAvailability, SpotCard, SpotEvidence, SpotMapCheck } from "./spot-card";
 import { type TransferLeg, travelChoices } from "./transfer-legs";
-import type { DayForecast, SpotWeather } from "./weather";
+import { type DayForecast, type SpotWeather, weatherProviders } from "./weather";
 import { type DayOutfit, outfitItemIds, outfitSlots } from "./outfit";
 import { type CityStay, stayTiers } from "./stays";
 import type { CityFood } from "./food";
@@ -57,6 +57,8 @@ const dayForecastSchema: z.ZodType<DayForecast> = z.strictObject({
   precipitationChance: z.number().min(0).max(100).nullable(),
   snowfallCm: z.number().nonnegative(),
   gustKmh: z.number().nonnegative(),
+  wetHours: z.number().int().min(0).max(24).optional(),
+  estimated: z.literal(true).optional(),
 });
 
 const spotWeatherSchema: z.ZodType<SpotWeather> = z.discriminatedUnion("status", [
@@ -66,6 +68,7 @@ const spotWeatherSchema: z.ZodType<SpotWeather> = z.discriminatedUnion("status",
     elevation: z.number().nullable(),
     days: z.array(dayForecastSchema),
     beyond: z.array(isoDate),
+    provider: z.enum(weatherProviders).optional(),
   }),
   z.strictObject({ status: z.literal("beyond_range") }),
   z.strictObject({ status: z.literal("unavailable") }),
@@ -238,10 +241,10 @@ const outfitReasonSchema = z.discriminatedUnion("kind", [
   z.strictObject({ kind: z.literal("cold"), temp: z.number(), place: z.string().min(1) }),
   z.strictObject({ kind: z.literal("mild"), temp: z.number(), place: z.string().min(1) }),
   z.strictObject({ kind: z.literal("warm"), temp: z.number(), place: z.string().min(1) }),
-  z.strictObject({ kind: z.literal("rain"), mm: z.number().nonnegative(), chance: z.number().min(0).max(100).nullable() }),
+  z.strictObject({ kind: z.literal("rain"), mm: z.number().nonnegative(), chance: z.number().min(0).max(100).nullable(), hours: z.number().int().min(0).max(24).optional() }),
   z.strictObject({ kind: z.literal("storm"), mm: z.number().nonnegative() }),
-  z.strictObject({ kind: z.literal("gale"), gustKmh: z.number().nonnegative() }),
-  z.strictObject({ kind: z.literal("snow"), cm: z.number().nonnegative() }),
+  z.strictObject({ kind: z.literal("gale"), gustKmh: z.number().nonnegative(), estimated: z.literal(true).optional() }),
+  z.strictObject({ kind: z.literal("snow"), cm: z.number().nonnegative(), estimated: z.literal(true).optional() }),
   z.strictObject({ kind: z.literal("altitude"), metres: z.number(), place: z.string().min(1) }),
   z.strictObject({ kind: z.literal("sun"), high: z.number() }),
   z.strictObject({ kind: z.literal("walking") }),

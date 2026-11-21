@@ -777,6 +777,11 @@ Generate plan 背后的计划页先用示例数据做出完整页面（设计决
 | [src/platform/weather/weather-forecast.ts](../src/platform/weather/weather-forecast.ts) | 基础设施端口 | 1.2117：Meri 的天气端口，几个坐标 + 一段日期 → 每个点每天的预报或失败原因；不抛错、不重试。以后可换和风，也给 Jev 当工具 |
 | [src/platform/weather/open-meteo.ts](../src/platform/weather/open-meteo.ts) | 外部集成适配器 | 1.2117：Open-Meteo（免费、无 key、非商用）。一城的点一次请求，7 个每日变量，Asia/Shanghai；zod 校验；每天上限按 Open-Meteo 的算法计数（`.cache/open-meteo-calls.json`），间隔 0.2 秒；网络断开或超时 2 秒后重试一次、不暂停，Open-Meteo 报错或返回格式不对才暂停 10 分钟 |
 | [src/platform/weather/open-meteo.test.ts](../src/platform/weather/open-meteo.test.ts) | 测试 | 用录下的样例解析、请求格式、计数、上限、失败暂停、坏格式和断网。 |
+| [src/platform/weather/met-norway.ts](../src/platform/weather/met-norway.ts) | 外部集成适配器 | 2026-11-21：MET Norway Locationforecast（免费、无 key、CC BY 4.0），Open-Meteo 的替补。一个点一次请求（坐标 4 位小数、带 User-Agent），把逐小时和每 6 小时的数据按北京时间汇总成每天；中国境内缺的阵风（平均风速 ×1.5）、降雪（雪天或零下的降水，1 mm ≈ 1 cm）和降水概率（改给有雨的小时数）由代码算出并标 `estimated`；覆盖不到 12 小时的首尾两天不要；每天上限 `.cache/met-norway-calls.json`，出错或格式不对暂停 10 分钟，不重试 |
+| [src/platform/weather/met-norway.test.ts](../src/platform/weather/met-norway.test.ts) | 测试 | 用录下的大理古城和玉龙雪山样例解析，估算阵风、降雪、雨小时数和雷暴，符号对应 WMO 代码，请求格式、失败与暂停 |
+| [src/platform/weather/fallback-forecast.ts](../src/platform/weather/fallback-forecast.ts) | 基础设施组合 | 2026-11-21：先问主提供方（Open-Meteo），没有预报才问替补（MET Norway）；两个都失败时保留主提供方的原因 |
+| [src/platform/weather/fallback-forecast.test.ts](../src/platform/weather/fallback-forecast.test.ts) | 测试 | 主提供方成功不问替补；各种失败都改问替补；都失败保留主提供方原因 |
+| [src/platform/weather/fixtures/met-norway-dali-2026-11-21.json](../src/platform/weather/fixtures/met-norway-dali-2026-11-21.json) | 测试样例 | 2026-11-21 两次免费调用录下：大理古城（2041 m，22–25 日小雨）和玉龙雪山（4838 m，24 日大雪）到 12-01 的完整预报 |
 | [src/platform/weather/fixtures/open-meteo-lijiang-2026-11-21.json](../src/platform/weather/fixtures/open-meteo-lijiang-2026-11-21.json) | 测试样例 | 2026-11-20 真实调用一次录下：丽江古城和玉龙雪山 11-21 至 11-27 的每日预报（含 11-24 雷阵雨 22.5 mm、雪山 11-22 阵风 64 km/h） |
 | [src/platform/map-providers.test.ts](../src/platform/map-providers.test.ts) | 测试（对应模块边界） | 验证只用天地图和本地图集、页面照片不联网、只有推荐卡照片接口能调用远程补图。 |
 | [src/platform/search/bocha-web-search.test.ts](../src/platform/search/bocha-web-search.test.ts) | 测试（对应模块边界） | mock 验证 POST/envelope、webPages/images 区段、缺密钥不请求及错误脱敏。 |

@@ -1,7 +1,8 @@
 import type { PlanDay } from "@/domain/plan/plan-draft";
 import type { SpotCard } from "@/domain/plan/spot-card";
 import {
-  cityForecast, type DayForecast, forecastOn, type OutdoorRating, outdoorRating, poorReasons, skyOf, type WeatherSky,
+  cityForecast, type DayForecast, forecastOn, type OutdoorRating, outdoorRating, poorReasons, skyOf, type WeatherProvider,
+  type WeatherSky,
 } from "@/domain/plan/weather";
 
 /** One forecast day as the page draws it. */
@@ -12,6 +13,8 @@ export type WeatherLine = {
   readonly rainMm: number;
   readonly outdoor: OutdoorRating;
   readonly reasons: readonly ReturnType<typeof poorReasons>[number][];
+  /** Gusts and snow worked out from mean wind and precipitation (MET Norway): the page says so. */
+  readonly estimated: boolean;
 };
 
 /** A day's weather on its card (1.2117): a forecast, a date past the forecast's reach, or nothing. */
@@ -21,7 +24,10 @@ export type DayWeatherView =
   | null;
 
 export function weatherLine(day: DayForecast): WeatherLine {
-  return { sky: skyOf(day.code), low: day.low, high: day.high, rainMm: day.precipitationMm, outdoor: outdoorRating(day), reasons: poorReasons(day) };
+  return {
+    sky: skyOf(day.code), low: day.low, high: day.high, rainMm: day.precipitationMm, outdoor: outdoorRating(day), reasons: poorReasons(day),
+    estimated: day.estimated === true,
+  };
 }
 
 /** The day's city weather from the cards of that city the plan kept, the forecast most of them share. */
@@ -56,7 +62,17 @@ export function stopWeather(card: SpotCard, date: string | null, cityCards: read
   return apart ? line : null;
 }
 
-/** Whether any card carries a forecast, so the page owes Open-Meteo its credit. */
+/** Who forecast the plan's weather, Open-Meteo first, so the page credits each of them. */
+export function forecastProviders(cards: readonly SpotCard[]): WeatherProvider[] {
+  const used = new Set<WeatherProvider>();
+  for (const { weather } of cards) {
+    if (weather?.status === "forecast") used.add(weather.provider ?? "open-meteo");
+    if (weather?.status === "beyond_range") used.add("open-meteo");
+  }
+  return (["open-meteo", "met-norway"] as const).filter((provider) => used.has(provider));
+}
+
+/** Whether any card carries a forecast, so the page owes its provider a credit. */
 export function hasForecast(cards: readonly SpotCard[]): boolean {
   return cards.some(({ weather }) => weather?.status === "forecast" || weather?.status === "beyond_range");
 }

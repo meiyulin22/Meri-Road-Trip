@@ -27,7 +27,7 @@ const city: CityResearch = {
 function forecastRecording(asked: { points: readonly GeoPoint[]; from: string; to: string }[]): WeatherForecast {
   return async (points, { from, to }) => {
     asked.push({ points, from, to });
-    return { status: "ok", points: points.map((_, index) => ({
+    return { status: "ok", provider: "open-meteo", points: points.map((_, index) => ({
       elevation: index === 1 ? 5026 : 2454,
       days: ["2026-11-21", "2026-11-22", "2026-11-23"].map((date) => ({
         date, code: 1, high: index === 1 ? -1 : 16, low: index === 1 ? -11 : 2,

@@ -94,7 +94,7 @@ function setup(overrides: Partial<PlanGenerationDependencies> = {}, timeLimitMs?
     // No food articles by default: every city's food is "none" (1.2117 food).
     foodSearch: async () => [],
     // Clear and mild at every point on every date asked; a trip without dates never asks (1.2117).
-    weather: async (points, range) => ({ status: "ok", points: points.map(() => ({ elevation: 2400, days: datesBetween(range.from, range.to)
+    weather: async (points, range) => ({ status: "ok", provider: "open-meteo", points: points.map(() => ({ elevation: 2400, days: datesBetween(range.from, range.to)
       .map((date) => ({ date, code: 1, high: 15, low: 3, precipitationMm: 0, precipitationChance: 0, snowfallCm: 0, gustKmh: 20 })) })) }),
     // No facts by default: every stop stays unchecked and the loop has nothing to repair.
     verifySpots: async () => ({ availability: new Map(), searches: 0, usage: { inputTokens: 0, outputTokens: 0 } }),
@@ -610,7 +610,7 @@ test("each city's spots get their forecast inside research, and the saved plan k
   const { repository, service } = setup({
     weather: async (points, range) => {
       asked.push({ points: points.length, ...range });
-      return { status: "ok", points: points.map(() => ({ elevation: 2454, days: ["2026-11-20", "2026-11-21", "2026-11-22", "2026-11-23", "2026-11-24"]
+      return { status: "ok", provider: "open-meteo", points: points.map(() => ({ elevation: 2454, days: ["2026-11-20", "2026-11-21", "2026-11-22", "2026-11-23", "2026-11-24"]
         .map((date) => ({ date, code: date === "2026-11-21" ? 95 : 1, high: 15, low: 3, precipitationMm: date === "2026-11-21" ? 30 : 0,
           precipitationChance: 0, snowfallCm: 0, gustKmh: 20 })) })) };
     },

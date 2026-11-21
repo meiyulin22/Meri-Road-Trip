@@ -16,6 +16,8 @@ import { createTiandituCityPoint } from "@/platform/tianditu/tianditu-city-point
 import { create12306Rail, type TrainSearch } from "@/platform/rail/rail-12306";
 import { sharedRailBudget } from "@/platform/rail/rail-budget";
 import { railEnabled, railTools } from "@/platform/rail/rail-mcp";
+import { withFallbackForecast } from "@/platform/weather/fallback-forecast";
+import { createMetNorwayForecast } from "@/platform/weather/met-norway";
 import { createOpenMeteoForecast } from "@/platform/weather/open-meteo";
 import { createKimiSearchProFromEnvironment, type KimiSearchPro } from "@/platform/search/kimi-search-pro";
 import { createRollingGoHotels, hotelEnabled, rollinggoTools, sharedHotelBudget, type RollingGoHotels } from "@/platform/hotel/rollinggo";
@@ -87,8 +89,10 @@ export function planGenerationDependencies(
         key: driveLegKey,
       },
     },
-    // Open-Meteo: free, no key; one request a city, capped by OPEN_METEO_MAX_CALLS_PER_DAY (1.2117).
-    weather: (points, range) => (weather ??= createOpenMeteoForecast())(points, range),
+    // Open-Meteo: free, no key; one request a city, capped by OPEN_METEO_MAX_CALLS_PER_DAY (1.2117). When it
+    // gives nothing, MET Norway: free, no key, a request a point, capped by MET_NORWAY_MAX_CALLS_PER_DAY (2026-11-21).
+    weather: (points, range) => (weather ??= withFallbackForecast(createOpenMeteoForecast(), createMetNorwayForecast(),
+      { primary: "Open-Meteo", fallback: "MET Norway" }))(points, range),
     // Kimi search_pro with ten results a search, at the price of one, counted in its daily cap (1.2117 food).
     foodSearch: (query, signal) => (foodSearch ??= createKimiSearchProFromEnvironment({ limit: 10 })).search(query, signal),
     // RollingGo only when HOTEL_PROVIDER=rollinggo and a key are set; query only, never booking (1.2117 stays).

@@ -41,10 +41,10 @@ export type OutfitReason =
   | { readonly kind: "cold"; readonly temp: number; readonly place: string }
   | { readonly kind: "mild"; readonly temp: number; readonly place: string }
   | { readonly kind: "warm"; readonly temp: number; readonly place: string }
-  | { readonly kind: "rain"; readonly mm: number; readonly chance: number | null }
+  | { readonly kind: "rain"; readonly mm: number; readonly chance: number | null; readonly hours?: number }
   | { readonly kind: "storm"; readonly mm: number }
-  | { readonly kind: "gale"; readonly gustKmh: number }
-  | { readonly kind: "snow"; readonly cm: number }
+  | { readonly kind: "gale"; readonly gustKmh: number; readonly estimated?: true }
+  | { readonly kind: "snow"; readonly cm: number; readonly estimated?: true }
   | { readonly kind: "altitude"; readonly metres: number; readonly place: string }
   | { readonly kind: "sun"; readonly high: number }
   | { readonly kind: "walking" };
@@ -78,6 +78,7 @@ export const outfitThresholds = {
   downFrom: 0,
   wetMm: 5,
   wetChance: 60,
+  wetHours: 3,
   stormMm: 25,
   galeGustKmh: 62,
   altitudeMetres: 3000,
@@ -133,8 +134,14 @@ export function baseOutfit(day: PlanDay, places: readonly PlaceForecast[]): Omit
   const rainMm = Math.max(...places.map(({ forecast }) => forecast.precipitationMm));
   const chance = places.reduce<number | null>((best, { forecast }) =>
     forecast.precipitationChance === null ? best : Math.max(best ?? 0, forecast.precipitationChance), null);
-  const gust = Math.max(...places.map(({ forecast }) => forecast.gustKmh));
-  const snowCm = Math.max(...places.map(({ forecast }) => forecast.snowfallCm));
+  const wetHours = places.reduce<number | null>((best, { forecast }) =>
+    forecast.wetHours === undefined ? best : Math.max(best ?? 0, forecast.wetHours), null);
+  const gustAt = places.reduce((best, place) => place.forecast.gustKmh > best.forecast.gustKmh ? place : best);
+  const snowAt = places.reduce((best, place) => place.forecast.snowfallCm > best.forecast.snowfallCm ? place : best);
+  const gust = gustAt.forecast.gustKmh;
+  const snowCm = snowAt.forecast.snowfallCm;
+  // Worked out from mean wind or precipitation, not forecast (MET Norway): the page says "about".
+  const estimate = (place: PlaceForecast) => (place.forecast.estimated ? { estimated: true as const } : {});
   const stormy = places.some(({ forecast }) => thunderstormCodes.has(forecast.code)) || rainMm >= t.stormMm;
   const gale = gust >= t.galeGustKmh;
   const snowy = snowCm > 0 || places.some(({ forecast }) => snowCodes.has(forecast.code));
@@ -173,14 +180,14 @@ export function baseOutfit(day: PlanDay, places: readonly PlaceForecast[]): Omit
   if (stormy || gale) {
     // An umbrella is no use in a gale or a thunderstorm on a mountain; a waterproof shell is.
     if (stormy) add("shell_jacket", { kind: "storm", mm: rainMm });
-    if (gale) add("shell_jacket", { kind: "gale", gustKmh: gust });
+    if (gale) add("shell_jacket", { kind: "gale", gustKmh: gust, ...estimate(gustAt) });
     if (stormy) add("waterproof_shoes", { kind: "storm", mm: rainMm });
-  } else if (rainMm >= t.wetMm || (chance ?? 0) >= t.wetChance) {
-    add("umbrella", { kind: "rain", mm: rainMm, chance });
+  } else if (rainMm >= t.wetMm || (chance ?? 0) >= t.wetChance || (wetHours ?? 0) >= t.wetHours) {
+    add("umbrella", { kind: "rain", mm: rainMm, chance, ...(wetHours === null ? {} : { hours: wetHours }) });
   }
   if (snowy) {
-    add("waterproof_shoes", { kind: "snow", cm: snowCm });
-    add("gloves", { kind: "snow", cm: snowCm });
+    add("waterproof_shoes", { kind: "snow", cm: snowCm, ...estimate(snowAt) });
+    add("gloves", { kind: "snow", cm: snowCm, ...estimate(snowAt) });
   }
   if (!items.has("waterproof_shoes")) add("walking_shoes", { kind: "walking" });
 

@@ -42,7 +42,7 @@ import { PlanOriginPicker } from "./plan-origin-picker";
 import { PlanLegModeButton } from "./plan-leg-mode-button";
 import { PlanTransferCard } from "./plan-transfer-card";
 import { DayWeatherBadge, DayWeatherLine, StopWeatherLine, WeatherCredit } from "./plan-weather";
-import { dayWeather, hasForecast, stopWeather } from "./plan-weather-view";
+import { dayWeather, forecastProviders, hasForecast, stopWeather } from "./plan-weather-view";
 import { OutfitRoom, PackingList } from "./plan-outfit";
 import { PlanStayCard, PlanStayHint } from "./plan-stay-card";
 import { PlanFoodCard } from "./plan-food-card";
@@ -546,7 +546,7 @@ function DraftDays({ response, text, locale, transport, gettingThere }: {
         <div className={draftStyles.footnotes}>
           {partial.length > 0 ? <p>{text.researchPartial(partial.join("、"))}</p> : null}
           {response.pendingProvinces.length > 0 ? <p>{text.pendingProvinces(response.pendingProvinces.join("、"))}</p> : null}
-          {hasForecast(response.spots) ? <WeatherCredit locale={locale} /> : null}
+          {hasForecast(response.spots) ? <WeatherCredit locale={locale} providers={forecastProviders(response.spots)} /> : null}
         </div>
       ) : null}
     </section>

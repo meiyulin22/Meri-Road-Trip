@@ -91,6 +91,8 @@ export async function addCityWeather(
       return {
         status: "forecast", source: at.source, elevation: forecast.elevation,
         days: forecast.days.filter(({ date }) => tripDates.has(date)), beyond,
+        // Open-Meteo is the usual provider and stays unmarked, as in every plan before the fallback.
+        ...(answer.provider === "open-meteo" ? {} : { provider: answer.provider }),
       };
     }),
     calls: points.length,

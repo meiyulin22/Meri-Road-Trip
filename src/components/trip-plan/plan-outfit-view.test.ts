@@ -63,3 +63,18 @@ test("Codex's manifest is read only in the agreed shape", () => {
   assert.equal(outfitManifestSchema.safeParse({ ...manifest, base: "../secret.webp" }).success, false);
   assert.equal(outfitManifestSchema.safeParse({ ...manifest, items: { cape: { file: "cape.webp", z: 1 } } }).success, false);
 });
+
+test("MET Norway's worked-out gusts and snow say \"about\", and rain hours stand in for a chance", () => {
+  const estimated = { date: "2026-11-24", code: 3, high: 9, low: 2, precipitationMm: 1.2, precipitationChance: null, snowfallCm: 0, gustKmh: 65, wetHours: 4, estimated: true as const };
+  const windy = baseOutfit(planDay, [{ place: "苍山", elevation: 3900, own: true, forecast: estimated }]);
+  const reasons = (id: string) => windy?.items.find((item) => item.id === id)?.reasons;
+  assert.deepEqual(reasons("shell_jacket")?.find(({ kind }) => kind === "gale"), { kind: "gale", gustKmh: 65, estimated: true });
+  const shell = slotEntries({ ...windy!, extras: [], tip: null }, "zh").find(({ slot }) => slot === "outer")?.entries[0];
+  assert.ok(shell?.reasons.includes("阵风约 65 km/h（8 级以上），伞撑不住"));
+
+  const drizzle = baseOutfit(planDay, [{ place: "大理古城", elevation: 2041, own: true, forecast: { ...estimated, gustKmh: 20 } }]);
+  assert.deepEqual(drizzle?.items.find(({ id }) => id === "umbrella")?.reasons, [{ kind: "rain", mm: 1.2, chance: null, hours: 4 }]);
+  const lowRain = baseOutfit(planDay, [{ place: "大理古城", elevation: 2041, own: true, forecast: { ...estimated, gustKmh: 20, precipitationMm: 0.4 } }]);
+  const umbrella = slotEntries({ ...lowRain!, extras: [], tip: null }, "zh").flatMap(({ entries }) => entries).find(({ name }) => name === "雨伞");
+  assert.deepEqual(umbrella?.reasons, ["约 4 小时有雨"]);
+});

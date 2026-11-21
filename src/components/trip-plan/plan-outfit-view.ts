@@ -14,10 +14,11 @@ const copy = {
         case "cold": return `${reason.place}最低 ${reason.temp}°`;
         case "mild": return `${reason.place}最低 ${reason.temp}°，早晚偏凉`;
         case "warm": return `${reason.place}最低也有 ${reason.temp}°`;
-        case "rain": return reason.mm >= 1 ? `降水 ${reason.mm} mm` : `降水概率 ${reason.chance ?? 0}%`;
+        case "rain": return reason.mm >= 1 ? `降水 ${reason.mm} mm`
+          : reason.chance !== null ? `降水概率 ${reason.chance}%` : `约 ${reason.hours ?? 0} 小时有雨`;
         case "storm": return `雷阵雨或大雨，降水 ${reason.mm} mm，伞不顶用`;
-        case "gale": return `阵风 ${reason.gustKmh} km/h（8 级以上），伞撑不住`;
-        case "snow": return reason.cm > 0 ? `下雪 ${reason.cm} cm` : "有雪";
+        case "gale": return `${reason.estimated ? "阵风约" : "阵风"} ${reason.gustKmh} km/h（8 级以上），伞撑不住`;
+        case "snow": return reason.cm > 0 ? `${reason.estimated ? "下雪约" : "下雪"} ${reason.cm} cm` : "有雪";
         case "altitude": return `${reason.place}海拔 ${reason.metres} m，紫外线强`;
         case "sun": return `晴，最高 ${reason.high}°`;
         case "walking": return "一整天在外面走";
@@ -34,10 +35,11 @@ const copy = {
         case "cold": return `${reason.temp}° at its coldest, ${reason.place}`;
         case "mild": return `${reason.temp}° at ${reason.place}; cool morning and evening`;
         case "warm": return `${reason.temp}° even at its coldest, ${reason.place}`;
-        case "rain": return reason.mm >= 1 ? `${reason.mm} mm of rain` : `${reason.chance ?? 0}% chance of rain`;
+        case "rain": return reason.mm >= 1 ? `${reason.mm} mm of rain`
+          : reason.chance !== null ? `${reason.chance}% chance of rain` : `Rain for about ${reason.hours ?? 0} hours`;
         case "storm": return `Thunderstorm or heavy rain, ${reason.mm} mm; an umbrella won't do`;
-        case "gale": return `Gusts of ${reason.gustKmh} km/h (Beaufort 8+); an umbrella won't hold`;
-        case "snow": return reason.cm > 0 ? `${reason.cm} cm of snow` : "Snow";
+        case "gale": return `Gusts of ${reason.estimated ? "about " : ""}${reason.gustKmh} km/h (Beaufort 8+); an umbrella won't hold`;
+        case "snow": return reason.cm > 0 ? `${reason.estimated ? "About " : ""}${reason.cm} cm of snow` : "Snow";
         case "altitude": return `${reason.place} at ${reason.metres} m: strong sun`;
         case "sun": return `Sunny, up to ${reason.high}°`;
         case "walking": return "Out walking all day";
