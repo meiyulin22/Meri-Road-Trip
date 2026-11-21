@@ -90,10 +90,30 @@ test("the daily cap refuses before sending, and a failure pauses weather with no
   assert.equal(sent, 1);
 });
 
-test("a network error or an answer that is not the asked shape is a failure, never a throw", async () => {
-  const offline = createOpenMeteoForecast({ fetch: async () => { throw new TypeError("fetch failed"); }, budget: budget() });
-  assert.deepEqual(await offline([{ longitude: 100, latitude: 26 }], { from: "2026-11-21", to: "2026-11-21" }), { status: "failure", reason: "network" });
-  const odd = createOpenMeteoForecast({ fetch: answer({ hello: "world" }), budget: budget() });
+const noWait = async () => {};
+
+test("a dropped connection is tried once more after two seconds, and never pauses weather", async () => {
+  const waits: number[] = [];
+  let tries = 0;
+  const flaky = createOpenMeteoForecast({
+    fetch: async () => { tries += 1; if (tries === 1) throw new TypeError("fetch failed"); return answer(recorded)(); },
+    budget: budget(), sleep: async (ms) => { waits.push(ms); },
+  });
+  const points = [{ longitude: 100.2299, latitude: 26.8721 }, { longitude: 100.1836, latitude: 27.1006 }];
+  assert.equal((await flaky(points, { from: "2026-11-21", to: "2026-11-27" })).status, "ok");
+  assert.deepEqual([tries, waits], [2, [2000]]);
+
+  // Lost twice: a failure, but the next city still asks.
+  let sent = 0;
+  const shared = budget();
+  const offline = createOpenMeteoForecast({ fetch: async () => { sent += 1; throw new TypeError("fetch failed"); }, budget: shared, sleep: noWait });
+  assert.deepEqual(await offline([points[0]], { from: "2026-11-21", to: "2026-11-21" }), { status: "failure", reason: "network" });
+  assert.deepEqual(await offline([points[0]], { from: "2026-11-21", to: "2026-11-21" }), { status: "failure", reason: "network" });
+  assert.equal(sent, 4);
+});
+
+test("an answer that is not the asked shape is a failure, never a throw", async () => {
+  const odd = createOpenMeteoForecast({ fetch: answer({ hello: "world" }), budget: budget(), sleep: noWait });
   assert.deepEqual(await odd([{ longitude: 100, latitude: 26 }], { from: "2026-11-21", to: "2026-11-21" }), { status: "failure", reason: "invalid_response" });
 });
 

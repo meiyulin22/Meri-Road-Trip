@@ -97,12 +97,17 @@ export function parseOpenMeteo(body: unknown, expectedPoints: number): PointFore
 export type OpenMeteoDependencies = {
   readonly fetch: typeof fetch;
   readonly budget: DailyBudget;
+  /** Waits between the two tries after a lost connection; tests pass one that does not wait. */
+  readonly sleep?: (ms: number) => Promise<void>;
 };
+
+const retryAfterMs = 2_000;
 
 /** The weather port on Open-Meteo: all of a city's points in one request. */
 export function createOpenMeteoForecast(
-  deps: OpenMeteoDependencies = { fetch: globalThis.fetch, budget: sharedOpenMeteoBudget },
+  given: OpenMeteoDependencies = { fetch: globalThis.fetch, budget: sharedOpenMeteoBudget },
 ): WeatherForecast {
+  const deps = { sleep: (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms)), ...given };
   return async (points, { from, to }) => {
     if (points.length === 0) return { status: "ok", points: [] };
     const query = new URLSearchParams({
@@ -114,13 +119,19 @@ export function createOpenMeteoForecast(
       end_date: to,
     });
     const outcome = await deps.budget.run(openMeteoCalls(points.length, from, to), async (): Promise<ForecastAnswer> => {
-      let response: Response;
-      try {
-        response = await deps.fetch(`${endpoint}?${query}`, { signal: AbortSignal.timeout(timeoutMs) });
-      } catch (error) {
-        const reason = error instanceof Error && error.name === "TimeoutError" ? "timeout" : "network";
-        return { status: "failure", reason };
+      let response: Response | null = null;
+      let lost: "timeout" | "network" = "network";
+      // The connection from China to Open-Meteo drops now and then (measured 2026-11-21): one more try
+      // after two seconds, and no pause, since a dropped line is not Open-Meteo refusing (merlin agreed).
+      for (let attempt = 1; attempt <= 2 && response === null; attempt += 1) {
+        try {
+          response = await deps.fetch(`${endpoint}?${query}`, { signal: AbortSignal.timeout(timeoutMs) });
+        } catch (error) {
+          lost = error instanceof Error && error.name === "TimeoutError" ? "timeout" : "network";
+          if (attempt === 1) await deps.sleep(retryAfterMs);
+        }
       }
+      if (response === null) return { status: "failure", reason: lost };
       if (!response.ok) {
         logger.warn({ provider: "Open-Meteo", httpStatus: response.status }, "Open-Meteo answered with an error");
         return { status: "failure", reason: "http_error" };
@@ -135,7 +146,9 @@ export function createOpenMeteoForecast(
       return parsed ? { status: "ok", points: parsed } : { status: "failure", reason: "invalid_response" };
     });
     if (!outcome.ok) return { status: "failure", reason: outcome.reason };
-    if (outcome.value.status === "failure") deps.budget.pause();
-    return outcome.value;
+    // Only an answer from Open-Meteo itself pauses weather; a lost connection does not.
+    const value = outcome.value;
+    if (value.status === "failure" && (value.reason === "http_error" || value.reason === "invalid_response")) deps.budget.pause();
+    return value;
   };
 }

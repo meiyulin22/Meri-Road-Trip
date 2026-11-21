@@ -200,7 +200,10 @@ Meri stops itself at `OPEN_METEO_MAX_CALLS_PER_DAY` (2000 by default), counted a
 `.cache/open-meteo-calls.json` the way Open-Meteo counts: one call per point, double for a range
 past two weeks. Requests are 0.2 s apart and wait up to 30 s: from this Mac without the proxy a request
 took about 7 s and often more than 10 s (2026-11-20), which first left a whole run without weather;
-merlin chose a longer wait over the proxy. A failure pauses weather for ten minutes with no retry,
+merlin chose a longer wait over the proxy. A dropped connection or a timeout is tried once more
+after two seconds and does not pause weather (2026-11-21: the line dropped mid-run, and the pause
+then cost the next city its forecast and every day its outfit); an error answer from Open-Meteo
+itself, or an answer in the wrong shape, pauses weather for ten minutes with no retry,
 and the plan goes on without it. One probe on 2026-11-20 is the recorded fixture
 (`fixtures/open-meteo-lijiang-2026-11-21.json`): 丽江古城 at 2454 m read 2–16°, 玉龙雪山 at
 5026 m read −11 to −1° on the same day, because Open-Meteo corrects each point to its elevation.
