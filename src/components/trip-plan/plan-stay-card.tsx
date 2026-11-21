@@ -178,6 +178,25 @@ function HotelTile({ pick, label, kind, nights, nearName, checkIn, text, onShowO
 }
 
 /**
+ * Where to stay, when the plan has no dates (1.2117 stays): hotels are searched for the stay's
+ * nights, so without dates there is nothing to search; the card says what is missing.
+ */
+export function PlanStayHint({ locale }: { readonly locale: Locale }) {
+  const zh = locale === "zh";
+  return (
+    <section className={styles.card} aria-label={copy[locale].title}>
+      <header className={styles.header}>
+        <span className={styles.icon}><BedDouble aria-hidden="true" size={16} /></span>
+        <div>
+          <h3>{copy[locale].title}</h3>
+          <p>{zh ? "填了出发日期，才能按每晚的日期查酒店和参考价。" : "Add a start date to look up hotels and reference prices for each night."}</p>
+        </div>
+      </header>
+    </section>
+  );
+}
+
+/**
  * Where to stay in one city (1.2117 stays), after its last day: three tiers picked by code, and
  * Meri's pick for the traveller's preferences when they bear on lodging. No booking link: the name
  * is there to copy, the place to see on the map, the price a reference.

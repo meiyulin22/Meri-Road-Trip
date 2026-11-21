@@ -27,6 +27,9 @@ const copy = {
     empty: "空",
     beyond: "日期太远，还没有预报。出发前看了预报再定穿什么。",
     noForecast: "这天没有预报。",
+    needDates: "填了出发日期（16 天以内），才能按每天的天气给小熊猫配穿搭。",
+    allBeyond: "出发日期离现在超过 16 天，还没有天气预报。出发前两周内再生成一次计划，就能看到每天的穿搭。",
+    noWeather: "这次没有查到天气，所以没有穿搭。重新生成计划时会再查。",
     coldest: "最冷",
     warmest: "最暖",
     packTitle: "打包清单",
@@ -44,6 +47,9 @@ const copy = {
     empty: "Empty",
     beyond: "Too far ahead for a forecast. Decide what to wear once you've seen it.",
     noForecast: "No forecast for this day.",
+    needDates: "Add a start date (within 16 days) and the red panda will dress for each day's weather.",
+    allBeyond: "The trip starts more than 16 days from now, beyond the forecast. Make the plan again within two weeks of leaving to see each day's outfit.",
+    noWeather: "The weather couldn't be fetched this time, so there are no outfits. Making the plan again will try once more.",
     coldest: "Coldest",
     warmest: "Warmest",
     packTitle: "Packing list",
@@ -162,7 +168,23 @@ export function OutfitRoom({ days, outfits, weatherOf, selectedDay, onSelectDay,
   }, []);
 
   const byDay = useMemo(() => new Map(outfits.map((outfit) => [outfit.day, outfit])), [outfits]);
-  if (outfits.length === 0) return null;
+  if (days.length === 0) return null;
+  // No outfit at all: say why, so the room is found and its missing piece is clear.
+  if (outfits.length === 0) {
+    const reason = days.every(({ date }) => date === null) ? text.needDates
+      : days.some((day) => weatherOf(day)?.kind === "beyond") ? text.allBeyond : text.noWeather;
+    return (
+      <section className={styles.room} id="plan-outfit" aria-labelledby="plan-outfit-heading" data-empty="true">
+        <header className={styles.roomHeader}>
+          <span className={styles.roomIcon}><Shirt aria-hidden="true" size={16} /></span>
+          <div>
+            <h3 id="plan-outfit-heading">{text.title}</h3>
+            <p>{reason}</p>
+          </div>
+        </header>
+      </section>
+    );
+  }
   const current = (selectedDay !== null ? days.find(({ day }) => day === selectedDay) : undefined) ?? days.find(({ day }) => byDay.has(day)) ?? days[0];
   const outfit = byDay.get(current.day) ?? null;
   const slots = outfit ? slotEntries(outfit, locale) : [];

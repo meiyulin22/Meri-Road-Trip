@@ -44,7 +44,7 @@ import { PlanTransferCard } from "./plan-transfer-card";
 import { DayWeatherBadge, DayWeatherLine, StopWeatherLine, WeatherCredit } from "./plan-weather";
 import { dayWeather, hasForecast, stopWeather } from "./plan-weather-view";
 import { OutfitRoom, PackingList } from "./plan-outfit";
-import { PlanStayCard } from "./plan-stay-card";
+import { PlanStayCard, PlanStayHint } from "./plan-stay-card";
 import { PlanFoodCard } from "./plan-food-card";
 import type { HotelOption } from "@/domain/plan/stays";
 import { outfitLine } from "./plan-outfit-view";
@@ -535,6 +535,10 @@ function DraftDays({ response, text, locale, transport, gettingThere }: {
         ))}
         {transferCard("return", null)}
       </div>
+
+      {/* No dates, no nights to search: say so instead of showing nothing (1.2117 stays). */}
+      {!draft.stays && draft.mode === "full" && draft.days.length > 1 && draft.days.every(({ date }) => date === null)
+        ? <PlanStayHint locale={locale} /> : null}
 
       <PackingList outfits={draft.outfits ?? []} locale={locale} storageKey={`meri:packing:v1:${gettingThere?.tripId ?? "plan"}`} />
 

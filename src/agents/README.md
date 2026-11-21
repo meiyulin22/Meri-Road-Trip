@@ -358,7 +358,10 @@ marked); a chosen piece stays bright on the panda and says why; a pixel thermome
 coldest and warmest and where; under it the layers reminder and Meri's tip. Each day card has one
 line ("今日穿搭：羽绒服 · 毛线帽 · 手套 · 墨镜") that jumps there. After the days, a packing list
 gathers everything with the days it is worn; ticks stay in this browser only. A day past the
-forecast says to decide once the forecast is out.
+forecast says to decide once the forecast is out. A plan with no outfit at all still shows the room,
+with why: no start date (add one within 16 days), every date past the forecast, or the weather not
+fetched this time (2026-11-21: a trip with only "3 days" showed nothing, and the room could not be
+found). Likewise a dateless plan shows one "Where to stay" card saying a start date is needed.
 
 **Measured on 2026-11-20** through the plan page (大理 + 丽江 + 迪庆, 4 days from 2026-11-26): the step
 took 10 s for one call over four days and dressed all four; Kimi added ten things (knee brace, face
