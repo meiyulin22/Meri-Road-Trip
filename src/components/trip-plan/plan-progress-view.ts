@@ -1,6 +1,7 @@
 import type { PlaceImage } from "@/domain/location/place-image";
 import type { DayOutfit } from "@/domain/plan/outfit";
 import type { CityStay } from "@/domain/plan/stays";
+import type { CityFood } from "@/domain/plan/food";
 import type { PlanDay, PlanRoute, StopCheck } from "@/domain/plan/plan-draft";
 import {
   planStages,
@@ -45,6 +46,8 @@ export type ProgressView = {
   readonly outfits: Readonly<Record<number, DayOutfit>>;
   /** Each city's stay as it arrives (1.2117 stays), by city. */
   readonly stays: Readonly<Record<string, CityStay>>;
+  /** Each city's food as it arrives (1.2117 food), by city. */
+  readonly food: Readonly<Record<string, CityFood>>;
   readonly finished: RunEnding | null;
   /** The question the run is waiting on, until it is answered. */
   readonly question: PlanQuestion | null;
@@ -71,6 +74,7 @@ export const emptyProgress: ProgressView = {
   photos: {},
   outfits: {},
   stays: {},
+  food: {},
   finished: null,
   question: null,
   waitingSince: null,
@@ -135,6 +139,8 @@ export function applyProgress(view: ProgressView, { seq, at, event }: PlanProgre
       };
     case "day.photo":
       return { ...next, photos: { ...next.photos, [event.day]: event.image } };
+    case "food.ready":
+      return { ...next, food: { ...next.food, [event.food.city]: event.food } };
     case "stay.ready":
       return { ...next, stays: { ...next.stays, [event.stay.city]: event.stay } };
     case "day.outfit":

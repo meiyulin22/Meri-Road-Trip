@@ -8,6 +8,7 @@ import { type TransferLeg, travelChoices } from "./transfer-legs";
 import type { DayForecast, SpotWeather } from "./weather";
 import { type DayOutfit, outfitItemIds, outfitSlots } from "./outfit";
 import { type CityStay, stayTiers } from "./stays";
+import type { CityFood } from "./food";
 
 export const spotEvidenceSchema: z.ZodType<SpotEvidence> = z.strictObject({
   url: z.string(),
@@ -292,6 +293,26 @@ export const cityStaySchema: z.ZodType<CityStay> = z.discriminatedUnion("status"
   z.strictObject({ ...stayBlockShape, status: z.literal("unavailable") }),
 ]) as z.ZodType<CityStay>;
 
+const foodEvidenceSchema = z.strictObject({ url: z.string().min(1), title: z.string(), site: z.string().min(1), quote: z.string().min(1) });
+const restaurantSchema = z.strictObject({
+  name: z.string().min(1),
+  dish: z.string().min(1).nullable(),
+  evidence: z.array(foodEvidenceSchema).min(2),
+  place: z.strictObject({ address: z.string().nullable(), point: geoSchema, distanceM: z.number().int().nonnegative(), near: z.string().min(1) }).nullable(),
+});
+const cityFoodBase = { province: z.string().min(1), city: z.string().min(1), lastDay: z.number().int().nonnegative() };
+export const cityFoodSchema: z.ZodType<CityFood> = z.discriminatedUnion("status", [
+  z.strictObject({
+    ...cityFoodBase,
+    status: z.literal("found"),
+    dishes: z.array(z.strictObject({ name: z.string().min(1), note: z.string().min(1), evidence: foodEvidenceSchema })),
+    restaurants: z.array(restaurantSchema),
+    mentioned: z.array(restaurantSchema),
+  }),
+  z.strictObject({ ...cityFoodBase, status: z.literal("none") }),
+  z.strictObject({ ...cityFoodBase, status: z.literal("unavailable") }),
+]) as z.ZodType<CityFood>;
+
 export const planDraftSchema: z.ZodType<PlanDraft> = z.strictObject({
   mode: z.enum(["preview", "full"]),
   totalDays: z.number().int().positive().nullable(),
@@ -318,6 +339,7 @@ export const planDraftSchema: z.ZodType<PlanDraft> = z.strictObject({
   transfers: z.array(transferLegSchema).optional(),
   outfits: z.array(dayOutfitSchema).optional(),
   stays: z.array(cityStaySchema).optional(),
+  food: z.array(cityFoodSchema).optional(),
 });
 
 // The page renders this URL, so it passes the same checks as every other place photo.

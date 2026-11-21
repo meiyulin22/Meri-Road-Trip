@@ -28,7 +28,7 @@ const copy = {
     answered: (question: string, choice: string | null) => `${question} → ${choice ?? "left to Meri"}`,
     stages: {
       scope: "Read the trip", research: "Research spots", map: "Locate on Tianditu", route: "Plan the route", transfers: "Between cities",
-      days: "Choose each day's spots", verify: "Check opening and booking", drive: "Getting around", outfit: "Dress for the weather", stays: "Places to stay", photos: "Pick day photos", save: "Save the plan",
+      days: "Choose each day's spots", verify: "Check opening and booking", drive: "Getting around", outfit: "Dress for the weather", stays: "Places to stay", food: "Where to eat", photos: "Pick day photos", save: "Save the plan",
     } satisfies Record<PlanStage, string>,
     summary: (stage: PlanStage, s: Readonly<Record<string, number>>): string => {
       switch (stage) {
@@ -43,6 +43,7 @@ const copy = {
         case "drive": return `${s.legs} ${s.legs === 1 ? "leg" : "legs"}` + (s.lookups ? ` · ${s.lookups} lookups` : "");
         case "outfit": return `${s.days} ${s.days === 1 ? "day" : "days"} dressed` + (s.extras ? ` · ${s.extras} extras from Meri` : "");
         case "stays": return `${s.found}/${s.cities} ${s.cities === 1 ? "city" : "cities"} with hotels` + (s.picks ? ` · ${s.picks} picked for you` : "");
+        case "food": return `${s.dishes} dishes · ${s.restaurants} restaurants on the map` + (s.mentioned ? ` · ${s.mentioned} from articles` : "");
         case "photos": return `${s.photos} ${s.photos === 1 ? "photo" : "photos"}`;
         case "save": return `version ${s.version}`;
       }
@@ -62,6 +63,7 @@ const copy = {
         case "trains": return `trains ${activity.from} → ${activity.to} · search ${activity.done}`;
         case "flights": return `flights ${activity.from} → ${activity.to} · search ${activity.done}`;
         case "hotels": return `${activity.city} · hotels near ${activity.near} (${activity.done}/${activity.total})`;
+        case "food": return `${activity.city} · local food (${activity.done}/${activity.total})`;
         case "repairing": return `re-planning day ${activity.days.join(", ")} · round ${activity.round}`;
       }
     },
@@ -81,7 +83,7 @@ const copy = {
     answered: (question: string, choice: string | null) => `${question} → ${choice ?? "交给 Meri 决定"}`,
     stages: {
       scope: "读取行程范围", research: "调研景点", map: "天地图定位", route: "规划路线", transfers: "查转场",
-      days: "按天选景点", verify: "核实开放与预约", drive: "查交通", outfit: "搭配穿衣", stays: "找住处", photos: "配图", save: "保存计划",
+      days: "按天选景点", verify: "核实开放与预约", drive: "查交通", outfit: "搭配穿衣", stays: "找住处", food: "找吃的", photos: "配图", save: "保存计划",
     } satisfies Record<PlanStage, string>,
     summary: (stage: PlanStage, s: Readonly<Record<string, number>>): string => {
       switch (stage) {
@@ -96,6 +98,7 @@ const copy = {
         case "drive": return `${s.legs} 段路程` + (s.lookups ? ` · 查询 ${s.lookups} 次` : "");
         case "outfit": return `${s.days} 天穿搭` + (s.extras ? ` · Meri 补充 ${s.extras} 样` : "");
         case "stays": return `${s.found}/${s.cities} 座城找到住处` + (s.picks ? ` · 按偏好推荐 ${s.picks} 家` : "");
+        case "food": return `${s.dishes} 道特色菜 · ${s.restaurants} 家已核实` + (s.mentioned ? ` · ${s.mentioned} 家来自文章` : "");
         case "photos": return `${s.photos} 张`;
         case "save": return `第 ${s.version} 版`;
       }
@@ -115,6 +118,7 @@ const copy = {
         case "trains": return `查车次 ${activity.from} → ${activity.to} · 第 ${activity.done} 次`;
         case "flights": return `查航班 ${activity.from} → ${activity.to} · 第 ${activity.done} 次`;
         case "hotels": return `${activity.city} · 查${activity.near}附近的酒店（${activity.done}/${activity.total}）`;
+        case "food": return `${activity.city} · 查当地美食（${activity.done}/${activity.total}）`;
         case "repairing": return `重排第 ${activity.days.join("、")} 天 · 第 ${activity.round} 轮`;
       }
     },

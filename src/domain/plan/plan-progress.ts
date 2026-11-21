@@ -1,13 +1,13 @@
 import { z } from "zod";
 
 import { maxPreferenceLabelLength, paceDirections, preferenceKinds } from "./trip-preference";
-import { cityStaySchema, dayOutfitSchema, placeImageSchema, planDaySchema, planRouteSchema, spotCardSchema, stopCheckSchema } from "./plan-draft-response";
+import { cityFoodSchema, cityStaySchema, dayOutfitSchema, placeImageSchema, planDaySchema, planRouteSchema, spotCardSchema, stopCheckSchema } from "./plan-draft-response";
 
 /**
  * The stages of a plan run, in the order the plan page shows them. Each is one step of
  * the plan-generation workflow; the page renders its own words for them, in zh or en.
  */
-export const planStages = ["scope", "research", "map", "route", "transfers", "days", "verify", "drive", "outfit", "stays", "photos", "save"] as const;
+export const planStages = ["scope", "research", "map", "route", "transfers", "days", "verify", "drive", "outfit", "stays", "food", "photos", "save"] as const;
 export type PlanStage = (typeof planStages)[number];
 
 const count = z.number().int().nonnegative();
@@ -32,6 +32,8 @@ export const planActivitySchema = z.discriminatedUnion("kind", [
   z.strictObject({ kind: z.literal("repairing"), days: z.array(z.number().int().positive()), round: count }),
   /** One city's hotel search sent to RollingGo (1.2117 stays). */
   z.strictObject({ kind: z.literal("hotels"), city: name, near: name, done: count, total: count }),
+  /** One city's food searched (1.2117 food). */
+  z.strictObject({ kind: z.literal("food"), city: name, done: count, total: count }),
   /** One drive leg looked up or remembered (1.2102), between stops or, in transfers, between cities (1.2106). */
   z.strictObject({ kind: z.literal("driving"), from: name, to: name, done: count, total: count }),
   /** One train search between two cities sent to 12306 (1.2108). */
@@ -107,6 +109,8 @@ export const planProgressEventSchema = z.discriminatedUnion("type", [
   z.strictObject({ type: z.literal("day.outfit"), outfit: dayOutfitSchema }),
   /** One city's stay once its hotels are found (1.2117 stays). */
   z.strictObject({ type: z.literal("stay.ready"), stay: cityStaySchema }),
+  /** One city's dishes and restaurants (1.2117 food). */
+  z.strictObject({ type: z.literal("food.ready"), food: cityFoodSchema }),
   /** The second round's verdict for one stop where it now is; sent again when a repair moves it. */
   z.strictObject({ type: z.literal("spot.checked"), check: stopCheckSchema }),
   /** The run is paused until the traveller answers; it is saved and survives a restart. */

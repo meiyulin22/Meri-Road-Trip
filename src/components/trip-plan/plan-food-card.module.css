@@ -1,0 +1,54 @@
+/* What to eat (1.2117 food): a card after a city's last day, under its stay card. */
+.card { display: grid; gap: 12px; padding: 14px; border: 1px solid var(--line); border-radius: 18px; background: #fffdf8; }
+.header { display: flex; align-items: center; gap: 10px; }
+.header h3 { font-size: 14px; font-weight: 650; }
+.icon { display: inline-grid; flex: none; place-items: center; width: 30px; height: 30px; border-radius: 8px; color: #fff; background: var(--accent); }
+
+.block { display: grid; gap: 8px; }
+.block h4 { display: inline-flex; align-items: center; gap: 6px; color: var(--muted); font-size: 12px; font-weight: 700; letter-spacing: .04em; }
+.block[data-kind="mentioned"] { padding-top: 10px; border-top: 1px dashed var(--line); }
+.note { color: var(--soft); font-size: 12px; }
+
+.dishes { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 8px; list-style: none; }
+.dish { display: grid; gap: 4px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 10px; background: #fff; }
+.dishName { font-size: 14px; font-weight: 650; }
+.dishNote { color: var(--muted); font-size: 12px; line-height: 1.5; }
+
+.restaurants { display: grid; gap: 8px; list-style: none; }
+.restaurant { display: grid; gap: 5px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 10px; background: #fff; }
+.restaurant[data-placed="false"] { border-style: dashed; background: var(--paper); }
+.restaurantHead { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px; }
+.restaurantName { font-size: 14px; font-weight: 650; }
+.order { color: var(--accent); font-size: 12px; }
+.line { display: flex; align-items: center; gap: 5px; color: var(--muted); font-size: 12px; }
+.line[data-unknown="true"] { color: var(--soft); }
+.line svg { flex: none; }
+
+.actions { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 6px; }
+.action,
+.sourceToggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  color: var(--ink);
+  background: var(--paper);
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+.action:focus-visible,
+.sourceToggle:focus-visible { outline: 2px solid var(--green); outline-offset: 1px; }
+.sourceToggle svg { transition: transform .15s ease; }
+.sourceToggle svg[data-open="true"] { transform: rotate(180deg); }
+.sources { display: grid; gap: 4px; }
+.sources ul { display: grid; gap: 4px; padding-left: 2px; list-style: none; font-size: 12px; }
+.sources q { color: var(--ink); }
+.sources a { display: inline-flex; align-items: center; gap: 3px; margin-left: 6px; color: var(--muted); text-decoration: underline; text-underline-offset: 2px; }
+.footnote { color: var(--muted); font-size: 12px; line-height: 1.6; }
+
+@media (prefers-reduced-motion: reduce) {
+  .sourceToggle svg { transition: none; }
+}

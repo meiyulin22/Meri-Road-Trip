@@ -12,6 +12,8 @@ import { checkSpotsOnMap, type MapCheckDependencies, type MapCheckStop } from "@
 import { addCityWeather, cityCentreLookup } from "@/agents/planner/spot-weather";
 import { dressDays } from "@/agents/planner/day-outfits";
 import { planStays, type StayDependencies } from "@/agents/planner/plan-stays";
+import { planFood } from "@/agents/planner/plan-food";
+import type { PlanSearchCall } from "@/platform/search/plan-search";
 import { draftCityDays } from "@/agents/planner/plan-days";
 import { planRoute, type PlanModelDependencies, type PlanUsage, type ReadyScope } from "@/agents/planner/plan-route";
 import {
@@ -52,6 +54,8 @@ export type PlanGenerationDependencies = {
   readonly weather: WeatherForecast;
   /** Hotel searches (1.2117 stays); absent when HOTEL_PROVIDER is off, and the plan has no stays. */
   readonly hotels?: StayDependencies;
+  /** The web search the food step reads (1.2117 food): Kimi's, as research's. */
+  readonly foodSearch: PlanSearchCall;
   /** The second round on these cards; the real one is verifySpots with Kimi search and model. */
   readonly verifySpots: (
     cards: readonly SpotCard[],
@@ -140,6 +144,7 @@ export const stepStages = {
   "drive-legs": "drive",
   "day-outfits": "outfit",
   "plan-stays": "stays",
+  "plan-food": "food",
   "day-photos": "photos",
   "save-plan": "save",
 } as const satisfies Record<string, PlanStage>;
@@ -243,6 +248,14 @@ export function stageSummary(stepId: string, output: unknown): { stage: PlanStag
       return { stage, summary: {
         cities: stays.length, found: stays.filter(({ status }) => status === "found").length,
         picks: stays.filter((stay) => stay.status === "found" && stay.recommended !== null).length,
+      } };
+    }
+    case "food": {
+      const food = ((output as DriveResultState).draft.food ?? []).flatMap((city) => (city.status === "found" ? [city] : []));
+      return { stage, summary: {
+        dishes: food.reduce((sum, { dishes }) => sum + dishes.length, 0),
+        restaurants: food.reduce((sum, { restaurants }) => sum + restaurants.length, 0),
+        mentioned: food.reduce((sum, { mentioned }) => sum + mentioned.length, 0),
       } };
     }
     case "photos":
@@ -755,6 +768,31 @@ export function createPlanGenerationWorkflow(deps: PlanGenerationDependencies) {
     },
   });
 
+  /**
+   * What to eat in each city (1.2117 food): three searches a city, advertorials dropped, quotes
+   * checked, restaurants named by two sites, then Tianditu near the stops under a fresh stop (the
+   * map check's stop is long gone; a failure here stops only these lookups).
+   */
+  const foodStep = createStep({
+    id: "plan-food",
+    inputSchema: z.custom<DriveResultState>(),
+    outputSchema: z.custom<DriveResultState>(),
+    stateSchema: runState,
+    execute: async ({ inputData, state, writer }) => {
+      const { emit, flush } = emitter(writer);
+      const result = await planFood(state.handoff, inputData.draft.days, cardsOf(inputData.cities),
+        { search: deps.foodSearch, map: deps.map.search }, deps.planModel, { stopped: inputData.status === "stopped" },
+        ({ city, done, total }) => emit({ type: "stage.activity", stage: "food", activity: { kind: "food", city, done, total } }));
+      for (const food of result.food) emit({ type: "food.ready", food });
+      await flush();
+      return {
+        ...inputData,
+        draft: result.food.length > 0 ? { ...inputData.draft, food: result.food } : inputData.draft,
+        usage: addUsage(inputData.usage, result.usage),
+      };
+    },
+  });
+
   const photosStep = createStep({
     id: "day-photos",
     inputSchema: z.custom<DriveResultState>(),
@@ -823,6 +861,7 @@ export function createPlanGenerationWorkflow(deps: PlanGenerationDependencies) {
     .then(driveStep)
     .then(outfitsStep)
     .then(staysStep)
+    .then(foodStep)
     .then(photosStep)
     .then(saveStep)
     .commit();

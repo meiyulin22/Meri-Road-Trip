@@ -91,6 +91,8 @@ function setup(overrides: Partial<PlanGenerationDependencies> = {}, timeLimitMs?
       searchTrains: async () => { throw new Error("no train search expected"); },
       model: () => { throw new Error("no transport model expected"); },
     },
+    // No food articles by default: every city's food is "none" (1.2117 food).
+    foodSearch: async () => [],
     // Clear and mild at every point on every date asked; a trip without dates never asks (1.2117).
     weather: async (points, range) => ({ status: "ok", points: points.map(() => ({ elevation: 2400, days: datesBetween(range.from, range.to)
       .map((date) => ({ date, code: 1, high: 15, low: 3, precipitationMm: 0, precipitationChance: 0, snowfallCm: 0, gustKmh: 20 })) })) }),
@@ -148,7 +150,7 @@ test("streams real progress city by city, stops the map at its first failure, an
   // Sequence numbers have no gaps, and the page sees the stages in workflow order.
   assert.deepEqual(events.map(({ seq }) => seq), events.map((_, index) => index + 1));
   assert.deepEqual(events.filter(({ event }) => event.type === "stage.started").map(({ event }) => "stage" in event && event.stage),
-    ["scope", "research", "map", "route", "transfers", "days", "verify", "drive", "outfit", "stays", "photos", "save"]);
+    ["scope", "research", "map", "route", "transfers", "days", "verify", "drive", "outfit", "stays", "food", "photos", "save"]);
   assert.equal(types[0], "stage.started");
   assert.equal(types.at(-1), "run.finished");
   // Route before any day, and each day as its city is drafted.

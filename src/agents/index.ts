@@ -87,6 +87,8 @@ export function planGenerationDependencies(
     },
     // Open-Meteo: free, no key; one request a city, capped by OPEN_METEO_MAX_CALLS_PER_DAY (1.2117).
     weather: (points, range) => (weather ??= createOpenMeteoForecast())(points, range),
+    // The same web search research uses (Kimi search_pro by default), counted in its daily cap (1.2117 food).
+    foodSearch: (query, signal) => (planSearch ??= createPlanSearchFromEnvironment()).search(query, signal),
     // RollingGo only when HOTEL_PROVIDER=rollinggo and a key are set; query only, never booking (1.2117 stays).
     ...(hotelEnabled() ? {
       hotels: {

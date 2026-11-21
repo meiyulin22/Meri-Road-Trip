@@ -22,6 +22,7 @@ shapes the Planner — business, page, run, tools, memory — is kept in Chinese
 | Implemented (1.2013) | The validation stage: the second round checks opening, closures and booking for the trip's dates; code moves a closed stop, the Plan Agent re-plans what code cannot fix, in a Mastra `dountil` loop ("The validation stage") |
 | Implemented (1.2014) | The evaluation set: ten sample trips run through the real workflow, with numbers and code-judged expectations saved per version ("Evaluation") |
 | Implemented (1.2117) | Weather from Open-Meteo at each spot inside research; the route's detour guard; outdoor stops kept off poor-weather days ("Weather") |
+| Implemented (1.2117 food) | What to eat: three searches a city, advertorials dropped, quotes checked, restaurants named by two sites, Tianditu near the stops, unfound ones kept with their sources ("What to eat") |
 | Implemented (1.2117 stays) | Where to stay: one RollingGo search a city stay, three tiers by code, Kimi's pick for lodging preferences, no booking links ("Where to stay") |
 | Implemented (1.2117 outfit) | What to wear each day: code's basics from the weather, Kimi's checked additions, a dressing room and a packing list on the plan page ("What to wear") |
 | Planned | A near-departure weather refresh, a reviewer agent, tracing storage |
@@ -409,6 +410,29 @@ line says Meri is a personal project, free, with no ads; the link is a third-par
 no commission and makes no bookings; prices are reference rates; details and photos come from RollingGo. Photos load through
 next/image from `image-cdn.rollinggo.cn` only.
 
+### What to eat (1.2117 food)
+
+Agreed with merlin on 2026-11-20 and 2026-11-21 ([plan-food.ts](planner/plan-food.ts), rules in
+[domain/plan/food.ts](../domain/plan/food.ts)). There is no open API for 大众点评 or 美团 ratings,
+and scraping them is not allowed, so Meri cannot prove which restaurant is best; it can show what
+several independent sites recommend, and where that is.
+
+| Step | Rule | Why |
+| --- | --- | --- |
+| 1. Search | Three Kimi searches a city run: its dishes, restaurants near its middle sight, old local places | A search returns five results; one or two searches rarely gave a restaurant two sources (sample 2026-11-21) |
+| 2. Drop promotion | A result whose title or snippet holds 推广, 广告, 赞助, 合作, 软文, 探店, 团购, 品牌推荐, 注册主体, 招商 or 加盟 is never read | The sample held a "TOP5 品牌推荐" advertorial and a piece naming a restaurant's registered company; a ctrip review page with one 探店 post is dropped too, to be safe |
+| 3. Quote (Kimi) | One structured call a city: dishes with a quote, restaurants with a quote from every source naming them; diet and avoid preferences go with it | The model reads; code checks |
+| 4. Check (code) | A quote must be in its source and name its dish or restaurant; a restaurant needs quotes from two different sites (m.ctrip.com and ctrip.com are one) | A name the model invents, or one site's word alone, never shows |
+| 5. Map | Up to four restaurants a city, most-sourced first, looked up on Tianditu with the city as hint; it counts only in the city and within 1.5 km of one of the city's located stops, the nearest such | The sample's 渣渣米线 came back only in 张家口, so the city check matters; a failed lookup stops the step's lookups, no retry |
+| 6. Degrade | Found: address, distance and a map pin (three at most). Not found: kept below as "mentioned in articles", "address to check", with its sources (two at most) | merlin, 2026-11-21: say where it is when we can, otherwise show the articles |
+
+**Page.** A card after each city's last day, under the stay card: local dishes with a note and their
+source, restaurants with what to order, address, distance, "copy the name" and "show on the map" (a
+fork-and-knife pin), then the ones from articles, dashed. One line says it comes from public web
+search, Meri takes no payment from any business and filters promotion as far as it can, tastes
+differ, and opening hours should be checked before going. A city with nothing reliable shows no card.
+About ¥0.045 of search and one extraction call a city.
+
 ### Plan Agent: route and days
 
 The Plan Agent is two functions, so the plan page's future chat (routed by Jev) can call
@@ -458,6 +482,7 @@ plan-generation   input { runId, tripId, handoff }   state { handoff, scope, def
   .then(drive-legs)                       transport/legs.ts: walk or drive between neighbouring stops (1.2102–1.2103)
   .then(day-outfits)                      dressDays: what to wear each day with a forecast (1.2117 outfit)
   .then(plan-stays)                       planStays: where to stay in each city, when hotel search is on (1.2117 stays)
+  .then(plan-food)                        planFood: what to eat in each city (1.2117 food)
   .then(day-photos)                       dayPhotos from the local catalog only
   .then(save-plan)                        a new plan version
 ```

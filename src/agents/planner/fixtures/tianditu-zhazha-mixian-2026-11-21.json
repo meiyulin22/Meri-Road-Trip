@@ -1,0 +1,18 @@
+{
+  "status": "success",
+  "candidates": [
+    {
+      "providerId": "0EDA2B265BD04E05",
+      "name": "渣渣米线炸串",
+      "province": "河北省",
+      "city": "张家口市",
+      "district": "沽源县",
+      "region": "河北省 张家口市 沽源县",
+      "address": "天绣苑附近西南方向110米",
+      "longitude": 115.67376,
+      "latitude": 41.67235,
+      "coordinateSystem": "CGCS2000",
+      "kind": "other"
+    }
+  ]
+}

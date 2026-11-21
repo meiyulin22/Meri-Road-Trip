@@ -95,7 +95,7 @@ export function stayBlocks(days: readonly PlanDay[], cards: ReadonlyMap<string, 
 }
 
 /** The located stop with the shortest total distance to the others; the city when none is located. */
-function nearOf(run: readonly PlanDay[], cards: ReadonlyMap<string, SpotCard>, city: string): StayBlock["near"] {
+export function nearOf(run: readonly PlanDay[], cards: ReadonlyMap<string, SpotCard>, city: string): StayBlock["near"] {
   const located = run.flatMap(({ stops }) => stops).flatMap(({ spotId }) => {
     const card = cards.get(spotId);
     return card && card.mapCheck.status === "located" && card.mapCheck.point ? [{ name: card.name, point: card.mapCheck.point }] : [];

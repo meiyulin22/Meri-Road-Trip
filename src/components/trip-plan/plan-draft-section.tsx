@@ -45,6 +45,7 @@ import { DayWeatherBadge, DayWeatherLine, StopWeatherLine, WeatherCredit } from 
 import { dayWeather, hasForecast, stopWeather } from "./plan-weather-view";
 import { OutfitRoom, PackingList } from "./plan-outfit";
 import { PlanStayCard } from "./plan-stay-card";
+import { PlanFoodCard } from "./plan-food-card";
 import type { HotelOption } from "@/domain/plan/stays";
 import { outfitLine } from "./plan-outfit-view";
 import type { DayOutfit } from "@/domain/plan/outfit";
@@ -411,11 +412,13 @@ function DraftDays({ response, text, locale, transport, gettingThere }: {
   const photos = useMemo(() => new Map(response.dayPhotos.map(({ day, image }) => [day, image])), [response.dayPhotos]);
   const [openDay, setOpenDay] = useState<number | null>(draft.days[0]?.day ?? null);
   // A hotel the reader asked to see on the map (1.2117 stays).
-  const [shownHotel, setShownHotel] = useState<HotelOption | null>(null);
-  const showHotel = (hotel: HotelOption) => {
-    setShownHotel(hotel);
+  // A hotel or restaurant the reader asked to see on the map (1.2117 stays and food).
+  const [shownPlace, setShownPlace] = useState<{ name: string; kind: "hotel" | "food"; point: { longitude: number; latitude: number } } | null>(null);
+  const showPlace = (place: { name: string; kind: "hotel" | "food"; point: { longitude: number; latitude: number } }) => {
+    setShownPlace(place);
     document.getElementById("plan-map-heading")?.scrollIntoView({ behavior: "smooth", block: "start" });
   };
+  const showHotel = (hotel: HotelOption) => showPlace({ name: hotel.name, kind: "hotel", point: hotel.point });
   const stops = draft.days.reduce((count, day) => count + day.stops.length, 0);
   const sourced = draft.days.flatMap((day) => day.stops).filter(({ spotId }) => cards.get(spotId)?.location).length;
   const located = draft.days.flatMap((day) => day.stops).filter(({ spotId }) => cards.get(spotId)?.mapCheck.status === "located").length;
@@ -498,8 +501,8 @@ function DraftDays({ response, text, locale, transport, gettingThere }: {
         </div>
       ) : null}
 
-      <PlanTiandituMap plan={response} locale={locale} selectedDay={openDay} onSelectDay={(day) => { setShownHotel(null); setOpenDay(day); }}
-        hotel={shownHotel ? { name: shownHotel.name, point: shownHotel.point } : null} />
+      <PlanTiandituMap plan={response} locale={locale} selectedDay={openDay} onSelectDay={(day) => { setShownPlace(null); setOpenDay(day); }}
+        hotel={shownPlace} />
 
       {/* One red panda for the trip, a tab a day, following the day opened below (1.2117 outfit). */}
       <OutfitRoom days={draft.days} outfits={draft.outfits ?? []} locale={locale} selectedDay={openDay} onSelectDay={setOpenDay}
@@ -523,6 +526,10 @@ function DraftDays({ response, text, locale, transport, gettingThere }: {
             open={openDay === day.day} onOpen={() => setOpenDay(openDay === day.day ? null : day.day)} />
           {(draft.stays ?? []).filter(({ lastDay }) => lastDay === day.day).map((stay) => (
             <PlanStayCard key={`${stay.city}-${stay.firstDay}`} stay={stay} locale={locale} onShowOnMap={showHotel} />
+          ))}
+          {(draft.food ?? []).filter(({ lastDay }) => lastDay === day.day).map((food) => (
+            <PlanFoodCard key={`${food.city}-${food.lastDay}`} food={food} locale={locale}
+              onShowOnMap={(restaurant) => restaurant.place && showPlace({ name: restaurant.name, kind: "food", point: restaurant.place.point })} />
           ))}
           </Fragment>
         ))}

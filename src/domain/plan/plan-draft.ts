@@ -3,6 +3,7 @@ import { formatExactDate, parseExactDate, parseExactDays } from "@/domain/trip-s
 
 import type { SpotCard, SpotEvidence } from "./spot-card";
 import type { DayOutfit } from "./outfit";
+import type { CityFood } from "./food";
 import type { CityStay } from "./stays";
 import type { TransferLeg } from "./transfer-legs";
 
@@ -152,6 +153,8 @@ export type PlanDraft = {
   readonly outfits?: readonly DayOutfit[];
   /** Where to stay in each city (1.2117 stays); absent before it, or when hotel search is off. */
   readonly stays?: readonly CityStay[];
+  /** What to eat in each city (1.2117 food); absent before it. */
+  readonly food?: readonly CityFood[];
 };
 
 export type TripCity = { readonly province: string; readonly city: string };

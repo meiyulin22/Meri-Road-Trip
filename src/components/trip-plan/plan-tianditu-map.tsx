@@ -44,8 +44,8 @@ const chinaBounds: [[number, number], [number, number]] = [[3, 73], [54, 136]];
  */
 export function PlanTiandituMap({ plan, locale, selectedDay, onSelectDay, hotel = null }: {
   readonly plan: ReadyPlan;
-  /** A hotel the reader chose to see on the map (1.2117 stays), drawn over the day's pins. */
-  readonly hotel?: { readonly name: string; readonly point: { readonly longitude: number; readonly latitude: number } } | null;
+  /** A hotel or restaurant the reader chose to see on the map (1.2117 stays and food), drawn over the day's pins. */
+  readonly hotel?: { readonly name: string; readonly kind?: "hotel" | "food"; readonly point: { readonly longitude: number; readonly latitude: number } } | null;
   readonly locale: Locale;
   /** A day number, or null for the whole trip. */
   readonly selectedDay: number | null;
@@ -104,7 +104,7 @@ export function PlanTiandituMap({ plan, locale, selectedDay, onSelectDay, hotel 
     if (!ready || !current) return;
     current.hotel.clearLayers();
     if (!hotel) return;
-    current.L.marker([hotel.point.latitude, hotel.point.longitude], { icon: pin(current.L, hotelIcon), title: hotel.name, zIndexOffset: 2_000 })
+    current.L.marker([hotel.point.latitude, hotel.point.longitude], { icon: pin(current.L, hotel.kind === "food" ? foodIcon : hotelIcon), title: hotel.name, zIndexOffset: 2_000 })
       .bindTooltip(hotel.name, { direction: "top", offset: [0, -14], permanent: true }).addTo(current.hotel);
     current.map.setView([hotel.point.latitude, hotel.point.longitude], 15);
   }, [ready, hotel]);
@@ -145,6 +145,15 @@ const hotelIcon = {
     + '<rect x="2" y="2" width="24" height="24" rx="5" fill="#213e40" stroke="#fff" stroke-width="2"/>'
     + '<path d="M7 19v-9M7 15h14v4M21 15v-2a2 2 0 0 0-2-2h-6v4" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>'
     + '<circle cx="10" cy="12.5" r="1.6" fill="#fff"/></svg>'),
+};
+
+/** A restaurant pin: the same square in terracotta, with a fork and knife (1.2117 food). */
+const foodIcon = {
+  size: 28,
+  url: "data:image/svg+xml," + encodeURIComponent(
+    '<svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 28 28">'
+    + '<rect x="2" y="2" width="24" height="24" rx="5" fill="#c95f3d" stroke="#fff" stroke-width="2"/>'
+    + '<path d="M10 7v14M8 7v4a2 2 0 0 0 4 0V7M18 21V7c-2 1-3 3-3 6h3" fill="none" stroke="#fff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>'),
 };
 
 function pin(L: Leaflet, icon: { url: string; size: number }) {

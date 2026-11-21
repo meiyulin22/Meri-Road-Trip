@@ -359,6 +359,8 @@ Generate plan 背后的计划页先用示例数据做出完整页面（设计决
 | [src/components/trip-plan/outfit-art.ts](../src/components/trip-plan/outfit-art.ts) | 表现层素材 | 换装间的画：Codex 的纸娃娃素材清单（`public/companion/outfit/manifest.json`，本体一张静态图 + 每样基础款一张同画布的透明叠层）的格式和读取，读不到就用 32×40 的占位像素小熊猫和衣服 |
 | [src/components/trip-plan/plan-stay-card.tsx](../src/components/trip-plan/plan-stay-card.tsx) | 表现层 | 1.2117 住宿：每座城最后一天后面的「住哪里」卡：Meri 推荐（有偏好时）和三档酒店，每家最多 5 张可左右滑动的照片、星级、每晚和整段参考价、距离、地址、复制酒店名、在地图上看、在 RollingGo 查看（不带推广参数的第三方页面）、详情（电话、入住退房、设施）；一行声明：个人作品、不收费不卖广告、第三方链接、不收佣金不代订、参考价、信息和图片来自 RollingGo |
 | [src/components/trip-plan/plan-stay-card.module.css](../src/components/trip-plan/plan-stay-card.module.css) | 表现层样式 | 住宿卡：三列酒店，窄屏改单列横排 |
+| [src/components/trip-plan/plan-food-card.tsx](../src/components/trip-plan/plan-food-card.tsx) | 表现层 | 1.2117 吃什么：每座城最后一天后面、住宿卡下面的「吃什么」卡：特色菜（介绍和出处）、推荐餐厅（招牌、地址、距离、复制店名、在地图上看、出处）、文章里提到的（地址待查、出处）；一行声明 |
+| [src/components/trip-plan/plan-food-card.module.css](../src/components/trip-plan/plan-food-card.module.css) | 表现层样式 | 吃什么卡：特色菜网格、餐厅列表，没核实地址的用虚线框 |
 | [src/components/trip-plan/plan-draft.module.css](../src/components/trip-plan/plan-draft.module.css) | 样式 | 行程草稿的统计胶囊、时段时间轴、锚点、出处展开、提示卡和骨架加载。 |
 | [src/components/trip-plan/plan-memories.tsx](../src/components/trip-plan/plan-memories.tsx) | 表现层 | 「Meri 记得」：交接提取的偏好、用户在计划页添加的偏好和回答计划问题得到的偏好（后者算作已用于本次计划），添加面板复用 PreferenceSheet；新偏好不触发重新规划。 |
 | [src/components/trip-plan/plan-memories.module.css](../src/components/trip-plan/plan-memories.module.css) | 样式 | 偏好卡片、标签和提示。 |
@@ -378,7 +380,7 @@ Generate plan 背后的计划页先用示例数据做出完整页面（设计决
 | [src/components/trip-plan/plan-sections.tsx](../src/components/trip-plan/plan-sections.tsx) | 表现层 | 生成进度（当前步骤、进度条、步骤列表，完成后收成一行运行统计）、规划中的骨架区块、锁住的区块（天数、出发日期、出发地 + 交通方式，各自写明要什么、就地点选）、怎么去（只展开推荐的一班，其余折叠；自驾时只给说明）、核实情况卡。 |
 | [src/components/trip-plan/day-card.tsx](../src/components/trip-plan/day-card.tsx) | 表现层 | 一天的卡片：收起时一行（第几天、日期、城市、标题、天气）；展开时照片、上午/下午天气、时间线（时间、景点、开放时间和核实标记及来源、提示、"我选了 X"的替换候选、两点之间的车程或步行）、可行性一句话、还不知道的事、住哪里和每晚价格；没日期时天气和价格显示锁住的说明；悬停景点会在地图上标亮。1.1001：天气块（预报：上午/下午、逐几小时温度、风、日出日落、因天气这样安排的理由；太远：往年同期加说明），每个景点名旁的导航按钮（选地图 App）。 |
 | [src/components/trip-plan/plan-map.tsx](../src/components/trip-plan/plan-map.tsx) | 表现层 | 示意地图（SVG）：湖、山脊、道路、城镇，当天景点按顺序编号并连线（步行虚线），其他天的点淡显；按天/全程切换，镜头平滑移过去；地名统一中文；只用于设计预览页，真实计划页的地图见 plan-tianditu-map.tsx（1.2100）。 |
-| [src/components/trip-plan/plan-tianditu-map.tsx](../src/components/trip-plan/plan-tianditu-map.tsx) | 表现层 | 计划页地图。1.2104 起用 Leaflet 画，瓦片来自自己的中转接口 `/api/map-tiles/...`，网页里没有任何 key，浏览器也不直接请求天地图；矢量底图加中文注记（英文注记被天地图防火墙拦过，暂不使用），地图只能在中国范围内拖动，角落写「天地图 · GS(2026)4921号」。1.2105 起每天一种颜色（和那天卡片的天数方块同色），全程视图每天按自己的颜色画；选中那天的景点带编号，开车画白边粗实线、步行画细点线、没路处和一大片区域的段画虚线，其他天灰色小点；地图下方有三种线的图例；没有定位景点的那天用它的颜色显示所在城市（1.2101）。；1.2117 加 `hotel`：选中的酒店画成方形床的标记，地图移过去 |
+| [src/components/trip-plan/plan-tianditu-map.tsx](../src/components/trip-plan/plan-tianditu-map.tsx) | 表现层 | 计划页地图。1.2104 起用 Leaflet 画，瓦片来自自己的中转接口 `/api/map-tiles/...`，网页里没有任何 key，浏览器也不直接请求天地图；矢量底图加中文注记（英文注记被天地图防火墙拦过，暂不使用），地图只能在中国范围内拖动，角落写「天地图 · GS(2026)4921号」。1.2105 起每天一种颜色（和那天卡片的天数方块同色），全程视图每天按自己的颜色画；选中那天的景点带编号，开车画白边粗实线、步行画细点线、没路处和一大片区域的段画虚线，其他天灰色小点；地图下方有三种线的图例；没有定位景点的那天用它的颜色显示所在城市（1.2101）。；1.2117 加 `hotel`：选中的酒店画成方形床的标记，地图移过去；1.2117 吃什么：选中的餐厅画成红色方块刀叉标记 |
 | [src/app/api/map-tiles/[layer]/[z]/[x]/[y]/route.ts](../src/app/api/map-tiles/[layer]/[z]/[x]/[y]/route.ts) | 接口层 | 1.2104：地图瓦片中转，每个服务器进程一个中转和一个限流器。 |
 | [src/capabilities/map/map-tiles-handler.ts](../src/capabilities/map/map-tiles-handler.ts) | 应用层 | 1.2104：只给自己的页面（Sec-Fetch-Site 或 Referer，可被伪造，只挡随手盗用）、只给中国范围内的瓦片、每个 IP 每分钟最多 400 张；失败只说「地图暂时不可用」，不带天地图细节；浏览器可以缓存一天，服务器不存。；第 3 步起用 `client-address` 认 IP |
 | [src/capabilities/map/map-tiles-handler.test.ts](../src/capabilities/map/map-tiles-handler.test.ts) | 测试 | 图层、缩放、中国范围、key 只在服务器、拒绝后暂停、限流、来源检查。 |
@@ -477,6 +479,8 @@ Generate plan 背后的计划页先用示例数据做出完整页面（设计决
 | [src/domain/plan/outfit.test.ts](../src/domain/plan/outfit.test.ts) | 测试 | 分层门槛、玉龙雪山实测那天、雨/雷暴/大风/雪/晴、没有预报、每站预报与城市天气、补充的检查、打包清单。 |
 | [src/domain/plan/stays.ts](../src/domain/plan/stays.ts) | 领域层 | 1.2117 住宿：酒店、详情、城市住宿的类型；同城连续几天一段、最后一天回家不算一晚；在这段景点里最居中的已定位景点附近查，没有就查城市；按星级分经济/舒适/高档，每档取最近的有价酒店 |
 | [src/domain/plan/stays.test.ts](../src/domain/plan/stays.test.ts) | 测试 | 分段和晚数、一日游和没日期不住、用录下的样例挑三档。 |
+| [src/domain/plan/food.ts](../src/domain/plan/food.ts) | 领域层 | 1.2117 吃什么：类型；推广文章的判断词；网站归并（m.ctrip.com 和 ctrip.com 算一个）；餐厅名去分店；核对引用（在原文里、写到名字）和两个不同网站；天地图结果只认本城且离景点 1.5 km 内最近的；按天切出每座城连续的几天 |
+| [src/domain/plan/food.test.ts](../src/domain/plan/food.test.ts) | 测试 | 用录下的样例：软文和探店被去掉、网站归并、引用和两个网站、外地同名店不算、离景点远的不算。 |
 | [src/domain/plan/route-distance.ts](../src/domain/plan/route-distance.ts) | 领域层 | 1.2117：城市中心之间的直线路程（有出发地从出发地起、回到出发地），最短顺序（≤8 城穷举，更多用就近 + 2-opt）；绕路判断在 route-weather.ts |
 | [src/domain/plan/route-weather.ts](../src/domain/plan/route-weather.ts) | 领域层 | 1.2117：先距离、后天气。每城保留模型给的天数、按顺序排上日期，数每种顺序碰到几天「不宜户外」（转场日照常算）；在不超过最短顺序 30% 的顺序里选差的天数最少的，再选更短的，平手保留模型的顺序；也判断是否绕路 |
 | [src/domain/plan/route-weather.test.ts](../src/domain/plan/route-weather.test.ts) | 测试 | 日期分配、两城同距离按天气选、天气不能换来超过 30% 的路程、平手保留、绕路时取 30% 内最好的顺序。 |
@@ -637,6 +641,10 @@ Generate plan 背后的计划页先用示例数据做出完整页面（设计决
 | [src/agents/planner/day-outfits.test.ts](../src/agents/planner/day-outfits.test.ts) | 测试 | 一次调用、补充的检查、没有日期的天不问、失败只留基础款、没有预报不调用。 |
 | [src/agents/planner/plan-stays.ts](../src/agents/planner/plan-stays.ts) | Agent 层 | 1.2117 住宿：每段城市连住查一次 RollingGo，代码挑三档；偏好涉及预算、同行人、步行或避开的东西时，一次 Kimi 调用给每座城从查到的列表里挑一家并写理由（不在列表里的不收）；再查展示的酒店详情；查不到就显示「住宿待查」 |
 | [src/agents/planner/plan-stays.test.ts](../src/agents/planner/plan-stays.test.ts) | 测试 | 没偏好不调模型、三档、有偏好的挑选和理由、挑了列表外的不收、搜索失败。 |
+| [src/agents/planner/plan-food.ts](../src/agents/planner/plan-food.ts) | Agent 层 | 1.2117 吃什么：每座城 3 次 Kimi 搜索（特色菜、居中景点附近的餐厅、老字号），去掉推广文章，一次 Kimi 调用摘录特色菜和餐厅（带原文），代码核对引用和两个不同网站，再用天地图在景点 1.5 km 内核对餐厅（每城最多 4 家，失败即停）；找到的给地址，找不到的放「文章里提到的」 |
+| [src/agents/planner/plan-food.test.ts](../src/agents/planner/plan-food.test.ts) | 测试 | 三次搜索、推广文章不给模型、一家上地图一家只在文章里、天地图失败即停、搜索全失败。 |
+| [src/agents/planner/fixtures/food-search-lijiang-2026-11-21.json](../src/agents/planner/fixtures/food-search-lijiang-2026-11-21.json) | 测试样例 | 2026-11-21 真实搜索两次（丽江特色美食、古城附近餐厅）录下的结果，含两篇软文 |
+| [src/agents/planner/fixtures/tianditu-zhazha-mixian-2026-11-21.json](../src/agents/planner/fixtures/tianditu-zhazha-mixian-2026-11-21.json) | 测试样例 | 同日天地图查「渣渣米线」的回答：只有张家口一家，丽江没有 |
 | [src/agents/planner/plan-route.ts](../src/agents/planner/plan-route.ts) | Agent 层 | Plan Agent 路线：一次 Kimi 调用规划城市顺序、天数、每天重点区县和主题、放弃的城市，代码校验、重试一次、再按添加顺序兜底；允许时可以返回一个带选项的问题（只在第一次尝试、格式合法时采用；选项可写明放弃哪座城）；天数够时不许自行放弃城市，只有用户选了才可以；用户点名的区域（如大理市）作为重点区域交给模型；空的理由当作没有理由；两次尝试共 60 秒；每次尝试报告进度。1.2016：天数少于城市且没有兴趣或节奏偏好时必须提问，第一次没问就退回再答一次（仍不问则用第一次的路线）；偏好已说明想多看、能接受紧凑时不问「是否保留全部城市」；放弃同一城市的重复选项只留第一个。1.2018：想轻松（relaxed）且每城都排得下，但扣掉转场日后不用赶路的天少于城市数（3 城 3 天、3 城 4 天）时也必须提问，同样退回一次；退回后仍不问，由 `fallbackQuestion` 按模板自己提问（候选最少的城市排前面，中英文）。；1.2117：给模型看每城每天的天气，先就近、再照顾天气；代码按城市中心直线距离做绕路检查，超过最短顺序 30% 退回一次，仍超过就重排；同一次退回也管天气：30% 以内有坏天气更少的顺序就退回，仍不是就由代码改成那个顺序 |
 | [src/agents/planner/plan-route.test.ts](../src/agents/planner/plan-route.test.ts) | 测试（对应模块边界） | 用模拟模型验证丽江大理 5 天的路线与转场日、两次不通过后的兜底、模型建不起来时不可用、问题只在允许且格式合法时返回、空理由不让路线失败、放弃城市的选项与用户选择、用户点名的区域进入提示。 |
 | [src/agents/planner/plan-days.ts](../src/agents/planner/plan-days.ts) | Agent 层 | Plan Agent 选点：一城的各天一次 Kimi 调用，按短 ID 选景点、时段和时间锚点，代码校验、重试一次；没有候选的城市不调模型；模型把时间锚点写成单独的字符串也能读，格式不对的回答会再试一次（1.2013）；1.2117：给每天的当地天气、每个候选是否户外和它自己天气差的日子；户外景点排在天气差的一天、同城有更好的日子还有空位时，随第二次尝试退回一次，仍在就保留 |
