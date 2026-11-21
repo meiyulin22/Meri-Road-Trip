@@ -32,6 +32,8 @@ export type ProviderLimits = {
   readonly kimiRequestsPerIpPerHour: number;
   /** OPEN_METEO_MAX_CALLS_PER_DAY: Open-Meteo calls (one per point) a Beijing day; its free tier allows 10,000. Default 2000 (1.2117). */
   readonly openMeteoCallsPerDay: number;
+  /** ROLLINGGO_MAX_CALLS_PER_DAY: RollingGo hotel calls (searches and details) a Beijing day; it says free with no cap. Default 300 (1.2117 stays). */
+  readonly rollinggoCallsPerDay: number;
 };
 
 export const defaultProviderLimits: ProviderLimits = {
@@ -48,6 +50,7 @@ export const defaultProviderLimits: ProviderLimits = {
   chatTurnsPerGuestPerHour: 30,
   kimiRequestsPerIpPerHour: 120,
   openMeteoCallsPerDay: 2_000,
+  rollinggoCallsPerDay: 300,
 };
 
 type Environment = Readonly<Record<string, string | undefined>>;
@@ -80,6 +83,7 @@ export function providerLimitsFrom(env: Environment): ProviderLimits {
     chatTurnsPerGuestPerHour: positive(env, "CHAT_TURNS_PER_GUEST_PER_HOUR", defaultProviderLimits.chatTurnsPerGuestPerHour, 1, true),
     kimiRequestsPerIpPerHour: positive(env, "KIMI_REQUESTS_PER_IP_PER_HOUR", defaultProviderLimits.kimiRequestsPerIpPerHour, 1, true),
     openMeteoCallsPerDay: positive(env, "OPEN_METEO_MAX_CALLS_PER_DAY", defaultProviderLimits.openMeteoCallsPerDay, 1, true),
+    rollinggoCallsPerDay: positive(env, "ROLLINGGO_MAX_CALLS_PER_DAY", defaultProviderLimits.rollinggoCallsPerDay, 1, true),
   };
 }
 

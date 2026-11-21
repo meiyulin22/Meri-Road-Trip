@@ -42,8 +42,10 @@ const chinaBounds: [[number, number], [number, number]] = [[3, 73], [54, 136]];
  * dashed one where the map has no way; in a one-day view the other days' are small and grey.
  * Only located stops are drawn; the day cards carry every stop as text.
  */
-export function PlanTiandituMap({ plan, locale, selectedDay, onSelectDay }: {
+export function PlanTiandituMap({ plan, locale, selectedDay, onSelectDay, hotel = null }: {
   readonly plan: ReadyPlan;
+  /** A hotel the reader chose to see on the map (1.2117 stays), drawn over the day's pins. */
+  readonly hotel?: { readonly name: string; readonly point: { readonly longitude: number; readonly latitude: number } } | null;
   readonly locale: Locale;
   /** A day number, or null for the whole trip. */
   readonly selectedDay: number | null;
@@ -54,7 +56,7 @@ export function PlanTiandituMap({ plan, locale, selectedDay, onSelectDay }: {
   // Every day has a tab: a day without located stops still shows where it is (1.2101).
   const days = plan.draft.days.map(({ day }) => day);
   const container = useRef<HTMLDivElement>(null);
-  const leaflet = useRef<{ L: Leaflet; map: LeafletMap; overlays: LayerGroup } | null>(null);
+  const leaflet = useRef<{ L: Leaflet; map: LeafletMap; overlays: LayerGroup; hotel: LayerGroup } | null>(null);
   const [ready, setReady] = useState(false);
   const [failed, setFailed] = useState(false);
   const chosen = selectedDay !== null && days.includes(selectedDay) ? selectedDay : null;
@@ -75,7 +77,7 @@ export function PlanTiandituMap({ plan, locale, selectedDay, onSelectDay }: {
       base.on("tileerror", () => { if (!loaded) setFailed(true); });
       base.addTo(map);
       L.tileLayer(tileUrl(labelLayer()), { minZoom: 3, maxZoom: 18 }).addTo(map);
-      leaflet.current = { L, map, overlays: L.layerGroup().addTo(map) };
+      leaflet.current = { L, map, overlays: L.layerGroup().addTo(map), hotel: L.layerGroup().addTo(map) };
       setReady(true);
     });
     return () => {
@@ -95,6 +97,17 @@ export function PlanTiandituMap({ plan, locale, selectedDay, onSelectDay }: {
     // stops are rebuilt each render from the plan; the plan and the chosen day decide them.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ready, plan, chosen]);
+
+  // The chosen hotel, on top of everything, and the map moves to it.
+  useEffect(() => {
+    const current = leaflet.current;
+    if (!ready || !current) return;
+    current.hotel.clearLayers();
+    if (!hotel) return;
+    current.L.marker([hotel.point.latitude, hotel.point.longitude], { icon: pin(current.L, hotelIcon), title: hotel.name, zIndexOffset: 2_000 })
+      .bindTooltip(hotel.name, { direction: "top", offset: [0, -14], permanent: true }).addTo(current.hotel);
+    current.map.setView([hotel.point.latitude, hotel.point.longitude], 15);
+  }, [ready, hotel]);
 
   if (stops.length === 0) return null;
   return (
@@ -123,6 +136,16 @@ export function PlanTiandituMap({ plan, locale, selectedDay, onSelectDay }: {
 }
 
 type Drawing = { readonly L: Leaflet; readonly map: LeafletMap; readonly overlays: LayerGroup };
+
+/** A hotel pin: a dark square with a bed, apart from the round numbered stops (1.2117 stays). */
+const hotelIcon = {
+  size: 28,
+  url: "data:image/svg+xml," + encodeURIComponent(
+    '<svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 28 28">'
+    + '<rect x="2" y="2" width="24" height="24" rx="5" fill="#213e40" stroke="#fff" stroke-width="2"/>'
+    + '<path d="M7 19v-9M7 15h14v4M21 15v-2a2 2 0 0 0-2-2h-6v4" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>'
+    + '<circle cx="10" cy="12.5" r="1.6" fill="#fff"/></svg>'),
+};
 
 function pin(L: Leaflet, icon: { url: string; size: number }) {
   return L.icon({ iconUrl: icon.url, iconSize: [icon.size, icon.size], iconAnchor: [icon.size / 2, icon.size / 2] });

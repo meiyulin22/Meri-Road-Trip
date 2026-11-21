@@ -17,6 +17,7 @@ import { create12306Rail, type TrainSearch } from "@/platform/rail/rail-12306";
 import { sharedRailBudget } from "@/platform/rail/rail-budget";
 import { railEnabled, railTools } from "@/platform/rail/rail-mcp";
 import { createOpenMeteoForecast } from "@/platform/weather/open-meteo";
+import { createRollingGoHotels, hotelEnabled, rollinggoTools, sharedHotelBudget, type RollingGoHotels } from "@/platform/hotel/rollinggo";
 import type { WeatherForecast } from "@/platform/weather/weather-forecast";
 import { createVariflightHubs, createVariflightSearch, flightEnabled, type FlightSearch, sharedFlightBudget, variflightTools } from "@/platform/flight/variflight";
 
@@ -32,6 +33,7 @@ process.env.MASTRA_TELEMETRY_DISABLED ??= "1";
 let map: TiandituLocationProvider | null = null;
 let drive: ReturnType<typeof createTiandituDrive> | null = null;
 let weather: WeatherForecast | null = null;
+let hotels: RollingGoHotels | null = null;
 let cityPoint: ReturnType<typeof createTiandituCityPoint> | null = null;
 let rail: ReturnType<typeof create12306Rail> | null = null;
 let flights: ReturnType<typeof createVariflightSearch> | null = null;
@@ -85,6 +87,13 @@ export function planGenerationDependencies(
     },
     // Open-Meteo: free, no key; one request a city, capped by OPEN_METEO_MAX_CALLS_PER_DAY (1.2117).
     weather: (points, range) => (weather ??= createOpenMeteoForecast())(points, range),
+    // RollingGo only when HOTEL_PROVIDER=rollinggo and a key are set; query only, never booking (1.2117 stays).
+    ...(hotelEnabled() ? {
+      hotels: {
+        search: (search) => (hotels ??= createRollingGoHotels({ enabled: hotelEnabled, tools: rollinggoTools, budget: sharedHotelBudget })).search(search),
+        detail: (hotelId) => (hotels ??= createRollingGoHotels({ enabled: hotelEnabled, tools: rollinggoTools, budget: sharedHotelBudget })).detail(hotelId),
+      },
+    } : {}),
     // A search switched off is left out, so the transport agent is not run for it and the card says so (1.2113 step 1).
     transport: {
       // 12306 only when RAIL_PROVIDER=12306; its server starts on the first search, not on import.

@@ -1,0 +1,86 @@
+/* Where to stay (1.2117 stays): a card after a city's last day, three hotel tiles and Meri's pick. */
+.card { display: grid; gap: 12px; padding: 14px; border: 1px solid var(--line); border-radius: 18px; background: #fffdf8; }
+.header { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.header h3 { font-size: 14px; font-weight: 650; }
+.header p { color: var(--muted); font-size: 12px; }
+.icon { display: inline-grid; flex: none; place-items: center; width: 30px; height: 30px; border-radius: 8px; color: #fff; background: var(--ink); }
+.empty { color: var(--muted); font-size: 13px; }
+
+.pick { display: grid; gap: 8px; padding: 10px; border: 2px dashed #9f7fb3; border-radius: 12px; background: #faf6fc; }
+.reason { display: flex; align-items: flex-start; gap: 6px; color: #5d4373; font-size: 13px; }
+.reason svg { flex: none; margin-top: 3px; }
+
+.tiers { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+.tile { display: grid; grid-template-rows: auto 1fr; overflow: hidden; border: 1px solid var(--line); border-radius: 12px; background: #fff; }
+.pick .tile { grid-template-columns: minmax(160px, 240px) minmax(0, 1fr); grid-template-rows: auto; }
+.photo { position: relative; display: grid; place-items: center; aspect-ratio: 16 / 10; color: var(--soft); background: var(--paper-deep); }
+.pick .photo { aspect-ratio: auto; min-height: 150px; }
+.strip { position: absolute; inset: 0; display: flex; overflow-x: auto; scroll-snap-type: x mandatory; scrollbar-width: none; }
+.strip::-webkit-scrollbar { display: none; }
+.strip:focus-visible { outline: 2px solid var(--green); outline-offset: -2px; }
+.slide { position: relative; flex: 0 0 100%; scroll-snap-align: start; }
+.slide img { object-fit: cover; }
+.dots { position: absolute; right: 8px; bottom: 8px; display: flex; gap: 3px; padding: 3px 5px; border-radius: 4px; background: rgba(33, 62, 64, .55); }
+.dots i { width: 5px; height: 5px; background: rgba(255, 255, 255, .5); }
+.dots i[data-on="true"] { background: #fff; }
+.tierChip {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border-radius: 4px;
+  color: #fff;
+  background: rgba(33, 62, 64, .86);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: .02em;
+}
+.tierChip[data-kind="pick"] { background: #6f4f87; }
+.body { display: grid; align-content: start; gap: 6px; padding: 10px 12px 12px; min-width: 0; }
+.name { font-size: 14px; font-weight: 650; line-height: 1.35; }
+.meta { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; }
+.stars { display: inline-flex; gap: 2px; }
+.stars i { width: 8px; height: 8px; background: var(--paper-deep); clip-path: polygon(50% 0, 62% 36%, 100% 38%, 70% 60%, 80% 100%, 50% 76%, 20% 100%, 30% 60%, 0 38%, 38% 36%); }
+.stars i[data-on="true"] { background: #d39b2f; }
+.price { display: inline-flex; flex-wrap: wrap; align-items: baseline; gap: 6px; font-variant-numeric: tabular-nums; }
+.price b { font-size: 14px; }
+.price span { color: var(--muted); font-size: 12px; }
+.noPrice { color: var(--soft); font-size: 12px; }
+.line { display: flex; align-items: center; gap: 5px; color: var(--muted); font-size: 12px; }
+.line svg { flex: none; }
+.address { color: var(--soft); font-size: 12px; line-height: 1.5; }
+.actions { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 2px; }
+.action {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  color: var(--ink);
+  background: var(--paper);
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+.action:hover { border-color: rgba(33, 62, 64, .4); }
+.action:focus-visible { outline: 2px solid var(--green); outline-offset: 1px; }
+.chevron { transition: transform .15s ease; }
+.chevron[data-open="true"] { transform: rotate(180deg); }
+.details { display: grid; gap: 6px; padding-top: 6px; border-top: 1px solid var(--line); }
+.facilities { display: flex; flex-wrap: wrap; gap: 4px; list-style: none; }
+.facilities li { padding: 1px 7px; border-radius: 4px; color: var(--muted); background: var(--paper-deep); font-size: 11px; }
+.footnote { color: var(--muted); font-size: 12px; line-height: 1.6; }
+
+@media (max-width: 900px) {
+  .tiers { grid-template-columns: minmax(0, 1fr); }
+  .tile { grid-template-columns: 132px minmax(0, 1fr); grid-template-rows: auto; }
+  .photo { aspect-ratio: auto; min-height: 120px; }
+  .pick .tile { grid-template-columns: 132px minmax(0, 1fr); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .chevron { transition: none; }
+}

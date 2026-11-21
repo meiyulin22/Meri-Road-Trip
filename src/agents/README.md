@@ -22,6 +22,7 @@ shapes the Planner — business, page, run, tools, memory — is kept in Chinese
 | Implemented (1.2013) | The validation stage: the second round checks opening, closures and booking for the trip's dates; code moves a closed stop, the Plan Agent re-plans what code cannot fix, in a Mastra `dountil` loop ("The validation stage") |
 | Implemented (1.2014) | The evaluation set: ten sample trips run through the real workflow, with numbers and code-judged expectations saved per version ("Evaluation") |
 | Implemented (1.2117) | Weather from Open-Meteo at each spot inside research; the route's detour guard; outdoor stops kept off poor-weather days ("Weather") |
+| Implemented (1.2117 stays) | Where to stay: one RollingGo search a city stay, three tiers by code, Kimi's pick for lodging preferences, no booking links ("Where to stay") |
 | Implemented (1.2117 outfit) | What to wear each day: code's basics from the weather, Kimi's checked additions, a dressing room and a packing list on the plan page ("What to wear") |
 | Planned | A near-departure weather refresh, a reviewer agent, tracing storage |
 
@@ -368,6 +369,43 @@ still base and one transparent overlay per basic on the same canvas, listed in
 `file` and `z`, optional `icons`), checked by `outfitManifestSchema`. A missing or malformed manifest
 means placeholders, never an error; the whole stack bobs in code, so the base must be still.
 
+### Where to stay (1.2117 stays)
+
+Agreed with merlin on 2026-11-20. The step runs after the outfits, only with `HOTEL_PROVIDER=rollinggo`
+and `ROLLINGGO_API_KEY` ([plan-stays.ts](planner/plan-stays.ts), rules in
+[domain/plan/stays.ts](../domain/plan/stays.ts), adapter [rollinggo.ts](../platform/hotel/rollinggo.ts)).
+
+**Provider.** RollingGo's hotel MCP (`https://mcp.rollinggo.cn/mcp`, `Authorization: Bearer`). Our key
+lists four tools, all queries: `searchHotels`, `getHotelDetail`, `getHotelStaticInfo`,
+`getHotelSearchTags`; no booking tool. It says free with no call cap, but the Chinese README says
+"目前阶段免费使用" and its terms link is empty, so it sits behind the adapter with our own cap
+(`ROLLINGGO_MAX_CALLS_PER_DAY`, 300), one call a second, a ten-minute pause after a failure, no
+retry. Its prices are reference rates, not live; it has star ratings but no guest scores. Search
+results carry a booking link with its partner tracking (`utm_source`); Meri never keeps it: a
+commission would make Meri commercial, which Open-Meteo's free tier and a personal (non-business)
+ICP filing do not allow (merlin, 2026-11-20). Instead the page builds a plain link to the hotel's
+public RollingGo page from its id and the stay's dates only, opened with `noopener noreferrer`, so
+nothing tells RollingGo the visit came from Meri (merlin, 2026-11-21; the page needs a login to book). Probe of 2026-11-20 near 丽江古城: five hotels in about
+a second, 86 to 910 yuan a night; recorded as fixtures.
+
+**Rules.**
+
+| Step | Rule | Why |
+| --- | --- | --- |
+| 1. Stays | Consecutive days in one city are one stay; every day is a night except the trip's last day, spent going home; no dates, no stay | One hotel a city, no moving every night |
+| 2. Where | Search within 3 km of the stay's middle stop (the located stop with the least total distance to the others); with none located, search the city | The tool takes a place name, not coordinates |
+| 3. Three tiers (code) | 10 results; budget ≤ 2 stars, comfort 3–4, luxury 5; in each the nearest with a price | Stable, free, easy to explain; a tier with nothing stays empty |
+| 4. Meri's pick (Kimi) | Only when a preference is about budget, companions, walking or things to avoid: one call for the trip picks one hotel a city from that city's list, with a reason; a pick off the list is dropped | Preferences such as 带爸妈要电梯 need reading; the tiers always stay |
+| 5. Details | Each shown hotel's own page once: phone, business district, check-in and out, ten facilities, five photos | What a traveller checks before booking elsewhere |
+
+**Page.** A card after each city's last day: Meri's pick with its reason (when there is one), then
+the three tiers, each with up to five photos to swipe (the search's cover, then the hotel page's),
+stars, reference price a night and for the stay, distance, address, "copy the name", "show on the
+map" (a hotel pin over the day's stops), "view on RollingGo (third-party page)" and details. One
+line says Meri is a personal project, free, with no ads; the link is a third-party page; Meri takes
+no commission and makes no bookings; prices are reference rates; details and photos come from RollingGo. Photos load through
+next/image from `image-cdn.rollinggo.cn` only.
+
 ### Plan Agent: route and days
 
 The Plan Agent is two functions, so the plan page's future chat (routed by Jev) can call
@@ -416,6 +454,7 @@ plan-generation   input { runId, tripId, handoff }   state { handoff, scope, def
   (validation stage: verify-facts, dountil verify-repair; see below)
   .then(drive-legs)                       transport/legs.ts: walk or drive between neighbouring stops (1.2102–1.2103)
   .then(day-outfits)                      dressDays: what to wear each day with a forecast (1.2117 outfit)
+  .then(plan-stays)                       planStays: where to stay in each city, when hotel search is on (1.2117 stays)
   .then(day-photos)                       dayPhotos from the local catalog only
   .then(save-plan)                        a new plan version
 ```

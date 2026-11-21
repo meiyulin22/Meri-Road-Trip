@@ -11,6 +11,7 @@ import { maxVerifySearches, type VerifyProgress, type VerifyResult } from "@/age
 import { checkSpotsOnMap, type MapCheckDependencies, type MapCheckStop } from "@/agents/planner/map-check";
 import { addCityWeather, cityCentreLookup } from "@/agents/planner/spot-weather";
 import { dressDays } from "@/agents/planner/day-outfits";
+import { planStays, type StayDependencies } from "@/agents/planner/plan-stays";
 import { draftCityDays } from "@/agents/planner/plan-days";
 import { planRoute, type PlanModelDependencies, type PlanUsage, type ReadyScope } from "@/agents/planner/plan-route";
 import {
@@ -49,6 +50,8 @@ export type PlanGenerationDependencies = {
   readonly transport: TransportDependencies;
   /** Daily forecasts for points (1.2117); the real one is Open-Meteo, one request a city. */
   readonly weather: WeatherForecast;
+  /** Hotel searches (1.2117 stays); absent when HOTEL_PROVIDER is off, and the plan has no stays. */
+  readonly hotels?: StayDependencies;
   /** The second round on these cards; the real one is verifySpots with Kimi search and model. */
   readonly verifySpots: (
     cards: readonly SpotCard[],
@@ -136,6 +139,7 @@ export const stepStages = {
   "verify-repair": "verify",
   "drive-legs": "drive",
   "day-outfits": "outfit",
+  "plan-stays": "stays",
   "day-photos": "photos",
   "save-plan": "save",
 } as const satisfies Record<string, PlanStage>;
@@ -233,6 +237,13 @@ export function stageSummary(stepId: string, output: unknown): { stage: PlanStag
     case "outfit": {
       const outfits = (output as DriveResultState).draft.outfits ?? [];
       return { stage, summary: { days: outfits.length, extras: outfits.reduce((sum, { extras }) => sum + extras.length, 0) } };
+    }
+    case "stays": {
+      const stays = (output as DriveResultState).draft.stays ?? [];
+      return { stage, summary: {
+        cities: stays.length, found: stays.filter(({ status }) => status === "found").length,
+        picks: stays.filter((stay) => stay.status === "found" && stay.recommended !== null).length,
+      } };
     }
     case "photos":
       return { stage, summary: { photos: (output as PhotosResult).dayPhotos.length } };
@@ -720,6 +731,30 @@ export function createPlanGenerationWorkflow(deps: PlanGenerationDependencies) {
     },
   });
 
+  /**
+   * Where to stay (1.2117 stays): one hotel search a city stay, three tiers by code, the Plan
+   * Agent's pick when preferences bear on lodging. Skipped when hotel search is off.
+   */
+  const staysStep = createStep({
+    id: "plan-stays",
+    inputSchema: z.custom<DriveResultState>(),
+    outputSchema: z.custom<DriveResultState>(),
+    stateSchema: runState,
+    execute: async ({ inputData, state, writer }) => {
+      if (!deps.hotels) return inputData;
+      const { emit, flush } = emitter(writer);
+      const result = await planStays(state.handoff, inputData.draft.days, cardsOf(inputData.cities), deps.hotels, deps.planModel, deps.now,
+        ({ city, near, done, total }) => emit({ type: "stage.activity", stage: "stays", activity: { kind: "hotels", city, near, done, total } }));
+      for (const stay of result.stays) emit({ type: "stay.ready", stay });
+      await flush();
+      return {
+        ...inputData,
+        draft: result.stays.length > 0 ? { ...inputData.draft, stays: result.stays } : inputData.draft,
+        usage: addUsage(inputData.usage, result.usage),
+      };
+    },
+  });
+
   const photosStep = createStep({
     id: "day-photos",
     inputSchema: z.custom<DriveResultState>(),
@@ -787,6 +822,7 @@ export function createPlanGenerationWorkflow(deps: PlanGenerationDependencies) {
     .dountil(verifyRepairStep, async ({ inputData }) => inputData.verify.done)
     .then(driveStep)
     .then(outfitsStep)
+    .then(staysStep)
     .then(photosStep)
     .then(saveStep)
     .commit();

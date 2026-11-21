@@ -7,6 +7,7 @@ import type { CityResearch, SpotAvailability, SpotCard, SpotEvidence, SpotMapChe
 import { type TransferLeg, travelChoices } from "./transfer-legs";
 import type { DayForecast, SpotWeather } from "./weather";
 import { type DayOutfit, outfitItemIds, outfitSlots } from "./outfit";
+import { type CityStay, stayTiers } from "./stays";
 
 export const spotEvidenceSchema: z.ZodType<SpotEvidence> = z.strictObject({
   url: z.string(),
@@ -255,6 +256,42 @@ export const dayOutfitSchema: z.ZodType<DayOutfit> = z.strictObject({
   bigSwing: z.boolean(),
 }) as z.ZodType<DayOutfit>;
 
+const geoSchema = z.strictObject({ longitude: z.number().min(-180).max(180), latitude: z.number().min(-90).max(90) });
+const photoUrl = z.url({ protocol: /^https$/u, hostname: /^image-cdn\.rollinggo\.cn$/u });
+const hotelSchema = z.strictObject({
+  id: z.number().int().positive(),
+  name: z.string().min(1),
+  brand: z.string().min(1).nullable(),
+  address: z.string(),
+  point: geoSchema,
+  star: z.number().min(0).max(5).nullable(),
+  distanceM: z.number().int().nonnegative().nullable(),
+  pricePerNight: z.strictObject({ amount: z.number().nonnegative(), currency: z.string().min(1) }).nullable(),
+  image: photoUrl.nullable(),
+  tags: z.array(z.string()),
+  amenities: z.array(z.string()),
+});
+const hotelDetailSchema = z.strictObject({
+  phone: z.string().nullable(), district: z.string().nullable(), checkIn: z.string().nullable(), checkOut: z.string().nullable(),
+  facilities: z.array(z.string()), images: z.array(photoUrl),
+});
+const stayBlockShape = {
+  province: z.string().min(1), city: z.string().min(1), firstDay: z.number().int().positive(), checkIn: z.iso.date(),
+  nights: z.number().int().positive(), lastDay: z.number().int().positive(),
+  near: z.strictObject({ name: z.string().min(1), kind: z.enum(["spot", "city"]) }),
+};
+export const cityStaySchema: z.ZodType<CityStay> = z.discriminatedUnion("status", [
+  z.strictObject({
+    ...stayBlockShape,
+    status: z.literal("found"),
+    tiers: z.array(z.strictObject({ tier: z.enum(stayTiers), hotel: hotelSchema, detail: hotelDetailSchema.nullable() })),
+    recommended: z.strictObject({ hotel: hotelSchema, detail: hotelDetailSchema.nullable(), reason: z.string().min(1).max(200) }).nullable(),
+    checkedAt: z.string(),
+  }),
+  z.strictObject({ ...stayBlockShape, status: z.literal("none") }),
+  z.strictObject({ ...stayBlockShape, status: z.literal("unavailable") }),
+]) as z.ZodType<CityStay>;
+
 export const planDraftSchema: z.ZodType<PlanDraft> = z.strictObject({
   mode: z.enum(["preview", "full"]),
   totalDays: z.number().int().positive().nullable(),
@@ -280,6 +317,7 @@ export const planDraftSchema: z.ZodType<PlanDraft> = z.strictObject({
   })).optional(),
   transfers: z.array(transferLegSchema).optional(),
   outfits: z.array(dayOutfitSchema).optional(),
+  stays: z.array(cityStaySchema).optional(),
 });
 
 // The page renders this URL, so it passes the same checks as every other place photo.

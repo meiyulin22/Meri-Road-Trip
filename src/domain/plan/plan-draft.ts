@@ -3,6 +3,7 @@ import { formatExactDate, parseExactDate, parseExactDays } from "@/domain/trip-s
 
 import type { SpotCard, SpotEvidence } from "./spot-card";
 import type { DayOutfit } from "./outfit";
+import type { CityStay } from "./stays";
 import type { TransferLeg } from "./transfer-legs";
 
 export const daySlots = ["morning", "afternoon", "evening"] as const;
@@ -149,6 +150,8 @@ export type PlanDraft = {
   readonly transfers?: readonly TransferLeg[];
   /** What to wear each day with a forecast (1.2117 outfit); absent before it. */
   readonly outfits?: readonly DayOutfit[];
+  /** Where to stay in each city (1.2117 stays); absent before it, or when hotel search is off. */
+  readonly stays?: readonly CityStay[];
 };
 
 export type TripCity = { readonly province: string; readonly city: string };

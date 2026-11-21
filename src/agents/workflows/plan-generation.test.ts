@@ -148,7 +148,7 @@ test("streams real progress city by city, stops the map at its first failure, an
   // Sequence numbers have no gaps, and the page sees the stages in workflow order.
   assert.deepEqual(events.map(({ seq }) => seq), events.map((_, index) => index + 1));
   assert.deepEqual(events.filter(({ event }) => event.type === "stage.started").map(({ event }) => "stage" in event && event.stage),
-    ["scope", "research", "map", "route", "transfers", "days", "verify", "drive", "outfit", "photos", "save"]);
+    ["scope", "research", "map", "route", "transfers", "days", "verify", "drive", "outfit", "stays", "photos", "save"]);
   assert.equal(types[0], "stage.started");
   assert.equal(types.at(-1), "run.finished");
   // Route before any day, and each day as its city is drafted.
@@ -637,4 +637,30 @@ test("each city's spots get their forecast inside research, and the saved plan k
   assert.ok(events.some(({ event }) => event.type === "day.outfit"));
   const stormDay = outfits.find(({ date }) => date === "2026-11-21");
   assert.ok(stormDay?.items.some(({ id }) => id === "shell_jacket"));
+});
+
+test("with hotel search on, each city stay is searched once and saved with its tiers (1.2117 stays)", async () => {
+  const dated = { ...trip, tripState: { ...trip.tripState, startDate: { state: "known" as const, value: "2026-11-20", source: "user" as const } } };
+  const searched: string[] = [];
+  const hotel = (id: number, star: number, price: number) => ({
+    id, name: `酒店${id}`, brand: null, address: "路 1 号", point: { longitude: 100.23, latitude: 26.87 }, star, distanceM: id * 100,
+    pricePerNight: { amount: price, currency: "CNY" }, image: null, tags: [], amenities: [],
+  });
+  const { repository, service } = setup({
+    hotels: {
+      search: async ({ place, nights }) => { searched.push(`${place}:${nights}`); return { status: "found", hotels: [hotel(1, 2, 90), hotel(2, 4, 300), hotel(3, 5, 900)] }; },
+      detail: async () => ({ phone: null, district: null, checkIn: "14:00", checkOut: "12:00", facilities: [], images: [] }),
+    },
+  });
+  const started = begun(await service.start(tripId, dated));
+  const events = await followToEnd(service, repository, started.runId);
+
+  // 丽江 3 days = 3 nights, 大理 2 days = 1 night (the last day goes home).
+  assert.equal(searched.length, 2);
+  assert.deepEqual(searched.map((item) => item.split(":")[1]), ["3", "1"]);
+  const stays = repository.versions[0].plan.draft.stays ?? [];
+  assert.deepEqual(stays.map((stay) => [stay.city, stay.nights, stay.status === "found" ? stay.tiers.map(({ tier }) => tier) : []]), [
+    ["丽江市", 3, ["budget", "comfort", "luxury"]], ["大理白族自治州", 1, ["budget", "comfort", "luxury"]],
+  ]);
+  assert.ok(events.some(({ event }) => event.type === "stay.ready"));
 });

@@ -46,6 +46,7 @@ flowchart TB
 | 已实现但有范围限制 | PWA manifest/图标，无离线缓存；推荐使用搜索启发，无访问检查或排序；地点照片只作装饰 |
 | 已实现（Generate plan 首版） | 计划页由 Mastra 工作流生成全部日程：各城调研（带来源的景点卡）→ 天地图定位 → Plan Agent 路线与逐城选点 → 配图 → 保存计划版本；进度以 SSE 实时推送，运行记录与事件存库（1.2010）；偏好不足时可暂停提问，快照存在 Postgres，回答后恢复（1.2011）。见 [src/agents/README.md](../src/agents/README.md) |
 | 试验阶段 | Scout 验证 Mastra 工具调用 |
+| 已实现（1.2117 住宿） | 每座城住哪里：RollingGo 只查不订，代码挑三档，偏好相关时 Kimi 推荐一家；不放预订链接（佣金会让 Meri 变成商用） |
 | 已实现（1.2117 穿衣） | 每天穿什么：代码按天气定基础款，Kimi 补充并写提示，代码检查；计划页的换装间和打包清单（小熊猫正式素材由 Codex 之后绘制，现在是占位像素） |
 | 已实现（1.2117） | Generate plan 的天气：每个景点的 Open-Meteo 预报；路线先就近再照顾天气，绕路超过 30% 退回一次、仍超过按最短顺序重排；户外景点避开天气差的日子 |
 | 未实现 | 审核 Agent、出发前天气复查、Agent 运行追踪与评估、后台监控、Adaptive Workspace |
@@ -78,6 +79,7 @@ flowchart TB
 | Bocha Web Search | 推荐的启发性搜索上下文；`PLAN_SEARCH_PROVIDER=bocha` 时也是 Generate plan 的第一次搜索（默认不是） | `src/platform/search/` | 最多 8 条；失败降级，不当作已核验证据；每天全站默认 500 次（`BOCHA_MAX_CALLS_PER_DAY`），规划里失败或到上限改用 Kimi 搜索 |
 | Kimi 联网搜索（search_pro） | Generate plan 调研和第二轮核实的搜索（默认），以及 Agent 的补充搜索、第二轮核实里模型判断要再查的景点 | `src/platform/search/kimi-search-pro.ts`、`plan-search.ts` | 每天全站默认 300 次（`KIMI_MAX_SEARCHES_PER_DAY`，¥0.015/次），到上限打一条日志 |
 | Open-Meteo（1.2117，免费、无 key、非商用） | Generate plan 每个景点在行程日期的每日预报：每城定位之后由代码查（不是 Agent 工具），一城一次请求，2 km 内的景点共用一个点，没定位的用城市中心 | `src/platform/weather/`（端口 + 适配器）、`src/agents/planner/spot-weather.ts` | 每天默认最多 2000 次（`OPEN_METEO_MAX_CALLS_PER_DAY`，免费额度 10,000）；失败暂停 10 分钟、不重试，计划照常；页面必须写「Weather data by Open-Meteo.com」和「天气为预报，出发前请再查看」；没有官方预警 |
+| RollingGo 酒店 MCP（1.2117 住宿） | Generate plan 每座城的酒店：搜索（名字、地址、坐标、星级、参考价、图片）和酒店详情（电话、入住退房、设施、图片） | `src/platform/hotel/`、`src/agents/planner/plan-stays.ts` | `HOTEL_PROVIDER=rollinggo` 才启用；只有查询工具；每天默认 300 次（`ROLLINGGO_MAX_CALLS_PER_DAY`）；「目前阶段免费」、条款链接为空，随时可换；不保存带推广参数的预订链接 |
 | Pino 10 | 结构化事件与错误日志 | `src/platform/observability/` | requestId 关联请求；错误序列化脱敏 |
 | Node test runner / tsx / ESLint 9 / tsc | 相邻单元/边界测试、lint、类型检查 | `*.test.ts(x)`、`package.json`、`eslint.config.mjs` | mock 回归不代表真实外部接口验收 |
 
