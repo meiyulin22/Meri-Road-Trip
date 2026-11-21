@@ -434,6 +434,11 @@ search, Meri takes no payment from any business and filters promotion as far as 
 differ, and opening hours should be checked before going. A city with nothing reliable shows no card.
 About ¥0.045 of search and one extraction call a city.
 
+**Measured on 2026-11-21**, 大理 + 丽江 + 迪庆 over 4 days. First run (two sites required, five results a search, one
+after another): 10 dishes, no restaurant, 1:41. After the fixes: 12 dishes, one restaurant on the map
+(花意间野生菌, 462 m from 大理古城) and one from articles, 1:04; the log showed why: 大理 had 29 sources and 27
+restaurants quoted, none by two sites, and only four could be looked up. The whole plan took 4:15.
+
 ### Plan Agent: route and days
 
 The Plan Agent is two functions, so the plan page's future chat (routed by Jev) can call
