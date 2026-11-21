@@ -16,7 +16,10 @@ export default async function TripPlanPage({ params }: { readonly params: Promis
   const owner = readGuestId(await cookies());
   if (!owner || !uuidPattern.test(tripId)) notFound();
 
-  const { journeyService } = await import("@/capabilities/journey/journey-service-instance");
+  const [{ journeyService }, { planRunRepository }] = await Promise.all([
+    import("@/capabilities/journey/journey-service-instance"),
+    import("@/capabilities/planning/plan-run-repository-instance"),
+  ]);
   try {
     await journeyService.loadJourney(tripId, owner);
   } catch (error) {
@@ -24,5 +27,8 @@ export default async function TripPlanPage({ params }: { readonly params: Promis
     throw error;
   }
 
-  return <PlanHandoffPage tripId={tripId} />;
+  // The handoff of the trip's latest run, so the plan opens from the journey list or a new tab,
+  // not only in the tab where Generate plan was chosen (2026-11-21). A tab's own handoff wins.
+  const savedHandoff = (await planRunRepository.findLatestRun(tripId))?.handoff ?? null;
+  return <PlanHandoffPage tripId={tripId} savedHandoff={savedHandoff} />;
 }

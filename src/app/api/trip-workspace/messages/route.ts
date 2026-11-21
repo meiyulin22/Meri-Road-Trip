@@ -30,6 +30,7 @@ import { createLocationProvider, createPlacePhotoProvider } from "@/platform/map
 import { DestinationCityLimitError, TripStateNotFoundError, TripStateConflictError } from "@/capabilities/journey/journey-errors";
 import { journeyService } from "@/capabilities/journey/journey-service-instance";
 import { readGuestId } from "@/platform/identity/guest-identity";
+import { journeyLockDependencies, refuseIfLocked } from "@/capabilities/planning/journey-lock";
 import { LocationService } from "@/capabilities/destination/location-service";
 import { savedAreaNames, savedCityNames } from "@/capabilities/destination/saved-area-names";
 import { hintedAreas, provincesOfPlace, readPlace } from "@/capabilities/destination/region-hint";
@@ -162,6 +163,9 @@ export async function POST(request: Request) {
       tripId,
       ownerGuestId,
     );
+    // A journey with a plan takes no more Workspace messages (journey lock, 2026-11-21).
+    const locked = await refuseIfLocked(tripId, ownerGuestId, await journeyLockDependencies());
+    if (locked) return locked;
     const previousMessages = await tripMessageService.listMessages(
       tripId,
       ownerGuestId,

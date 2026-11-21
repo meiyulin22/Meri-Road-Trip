@@ -8,6 +8,7 @@ import {
 } from "@/domain/trip-state/trip-state";
 import { TripNotFoundError } from "@/domain/trip/trip-errors";
 import { readGuestId } from "@/platform/identity/guest-identity";
+import { journeyLockDependencies, refuseIfLocked } from "@/capabilities/planning/journey-lock";
 import { DestinationCityLimitError, TripStateNotFoundError } from "@/capabilities/journey/journey-errors";
 import { journeyService } from "@/capabilities/journey/journey-service-instance";
 import { logger, logEvents } from "@/platform/observability/logger";
@@ -44,6 +45,9 @@ export async function PATCH(request: Request, context: TripStateRouteContext) {
     }
 
     const ownerGuestId = await requireOwnerGuestId(tripId);
+    // A journey with a plan is read and filled in on its plan page only (journey lock, 2026-11-21).
+    const locked = await refuseIfLocked(tripId, ownerGuestId, await journeyLockDependencies());
+    if (locked) return locked;
     const patch = validateTripStatePatch(body.patch);
     const tripState = await journeyService.updateTripState(
       tripId,

@@ -7,6 +7,7 @@ import type { TripState, TripStatePatch, DestinationField } from "@/domain/trip-
 import { TripNotFoundError } from "@/domain/trip/trip-errors";
 import { createLocationProvider } from "@/platform/map-providers";
 import { readGuestId } from "@/platform/identity/guest-identity";
+import { journeyLockDependencies, refuseIfLocked } from "@/capabilities/planning/journey-lock";
 import { DestinationCityLimitError, TripStateNotFoundError, TripStateConflictError } from "@/capabilities/journey/journey-errors";
 import { LocationService } from "@/capabilities/destination/location-service";
 import { savedAreaNames } from "@/capabilities/destination/saved-area-names";
@@ -160,6 +161,8 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   let body: unknown;
   try { body = await request.json(); }
   catch { return Response.json({ error: "Invalid destination selection." }, { status: 400 }); }
+  const locked = await refuseIfLocked(id, readGuestId(await cookies()), await journeyLockDependencies());
+  if (locked) return locked;
   const { journeyService } = await import("@/capabilities/journey/journey-service-instance");
   const { tripMessageService } = await import("@/capabilities/conversation/trip-message-service-instance");
   return handleDestinationRecommendationSelectionPost(id, readGuestId(await cookies()), body, {

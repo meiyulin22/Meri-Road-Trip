@@ -13,6 +13,7 @@ import {
   MissingLlmConfigurationError,
 } from "@/platform/llm/kimi-client";
 import { readGuestId } from "@/platform/identity/guest-identity";
+import { journeyLockDependencies, refuseIfLocked } from "@/capabilities/planning/journey-lock";
 import { TripStateNotFoundError } from "@/capabilities/journey/journey-errors";
 import { logger, logEvents } from "@/platform/observability/logger";
 import { serializeError } from "@/platform/observability/serialize-error";
@@ -47,6 +48,8 @@ export async function POST(
   if (!ownerGuestId) {
     return NextResponse.json({ error: "Journey was not found." }, { status: 404 });
   }
+  const locked = await refuseIfLocked(tripId, ownerGuestId, await journeyLockDependencies());
+  if (locked) return locked;
 
   try {
     const message = await openingConversationService.initialize({

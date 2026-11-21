@@ -242,8 +242,8 @@ LLM 解释自然语言并提出受限 JSON；应用校验、决定是否执行�
 | [src/app/photo-credits/page.tsx](../src/app/photo-credits/page.tsx) | 页面/框架入口 | 只列介绍页使用的三张本地示例照片及署名，语言跟随现有 cookie，署名复用 PhotoSourceCredit 外链确认，返回链接指向 /intro。 |
 | [src/app/photo-credits/photo-credits.module.css](../src/app/photo-credits/photo-credits.module.css) | 页面/框架入口 | 介绍页示例照片署名页的排版、可聚焦链接及窄屏单列样式。 |
 | [src/app/trips/[id]/error.tsx](../src/app/trips/%5Bid%5D/error.tsx) | 页面/框架入口 | Workspace 页面错误边界，按访客语言提供失败提示和重试入口。 |
-| [src/app/trips/[id]/plan/page.tsx](../src/app/trips/%5Bid%5D/plan/page.tsx) | 页面/框架入口 | 真实计划页，服务端先核对旅程归属，再挂载交接页面。 |
-| [src/app/trips/[id]/page.tsx](../src/app/trips/%5Bid%5D/page.tsx) | 页面/框架入口 | Workspace 服务端加载入口，检查归属、读取状态/消息，区分 404 与缺失状态；最多等 1.5 秒带上已选地点照片；页面标题与缺失状态提示按访客语言。 |
+| [src/app/trips/[id]/plan/page.tsx](../src/app/trips/%5Bid%5D/plan/page.tsx) | 页面/框架入口 | 真实计划页，服务端先核对旅程归属，再挂载交接页面。；2026-11-21：把这趟旅程最近一次运行的交接快照传给页面，没有标签页快照时也能打开计划 |
+| [src/app/trips/[id]/page.tsx](../src/app/trips/%5Bid%5D/page.tsx) | 页面/框架入口 | Workspace 服务端加载入口，检查归属、读取状态/消息，区分 404 与缺失状态；最多等 1.5 秒带上已选地点照片；页面标题与缺失状态提示按访客语言。；2026-11-21：旅程有过 Generate plan 运行就跳到计划页（旅程锁） |
 | [src/app/trips/journey-delete-action.tsx](../src/app/trips/journey-delete-action.tsx) | 页面/框架入口 | 列表页客户端删除控件，调用 owner-scoped DELETE 并更新页面，文字按访客语言。 |
 | [src/app/trips/new/page.tsx](../src/app/trips/new/page.tsx) | 页面/框架入口 | 旧 /trips/new 入口重定向至首页，统一新建入口。 |
 | [src/app/trips/page.tsx](../src/app/trips/page.tsx) | 页面/框架入口 | /trips 服务端列表，按访客读取 JourneySummary，按访客语言呈现旅程卡、状态和空状态及页面标题。 |
@@ -346,7 +346,7 @@ Generate plan 背后的计划页先用示例数据做出完整页面（设计决
 
 | 文件地址 | 层/类别 | 做什么 |
 | --- | --- | --- |
-| [src/components/trip-plan/plan-handoff-page.tsx](../src/components/trip-plan/plan-handoff-page.tsx) | 表现层 | 真实计划页，展示快照里的旅程事实，挂「Meri 记得」和行程区块（回答计划的问题后让「Meri 记得」重新读取），没有交接时提示回旅程；1.2107 起补填出发地后换成服务器给的新交接并存回本标签页。 |
+| [src/components/trip-plan/plan-handoff-page.tsx](../src/components/trip-plan/plan-handoff-page.tsx) | 表现层 | 真实计划页，展示快照里的旅程事实，挂「Meri 记得」和行程区块（回答计划的问题后让「Meri 记得」重新读取），没有交接时提示回旅程；1.2107 起补填出发地后换成服务器给的新交接并存回本标签页。；2026-11-21：左上角改为「回到主页」；没有标签页快照时用服务端的快照 |
 | [src/components/trip-plan/plan-handoff-page.module.css](../src/components/trip-plan/plan-handoff-page.module.css) | 样式 | 真实计划页的事实、偏好和行程区块布局。 |
 | [src/components/trip-plan/plan-draft-section.tsx](../src/components/trip-plan/plan-draft-section.tsx) | 表现层 | 开始或接上计划运行，用 EventSource 跟随进度：活动流、问题卡（回答后从最后一个事件重新连接，并通知刷新「Meri 记得」）、路线条和逐块出现的每日卡片；运行结束后换成保存的版本，显示统计、冲突、按时段分组的每日卡片、当天照片、时间锚点、待核实字段和出处；失败时按错误码说明并可重试；1.2013 起每站显示核实标签（当天开放、部分关闭、需预约、从第 N 天换来）、开放与预约的事实行和「当天关闭」冲突；1.2100 起在每天的卡片上面放天地图地图卡片，选中的天和展开的卡片联动。；1.2115：有出发地、没交通方式时在启程卡下面显示交通方式按钮；火车超过 12 小时又有航班时显示切换按钮；1.2117：每天的卡片标题显示当地天气，展开写预报或「出发前再看预报」，户外景点在天气差或海拔差 300 m 以上时写自己的预报；有天气时末尾写「天气为预报，出发前请再查看」和 Open-Meteo 的署名链接；1.2117 穿衣：地图下面放换装间，日程卡里一行「今日穿搭」跳过去，日程后面放打包清单；1.2117 住宿：每座城最后一天后面放住宿卡，「在地图上看」把酒店标到地图上 |
 | [src/components/trip-plan/plan-weather.tsx](../src/components/trip-plan/plan-weather.tsx) | 表现层 | 1.2117：天气徽章、当天预报行、户外景点自己的预报、「天气为预报，出发前请再查看」和 Open-Meteo 署名，中英文；1.2117 导出 `SkyIcon` 给换装间的天数标签用 |
@@ -603,6 +603,8 @@ Generate plan 背后的计划页先用示例数据做出完整页面（设计决
 
 | 文件地址 | 层/类别 | 做什么 |
 | --- | --- | --- |
+| [src/capabilities/planning/journey-lock.ts](../src/capabilities/planning/journey-lock.ts) | 应用层 | 2026-11-21 旅程锁：有过 Generate plan 运行的旅程，Workspace 的写接口返回 409 `journey_locked`（非本人或未登录照旧走原逻辑，不透露有没有计划）；计划页的写入不受影响 |
+| [src/capabilities/planning/journey-lock.test.ts](../src/capabilities/planning/journey-lock.test.ts) | 测试 | 有运行即锁、本人得到 409、未锁/无访客/非本人照常。 |
 | [src/capabilities/planning/extract-plan-preferences.ts](../src/capabilities/planning/extract-plan-preferences.ts) | 应用层 | 读整段对话（30 条、12,000 字符，保留第一条）提取偏好，每条带原话、短标签和类型，以消息 ID 核对原话；另给计划页写的一句话生成标签和类型；`labelAnswer`（1.2018）给问题卡里自写的答案生成标签、类型、节奏方向和要放弃的城市，城市必须是行程里的才保留。 |
 | [src/capabilities/planning/extract-plan-preferences.test.ts](../src/capabilities/planning/extract-plan-preferences.test.ts) | 测试 | 验证原话来源、标签和类型、30 条与第一条的截取、标签降级和不可用降级。 |
 | [src/capabilities/planning/trip-preferences-handler.ts](../src/capabilities/planning/trip-preferences-handler.ts) | 应用层 | 偏好接口：归属检查后列出有效偏好、添加（查重、上限、常用选项或模型标签）、删除（改为 removed）。 |

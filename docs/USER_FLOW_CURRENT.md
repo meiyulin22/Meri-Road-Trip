@@ -540,7 +540,9 @@ add/set 使用 Promise.all 查询表达。解析层保留不同 provider ID，�
 
 点击发出 `POST /api/trips/{id}/planning-handoff`。服务端确认访客归属后重新读取已保存的 TripState，再做一次准备度判断。通过后从本旅程的用户消息提取偏好（1.2007 起）：读整段对话，最多 30 条、12,000 字符；放不下时保留第一条（落地页那句话）再加最近的消息。每条偏好有三部分：用户原话（逐字核对，必须出现在它指向的那条消息里）、给用户看的短标签（例如「想去山川湖海」→「喜欢自然景观」）和不显示的类型（节奏、体力、同行人、预算、饮食、兴趣、不想要、其他）；节奏类还有一个不显示的方向（1.2017）：想多看、能接受紧凑为 packed，想轻松为 relaxed，说不出方向（如「早上别太早」）为空。提取结果写入 `trip_preferences`：替换这个旅程上次从对话提取、仍有效的偏好；用户删除过的同一句原话不再写入；计划页添加的保留。模型不可用时不改已保存的偏好，计划页提示提取失败。响应带 TripState、该旅程当前有效的偏好、参考日期、时区和语言。应用不写回旅程状态或消息。
 
-[交接 UI 模型](../src/components/trip-workspace/planning-handoff-model.ts) 校验响应，将快照放在当前标签页的 sessionStorage，再打开 [真实计划页](../src/app/trips/%5Bid%5D/plan/page.tsx)。页面单独校验旅程归属，刷新只读快照。若当前标签页没有快照，返回 Workspace 再点 Generate plan。原 GET 准备度接口仍可单独查询。
+[交接 UI 模型](../src/components/trip-workspace/planning-handoff-model.ts) 校验响应，将快照放在当前标签页的 sessionStorage，再打开 [真实计划页](../src/app/trips/%5Bid%5D/plan/page.tsx)。页面单独校验旅程归属，刷新只读快照。当前标签页没有快照时（换了标签、从主页或「我的旅程」点进来），计划页从服务端读这趟旅程最近一次运行存下的交接快照，同一份快照不会重新运行（2026-11-21）。原 GET 准备度接口仍可单独查询。
+
+**生成计划后锁住旅程（2026-11-21，merlin 2026-11-12 定）：**只要这趟旅程有过一次 Generate plan 运行，旅程就锁住：打开 `/trips/{id}`（主页最近旅程、「我的旅程」、直接输入网址）都直接跳到 `/trips/{id}/plan`；计划页左上角是「回到主页」而不是回到旅程；Workspace 的写接口（改旅程状态、聊天消息、开场、推荐、选卡、再次交接）对这趟旅程返回 409 `journey_locked`。计划页自己的写入照常：记忆偏好、启程卡补填出发地和交通方式、火车和飞机切换。非本人的旅程照旧回 404，不透露有没有计划。没生成过计划的旅程照常进 Workspace。见 [journey-lock](../src/capabilities/planning/journey-lock.ts)。
 
 **计划页生成行程（1.2005；1.2010 起是 Mastra 工作流，实时推送进度并保存计划）：**计划页拿到交接快照后，由 [PlanDraftSection](../src/components/trip-plan/plan-draft-section.tsx) 发出 `POST /api/trips/{id}/plan-runs`，请求体是交接快照。服务端在后台启动一次运行就立即返回，关掉页面运行也不停。
 

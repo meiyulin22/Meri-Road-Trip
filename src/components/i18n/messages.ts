@@ -319,6 +319,7 @@ const en = {
     sampleBadge: "Sample data",
     sampleNote: "Design preview. Every time, price and source on this page is made up.",
     backToJourney: "Back to the journey",
+    backToHome: "Back to home",
     eyebrow: "TRIP PLAN",
     overview: (days: number | null, missing: number, ready: boolean) => !ready ? "Meri is planning…"
       : missing === 0 ? `${days} days, every section planned` : `Day 1 is ready · ${missing === 1 ? "1 thing" : `${missing} things`} left to tell Meri`,
@@ -741,6 +742,7 @@ const zh: Messages = {
     sampleBadge: "示例数据",
     sampleNote: "设计预览：这一页的时间、价格和来源都是编的。",
     backToJourney: "回到旅程",
+    backToHome: "回到主页",
     eyebrow: "行程计划",
     overview: (days, missing, ready) => !ready ? "Meri 正在规划…"
       : missing === 0 ? `${days} 天，每一部分都排好了` : `第 1 天已排好 · 还差 ${missing} 项要告诉 Meri`,

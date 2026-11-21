@@ -2,13 +2,15 @@ import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
 import { cookies } from "next/headers";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 
 import { TripWorkspace } from "@/components/trip-workspace/trip-workspace";
 import { TripNotFoundError } from "@/domain/trip/trip-errors";
 import { readGuestId } from "@/platform/identity/guest-identity";
 import { TripStateNotFoundError } from "@/capabilities/journey/journey-errors";
 import { journeyService } from "@/capabilities/journey/journey-service-instance";
+import { isJourneyLocked } from "@/capabilities/planning/journey-lock";
+import { planRunRepository } from "@/capabilities/planning/plan-run-repository-instance";
 import { tripMessageService } from "@/capabilities/conversation/trip-message-service-instance";
 import { imagesShownInConversation, selectedPlaceImages, type SelectedPlaceImage } from "@/capabilities/destination/place-images";
 import { withLocalRecommendationPhotos } from "@/capabilities/recommendation/recommendation-photos";
@@ -57,6 +59,11 @@ export default async function TripWorkspacePage({
 
   if (journey === null) {
     return <MissingTripState />;
+  }
+
+  // After Generate plan the Workspace is closed: the journey opens on its plan page (2026-11-21).
+  if (await isJourneyLocked(tripId, { findLatestRun: (id) => planRunRepository.findLatestRun(id) })) {
+    redirect(`/trips/${encodeURIComponent(tripId)}/plan`);
   }
 
   const storedMessages = await tripMessageService.listMessages(

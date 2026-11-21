@@ -95,7 +95,7 @@ const copy = {
     transferNote: "Transfer day · travel time to be confirmed",
     noCity: "Choose a city in your journey to start planning.",
     failed: {
-      journey_changed: "Your journey changed after this plan was opened. Go back and choose Generate plan again.",
+      journey_changed: "Your journey changed after this plan was opened. Reload the page to see the plan as it now stands.",
       unavailable: "The planner is busy right now. Try again in a moment.",
       failed: "Meri couldn’t arrange the days this time.",
       time_limit: "This plan took too long and was stopped. Try again.",
@@ -150,7 +150,7 @@ const copy = {
     transferNote: "转场日 · 车程待核实",
     noCity: "请先在旅程里选定城市再规划。",
     failed: {
-      journey_changed: "打开计划后旅程有了变化。请回到旅程，再点一次 Generate plan。",
+      journey_changed: "打开计划后旅程有了变化。请刷新页面，看最新的计划。",
       unavailable: "规划服务暂时繁忙，请稍后再试。",
       failed: "这次没能排好行程。",
       time_limit: "这次规划用时过长，已经停止，请重试。",

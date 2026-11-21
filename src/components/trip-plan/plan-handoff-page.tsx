@@ -21,7 +21,7 @@ import styles from "./trip-plan.module.css";
 const copy = {
   en: {
     loading: "Opening your trip plan…",
-    missing: (action: string) => `This tab doesn’t have a plan handoff. Return to your journey and choose ${action}.`,
+    missing: (action: string) => `This journey has no plan yet. Open it from the home page and choose ${action}.`,
     received: "The details below were captured from your journey when you opened this plan.",
     endDate: "End date",
     itinerary: "Itinerary",
@@ -30,7 +30,7 @@ const copy = {
   },
   zh: {
     loading: "正在打开行程计划…",
-    missing: (action: string) => `当前标签页没有本次交接。请回到旅程，再点一次「${action}」。`,
+    missing: (action: string) => `这趟旅程还没有计划。请从主页打开它，点「${action}」。`,
     received: "下面是打开计划时从旅程带过来的信息。",
     endDate: "结束日期",
     itinerary: "行程安排",
@@ -42,7 +42,11 @@ const copy = {
 // The handoff is already written before navigation. Only the browser can read it.
 const subscribe = () => () => {};
 
-export function PlanHandoffPage({ tripId }: { readonly tripId: string }) {
+export function PlanHandoffPage({ tripId, savedHandoff = null }: {
+  readonly tripId: string;
+  /** The latest run's handoff from the server; used when this tab has none of its own. */
+  readonly savedHandoff?: PlanHandoff | null;
+}) {
   const locale = useLocale();
   const words = useMessages();
   const text = copy[locale];
@@ -50,7 +54,7 @@ export function PlanHandoffPage({ tripId }: { readonly tripId: string }) {
   const stored = useMemo(() => hydrated ? readPlanHandoff(tripId) : null, [hydrated, tripId]);
   // Filling in the origin on this page gives the tab a new handoff to keep (1.2107).
   const [filled, setFilled] = useState<PlanHandoff | null>(null);
-  const handoff = filled ?? stored;
+  const handoff = filled ?? stored ?? savedHandoff;
   const [preferenceChanges, setPreferenceChanges] = useState(0);
 
   const state = handoff?.tripState;
@@ -66,9 +70,10 @@ export function PlanHandoffPage({ tripId }: { readonly tripId: string }) {
             <Image src="/brand/meri-home-mountain.png" width={52} height={40} alt="" />
             <span>Meri</span>
           </Link>
-          <Link className={styles.backLink} href={`/trips/${tripId}`} aria-label={words.plan.backToJourney}>
+          {/* Home, not the Workspace: a journey with a plan is closed there (2026-11-21). */}
+          <Link className={styles.backLink} href="/" aria-label={words.plan.backToHome}>
             <ArrowLeft aria-hidden="true" size={16} />
-            <span>{words.plan.backToJourney}</span>
+            <span>{words.plan.backToHome}</span>
           </Link>
         </header>
         <main className={styles.heading}>

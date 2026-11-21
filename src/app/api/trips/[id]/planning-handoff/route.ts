@@ -5,6 +5,7 @@ import { z } from "zod";
 
 import { handlePlanningHandoffPost, planningJourneyNotFound } from "@/capabilities/planning/planning-handoff-handler";
 import { readGuestId } from "@/platform/identity/guest-identity";
+import { journeyLockDependencies, refuseIfLocked } from "@/capabilities/planning/journey-lock";
 import { requestLocale } from "@/platform/locale/request-locale";
 import { kimiRequestRefusal } from "@/platform/http/visitor-limits";
 
@@ -15,6 +16,9 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
   const { id: tripId } = await context.params;
   const ownerGuestId = readGuestId(await cookies());
   if (!ownerGuestId || !z.uuid().safeParse(tripId).success) return planningJourneyNotFound();
+  // Generate plan once: a journey with a plan is not handed off again (journey lock, 2026-11-21).
+  const locked = await refuseIfLocked(tripId, ownerGuestId, await journeyLockDependencies());
+  if (locked) return locked;
 
   const timezone = process.env.MERI_TIMEZONE?.trim() ||
     Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";

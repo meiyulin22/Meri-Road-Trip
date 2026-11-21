@@ -8,6 +8,7 @@ import type { Locale } from "@/domain/locale/locale";
 import { requestLocale } from "@/platform/locale/request-locale";
 import { TripNotFoundError } from "@/domain/trip/trip-errors";
 import { readGuestId } from "@/platform/identity/guest-identity";
+import { journeyLockDependencies, refuseIfLocked } from "@/capabilities/planning/journey-lock";
 import { logEvents, logger } from "@/platform/observability/logger";
 import { serializeError } from "@/platform/observability/serialize-error";
 import { TripStateNotFoundError } from "@/capabilities/journey/journey-errors";
@@ -93,6 +94,8 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   let body: unknown;
   try { body = await request.json(); }
   catch { return Response.json({ error: "Invalid recommendation request." }, { status: 400 }); }
+  const locked = await refuseIfLocked(id, readGuestId(await cookies()), await journeyLockDependencies());
+  if (locked) return locked;
   const { journeyService } = await import("@/capabilities/journey/journey-service-instance");
   const { tripMessageService } = await import("@/capabilities/conversation/trip-message-service-instance");
   return handleDestinationRecommendationsPost(id, readGuestId(await cookies()), body, randomUUID(), {
