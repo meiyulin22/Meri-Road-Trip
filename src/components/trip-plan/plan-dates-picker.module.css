@@ -1,0 +1,56 @@
+/* Filling in the dates once on the plan page (2026-11-21). */
+.open {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin-top: 4px;
+  padding: 4px 9px;
+  border: 1px solid var(--green);
+  border-radius: 6px;
+  color: var(--green);
+  background: var(--green-soft);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.open:focus-visible { outline: 2px solid var(--green); outline-offset: 1px; }
+
+.panel {
+  display: grid;
+  gap: 10px;
+  margin-top: 10px;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: #fffdf8;
+}
+.hint { color: var(--muted); font-size: 13px; }
+.calendar { overflow-x: auto; }
+/* On the library's own root, so these win over its defaults whatever the load order. */
+.calendar :global(.rdp-root) {
+  --rdp-accent-color: #557a5f;
+  --rdp-accent-background-color: #e3ecdf;
+  --rdp-day-height: 36px;
+  --rdp-day-width: 36px;
+  --rdp-day_button-height: 34px;
+  --rdp-day_button-width: 34px;
+}
+.warning { display: flex; align-items: flex-start; gap: 6px; color: #8a6510; font-size: 12px; line-height: 1.6; }
+.warning svg { flex: none; margin-top: 3px; }
+.error { color: var(--accent); font-size: 13px; }
+.actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.confirm,
+.cancel {
+  padding: 7px 14px;
+  border-radius: 8px;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.confirm { border: 0; color: #fff; background: var(--green); }
+.confirm:disabled { cursor: not-allowed; opacity: .5; }
+.cancel { border: 1px solid var(--line); color: var(--ink); background: transparent; }
+.confirm:focus-visible,
+.cancel:focus-visible { outline: 2px solid var(--green); outline-offset: 2px; }

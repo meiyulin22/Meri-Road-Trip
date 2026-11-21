@@ -10,9 +10,10 @@ import type { Messages } from "@/components/i18n/messages";
 import { readPlanHandoff, savePlanHandoff } from "@/components/trip-workspace/planning-handoff-model";
 import { toCalendarDate } from "@/components/trip-workspace/trip-dates-model";
 import type { PlanHandoff } from "@/domain/plan/plan-handoff";
-import { parseExactDays } from "@/domain/trip-state/trip-dates";
+import { parseExactDate, parseExactDays } from "@/domain/trip-state/trip-dates";
 import { destinationText, type TripState, type TripStateField } from "@/domain/trip-state/trip-state";
 
+import { PlanDatesPicker } from "./plan-dates-picker";
 import { PlanDraftSection } from "./plan-draft-section";
 import { PlanMemories } from "./plan-memories";
 import handoffStyles from "./plan-handoff-page.module.css";
@@ -56,6 +57,8 @@ export function PlanHandoffPage({ tripId, savedHandoff = null }: {
   const [filled, setFilled] = useState<PlanHandoff | null>(null);
   const handoff = filled ?? stored ?? savedHandoff;
   const [preferenceChanges, setPreferenceChanges] = useState(0);
+  // Bumped when the dates are filled in, so the plan section starts again from the new handoff.
+  const [planRestarts, setPlanRestarts] = useState(0);
 
   const state = handoff?.tripState;
   const dayCount = state ? parseExactDays(state.duration) : null;
@@ -83,11 +86,16 @@ export function PlanHandoffPage({ tripId, savedHandoff = null }: {
             <>
               <p className={styles.overview}>{text.received}</p>
               <PlanFacts state={handoff.tripState} words={words} endDateLabel={text.endDate} dayCount={dayCount} />
+              {/* No exact start date: filled in once here, then the plan is made again (2026-11-21). */}
+              {parseExactDate(handoff.tripState.startDate) === null ? (
+                <PlanDatesPicker tripId={tripId} days={dayCount} locale={locale}
+                  onFilled={(next) => { savePlanHandoff(tripId, next); setFilled(next); setPlanRestarts((count) => count + 1); }} />
+              ) : null}
               <PlanMemories tripId={tripId} handoff={handoff} refreshKey={preferenceChanges} />
               <div className={handoffStyles.itinerary}>
                 <section className={handoffStyles.itineraryHeading} aria-labelledby="plan-itinerary-heading">
                   <h2 id="plan-itinerary-heading">{text.itinerary}</h2>
-                  <PlanDraftSection tripId={tripId} handoff={handoff}
+                  <PlanDraftSection key={planRestarts} tripId={tripId} handoff={handoff}
                     onPreferenceSaved={() => setPreferenceChanges((count) => count + 1)}
                     onHandoffChange={(next) => { savePlanHandoff(tripId, next); setFilled(next); }} />
                 </section>

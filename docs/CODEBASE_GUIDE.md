@@ -243,6 +243,7 @@ LLM 解释自然语言并提出受限 JSON；应用校验、决定是否执行�
 | [src/app/photo-credits/photo-credits.module.css](../src/app/photo-credits/photo-credits.module.css) | 页面/框架入口 | 介绍页示例照片署名页的排版、可聚焦链接及窄屏单列样式。 |
 | [src/app/trips/[id]/error.tsx](../src/app/trips/%5Bid%5D/error.tsx) | 页面/框架入口 | Workspace 页面错误边界，按访客语言提供失败提示和重试入口。 |
 | [src/app/trips/[id]/plan/page.tsx](../src/app/trips/%5Bid%5D/plan/page.tsx) | 页面/框架入口 | 真实计划页，服务端先核对旅程归属，再挂载交接页面。；2026-11-21：把这趟旅程最近一次运行的交接快照传给页面，没有标签页快照时也能打开计划 |
+| [src/app/api/trips/[id]/plan/dates/route.ts](../src/app/api/trips/%5Bid%5D/plan/dates/route.ts) | 接口入口 | 2026-11-21 `POST` 补填日期，按 MERI_TIMEZONE 算今天 |
 | [src/app/trips/[id]/page.tsx](../src/app/trips/%5Bid%5D/page.tsx) | 页面/框架入口 | Workspace 服务端加载入口，检查归属、读取状态/消息，区分 404 与缺失状态；最多等 1.5 秒带上已选地点照片；页面标题与缺失状态提示按访客语言。；2026-11-21：旅程有过 Generate plan 运行就跳到计划页（旅程锁） |
 | [src/app/trips/journey-delete-action.tsx](../src/app/trips/journey-delete-action.tsx) | 页面/框架入口 | 列表页客户端删除控件，调用 owner-scoped DELETE 并更新页面，文字按访客语言。 |
 | [src/app/trips/new/page.tsx](../src/app/trips/new/page.tsx) | 页面/框架入口 | 旧 /trips/new 入口重定向至首页，统一新建入口。 |
@@ -361,6 +362,8 @@ Generate plan 背后的计划页先用示例数据做出完整页面（设计决
 | [src/components/trip-plan/plan-stay-card.module.css](../src/components/trip-plan/plan-stay-card.module.css) | 表现层样式 | 住宿卡：三列酒店，窄屏改单列横排 |
 | [src/components/trip-plan/plan-food-card.tsx](../src/components/trip-plan/plan-food-card.tsx) | 表现层 | 1.2117 吃什么：每座城最后一天后面、住宿卡下面的「吃什么」卡：特色菜（介绍和出处）、推荐餐厅（招牌、地址、距离、复制店名、在地图上看、出处）、文章里提到的（地址待查、出处）；一行声明 |
 | [src/components/trip-plan/plan-food-card.module.css](../src/components/trip-plan/plan-food-card.module.css) | 表现层样式 | 吃什么卡：特色菜网格、餐厅列表，没核实地址的用虚线框 |
+| [src/components/trip-plan/plan-dates-picker.tsx](../src/components/trip-plan/plan-dates-picker.tsx) | 表现层 | 2026-11-21 计划页「补填出发日期」：已知天数选一天、否则选一段，写明会重新生成并锁定，成功后交回新交接 |
+| [src/components/trip-plan/plan-dates-picker.module.css](../src/components/trip-plan/plan-dates-picker.module.css) | 表现层样式 | 补填日期的按钮、日历（Meri 的绿色）和确认区 |
 | [src/components/trip-plan/plan-draft.module.css](../src/components/trip-plan/plan-draft.module.css) | 样式 | 行程草稿的统计胶囊、时段时间轴、锚点、出处展开、提示卡和骨架加载。 |
 | [src/components/trip-plan/plan-memories.tsx](../src/components/trip-plan/plan-memories.tsx) | 表现层 | 「Meri 记得」：交接提取的偏好、用户在计划页添加的偏好和回答计划问题得到的偏好（后者算作已用于本次计划），添加面板复用 PreferenceSheet；新偏好不触发重新规划。 |
 | [src/components/trip-plan/plan-memories.module.css](../src/components/trip-plan/plan-memories.module.css) | 样式 | 偏好卡片、标签和提示。 |
@@ -605,6 +608,8 @@ Generate plan 背后的计划页先用示例数据做出完整页面（设计决
 | --- | --- | --- |
 | [src/capabilities/planning/journey-lock.ts](../src/capabilities/planning/journey-lock.ts) | 应用层 | 2026-11-21 旅程锁：有过 Generate plan 运行的旅程，Workspace 的写接口返回 409 `journey_locked`（非本人或未登录照旧走原逻辑，不透露有没有计划）；计划页的写入不受影响 |
 | [src/capabilities/planning/journey-lock.test.ts](../src/capabilities/planning/journey-lock.test.ts) | 测试 | 有运行即锁、本人得到 409、未锁/无访客/非本人照常。 |
+| [src/capabilities/planning/plan-dates.ts](../src/capabilities/planning/plan-dates.ts) | 应用层 | 2026-11-21 计划页补填日期：只在有过运行、出发日期不准确时接受一次；检查不早于今天、一年内、和已知天数一致、不超过 60 天；写进旅程后返回新交接（最近运行的交接 + 新旅程状态 + 今天） |
+| [src/capabilities/planning/plan-dates.test.ts](../src/capabilities/planning/plan-dates.test.ts) | 测试 | 已知天数只填出发、天数未知填两头、只能填一次、各种日期错误、没运行、非本人、HTTP 状态。 |
 | [src/capabilities/planning/extract-plan-preferences.ts](../src/capabilities/planning/extract-plan-preferences.ts) | 应用层 | 读整段对话（30 条、12,000 字符，保留第一条）提取偏好，每条带原话、短标签和类型，以消息 ID 核对原话；另给计划页写的一句话生成标签和类型；`labelAnswer`（1.2018）给问题卡里自写的答案生成标签、类型、节奏方向和要放弃的城市，城市必须是行程里的才保留。 |
 | [src/capabilities/planning/extract-plan-preferences.test.ts](../src/capabilities/planning/extract-plan-preferences.test.ts) | 测试 | 验证原话来源、标签和类型、30 条与第一条的截取、标签降级和不可用降级。 |
 | [src/capabilities/planning/trip-preferences-handler.ts](../src/capabilities/planning/trip-preferences-handler.ts) | 应用层 | 偏好接口：归属检查后列出有效偏好、添加（查重、上限、常用选项或模型标签）、删除（改为 removed）。 |
