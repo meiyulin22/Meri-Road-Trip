@@ -105,8 +105,10 @@ export async function planStays(
   model: PlanModelDependencies,
   now: () => Date,
   onProgress: StayProgress = () => {},
+  /** Large-area stops never searched near (1.2117: 洱海). */
+  bigAreas: ReadonlySet<string> = new Set(),
 ): Promise<{ stays: CityStay[]; usage: PlanUsage; calls: number }> {
-  const blocks = stayBlocks(days, cards);
+  const blocks = stayBlocks(days, cards, bigAreas);
   let calls = 0;
   const found: { block: StayBlock; hotels: readonly HotelOption[] }[] = [];
   const unavailable: StayBlock[] = [];

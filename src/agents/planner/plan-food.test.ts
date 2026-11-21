@@ -97,3 +97,34 @@ test("every search failing leaves the city unavailable; the plan goes on", async
   }, { model: () => { throw new Error("no model"); } }, { stopped: false });
   assert.deepEqual(result.food.map(({ status }) => status), ["unavailable"]);
 });
+
+test("one site and the map make a restaurant; one site without the map is not shown, and the searches go together", async () => {
+  let inFlight = 0;
+  let most = 0;
+  const oneSite = {
+    dishes: [],
+    restaurants: [
+      { name: "渣渣米线(古城店)", dish: null, mentions: [{ sourceId: 2, quote: "渣渣米线(古城店) 全年综合分4.86" }] },
+      { name: "阿妈意纳西餐厅", dish: null, mentions: [{ sourceId: 2, quote: "阿妈意纳西餐厅 纳西菜" }] },
+    ],
+  };
+  const result = await planFood(handoff(["丽江市"], fiveDays), days, cards, {
+    search: async (query) => {
+      inFlight += 1;
+      most = Math.max(most, inFlight);
+      await new Promise((resolve) => setTimeout(resolve, 5));
+      inFlight -= 1;
+      return results[Object.keys(results).find((key) => query.includes(key)) as keyof typeof results];
+    },
+    map: async (name) => ({ status: "success", candidates: name.startsWith("渣渣") ? [{
+      providerId: "1", name: "渣渣米线(古城店)", province: "云南省", city: "丽江市", district: "古城区", region: "云南省丽江市古城区",
+      address: "七一街 8 号", longitude: 100.236, latitude: 26.873, coordinateSystem: "CGCS2000", kind: "other",
+    }] : [] }),
+  }, { model: answering(oneSite) }, { stopped: false });
+  assert.equal(most, 3);
+  const [city] = result.food;
+  assert.equal(city.status, "found");
+  if (city.status !== "found") return;
+  assert.deepEqual(city.restaurants.map(({ name, evidence }) => [name, evidence.length]), [["渣渣米线(古城店)", 1]]);
+  assert.deepEqual(city.mentioned, []);
+});

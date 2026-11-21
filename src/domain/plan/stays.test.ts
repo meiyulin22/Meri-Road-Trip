@@ -7,7 +7,7 @@ import { card } from "@/agents/planner/plan-test-fixtures";
 import { parseHotelSearch } from "@/platform/hotel/rollinggo";
 
 import type { PlanDay } from "./plan-draft";
-import { pickTiers, stayBlocks } from "./stays";
+import { bigAreaStops, pickTiers, stayBlocks } from "./stays";
 
 const located = (name: string, longitude: number, latitude: number) =>
   ({ ...card(name), mapCheck: { status: "located" as const, district: "古城区", point: { longitude, latitude } } });
@@ -49,4 +49,18 @@ test("three tiers from the recorded search: the nearest priced hotel in each", (
   ]);
   assert.deepEqual(pickTiers(hotels.filter(({ star }) => star === 4)).map(({ tier }) => tier), ["comfort"]);
   assert.deepEqual(pickTiers([]), []);
+});
+
+test("a stop the road never reaches, such as a lake, is not searched near (1.2117)", () => {
+  // 2026-11-21: 大理's hotels read 5 to 20 km from 洱海, whose point sits mid-lake.
+  const leg = (from: string, to: string, start: number, end: number) => ({
+    day: 3, fromSpotId: from, toSpotId: to, mode: "drive" as const, distanceKm: 5, durationMinutes: 10,
+    path: [[100, 26], [100.1, 26.1]] as [number, number][], offRoadStartMeters: start, offRoadEndMeters: end,
+  });
+  const areas = bigAreaStops([leg(town.id, lake.id, 50, 1_700), leg(mufu.id, town.id, 20, 30)]);
+  assert.deepEqual([...areas], [lake.id]);
+  const [lijiang] = stayBlocks([day(3, "丽江市", lake.id, town.id), day(4, "丽江市")], cards, areas);
+  assert.equal(lijiang.near.name, "丽江古城");
+  const [only] = stayBlocks([day(3, "丽江市", lake.id), day(4, "丽江市")], cards, areas);
+  assert.deepEqual(only.near, { name: "丽江市", kind: "city" });
 });

@@ -5,7 +5,7 @@ import test from "node:test";
 
 import type { LocationSearchResult } from "@/platform/location-provider/location-provider";
 
-import { checkedFood, type FoodSource, isPromotional, placeRestaurant, restaurantKey, siteOf } from "./food";
+import { checkedFood, type FoodSource, isPromotional, placeRestaurant, restaurantKey, restaurantWitnesses, siteOf } from "./food";
 
 // Recorded 2026-11-21: two Kimi searches for 丽江 food, and Tianditu's answer for 渣渣米线.
 const fixtures = join(import.meta.dirname, "../../agents/planner/fixtures");
@@ -36,7 +36,7 @@ const sources = [
   source(3, "https://www.sina.cn/a", "丽江美食全攻略", "腊排骨火锅——高原风干腊排骨配酸菜熬煮，越煮越香"),
 ];
 
-test("a dish needs its quote in its source; a restaurant needs quotes from two different sites", () => {
+test("a dish needs its quote in its source; a restaurant keeps its quotes that name it, one a site", () => {
   const { dishes, restaurants } = checkedFood({
     dishes: [
       { name: "腊排骨火锅", note: "纳西特色", sourceId: 3, quote: "腊排骨火锅——高原风干腊排骨配酸菜熬煮" },
@@ -50,8 +50,9 @@ test("a dish needs its quote in its source; a restaurant needs quotes from two d
     ],
   }, sources);
   assert.deepEqual(dishes.map(({ name }) => name), ["腊排骨火锅"]);
-  // 西哥 has one site; 久哥's quotes are not in the sources.
-  assert.deepEqual(restaurants.map(({ name, evidence }) => [name, evidence.map(({ site }) => site)]), [["渣渣米线(古城店)", ["amap.com", "trip.com"]]]);
+  // 久哥's quotes are not in the sources; 西哥 has one site, for the map to decide.
+  assert.deepEqual(restaurants.map(({ name, evidence }) => [name, evidence.map(({ site }) => site)]),
+    [["渣渣米线(古城店)", ["amap.com", "trip.com"]], ["西哥土雞米線", ["trip.com"]]]);
   assert.deepEqual(checkedFood({ dishes: "x", restaurants: 3 }, sources), { dishes: [], restaurants: [] });
 });
 
@@ -68,4 +69,11 @@ test("a restaurant counts on the map only in its own city and near the stops", (
   assert.deepEqual(placeRestaurant("渣渣米线", [far, nearby], city, [oldTown]),
     { address: "七一街 8 号", point: { longitude: 100.236, latitude: 26.873 }, distanceM: 227, near: "丽江古城" });
   assert.equal(placeRestaurant("渣渣米线", [far], city, [oldTown]), null);
+});
+
+test("two independent witnesses: two sites, or one site and the map", () => {
+  assert.equal(restaurantWitnesses(1, true), "shown");
+  assert.equal(restaurantWitnesses(2, true), "shown");
+  assert.equal(restaurantWitnesses(2, false), "mentioned");
+  assert.equal(restaurantWitnesses(1, false), "dropped");
 });

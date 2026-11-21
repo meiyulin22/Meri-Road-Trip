@@ -1,4 +1,4 @@
-import type { PlanDay } from "./plan-draft";
+import { type DriveLeg, legReach, type PlanDay } from "./plan-draft";
 import type { SpotCard } from "./spot-card";
 import { type GeoPoint, kmBetween } from "./weather";
 
@@ -73,7 +73,7 @@ export type CityStay = StayBlock & (
  * except the last day of the trip, which is spent going home (merlin, 2026-11-20). Days without
  * a date make no stay.
  */
-export function stayBlocks(days: readonly PlanDay[], cards: ReadonlyMap<string, SpotCard>): StayBlock[] {
+export function stayBlocks(days: readonly PlanDay[], cards: ReadonlyMap<string, SpotCard>, bigAreas: ReadonlySet<string> = new Set()): StayBlock[] {
   const sorted = [...days].sort((left, right) => left.day - right.day);
   const lastDay = sorted.at(-1)?.day ?? 0;
   const blocks: StayBlock[] = [];
@@ -88,22 +88,44 @@ export function stayBlocks(days: readonly PlanDay[], cards: ReadonlyMap<string, 
     if (nights === 0 || first.date === null) continue;
     blocks.push({
       province: first.province, city: first.city, firstDay: first.day, checkIn: first.date, nights,
-      lastDay: run.at(-1)?.day ?? first.day, near: nearOf(run, cards, first.city),
+      lastDay: run.at(-1)?.day ?? first.day, near: nearOf(run, cards, first.city, bigAreas),
     });
   }
   return blocks;
 }
 
 /** The located stop with the shortest total distance to the others; the city when none is located. */
-export function nearOf(run: readonly PlanDay[], cards: ReadonlyMap<string, SpotCard>, city: string): StayBlock["near"] {
+export function nearOf(
+  run: readonly PlanDay[],
+  cards: ReadonlyMap<string, SpotCard>,
+  city: string,
+  /** Stops that are large areas, such as a lake, never searched near; from `bigAreaStops`. */
+  bigAreas: ReadonlySet<string> = new Set(),
+): StayBlock["near"] {
   const located = run.flatMap(({ stops }) => stops).flatMap(({ spotId }) => {
     const card = cards.get(spotId);
-    return card && card.mapCheck.status === "located" && card.mapCheck.point ? [{ name: card.name, point: card.mapCheck.point }] : [];
+    return card && !bigAreas.has(spotId) && card.mapCheck.status === "located" && card.mapCheck.point ? [{ name: card.name, point: card.mapCheck.point }] : [];
   });
   if (located.length === 0) return { name: city, kind: "city" };
   const total = (point: GeoPoint) => located.reduce((sum, other) => sum + kmBetween(point, other.point), 0);
   const middle = located.reduce((best, stop) => (total(stop.point) < total(best.point) ? stop : best));
   return { name: middle.name, kind: "spot" };
+}
+
+/**
+ * Stops the drive legs found to be large areas, more than a kilometre from any road (1.2105):
+ * a lake such as 洱海, whose point sits mid-lake. Searching hotels or food "near" one measured
+ * from that point (2026-11-21: 大理's hotels read 5 to 20 km from 洱海), so they are skipped.
+ */
+export function bigAreaStops(legs: readonly DriveLeg[]): Set<string> {
+  const areas = new Set<string>();
+  for (const leg of legs) {
+    const reach = legReach(leg);
+    if (reach.kind !== "area") continue;
+    if (reach.fromIsArea) areas.add(leg.fromSpotId);
+    if (reach.toIsArea) areas.add(leg.toSpotId);
+  }
+  return areas;
 }
 
 const tierOf = (star: number | null): StayTier => (star === null || star <= 2 ? "budget" : star >= 5 ? "luxury" : "comfort");

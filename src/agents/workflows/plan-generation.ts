@@ -13,6 +13,7 @@ import { addCityWeather, cityCentreLookup } from "@/agents/planner/spot-weather"
 import { dressDays } from "@/agents/planner/day-outfits";
 import { planStays, type StayDependencies } from "@/agents/planner/plan-stays";
 import { planFood } from "@/agents/planner/plan-food";
+import { bigAreaStops } from "@/domain/plan/stays";
 import type { PlanSearchCall } from "@/platform/search/plan-search";
 import { draftCityDays } from "@/agents/planner/plan-days";
 import { planRoute, type PlanModelDependencies, type PlanUsage, type ReadyScope } from "@/agents/planner/plan-route";
@@ -757,7 +758,8 @@ export function createPlanGenerationWorkflow(deps: PlanGenerationDependencies) {
       if (!deps.hotels) return inputData;
       const { emit, flush } = emitter(writer);
       const result = await planStays(state.handoff, inputData.draft.days, cardsOf(inputData.cities), deps.hotels, deps.planModel, deps.now,
-        ({ city, near, done, total }) => emit({ type: "stage.activity", stage: "stays", activity: { kind: "hotels", city, near, done, total } }));
+        ({ city, near, done, total }) => emit({ type: "stage.activity", stage: "stays", activity: { kind: "hotels", city, near, done, total } }),
+        bigAreaStops(inputData.draft.legs ?? []));
       for (const stay of result.stays) emit({ type: "stay.ready", stay });
       await flush();
       return {
@@ -782,7 +784,8 @@ export function createPlanGenerationWorkflow(deps: PlanGenerationDependencies) {
       const { emit, flush } = emitter(writer);
       const result = await planFood(state.handoff, inputData.draft.days, cardsOf(inputData.cities),
         { search: deps.foodSearch, map: deps.map.search }, deps.planModel, { stopped: inputData.status === "stopped" },
-        ({ city, done, total }) => emit({ type: "stage.activity", stage: "food", activity: { kind: "food", city, done, total } }));
+        ({ city, done, total }) => emit({ type: "stage.activity", stage: "food", activity: { kind: "food", city, done, total } }),
+        bigAreaStops(inputData.draft.legs ?? []));
       for (const food of result.food) emit({ type: "food.ready", food });
       await flush();
       return {

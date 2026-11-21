@@ -297,7 +297,7 @@ const foodEvidenceSchema = z.strictObject({ url: z.string().min(1), title: z.str
 const restaurantSchema = z.strictObject({
   name: z.string().min(1),
   dish: z.string().min(1).nullable(),
-  evidence: z.array(foodEvidenceSchema).min(2),
+  evidence: z.array(foodEvidenceSchema).min(1),
   place: z.strictObject({ address: z.string().nullable(), point: geoSchema, distanceM: z.number().int().nonnegative(), near: z.string().min(1) }).nullable(),
 });
 const cityFoodBase = { province: z.string().min(1), city: z.string().min(1), lastDay: z.number().int().nonnegative() };

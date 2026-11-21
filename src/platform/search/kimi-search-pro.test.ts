@@ -89,3 +89,17 @@ test("requires a key and does not start a request with a cancelled signal", asyn
     (error) => error instanceof DiscoverySearchError && error.kind === "network");
   assert.equal(requests, 0);
 });
+
+test("a search can ask for ten results at the price of one (1.2117 food)", async () => {
+  let asked: unknown = null;
+  const search = new KimiSearchPro({
+    apiKey: "test-token", limit: 10,
+    fetcher: async (_url, init) => {
+      asked = JSON.parse(String(init?.body));
+      return Response.json({ search_results: Array.from({ length: 12 }, (_, index) => ({ ...page, url: `https://example.test/${index}` })) });
+    },
+  });
+  const results = await search.search("丽江 美食");
+  assert.deepEqual(asked, { text_query: "丽江 美食", limit: 10, timeout_seconds: 10 });
+  assert.equal(results.length, 10);
+});

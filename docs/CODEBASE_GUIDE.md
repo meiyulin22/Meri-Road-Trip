@@ -477,9 +477,9 @@ Generate plan 背后的计划页先用示例数据做出完整页面（设计决
 | [src/domain/plan/plan-weather.ts](../src/domain/plan/plan-weather.ts) | 领域层 | 1.2117：户外景点排在自己天气差的一天、同城另一天天气不差且有空位时，给 Plan Agent 的退回说明 |
 | [src/domain/plan/outfit.ts](../src/domain/plan/outfit.ts) | 领域层 | 1.2117 穿衣：18 样基础款和 10 个部位；按当天最冷的点分层（≥20° 短袖 / 12–20° 长袖+防风 / 5–12° 长袖+抓绒+冲锋衣 / 0–5° 保暖内衣+抓绒+羽绒服 / <0° 再加保暖裤、毛线帽、手套），雨、雷暴、大风、雪、海拔 ≥3000 m、晴热各加相应物品，每样带结构化理由；温差 ≥10° 提醒；检查 Kimi 的补充；打包清单汇总 |
 | [src/domain/plan/outfit.test.ts](../src/domain/plan/outfit.test.ts) | 测试 | 分层门槛、玉龙雪山实测那天、雨/雷暴/大风/雪/晴、没有预报、每站预报与城市天气、补充的检查、打包清单。 |
-| [src/domain/plan/stays.ts](../src/domain/plan/stays.ts) | 领域层 | 1.2117 住宿：酒店、详情、城市住宿的类型；同城连续几天一段、最后一天回家不算一晚；在这段景点里最居中的已定位景点附近查，没有就查城市；按星级分经济/舒适/高档，每档取最近的有价酒店 |
+| [src/domain/plan/stays.ts](../src/domain/plan/stays.ts) | 领域层 | 1.2117 住宿：酒店、详情、城市住宿的类型；同城连续几天一段、最后一天回家不算一晚；在这段景点里最居中的已定位景点附近查，没有就查城市；按星级分经济/舒适/高档，每档取最近的有价酒店；`bigAreaStops` 从路程里找出离路超过 1 km 的大片区域（如洱海），不在它附近查 |
 | [src/domain/plan/stays.test.ts](../src/domain/plan/stays.test.ts) | 测试 | 分段和晚数、一日游和没日期不住、用录下的样例挑三档。 |
-| [src/domain/plan/food.ts](../src/domain/plan/food.ts) | 领域层 | 1.2117 吃什么：类型；推广文章的判断词；网站归并（m.ctrip.com 和 ctrip.com 算一个）；餐厅名去分店；核对引用（在原文里、写到名字）和两个不同网站；天地图结果只认本城且离景点 1.5 km 内最近的；按天切出每座城连续的几天 |
+| [src/domain/plan/food.ts](../src/domain/plan/food.ts) | 领域层 | 1.2117 吃什么：类型；推广文章的判断词；网站归并（m.ctrip.com 和 ctrip.com 算一个）；餐厅名去分店；核对引用（在原文里、写到名字），每个网站一条；两个独立见证的判断（两个网站，或一个网站加地图）；天地图结果只认本城且离景点 1.5 km 内最近的；按天切出每座城连续的几天 |
 | [src/domain/plan/food.test.ts](../src/domain/plan/food.test.ts) | 测试 | 用录下的样例：软文和探店被去掉、网站归并、引用和两个网站、外地同名店不算、离景点远的不算。 |
 | [src/domain/plan/route-distance.ts](../src/domain/plan/route-distance.ts) | 领域层 | 1.2117：城市中心之间的直线路程（有出发地从出发地起、回到出发地），最短顺序（≤8 城穷举，更多用就近 + 2-opt）；绕路判断在 route-weather.ts |
 | [src/domain/plan/route-weather.ts](../src/domain/plan/route-weather.ts) | 领域层 | 1.2117：先距离、后天气。每城保留模型给的天数、按顺序排上日期，数每种顺序碰到几天「不宜户外」（转场日照常算）；在不超过最短顺序 30% 的顺序里选差的天数最少的，再选更短的，平手保留模型的顺序；也判断是否绕路 |
@@ -641,7 +641,7 @@ Generate plan 背后的计划页先用示例数据做出完整页面（设计决
 | [src/agents/planner/day-outfits.test.ts](../src/agents/planner/day-outfits.test.ts) | 测试 | 一次调用、补充的检查、没有日期的天不问、失败只留基础款、没有预报不调用。 |
 | [src/agents/planner/plan-stays.ts](../src/agents/planner/plan-stays.ts) | Agent 层 | 1.2117 住宿：每段城市连住查一次 RollingGo，代码挑三档；偏好涉及预算、同行人、步行或避开的东西时，一次 Kimi 调用给每座城从查到的列表里挑一家并写理由（不在列表里的不收）；再查展示的酒店详情；查不到就显示「住宿待查」 |
 | [src/agents/planner/plan-stays.test.ts](../src/agents/planner/plan-stays.test.ts) | 测试 | 没偏好不调模型、三档、有偏好的挑选和理由、挑了列表外的不收、搜索失败。 |
-| [src/agents/planner/plan-food.ts](../src/agents/planner/plan-food.ts) | Agent 层 | 1.2117 吃什么：每座城 3 次 Kimi 搜索（特色菜、居中景点附近的餐厅、老字号），去掉推广文章，一次 Kimi 调用摘录特色菜和餐厅（带原文），代码核对引用和两个不同网站，再用天地图在景点 1.5 km 内核对餐厅（每城最多 4 家，失败即停）；找到的给地址，找不到的放「文章里提到的」 |
+| [src/agents/planner/plan-food.ts](../src/agents/planner/plan-food.ts) | Agent 层 | 1.2117 吃什么：每座城 3 次 Kimi 搜索同时发、两座城同时查，每次 10 条（特色菜、居中景点附近的餐厅、老字号；不以湖这类大片区域为中心），去掉推广文章，一次 Kimi 调用摘录特色菜和餐厅（带原文），代码核对引用，再用天地图在景点 1.5 km 内核对餐厅（每城最多 4 家，失败即停）；两个独立见证才显示：地图上找到（一个网站也行）给地址，两个网站但地图没有放「文章里提到的」，只有一个网站又不在地图上的不显示；每座城记一条日志说明每家的去向 |
 | [src/agents/planner/plan-food.test.ts](../src/agents/planner/plan-food.test.ts) | 测试 | 三次搜索、推广文章不给模型、一家上地图一家只在文章里、天地图失败即停、搜索全失败。 |
 | [src/agents/planner/fixtures/food-search-lijiang-2026-11-21.json](../src/agents/planner/fixtures/food-search-lijiang-2026-11-21.json) | 测试样例 | 2026-11-21 真实搜索两次（丽江特色美食、古城附近餐厅）录下的结果，含两篇软文 |
 | [src/agents/planner/fixtures/tianditu-zhazha-mixian-2026-11-21.json](../src/agents/planner/fixtures/tianditu-zhazha-mixian-2026-11-21.json) | 测试样例 | 同日天地图查「渣渣米线」的回答：只有张家口一家，丽江没有 |

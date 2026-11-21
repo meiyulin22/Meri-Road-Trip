@@ -57,7 +57,7 @@ function evidenceExcerpt(chunks: unknown, snippet: unknown): string | undefined 
     nonemptyText(snippet)?.slice(0, MAX_SNIPPET_CHARACTERS);
 }
 
-function normalizeResponse(raw: unknown): readonly DiscoverySearchResult[] {
+function normalizeResponse(raw: unknown, limit: number): readonly DiscoverySearchResult[] {
   const parsed = responseSchema.safeParse(raw);
   if (!parsed.success) throw new DiscoverySearchError("invalid_response");
   const results: DiscoverySearchResult[] = [];
@@ -78,7 +78,7 @@ function normalizeResponse(raw: unknown): readonly DiscoverySearchResult[] {
       ...(snippet ? { snippet } : {}),
       ...(publishedAt ? { publishedAt } : {}),
     });
-    if (results.length === MAX_RESULTS) break;
+    if (results.length === limit) break;
   }
   return results;
 }
@@ -90,6 +90,11 @@ export class KimiSearchPro implements DiscoverySearch {
     readonly fetcher?: typeof fetch;
     /** Searches a day (1.2113 step 1); a spent day throws `daily_limit` without calling Kimi. */
     readonly budget?: DailyBudget;
+    /**
+     * Results a search asks for; five by default. Kimi charges a search, not a result, so the food
+     * step asks for ten at the same price (1.2117 food: five rarely named a restaurant twice).
+     */
+    readonly limit?: number;
   }) {}
 
   async search(query: string, signal?: AbortSignal): Promise<readonly DiscoverySearchResult[]> {
@@ -112,7 +117,7 @@ export class KimiSearchPro implements DiscoverySearch {
       response = await (this.options.fetcher ?? fetch)(endpoint, {
         method: "POST",
         headers: { Authorization: "Bearer " + apiKey, "Content-Type": "application/json" },
-        body: JSON.stringify({ text_query: searchQuery, limit: MAX_RESULTS, timeout_seconds: SEARCH_TIMEOUT_SECONDS }),
+        body: JSON.stringify({ text_query: searchQuery, limit: this.options.limit ?? MAX_RESULTS, timeout_seconds: SEARCH_TIMEOUT_SECONDS }),
         cache: "no-store",
         redirect: "error",
         signal: signal ? AbortSignal.any([signal, timeout]) : timeout,
@@ -129,14 +134,15 @@ export class KimiSearchPro implements DiscoverySearch {
     } catch {
       throw new DiscoverySearchError(timeout.aborted ? "timeout" : "invalid_response");
     }
-    return normalizeResponse(raw);
+    return normalizeResponse(raw, this.options.limit ?? MAX_RESULTS);
   }
 }
 
-export function createKimiSearchProFromEnvironment(): KimiSearchPro {
+export function createKimiSearchProFromEnvironment(options: { readonly limit?: number } = {}): KimiSearchPro {
   return new KimiSearchPro({
     apiKey: process.env.MOONSHOT_API_KEY ?? "",
     baseUrl: process.env.MOONSHOT_BASE_URL?.trim() || DEFAULT_MOONSHOT_BASE_URL,
     budget: sharedKimiSearchBudget,
+    ...(options.limit ? { limit: options.limit } : {}),
   });
 }

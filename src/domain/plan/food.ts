@@ -6,10 +6,12 @@ import { type GeoPoint, kmBetween } from "./weather";
 
 /**
  * What to eat in each city (agreed 2026-11-20/21): local dishes with a quoted source, and
- * restaurants that public articles recommend. Code drops promotional articles, keeps a restaurant
- * only when two different sites name it, and checks it on Tianditu near the city's stops: a
- * restaurant found there shows its address; one not found stays, lower down, with its sources and
- * "address to check". Meri takes no payment from anyone named.
+ * restaurants that public articles recommend. Code drops promotional articles and checks each
+ * restaurant on Tianditu near the city's stops. A restaurant needs two independent witnesses: two
+ * different sites, or one site and Tianditu finding it near the stops (first live run, 2026-11-21:
+ * with two sites required, no restaurant of three cities passed). One found on the map shows its
+ * address; one two sites name but the map does not stays, lower down, with its sources and
+ * "address to check"; one site alone and not on the map is not shown. Meri takes no payment.
  */
 
 /** One search result the city's food research read. */
@@ -30,7 +32,7 @@ export type Restaurant = {
   readonly name: string;
   /** What the sources say to order there; null when they do not say. */
   readonly dish: string | null;
-  /** At least two, from different sites. */
+  /** From different sites: two or more, or one when Tianditu found the restaurant near the stops. */
   readonly evidence: readonly FoodEvidence[];
   /** Where Tianditu puts it, near the city's stops; null when it could not be found there. */
   readonly place: { readonly address: string | null; readonly point: GeoPoint; readonly distanceM: number; readonly near: string } | null;
@@ -112,7 +114,8 @@ const text = (value: unknown, max: number) => (typeof value === "string" && valu
 
 /**
  * The model's dishes and restaurants, checked against the sources: a dish needs a quote from a
- * source that names it; a restaurant needs quotes naming it from two different sites. Anything
+ * source that names it; a restaurant keeps its quotes that name it, one a site. Whether a
+ * restaurant has enough witnesses is decided after the map (`restaurantWitnesses`). Anything
  * else is dropped, never guessed.
  */
 export function checkedFood(proposed: ProposedFood, sources: readonly FoodSource[]): { dishes: Dish[]; restaurants: Omit<Restaurant, "place">[] } {
@@ -143,10 +146,16 @@ export function checkedFood(proposed: ProposedFood, sources: readonly FoodSource
       const evidence = evidenceOf(sources, sourceId, quote, cleanName);
       if (evidence && !bySite.has(evidence.site)) bySite.set(evidence.site, evidence);
     }
-    if (bySite.size < 2) continue;
+    if (bySite.size < 1) continue;
     restaurants.push({ name: cleanName, dish: text(dish, 20), evidence: [...bySite.values()] });
   }
   return { dishes, restaurants };
+}
+
+/** Two different sites are enough alone; one site needs the map to have found the restaurant. */
+export function restaurantWitnesses(sites: number, onMap: boolean): "shown" | "mentioned" | "dropped" {
+  if (onMap) return "shown";
+  return sites >= 2 ? "mentioned" : "dropped";
 }
 
 /**

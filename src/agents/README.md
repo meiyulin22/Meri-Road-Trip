@@ -397,7 +397,7 @@ a second, 86 to 910 yuan a night; recorded as fixtures.
 | Step | Rule | Why |
 | --- | --- | --- |
 | 1. Stays | Consecutive days in one city are one stay; every day is a night except the trip's last day, spent going home; no dates, no stay | One hotel a city, no moving every night |
-| 2. Where | Search within 3 km of the stay's middle stop (the located stop with the least total distance to the others); with none located, search the city | The tool takes a place name, not coordinates |
+| 2. Where | Search within 3 km of the stay's middle stop (the located stop with the least total distance to the others), never a large area the drive legs found more than a kilometre from any road; with none, search the city | The tool takes a place name, not coordinates; near 洱海, measured from its mid-lake point, 大理's hotels read 5 to 20 km away (2026-11-21) |
 | 3. Three tiers (code) | 10 results; budget ≤ 2 stars, comfort 3–4, luxury 5; in each the nearest with a price | Stable, free, easy to explain; a tier with nothing stays empty |
 | 4. Meri's pick (Kimi) | Only when a preference is about budget, companions, walking or things to avoid: one call for the trip picks one hotel a city from that city's list, with a reason; a pick off the list is dropped | Preferences such as 带爸妈要电梯 need reading; the tiers always stay |
 | 5. Details | Each shown hotel's own page once: phone, business district, check-in and out, ten facilities, five photos | What a traveller checks before booking elsewhere |
@@ -419,12 +419,13 @@ several independent sites recommend, and where that is.
 
 | Step | Rule | Why |
 | --- | --- | --- |
-| 1. Search | Three Kimi searches a city run: its dishes, restaurants near its middle sight, old local places | A search returns five results; one or two searches rarely gave a restaurant two sources (sample 2026-11-21) |
+| 1. Search | Three Kimi searches a city run, sent together, two cities at a time: its dishes, restaurants near its middle sight (never a large area such as a lake), old local places; ten results a search, at the price of one | Five results a search rarely named a restaurant twice; one search after another took 1:41 (first live run, 2026-11-21) |
 | 2. Drop promotion | A result whose title or snippet holds 推广, 广告, 赞助, 合作, 软文, 探店, 团购, 品牌推荐, 注册主体, 招商 or 加盟 is never read | The sample held a "TOP5 品牌推荐" advertorial and a piece naming a restaurant's registered company; a ctrip review page with one 探店 post is dropped too, to be safe |
-| 3. Quote (Kimi) | One structured call a city: dishes with a quote, restaurants with a quote from every source naming them; diet and avoid preferences go with it | The model reads; code checks |
-| 4. Check (code) | A quote must be in its source and name its dish or restaurant; a restaurant needs quotes from two different sites (m.ctrip.com and ctrip.com are one) | A name the model invents, or one site's word alone, never shows |
+| 3. Quote (Kimi) | One structured call a city: dishes with a quote, every named restaurant with a quote from each source naming it; diet and avoid preferences go with it; in English, peoples by their English names (白族 is Bai) | The model reads; code checks. The first run wrote 白族 as "White族" |
+| 4. Check (code) | A quote must be in its source and name its dish or restaurant; one quote a site (m.ctrip.com and ctrip.com are one) | A name the model invents never shows |
 | 5. Map | Up to four restaurants a city, most-sourced first, looked up on Tianditu with the city as hint; it counts only in the city and within 1.5 km of one of the city's located stops, the nearest such | The sample's 渣渣米线 came back only in 张家口, so the city check matters; a failed lookup stops the step's lookups, no retry |
-| 6. Degrade | Found: address, distance and a map pin (three at most). Not found: kept below as "mentioned in articles", "address to check", with its sources (two at most) | merlin, 2026-11-21: say where it is when we can, otherwise show the articles |
+| 6. Two witnesses | Shown (address, distance, map pin; three at most): found on the map, with one site or more. Mentioned in articles ("address to check", sources; two at most): two sites, not on the map. One site and not on the map: not shown | The first run required two sites and showed no restaurant in three cities; the map is a second, independent witness (merlin, 2026-11-21) |
+| 7. Log | Each city logs its sources, promotional results, restaurants proposed, quoted, with two sites, looked up, shown, mentioned and dropped | So a city without restaurants can be explained from the log |
 
 **Page.** A card after each city's last day, under the stay card: local dishes with a note and their
 source, restaurants with what to order, address, distance, "copy the name" and "show on the map" (a
