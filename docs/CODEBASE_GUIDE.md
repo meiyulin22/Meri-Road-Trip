@@ -641,7 +641,7 @@ Generate plan 背后的计划页先用示例数据做出完整页面（设计决
 | [src/agents/planner/day-outfits.test.ts](../src/agents/planner/day-outfits.test.ts) | 测试 | 一次调用、补充的检查、没有日期的天不问、失败只留基础款、没有预报不调用。 |
 | [src/agents/planner/plan-stays.ts](../src/agents/planner/plan-stays.ts) | Agent 层 | 1.2117 住宿：每段城市连住查一次 RollingGo，代码挑三档；偏好涉及预算、同行人、步行或避开的东西时，一次 Kimi 调用给每座城从查到的列表里挑一家并写理由（不在列表里的不收）；再查展示的酒店详情；查不到就显示「住宿待查」 |
 | [src/agents/planner/plan-stays.test.ts](../src/agents/planner/plan-stays.test.ts) | 测试 | 没偏好不调模型、三档、有偏好的挑选和理由、挑了列表外的不收、搜索失败。 |
-| [src/agents/planner/plan-food.ts](../src/agents/planner/plan-food.ts) | Agent 层 | 1.2117 吃什么：每座城 3 次 Kimi 搜索同时发、两座城同时查，每次 10 条（特色菜、居中景点附近的餐厅、老字号；不以湖这类大片区域为中心），去掉推广文章，一次 Kimi 调用摘录特色菜和餐厅（带原文），代码核对引用，再用天地图在景点 1.5 km 内核对餐厅（每城最多 4 家，失败即停）；两个独立见证才显示：地图上找到（一个网站也行）给地址，两个网站但地图没有放「文章里提到的」，只有一个网站又不在地图上的不显示；每座城记一条日志说明每家的去向 |
+| [src/agents/planner/plan-food.ts](../src/agents/planner/plan-food.ts) | Agent 层 | 1.2117 吃什么：每座城 3 次 Kimi 搜索同时发、两座城同时查，每次 10 条（特色菜、居中景点附近的餐厅、老字号；不以湖这类大片区域为中心），去掉推广文章，一次 Kimi 调用摘录特色菜和餐厅（带原文），代码核对引用，再用天地图在景点 1.5 km 内核对餐厅（每城最多 8 家，失败即停）；两个独立见证才显示：地图上找到（一个网站也行）给地址，两个网站但地图没有放「文章里提到的」，只有一个网站又不在地图上的不显示；每座城记一条日志说明每家的去向 |
 | [src/agents/planner/plan-food.test.ts](../src/agents/planner/plan-food.test.ts) | 测试 | 三次搜索、推广文章不给模型、一家上地图一家只在文章里、天地图失败即停、搜索全失败。 |
 | [src/agents/planner/fixtures/food-search-lijiang-2026-11-21.json](../src/agents/planner/fixtures/food-search-lijiang-2026-11-21.json) | 测试样例 | 2026-11-21 真实搜索两次（丽江特色美食、古城附近餐厅）录下的结果，含两篇软文 |
 | [src/agents/planner/fixtures/tianditu-zhazha-mixian-2026-11-21.json](../src/agents/planner/fixtures/tianditu-zhazha-mixian-2026-11-21.json) | 测试样例 | 同日天地图查「渣渣米线」的回答：只有张家口一家，丽江没有 |

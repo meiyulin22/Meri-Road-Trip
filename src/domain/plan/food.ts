@@ -60,8 +60,11 @@ export const foodLimits = {
   dishes: 5,
   restaurants: 3,
   mentioned: 2,
-  /** Restaurants looked up on Tianditu a city, the likeliest first. */
-  lookups: 4,
+  /**
+   * Restaurants looked up on Tianditu a city, the likeliest first. Four left 23 of 大理's 27 quoted
+   * restaurants unchecked (2026-11-21); eight cost a second or two more on Tianditu's 0.3 s queue (merlin).
+   */
+  lookups: 8,
   nearMetres: 1_500,
 } as const;
 
