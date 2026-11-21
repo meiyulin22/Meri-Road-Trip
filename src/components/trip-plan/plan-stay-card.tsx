@@ -206,7 +206,8 @@ export function PlanStayCard({ stay, locale, onShowOnMap }: {
             </div>
           ) : null}
           <div className={styles.tiers}>
-            {stay.tiers.map((tier) => (
+            {/* A tier that is also Meri's pick shows once, as the pick. */}
+            {stay.tiers.filter((tier) => tier.hotel.id !== stay.recommended?.hotel.id).map((tier) => (
               <HotelTile key={tier.hotel.id} pick={tier} label={text.tiers[tier.tier]} kind="tier" nights={stay.nights} checkIn={stay.checkIn} nearName={stay.near.name} text={text} onShowOnMap={onShowOnMap} />
             ))}
           </div>
