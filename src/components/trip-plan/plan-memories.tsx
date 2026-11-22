@@ -1,13 +1,12 @@
 "use client";
 
-import { Info, Plus, X } from "lucide-react";
-import { useEffect, useState } from "react";
+import { Info, X } from "lucide-react";
+import { type FormEvent, useEffect, useState } from "react";
 
 import { useLocale, useMessages } from "@/components/i18n/locale-context";
 import type { PlanHandoff } from "@/domain/plan/plan-handoff";
-import type { PlanPreference } from "@/domain/plan/trip-preference";
+import { maxPreferenceQuoteLength, type PlanPreference } from "@/domain/plan/trip-preference";
 
-import { PreferenceSheet } from "./plan-preferences";
 import { addPreference, kindOfSuggestion, listPreferences, removePreference } from "./plan-preferences-model";
 import memoryStyles from "./plan-memories.module.css";
 
@@ -18,6 +17,8 @@ const copy = {
     pending: "New preferences don’t change the days below. Meri will use them the next time you adjust the plan.",
     saving: "Saving…",
     failed: "Couldn’t save that. Try again.",
+    inputLabel: "Something for Meri to remember",
+    remember: "Remember",
   },
   zh: {
     unavailable: "这次没能从对话里提取偏好，可以在这里自己添加。",
@@ -25,6 +26,8 @@ const copy = {
     pending: "新加的偏好不会改动下面的行程，下次调整行程时 Meri 会用上。",
     saving: "保存中…",
     failed: "没能保存，请再试一次。",
+    inputLabel: "想让 Meri 记住的事",
+    remember: "记下",
   },
 } as const;
 
@@ -44,7 +47,7 @@ export function PlanMemories({ tripId, handoff, refreshKey = 0 }: {
   const words = useMessages();
   const text = copy[locale];
   const [preferences, setPreferences] = useState<readonly PlanPreference[]>(handoff.preferences);
-  const [sheetOpen, setSheetOpen] = useState(false);
+  const [draft, setDraft] = useState("");
   const [status, setStatus] = useState<"idle" | "saving" | "failed">("idle");
   // An answer to the plan's own question shaped the plan too, though it came after the handoff.
   const usedByPlan = new Set([
@@ -60,7 +63,6 @@ export function PlanMemories({ tripId, handoff, refreshKey = 0 }: {
   }, [refreshKey, tripId]);
 
   async function add(texts: readonly string[]) {
-    setSheetOpen(false);
     setStatus("saving");
     try {
       const added: PlanPreference[] = [];
@@ -68,6 +70,7 @@ export function PlanMemories({ tripId, handoff, refreshKey = 0 }: {
         added.push(await addPreference(tripId, value, kindOfSuggestion(value, words.plan.preferenceSuggestions)));
       }
       setPreferences((current) => [...current, ...added.filter(({ id }) => !current.some((item) => item.id === id))]);
+      setDraft("");
       setStatus("idle");
     } catch {
       setStatus("failed");
@@ -90,24 +93,10 @@ export function PlanMemories({ tripId, handoff, refreshKey = 0 }: {
     <section className={memoryStyles.memories} aria-labelledby="plan-preferences-heading">
       <div className={memoryStyles.header}>
         <h2 id="plan-preferences-heading">{words.plan.memoriesTitle}</h2>
-        {/* A solid button, not a dashed one: telling Meri is the point of this card (merlin, 2026-11-21). */}
-        <button type="button" className={memoryStyles.add} onClick={() => setSheetOpen(true)} disabled={status === "saving"}>
-          <Plus aria-hidden="true" size={14} />{status === "saving" ? text.saving : words.plan.addPreference}
-        </button>
       </div>
 
       {preferences.length === 0 ? (
-        <>
-          <p className={memoryStyles.hint}>{handoff.preferenceStatus === "unavailable" ? text.unavailable : text.empty}</p>
-          {/* One tap saves a common preference; the sheet takes anything else. */}
-          <div className={memoryStyles.quick}>
-            {words.plan.preferenceSuggestions.map((suggestion) => (
-              <button type="button" key={suggestion} disabled={status === "saving"} onClick={() => void add([suggestion])}>
-                <Plus aria-hidden="true" size={12} />{suggestion}
-              </button>
-            ))}
-          </div>
-        </>
+        <p className={memoryStyles.hint}>{handoff.preferenceStatus === "unavailable" ? text.unavailable : text.empty}</p>
       ) : (
         <ul className={memoryStyles.chips}>
           {preferences.map((preference) => (
@@ -125,7 +114,15 @@ export function PlanMemories({ tripId, handoff, refreshKey = 0 }: {
       {status === "failed" ? <p className={memoryStyles.pending} role="alert">{text.failed}</p> : null}
       {waiting ? <p className={memoryStyles.pending}><Info aria-hidden="true" size={13} />{text.pending}</p> : null}
 
-      <PreferenceSheet open={sheetOpen} onClose={() => setSheetOpen(false)} onSave={(texts) => void add(texts)} />
+      {/* Only what the traveller types (merlin, 2026-11-22): preset chips looked like things Meri already remembered. */}
+      <form className={memoryStyles.inputRow} onSubmit={(event: FormEvent) => {
+        event.preventDefault();
+        if (draft.trim() && status !== "saving") void add([draft.trim()]);
+      }}>
+        <input aria-label={text.inputLabel} value={draft} maxLength={maxPreferenceQuoteLength}
+          placeholder={words.plan.preferencePlaceholder} onChange={(event) => setDraft(event.target.value)} />
+        <button type="submit" disabled={!draft.trim() || status === "saving"}>{status === "saving" ? text.saving : text.remember}</button>
+      </form>
     </section>
   );
 }
