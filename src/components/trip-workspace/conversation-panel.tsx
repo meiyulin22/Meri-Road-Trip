@@ -17,6 +17,7 @@ import { nextRevealCharacterCount, visibleAssistantText } from "./conversation-r
 import { requestPendingRecommendations, selectDestinationRecommendation, streamRecommendationPhotos } from "./destination-recommendation-model";
 import { DestinationChoicesCard } from "./destination-choices-card";
 import { GeneratePlanAction } from "./generate-plan-action";
+import { MissingFieldChips } from "./missing-field-chips";
 import { formatMessageTimestamp } from "./message-timestamp";
 import { appendPersistedMessageIfAbsent, destinationChoicePresentation, messageCreatedAt, pendingRecommendationPresentation, recommendationIdsAwaitingPhoto, toWorkspaceUIMessages, withRecommendationPhoto } from "./trip-message-ui-adapter";
 import { DestinationMapUnavailableError, DestinationOfferExpiredError, DestinationSelectionCityLimitError, DestinationSelectionFollowUpError, RecommendationsStaleError, WorkspaceLimitError } from "./workspace-conversation-model";
@@ -89,6 +90,11 @@ export function ConversationPanel({
   const isSubmitting = status === "submitted" || status === "streaming";
   const hasError = status === "error";
   const latestMessage = messages.at(-1);
+  // The missing-field buttons go only under a plain reply that has finished appearing: never beside
+  // cards or while cards are on their way, and never while a turn or a pick is being saved (2026-11-22).
+  const showsMissingFields = (message: (typeof messages)[number]) => message.role === "assistant"
+    && !destinationChoicePresentation(message) && !pendingRecommendationPresentation(message)
+    && revealing?.id !== message.id && !isSubmitting && selectionPendingMessageId === null && !hasError;
   // A reply that promised cards and is still the latest message is waiting for them,
   // whether it was just sent or the Journey was reopened before they arrived.
   const pendingCardsId = latestMessage?.role === "assistant" && pendingRecommendationPresentation(latestMessage)
@@ -340,6 +346,9 @@ export function ConversationPanel({
                         ? undefined : recommendationIdsAwaitingPhoto(conversationMessage)}
                     />
                   ) : null}
+                  {index === messages.length - 1 && showsMissingFields(conversationMessage) ? (
+                    <MissingFieldChips tripId={tripId} tripState={tripState} onTripStateChange={onTripStateChange} />
+                  ) : null}
                 </div>
               </article>
             ) : (
@@ -395,6 +404,9 @@ export function ConversationPanel({
           <div>
             <MessageHeader speaker="Meri" createdAt={latestMessage ? messageCreatedAt(latestMessage) : null} now={localNow} />
             <p>{latestMessage ? messageText(latestMessage) : getConversationOpening(tripState, words)}</p>
+            {latestMessage && showsMissingFields(latestMessage) ? (
+              <MissingFieldChips tripId={tripId} tripState={tripState} onTripStateChange={onTripStateChange} />
+            ) : null}
           </div>
         </article>
       )}

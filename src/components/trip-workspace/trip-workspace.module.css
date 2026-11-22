@@ -491,3 +491,43 @@
   .haloButton, .haloButton::after { animation: none; }
   .haloLabel > span { transition: none; }
 }
+
+/* What the trip still lacks, under Meri's newest plain reply (2026-11-22): adds to the reply, never replaces it. */
+.missingFields { display: grid; gap: 8px; margin-top: 12px; }
+.missingFieldChips { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.missingFieldChips > span { color: var(--muted); font-size: 12px; }
+.missingFieldChips button,
+.missingFieldOptions button {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-height: 30px;
+  padding: 4px 12px;
+  border: 1px solid rgba(79, 131, 107, .4);
+  border-radius: 999px;
+  color: var(--green);
+  background: #fff;
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+.missingFieldChips button[aria-expanded="true"] { color: #fff; background: var(--green); border-color: var(--green); }
+.missingFieldChips button:hover:not([aria-expanded="true"]),
+.missingFieldOptions button:hover { background: rgba(79, 131, 107, .1); }
+.missingFieldChips button:focus-visible,
+.missingFieldOptions button:focus-visible { outline: 2px solid var(--green); outline-offset: 2px; }
+.missingFieldEditor { padding: 10px 12px; border: 1px solid var(--line); border-radius: 12px; background: #fffdf8; }
+.missingFieldEditor p { margin-top: 6px; color: #b4542f; font-size: 12px; }
+.missingFieldOptions { display: flex; flex-wrap: wrap; gap: 6px; }
+
+/* Generate plan once the trip can be planned (2026-11-22): a card that says so, around the same halo button. */
+.chatGeneratePlan[data-ready="true"] {
+  padding: 12px 14px;
+  border: 1px solid rgba(79, 131, 107, .35);
+  border-radius: 14px;
+  background: linear-gradient(180deg, rgba(232, 241, 234, .9), rgba(255, 253, 248, .95));
+}
+.generatePlanReady { display: grid; gap: 3px; }
+.generatePlanReady p { display: flex; align-items: center; gap: 6px; color: #2f5140; font-size: 14px; font-weight: 650; }
+.generatePlanReady p svg { flex: none; color: var(--green); }
+.generatePlanReady span { color: var(--muted); font-size: 12px; line-height: 1.6; }

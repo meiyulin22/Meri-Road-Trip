@@ -1,17 +1,23 @@
 "use client";
 
-import { LoaderCircle, Route } from "lucide-react";
+import { CheckCircle2, LoaderCircle, Route } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useId, useRef, useState, useTransition } from "react";
 
 import { evaluateGeneratePlanReadiness, type GeneratePlanReadiness } from "@/domain/trip-state/planning-readiness";
-import type { TripState } from "@/domain/trip-state/trip-state";
+import { parseExactDate } from "@/domain/trip-state/trip-dates";
+import { destinationText, type TripState } from "@/domain/trip-state/trip-state";
 
-import { useMessages } from "@/components/i18n/locale-context";
+import { useLocale, useMessages } from "@/components/i18n/locale-context";
 
 import { requestPlanningHandoff, savePlanHandoff } from "./planning-handoff-model";
 import { planningReadinessMessage } from "./planning-readiness-model";
 import styles from "./trip-workspace.module.css";
+
+const ready = {
+  zh: { title: (where: string) => `可以开始规划了：${where}`, datesHint: "补上出发日期会有天气和每天的穿搭；不补也能先规划。" },
+  en: { title: (where: string) => `Ready to plan: ${where}`, datesHint: "Add a start date for weather and what to wear each day, or plan now without it." },
+} as const;
 
 /**
  * The one Generate plan, under the conversation where Meri says a plan can be made.
@@ -32,6 +38,7 @@ export function GeneratePlanAction({
   readonly waitingForSave: boolean;
 }) {
   const text = useMessages().generatePlan;
+  const locale = useLocale();
   const router = useRouter();
   const [isOpening, startOpening] = useTransition();
   // The answer belongs to the destination it was asked about, so a destination that
@@ -71,8 +78,16 @@ export function GeneratePlanAction({
     }
   }
 
+  const datesMissing = parseExactDate(tripState.startDate) === null;
   return (
-    <div className={styles.chatGeneratePlan} data-region="chat-generate-plan">
+    <div className={styles.chatGeneratePlan} data-region="chat-generate-plan" data-ready={blocked.canProceed ? "true" : undefined}>
+      {/* Ready: say so plainly above the button (2026-11-22), and what adding dates would give. */}
+      {blocked.canProceed ? (
+        <div className={styles.generatePlanReady}>
+          <p><CheckCircle2 aria-hidden="true" size={16} />{ready[locale].title(destinationText(tripState.destination) ?? "")}</p>
+          {datesMissing ? <span>{ready[locale].datesHint}</span> : null}
+        </div>
+      ) : null}
       <div className={styles.generatePlanTrigger}>
         {/* aria-disabled rather than disabled keeps the button focusable, so keyboard
             users reach the explanation too. */}

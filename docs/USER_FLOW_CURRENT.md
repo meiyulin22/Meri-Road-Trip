@@ -441,7 +441,8 @@ add/set 使用 Promise.all 查询表达。解析层保留不同 provider ID，�
 | 添加搜索结果或单字建议 | POST destinations：搜索结果 `{query,id}`；建议 `{query:完整名称,region}` | 重查身份后保存，无助手消息 |
 | 删除省、市、spot | DELETE 同路径 `{province,place,spot}` | 确定性级联，同步状态 |
 | 清除旧文本 | DELETE `{legacy:true}` | 删除 legacyText，保留已添加 areas |
-| Generate plan（唯一，位于聊天下方） | [GeneratePlanAction](../src/components/trip-workspace/generate-plan-action.tsx) 调用 [planning-handoff API](../src/app/api/trips/%5Bid%5D/planning-handoff/route.ts) | 检查准备度后把旅程状态和偏好交给计划页，详见第 5.4 节 |
+| Generate plan（唯一，位于聊天下方） | [GeneratePlanAction](../src/components/trip-workspace/generate-plan-action.tsx) 调用 [planning-handoff API](../src/app/api/trips/%5Bid%5D/planning-handoff/route.ts) | 检查准备度后把旅程状态和偏好交给计划页，详见第 5.4 节；2026-11-22 起可以规划时显示成一张卡：「可以开始规划了：目的地」，没日期时提示补上会有天气和穿搭 |
+| 「还可以告诉 Meri」按钮（2026-11-22） | [MissingFieldChips](../src/components/trip-workspace/missing-field-chips.tsx)，保存走 state PATCH（同右侧编辑） | 只在 Meri 最新一条**纯文字**回复下面（没有卡片、卡片不在路上、没有在保存）显示 TripState 还缺的项：何时出发和玩几天、怎么去；点开就地填，填完按钮消失。模型的回复和出卡流程都不受影响 |
 | 返回、重开、刷新 | 读持久化状态与消息 | 不调用模型 |
 | 删除 Journey | [DELETE /api/trips/{id}](../src/app/api/trips/[id]/route.ts)，校验 owner | 列表反馈，不调用模型 |
 

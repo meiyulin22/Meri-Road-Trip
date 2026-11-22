@@ -311,7 +311,10 @@ LLM 解释自然语言并提出受限 JSON；应用校验、决定是否执行�
 | [src/components/trip-workspace/destination-recommendation-picker.module.css](../src/components/trip-workspace/destination-recommendation-picker.module.css) | 表现层 | 目的地候选/推荐多选列表的分组、checkbox、确认及状态样式。 |
 | [src/components/trip-workspace/expedition-brief-panel.tsx](../src/components/trip-workspace/expedition-brief-panel.tsx) | 表现层 | Journey overview 字段面板，按出发地、目的地、何时、交通偏好、旅程名称排列；交通一键点选，名称文本编辑。 |
 | [src/components/trip-workspace/field-certainty.tsx](../src/components/trip-workspace/field-certainty.tsx) | 表现层 | 字段把握程度的共享展示：统一 18px 圆形状态（known 实心绿勾、missing 空圈、approximate 琥珀点、ambiguous “!”）、屏幕阅读器文字、把握程度文字（CertaintyLabel）和“大致/待确认”标签，文字取自字典。 |
-| [src/components/trip-workspace/generate-plan-action.tsx](../src/components/trip-workspace/generate-plan-action.tsx) | 表现层 | 唯一的 Generate plan，Halo 式旋转渐变边框按钮，位于聊天下方并始终可见；不可用时保持可聚焦并在悬停/聚焦时说明添加目的地的途径（可打开右侧搜索），准备度通过时交接到真实计划页。 |
+| [src/components/trip-workspace/generate-plan-action.tsx](../src/components/trip-workspace/generate-plan-action.tsx) | 表现层 | 唯一的 Generate plan，Halo 式旋转渐变边框按钮，位于聊天下方并始终可见；不可用时保持可聚焦并在悬停/聚焦时说明添加目的地的途径（可打开右侧搜索），准备度通过时交接到真实计划页。2026-11-22 起可以规划时外面多一张卡：「可以开始规划了：目的地」，没有出发日期时加一句补日期会有天气和穿搭。 |
+| [src/components/trip-workspace/missing-field-chips.tsx](../src/components/trip-workspace/missing-field-chips.tsx) | 表现层 | 2026-11-22：Meri 最新一条纯文字回复下面的「还可以告诉 Meri」按钮（何时出发和玩几天、怎么去），点开就地用右侧同样的日期编辑器或交通选项保存；不改模型的回复，有卡片或卡片在路上时不显示。 |
+| [src/components/trip-workspace/missing-fields-model.ts](../src/components/trip-workspace/missing-fields-model.ts) | 表现层模型 | 由代码按 TripState 判断还缺哪几项：出发日期和天数都准确才不算缺，交通偏好没填就算缺。 |
+| [src/components/trip-workspace/missing-fields-model.test.ts](../src/components/trip-workspace/missing-fields-model.test.ts) | 测试 | 只缺什么问什么：只有天数或模糊日期仍算缺日期，填齐后不再显示。 |
 | [src/components/trip-workspace/journey-globe.tsx](../src/components/trip-workspace/journey-globe.tsx) | 表现层 | 装饰地球：改写自 cult-ui Illustration Globe（MIT）的 SVG 线框半球，节点数随已选地点数变化，无地理含义；减少动态效果时静止；由 journey-orbit 包裹。 |
 | [src/components/trip-workspace/journey-orbit.tsx](../src/components/trip-workspace/journey-orbit.tsx) | 表现层 | 照片环：已选地点照片绕地球旋转，前大后小、前后遮挡，悬停暂停、点击转到正前方、减少动态效果时静止。 |
 | [src/components/trip-workspace/location-editor-model.test.ts](../src/components/trip-workspace/location-editor-model.test.ts) | 测试（对应模块边界） | 验证 query 长度、完整建议解析及已选地点 patch 身份/坐标。 |
