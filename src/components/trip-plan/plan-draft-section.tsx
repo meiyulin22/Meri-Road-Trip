@@ -63,7 +63,8 @@ const copy = {
     requested: "You chose this",
     facts: { location: "Location", opening: "Opening", reservation: "Booking", setting: "Setting", walking: "Walking", suggestedDuration: "Time to allow" } satisfies Record<SpotFact, string>,
     unverified: (fields: string) => `To check: ${fields}`,
-    sources: (count: number) => `${count} ${count === 1 ? "source" : "sources"}`,
+    // No spot photos (no licensed source a China server can reach, 2026-11-22): the articles often have them.
+    sources: (count: number) => `${count} ${count === 1 ? "source" : "sources"} · photos in the article`,
     checked: (date: string) => `checked ${date}`,
     summary: { days: "days", stops: "stops", sourced: "with sources", located: "on the map", conflicts: "to resolve" },
     located: (district: string | null) => district ? `On the map · ${district}` : "On the map",
@@ -124,7 +125,7 @@ const copy = {
     requested: "你点名的",
     facts: { location: "位置", opening: "开放", reservation: "预约", setting: "室内外", walking: "步行", suggestedDuration: "建议停留" } satisfies Record<SpotFact, string>,
     unverified: (fields: string) => `待核实：${fields}`,
-    sources: (count: number) => `${count} 条出处`,
+    sources: (count: number) => `${count} 条出处 · 原文里看图片`,
     checked: (date: string) => `${date} 查询`,
     summary: { days: "天", stops: "个景点", sourced: "有出处", located: "已定位", conflicts: "待处理" },
     located: (district: string | null) => district ? `已定位 · ${district}` : "已定位",
