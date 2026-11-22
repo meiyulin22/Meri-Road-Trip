@@ -189,6 +189,7 @@ LLM 解释自然语言并提出受限 JSON；应用校验、决定是否执行�
 | --- | --- | --- |
 | [docs/ARCHITECTURE.md](../docs/ARCHITECTURE.md) | 文档/开发约定 | 当前模型权威、模块分工、目的地选择和并发边界；区分已实现与未来研究。 |
 | [docs/DEPLOY_BRIEF.md](../docs/DEPLOY_BRIEF.md) | 文档/部署交接 | 2026-11-21：给负责部署 VPS 的 agent 的交接说明：先定国内还是港日服务器、天地图和密钥的硬规定、部署步骤、上线前仍需的代码改动。 |
+| [docs/PDF_EXPORT_BRIEF.md](../docs/PDF_EXPORT_BRIEF.md) | 文档/开发交接 | 2026-11-22：给另一个 agent 的 PDF 导出交接说明：只做 PDF、不用 LLM、现场生成不存储、Playwright 打印专用页面、版式、图片规则、进度条、在 `pdf-export` 分支上做、不合并 main。 |
 | [docs/CODEBASE_GUIDE.md](../docs/CODEBASE_GUIDE.md) | 文档/开发约定 | 本文件：目录/分层解释、实际调用链、阅读路径及完整逐文件索引。 |
 | [docs/CODING_PRINCIPLES.md](../docs/CODING_PRINCIPLES.md) | 文档/开发约定 | 代码命名、扁平流程、外部适配、校验、日志和交付检查约定。 |
 | [docs/DATABASE_SCHEMA.md](../docs/DATABASE_SCHEMA.md) | 文档/开发约定 | 数据库相关目录、三张表的字段/约束/关系、JSONB 状态、读写代码和迁移历史。 |
