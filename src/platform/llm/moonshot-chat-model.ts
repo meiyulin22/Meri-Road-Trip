@@ -53,9 +53,9 @@ export function moonshotRequestBody(body: Record<string, unknown>, model: string
 /**
  * K3 writes long JSON more slowly than K2 (2026-11-22 eval: 丽江 and 大理 research and every city's food hit
  * their K2-sized deadlines), so on K3 each step's deadline, the run's limit and the chat timeout are
- * stretched by this much. K2 keeps its deadlines.
+ * stretched by this much. 2.5 left food at 133 s of 150 in the re-run, so 3.5 (merlin: room to spare). K2 keeps its deadlines.
  */
-export const reasoningModelDeadlineFactor = 2.5;
+export const reasoningModelDeadlineFactor = 3.5;
 
 /** A deadline in ms for the configured model: as written for K2, stretched for K3. */
 export function modelDeadlineMs(ms: number, model: string = process.env.LLM_MODEL?.trim() || DEFAULT_MOONSHOT_MODEL): number {
