@@ -3,7 +3,7 @@ import test from "node:test";
 
 import { card } from "@/agents/planner/plan-test-fixtures";
 
-import { baseOutfit, checkedAdditions, dayForecasts, packingList, type PlaceForecast } from "./outfit";
+import { baseOutfit, checkedAdditions, dayForecasts, packingList, type PlaceForecast, whyNoOutfits } from "./outfit";
 import type { PlanDay } from "./plan-draft";
 import type { DayForecast, SpotWeather } from "./weather";
 
@@ -125,4 +125,11 @@ test("altitude counts only at a stop's own point, never at the city's weather po
   assert.equal(ids(city)?.includes("sunglasses"), false);
   const own = baseOutfit(planDay(), [at("玉龙雪山", on({ code: 3, low: -8, high: -1 }), 4506, true)]);
   assert.equal(ids(own)?.includes("sunglasses"), true);
+});
+
+test("a plan with no outfit says why: no dates, every date past the forecast, or weather not found", () => {
+  assert.equal(whyNoOutfits([null, null], []), "no_dates");
+  assert.equal(whyNoOutfits(["2026-12-20"], [{ status: "beyond_range" }, { status: "beyond_range" }]), "beyond");
+  assert.equal(whyNoOutfits(["2026-11-22"], [{ status: "unavailable" }, { status: "beyond_range" }]), "no_weather");
+  assert.equal(whyNoOutfits(["2026-11-22"], [undefined]), "no_weather");
 });

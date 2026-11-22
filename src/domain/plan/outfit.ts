@@ -1,6 +1,6 @@
 import type { PlanDay } from "./plan-draft";
 import type { SpotCard } from "./spot-card";
-import { cityForecast, type DayForecast, forecastOn } from "./weather";
+import { cityForecast, type DayForecast, forecastOn, type SpotWeather } from "./weather";
 
 /**
  * What to wear each day (agreed 2026-11-20): code decides the basics from the day's weather, so
@@ -294,4 +294,18 @@ export function packingList(outfits: readonly DayOutfit[]): {
     }
   }
   return { base, extras: [...extras.values()] };
+}
+
+/**
+ * Why a plan has no outfit at all, for the progress line (2026-11-22: "0 days dressed" said nothing):
+ * no day has a date, every date is past the forecast, or the weather was not fetched this time.
+ */
+export function whyNoOutfits(
+  dates: readonly (string | null)[],
+  weathers: readonly (SpotWeather | undefined)[],
+): "no_dates" | "beyond" | "no_weather" {
+  if (dates.every((date) => date === null)) return "no_dates";
+  const known = weathers.filter((weather): weather is SpotWeather => weather !== undefined);
+  if (known.length > 0 && known.every(({ status }) => status === "beyond_range")) return "beyond";
+  return "no_weather";
 }

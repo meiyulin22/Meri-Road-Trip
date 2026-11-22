@@ -41,7 +41,8 @@ const copy = {
           + (s.moved ? ` · ${s.moved} moved` : "") + (s.closed ? ` · ${s.closed} closed` : "");
         case "transfers": return `${s.estimated}/${s.legs} ${s.legs === 1 ? "leg" : "legs"} estimated` + (s.lookups ? ` · ${s.lookups} lookups` : "");
         case "drive": return `${s.legs} ${s.legs === 1 ? "leg" : "legs"}` + (s.lookups ? ` · ${s.lookups} lookups` : "");
-        case "outfit": return `${s.days} ${s.days === 1 ? "day" : "days"} dressed` + (s.extras ? ` · ${s.extras} extras from Meri` : "");
+        case "outfit": return `${s.days} ${s.days === 1 ? "day" : "days"} dressed` + (s.extras ? ` · ${s.extras} extras from Meri` : "")
+          + (s.no_dates ? " · no travel dates" : s.beyond ? " · dates past the forecast" : s.no_weather ? " · weather not found" : "");
         case "stays": return `${s.found}/${s.cities} ${s.cities === 1 ? "city" : "cities"} with hotels` + (s.picks ? ` · ${s.picks} picked for you` : "");
         case "food": return `${s.dishes} dishes · ${s.restaurants} restaurants on the map` + (s.mentioned ? ` · ${s.mentioned} from articles` : "");
         case "photos": return `${s.photos} ${s.photos === 1 ? "photo" : "photos"}`;
@@ -96,7 +97,8 @@ const copy = {
           + (s.moved ? ` · ${s.moved} 处换日` : "") + (s.closed ? ` · ${s.closed} 处关闭` : "");
         case "transfers": return `估算 ${s.estimated}/${s.legs} 段` + (s.lookups ? ` · 查询 ${s.lookups} 次` : "");
         case "drive": return `${s.legs} 段路程` + (s.lookups ? ` · 查询 ${s.lookups} 次` : "");
-        case "outfit": return `${s.days} 天穿搭` + (s.extras ? ` · Meri 补充 ${s.extras} 样` : "");
+        case "outfit": return `${s.days} 天穿搭` + (s.extras ? ` · Meri 补充 ${s.extras} 样` : "")
+          + (s.no_dates ? " · 没有出发日期" : s.beyond ? " · 日期超出预报范围" : s.no_weather ? " · 没查到天气" : "");
         case "stays": return `${s.found}/${s.cities} 座城找到住处` + (s.picks ? ` · 按偏好推荐 ${s.picks} 家` : "");
         case "food": return `${s.dishes} 道特色菜 · ${s.restaurants} 家已核实` + (s.mentioned ? ` · ${s.mentioned} 家来自文章` : "");
         case "photos": return `${s.photos} 张`;

@@ -13,6 +13,7 @@ import { addCityWeather, cityCentreLookup } from "@/agents/planner/spot-weather"
 import { dressDays } from "@/agents/planner/day-outfits";
 import { planStays, type StayDependencies } from "@/agents/planner/plan-stays";
 import { planFood } from "@/agents/planner/plan-food";
+import { whyNoOutfits } from "@/domain/plan/outfit";
 import { bigAreaStops } from "@/domain/plan/stays";
 import type { PlanSearchCall } from "@/platform/search/plan-search";
 import { draftCityDays } from "@/agents/planner/plan-days";
@@ -37,6 +38,7 @@ import { stopVerdict } from "@/domain/plan/availability";
 import { closedStops, type Moved, moveClosedStops, stopChecks, verdictsFor } from "@/domain/plan/plan-repair";
 import { maxStopsForPreferences, type PlanPreference } from "@/domain/plan/trip-preference";
 import type { GeoPoint } from "@/domain/plan/weather";
+import { logger } from "@/platform/observability/logger";
 import type { WeatherForecast } from "@/platform/weather/weather-forecast";
 
 /** What the workflow needs from outside; tests pass fakes, src/agents/index.ts the real ones. */
@@ -241,8 +243,14 @@ export function stageSummary(stepId: string, output: unknown): { stage: PlanStag
       return { stage, summary: { legs: draft.legs?.length ?? 0, lookups: driveLookups } };
     }
     case "outfit": {
-      const outfits = (output as DriveResultState).draft.outfits ?? [];
-      return { stage, summary: { days: outfits.length, extras: outfits.reduce((sum, { extras }) => sum + extras.length, 0) } };
+      const { draft, cities } = output as DriveResultState;
+      const outfits = draft.outfits ?? [];
+      const summary: Record<string, number> = { days: outfits.length, extras: outfits.reduce((sum, { extras }) => sum + extras.length, 0) };
+      // None at all: say why on the progress line (2026-11-22), as a 1 under the reason's key.
+      if (outfits.length === 0 && draft.days.length > 0) {
+        summary[whyNoOutfits(draft.days.map(({ date }) => date), cities.flatMap(({ spots }) => spots.map(({ weather }) => weather)))] = 1;
+      }
+      return { stage, summary };
     }
     case "stays": {
       const stays = (output as DriveResultState).draft.stays ?? [];
@@ -734,11 +742,30 @@ export function createPlanGenerationWorkflow(deps: PlanGenerationDependencies) {
     stateSchema: runState,
     execute: async ({ inputData, state, writer }) => {
       const { emit, flush } = emitter(writer);
-      const result = await dressDays(state.handoff, inputData.draft.days, cardsOf(inputData.cities), deps.planModel);
+      // A city whose forecast was lost during research is asked once more (2026-11-22): a minute or two
+      // later the line is often back, and without it every day of that city goes undressed. The days
+      // are already arranged; this only gives the outfits and the page their forecast.
+      const cities: CityResearch[] = [];
+      for (const city of inputData.cities) {
+        const lost = city.spots.length > 0 && city.spots.every(({ weather }) => weather?.status === "unavailable");
+        if (!lost) {
+          cities.push(city);
+          continue;
+        }
+        const again = await addCityWeather(city, scopeOf(state).dates, beijingDate(deps.now()), {
+          forecast: deps.weather,
+          cityCentre: cityCentreLookup(deps.transfers, mapStopOf(state.runId)),
+        });
+        logger.info({ runId: state.runId, city: city.city, recovered: again.city.spots.some(({ weather }) => weather?.status === "forecast") },
+          "Weather asked again before outfits");
+        cities.push({ ...again.city, weatherCalls: (city.weatherCalls ?? 0) + again.calls });
+      }
+      const result = await dressDays(state.handoff, inputData.draft.days, cardsOf(cities), deps.planModel);
       for (const outfit of result.outfits) emit({ type: "day.outfit", outfit });
       await flush();
       return {
         ...inputData,
+        cities,
         draft: result.outfits.length > 0 ? { ...inputData.draft, outfits: [...result.outfits] } : inputData.draft,
         usage: addUsage(inputData.usage, result.usage),
       };

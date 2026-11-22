@@ -373,7 +373,10 @@ basics miss (knee support for many steps, a hand warmer on a cold cable car, an 
 reason, plus one tip for the day. Code keeps an addition only with a name of 10 characters or less,
 a known slot and a reason, never one named like any basic, worn that day or not (the first live run
 added "Umbrella" and "Rain shell"), and no repeats; a long reason or tip is cut. A failed, slow (30 s) or unbuildable call leaves the basics; a trip without any forecast
-makes no call. About 300 input and 60 output tokens a day.
+makes no call. Before dressing, a city whose every spot read `unavailable` (both weather providers lost in
+research) is asked once more, a minute or two later; the days are already arranged, so this only gives the
+outfits and the page their forecast (2026-11-22). With no outfit at all, the progress line says why: no
+travel dates, every date past the forecast, or weather not found (`whyNoOutfits`). About 300 input and 60 output tokens a day.
 
 **Page.** One dressing room for the trip, placed under the map and like it one tab a day, following
 the day opened below ([plan-outfit.tsx](../components/trip-plan/plan-outfit.tsx)): the red panda on

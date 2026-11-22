@@ -612,6 +612,41 @@ test("a run that fails on Meri's side does not use up the address's runs", async
   assert.notEqual((await service.start("8c3f9f0e-6f4b-4d0a-9f55-000000000099", handoff(["丽江市"], fiveDays), visitor)).status, "limited");
 });
 
+test("a city whose forecast was lost in research is asked once more before the outfits (2026-11-22)", async () => {
+  const dated = { ...trip, tripState: { ...trip.tripState, startDate: { state: "known" as const, value: "2026-11-20", source: "user" as const } } };
+  let calls = 0;
+  const { repository, service } = setup({
+    weather: async (points, range) => {
+      calls += 1;
+      // Research asks once a city (two cities, as the test above shows), and both drop; the asks after answer.
+      if (calls <= 2) return { status: "failure", reason: "network" };
+      return { status: "ok", provider: "met-norway", points: points.map(() => ({ elevation: 2454, days: ["2026-11-20", "2026-11-21", "2026-11-22", "2026-11-23", "2026-11-24"]
+        .filter((date) => date >= range.from && date <= range.to)
+        .map((date) => ({ date, code: 1, high: 15, low: 3, precipitationMm: 0, precipitationChance: null, snowfallCm: 0, gustKmh: 20, wetHours: 0, estimated: true as const })) })) };
+    },
+  });
+  const started = begun(await service.start(tripId, dated));
+  const events = await followToEnd(service, repository, started.runId);
+  // Both cities lost their forecast in research and were asked again before the outfits.
+  assert.equal(calls, 4);
+  const plan = repository.versions[0].plan;
+  assert.ok(plan.spots.some(({ weather }) => weather?.status === "forecast" && weather.provider === "met-norway"));
+  assert.equal(plan.spots.some(({ weather }) => weather?.status === "unavailable"), false);
+  assert.ok((plan.draft.outfits ?? []).length > 0);
+  const outfit = events.find(({ event }) => event.type === "stage.finished" && event.stage === "outfit")?.event;
+  assert.ok(outfit?.type === "stage.finished" && outfit.summary.days > 0 && outfit.summary.no_weather === undefined);
+});
+
+test("with no forecast at all, the outfit step says why on the progress line (2026-11-22)", async () => {
+  const dated = { ...trip, tripState: { ...trip.tripState, startDate: { state: "known" as const, value: "2026-11-20", source: "user" as const } } };
+  const { repository, service } = setup({ weather: async () => ({ status: "failure", reason: "network" }) });
+  const started = begun(await service.start(tripId, dated));
+  const events = await followToEnd(service, repository, started.runId);
+  const outfit = events.find(({ event }) => event.type === "stage.finished" && event.stage === "outfit")?.event;
+  assert.ok(outfit?.type === "stage.finished");
+  assert.deepEqual([outfit.summary.days, outfit.summary.no_weather], [0, 1]);
+});
+
 test("each city's spots get their forecast inside research, and the saved plan keeps it (1.2117)", async () => {
   const dated = { ...trip, tripState: { ...trip.tripState, startDate: { state: "known" as const, value: "2026-11-20", source: "user" as const } } };
   const asked: { points: number; from: string; to: string }[] = [];
