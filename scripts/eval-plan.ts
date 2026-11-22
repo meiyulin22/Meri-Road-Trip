@@ -169,7 +169,9 @@ async function main(): Promise<void> {
   }
 }
 
+// Exit once the results are written: the VariFlight and RollingGo MCP connections keep Node alive
+// otherwise (2026-11-22: a finished run sat for 50 minutes).
 void main().catch((error: unknown) => {
   process.stderr.write("Plan evaluation failed (" + (error instanceof Error ? error.name : "unknown error") + ").\n");
   process.exitCode = 1;
-});
+}).finally(() => process.exit());
