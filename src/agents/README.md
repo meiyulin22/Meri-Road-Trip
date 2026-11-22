@@ -398,7 +398,7 @@ the day line and the packing list on desktop and at phone width. Three faults it
 Open-Meteo timing out from this Mac (the wait is now 30 s), the city-centre point at 3,304 m (now
 the last resort, and altitude counts only at a stop's own point), and additions naming basics.
 
-**Art.** Placeholder pixels on a 32 × 40 grid until Codex draws the red panda as a paper doll: one
+**Art.** Pixels drawn in code on a 32 × 40 grid; merlin likes them and keeps them (2026-11-22), so the down jacket (quilted bands lit on top, shaded below, collar, cuffs), the beanie (ribbed brim, knit stitches, shaded pom-pom) and the panda's own shading were refined. Codex's paper doll stays optional: one
 still base and one transparent overlay per basic on the same canvas, listed in
 `public/companion/outfit/manifest.json` (`version`, `canvas`, `pixelated`, `base`, `items` with
 `file` and `z`, optional `icons`), checked by `outfitManifestSchema`. A missing or malformed manifest
