@@ -11,7 +11,7 @@ import { PhotoSourceCredit } from "@/components/trip-workspace/photo-source-dial
 import type { PlaceImage } from "@/domain/location/place-image";
 import type { Locale } from "@/domain/locale/locale";
 import { type DaySlot, type DriveLeg, legReach, type PlanDay, type PlanRoute, type SpotFact, type StopCheck } from "@/domain/plan/plan-draft";
-import type { ReadyPlan } from "@/domain/plan/plan-draft-response";
+import { readyPlanSchema, type ReadyPlan } from "@/domain/plan/plan-draft-response";
 import type { PlanHandoff } from "@/domain/plan/plan-handoff";
 import type { TransportPreference } from "@/domain/trip-draft/trip-draft";
 import type { PlanFactField, PlanRunStartResponse } from "@/domain/plan/plan-run";
@@ -202,6 +202,18 @@ function startFor(tripId: string, handoff: PlanHandoff): Promise<PlanRunStartRes
   const request = startPlanRun(tripId, handoff, new AbortController().signal).finally(() => inFlight.delete(key));
   inFlight.set(key, request);
   return request;
+}
+
+/** 「重新查天气」: the saved plan with its forecasts and outfits again, or null when it failed (2026-11-22). */
+async function refreshPlanWeather(tripId: string): Promise<ReadyPlan | null> {
+  try {
+    const response = await fetch(`/api/trips/${encodeURIComponent(tripId)}/plan/weather`, { method: "POST" });
+    if (!response.ok) return null;
+    const parsed = readyPlanSchema.safeParse(((await response.json()) as { plan?: unknown }).plan);
+    return parsed.success ? parsed.data : null;
+  } catch {
+    return null;
+  }
 }
 
 function formatDate(date: string, locale: Locale): string {
@@ -549,6 +561,10 @@ function DraftDays({ response, text, locale, transport, gettingThere }: {
 
       {/* One red panda for the trip, a tab a day, following the day opened below (1.2117 outfit). */}
       <OutfitRoom days={draft.days} outfits={draft.outfits ?? []} locale={locale} selectedDay={openDay} onSelectDay={setOpenDay}
+        onRefreshWeather={gettingThere ? () => refreshPlanWeather(gettingThere.tripId).then((plan) => {
+          if (plan) gettingThere.onPlanChanged(plan);
+          return plan !== null;
+        }) : undefined}
         weatherOf={(day) => dayWeather(day, [...cards.values()].filter(({ city }) => city === day.city))} />
 
       <div className={draftStyles.days}>

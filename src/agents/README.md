@@ -376,7 +376,7 @@ added "Umbrella" and "Rain shell"), and no repeats; a long reason or tip is cut.
 makes no call. Before dressing, a city whose every spot read `unavailable` (both weather providers lost in
 research) is asked once more, a minute or two later; the days are already arranged, so this only gives the
 outfits and the page their forecast (2026-11-22). With no outfit at all, the progress line says why: no
-travel dates, every date past the forecast, or weather not found (`whyNoOutfits`). About 300 input and 60 output tokens a day.
+travel dates, every date past the forecast, or weather not found (`whyNoOutfits`). When weather was not found, the empty dressing room offers 「重新查天气」 (`POST plan/weather`, [plan-weather-refresh.ts](../capabilities/planning/plan-weather-refresh.ts)): it asks each city's weather again for the saved plan, dresses the days with one Kimi call and writes both into the same version; the route and days stay, and it is not a run. About 300 input and 60 output tokens a day.
 
 **Page.** One dressing room for the trip, placed under the map and like it one tab a day, following
 the day opened below ([plan-outfit.tsx](../components/trip-plan/plan-outfit.tsx)): the red panda on

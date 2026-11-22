@@ -1,6 +1,6 @@
 "use client";
 
-import { Backpack, Shirt, Sparkles } from "lucide-react";
+import { Backpack, RotateCw, Shirt, Sparkles } from "lucide-react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { type CSSProperties, useEffect, useMemo, useState, useSyncExternalStore } from "react";
 
@@ -29,7 +29,10 @@ const copy = {
     noForecast: "这天没有预报。",
     needDates: "填了出发日期（16 天以内），才能按每天的天气给小熊猫配穿搭。",
     allBeyond: "出发日期离现在超过 16 天，还没有天气预报。出发前两周内再生成一次计划，就能看到每天的穿搭。",
-    noWeather: "这次没有查到天气，所以没有穿搭。重新生成计划时会再查。",
+    noWeather: "这次没有查到天气，所以没有穿搭。可以重新查一次，不算一次规划。",
+    refresh: "重新查天气",
+    refreshing: "正在查天气、配穿搭…",
+    refreshFailed: "还是没查到天气，请过一会儿再试。",
     coldest: "最冷",
     warmest: "最暖",
     packTitle: "打包清单",
@@ -49,7 +52,10 @@ const copy = {
     noForecast: "No forecast for this day.",
     needDates: "Add a start date (within 16 days) and the red panda will dress for each day's weather.",
     allBeyond: "The trip starts more than 16 days from now, beyond the forecast. Make the plan again within two weeks of leaving to see each day's outfit.",
-    noWeather: "The weather couldn't be fetched this time, so there are no outfits. Making the plan again will try once more.",
+    noWeather: "The weather couldn't be fetched this time, so there are no outfits. You can try again; it doesn't count as a new plan.",
+    refresh: "Check the weather again",
+    refreshing: "Checking the weather and dressing the days…",
+    refreshFailed: "Still no weather. Try again in a little while.",
     coldest: "Coldest",
     warmest: "Warmest",
     packTitle: "Packing list",
@@ -149,15 +155,18 @@ function swatchOf(entry: SlotEntry): string {
  * a day re-dresses it from the day's weather; the equipment slots list what goes where, and a
  * chosen item says why. It follows the day opened in the itinerary.
  */
-export function OutfitRoom({ days, outfits, weatherOf, selectedDay, onSelectDay, locale }: {
+export function OutfitRoom({ days, outfits, weatherOf, selectedDay, onSelectDay, locale, onRefreshWeather }: {
   readonly days: readonly PlanDay[];
   readonly outfits: readonly DayOutfit[];
   readonly weatherOf: (day: PlanDay) => DayWeatherView;
   readonly selectedDay: number | null;
   readonly onSelectDay: (day: number) => void;
   readonly locale: Locale;
+  /** 「重新查天气」 for a saved plan whose weather was not found (2026-11-22); true when it worked. */
+  readonly onRefreshWeather?: () => Promise<boolean>;
 }) {
   const text = copy[locale];
+  const [refresh, setRefresh] = useState<"idle" | "working" | "failed">("idle");
   const reduce = useReducedMotion() ?? false;
   const [art, setArt] = useState<OutfitManifest | null>(null);
   const [picked, setPicked] = useState<{ day: number; key: string } | null>(null);
@@ -180,6 +189,17 @@ export function OutfitRoom({ days, outfits, weatherOf, selectedDay, onSelectDay,
           <div>
             <h3 id="plan-outfit-heading">{text.title}</h3>
             <p>{reason}</p>
+            {reason === text.noWeather && onRefreshWeather ? (
+              <>
+                <button type="button" className={styles.refresh} disabled={refresh === "working"} onClick={() => {
+                  setRefresh("working");
+                  void onRefreshWeather().then((ok) => setRefresh(ok ? "idle" : "failed"));
+                }}>
+                  <RotateCw aria-hidden="true" size={14} />{refresh === "working" ? text.refreshing : text.refresh}
+                </button>
+                {refresh === "failed" ? <p role="alert">{text.refreshFailed}</p> : null}
+              </>
+            ) : null}
           </div>
         </header>
       </section>

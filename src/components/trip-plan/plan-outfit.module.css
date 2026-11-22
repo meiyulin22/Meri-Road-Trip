@@ -210,3 +210,23 @@
   .dayTab, .item { transition: none; }
   .particles i { animation: none; }
 }
+
+/* 「重新查天气」 in the empty room (2026-11-22): a solid button, the one thing to do here. */
+.refresh {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 8px;
+  padding: 7px 12px;
+  border: 0;
+  border-radius: 8px;
+  color: #fff;
+  background: var(--green);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.refresh:hover:not(:disabled) { filter: brightness(1.08); }
+.refresh:focus-visible { outline: 2px solid var(--green); outline-offset: 2px; }
+.refresh:disabled { opacity: .7; cursor: progress; }
