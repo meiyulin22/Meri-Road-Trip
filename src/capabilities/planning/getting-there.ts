@@ -143,9 +143,9 @@ export async function fillGettingThere(
       transferLegs(frames, tripState.origin, draft.mode).map((leg) => leg.kind === "between" ? kept.get(leg.day) ?? leg : leg),
       deps.transfers, () => {}, originPoint(tripState.origin))
     : { legs: (draft.transfers ?? []).map((leg) => leg.kind === "between" ? leg : driveOnly(leg)), lookups: 0 };
-  // Trains for the choice made here, or the trip's own preference; a self-driver's car goes with them.
+  // Trains for the choice made here, or the trip's own preference (none counts as flexible); a self-driver's car goes with them.
   const travel = choice ?? travelChoiceOf(tripState.transportPreference);
-  const transport = travel === null ? null : await planTransport(outcome.legs, {
+  const transport = await planTransport(outcome.legs, {
     choice: travel,
     dates: new Map(frames.map(({ day, date }) => [day, date])),
     originRailCity: originRailCity(request, tripState.origin),

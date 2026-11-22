@@ -417,7 +417,7 @@ test("the transport agent's question pauses at the transfers and resumes there w
     ...trip.tripState,
     origin: { state: "known" as const, value: "上海", source: "user" as const },
     startDate: { state: "known" as const, value: "2026-11-20", source: "user" as const },
-    transportPreference: { state: "known" as const, value: "public_transport" as const, source: "user" as const },
+    transportPreference: { state: "known" as const, value: "train" as const, source: "user" as const },
   } };
   const trainSearches: string[] = [];
   const flightSearches: string[] = [];

@@ -23,7 +23,7 @@ const validModelDraft = {
   startDate: { state: "known", value: "2026-09-19" },
   endDate: { state: "known", value: "2026-09-20" },
   duration: { state: "known", value: "两天" },
-  transportPreference: { state: "known", value: "public_transport" },
+  transportPreference: { state: "known", value: "train" },
 };
 
 const validInput = {
@@ -80,7 +80,7 @@ test("extracts a valid TripDraft without creating a Trip", async () => {
     startDate: { state: "known", value: "2026-09-19" },
     endDate: { state: "known", value: "2026-09-20" },
     duration: { state: "known", value: "两天" },
-    transportPreference: { state: "known", value: "public_transport" },
+    transportPreference: { state: "known", value: "train" },
   });
 
   assert.match(capturedPrompt, /Reference date: 2026-09-13/);

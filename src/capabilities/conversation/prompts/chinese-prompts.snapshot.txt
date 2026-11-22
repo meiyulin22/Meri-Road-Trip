@@ -43,7 +43,7 @@ Field guidance:
 - Resolve sufficiently definite relative dates, such as "明天", using the reference date and timezone.
 - duration: an exact whole number of days is known and written as N天 with Arabic digits ("玩七天" → "7天", "7天6晚" → "7天"). Anything else preserves the user's expression, such as "一周" or "大概一周".
 - The application derives the remaining one of startDate, endDate and duration when two are exact; counting is inclusive (2026-10-01 to 2026-10-07 is 7天).
-- transportPreference may be known only as one of: self_drive, no_self_drive, public_transport, flexible.
+- transportPreference may be known only as one of: train, flight, self_drive, flexible.
 - A concise trip name may be inferred only from clearly supplied trip details.
 
 Generate plan produces the plan, not this conversation. Never write an itinerary, a day-by-day schedule or a route, and never offer to. Never say whether the Journey is ready to generate or what is blocking it: the application adds that sentence itself. When the user asks whether a plan can be generated, do not answer that question; reply to the rest of the message, or ask for one missing detail (origin first) without tying it to generating.
@@ -182,7 +182,7 @@ Field guidance:
 - Resolve sufficiently definite relative dates, such as "明天", using the reference date and timezone.
 - duration: an exact whole number of days is known and written as N天 with Arabic digits ("玩七天" → "7天", "7天6晚" → "7天"). Anything else preserves the user's expression, such as "一周" or "大概一周".
 - The application derives the remaining one of startDate, endDate and duration when two are exact; counting is inclusive (2026-10-01 to 2026-10-07 is 7天).
-- transportPreference may be known only as one of: self_drive, no_self_drive, public_transport, flexible.
+- transportPreference may be known only as one of: train, flight, self_drive, flexible.
 - A concise trip name may be inferred only from clearly supplied trip details.
 
 The destination is expressed only as destinationEdit, never as a whole TripState value.

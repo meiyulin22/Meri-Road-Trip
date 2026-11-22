@@ -96,7 +96,7 @@ test("the origin is filled in once: TripState, then the plan version, then the r
   assert.deepEqual(writes, ["origin,transportPreference"]);
   const origin = current().origin;
   assert.equal(origin.state === "known" && origin.value, "上海虹桥站");
-  assert.deepEqual(current().transportPreference, { state: "known", value: "public_transport", source: "user" });
+  assert.deepEqual(current().transportPreference, { state: "known", value: "train", source: "user" });
   // The picked point is used as it is: no search for 上海, one drive there and one back; 丽江→大理 kept.
   assert.deepEqual(asked, ["place 丽江市", "drive 121.32>100.2", "place 大理白族自治州", "drive 100.3>121.32"]);
   const version = repository.versions[0];
@@ -121,7 +121,7 @@ test("filled once: a second origin is refused; the same one again finishes a hal
   const written = applyTripStatePatch(handoff.tripState, {
     origin: { state: "known", value: "上海虹桥站", source: "user",
       selection: { provider: "tianditu", region: "上海市闵行区", coordinates: shanghaiOrigin.coordinates } },
-    transportPreference: { state: "known", value: "public_transport", source: "user" },
+    transportPreference: { state: "known", value: "train", source: "user" },
   });
   const half = setup(written);
   assert.equal((await fillGettingThere(tripId, owner, shanghai, half.deps)).status, "filled");
@@ -204,7 +204,7 @@ test("with an origin but no way of travelling, the choice alone is filled once o
   assert.equal(outcome.status, "filled");
   // Only the way of travelling is written; the drives the plan had are kept, so Tianditu is not asked.
   assert.deepEqual(writes, ["transportPreference"]);
-  assert.deepEqual(current().transportPreference, { state: "known", value: "public_transport", source: "user" });
+  assert.deepEqual(current().transportPreference, { state: "known", value: "train", source: "user" });
   assert.deepEqual(asked, []);
   // Trains were looked up for setting off and the way home, from 12306's name of the kept origin.
   assert.deepEqual(trainSearches, ["上海>丽江", "大理>上海"]);

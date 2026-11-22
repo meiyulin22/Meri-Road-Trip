@@ -10,7 +10,7 @@ const draft: TripDraft = {
   destinationEdit: { operation: "set", places: ["梅里雪山"], broadRegion: null },
   startDate: { state: "approximate", value: "十月底" }, endDate: { state: "missing" },
   duration: { state: "approximate", value: "大概一周" },
-  transportPreference: { state: "known", value: "no_self_drive" },
+  transportPreference: { state: "known", value: "flexible" },
 };
 const yunnan = { state: "known", source: "user", areas: [
   { province: "云南省", places: [{ name: "迪庆藏族自治州", spots: ["梅里雪山"] }] },
@@ -107,4 +107,18 @@ test("any patch that sets two of start, end and length fills in the third", () =
   // Patches that leave the dates alone never rewrite them.
   const renamed = applyTripStatePatch(longer, { name: { state: "known", value: "国庆", source: "user" } });
   assert.deepEqual([renamed.startDate, renamed.endDate, renamed.duration], [longer.startDate, longer.endDate, longer.duration]);
+});
+
+test("transport values saved before 2026-11-22 read as their successors; anything else is still refused", () => {
+  const saved = (value: string) => ({
+    name: { state: "missing" }, origin: { state: "missing" }, destination: { state: "missing" },
+    startDate: { state: "missing" }, endDate: { state: "missing" }, duration: { state: "missing" },
+    transportPreference: { state: "known", value, source: "user" },
+  });
+  assert.deepEqual(validateTripState(saved("public_transport")).transportPreference, { state: "known", value: "train", source: "user" });
+  assert.deepEqual(validateTripState(saved("no_self_drive")).transportPreference, { state: "known", value: "flexible", source: "user" });
+  assert.deepEqual(validateTripState(saved("flight")).transportPreference, { state: "known", value: "flight", source: "user" });
+  assert.throws(() => validateTripState(saved("boat")));
+  assert.deepEqual(validateTripStatePatch({ transportPreference: { state: "known", value: "public_transport", source: "user" } }).transportPreference,
+    { state: "known", value: "train", source: "user" });
 });

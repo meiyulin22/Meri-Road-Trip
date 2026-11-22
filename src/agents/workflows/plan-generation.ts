@@ -470,9 +470,9 @@ export function createPlanGenerationWorkflow(deps: PlanGenerationDependencies) {
         ({ from, to, done, total }) => emit({ type: "stage.activity", stage: "transfers", activity: { kind: "driving", from, to, done, total } }),
         // An origin picked from the map's suggestions in the Workspace keeps its own point.
         originPoint(origin));
-      // Trains only when the trip says how it travels; with no preference the drive estimate stands.
+      // The trip's way of travelling; with none chosen Meri compares, as for flexible (2026-11-22).
       const choice = travelChoiceOf(state.handoff.tripState.transportPreference);
-      const transport = choice === null ? null : await planTransport(outcome.legs, {
+      const transport = await planTransport(outcome.legs, {
         choice,
         dates: new Map(inputData.plan.frames.map(({ day, date }) => [day, date])),
         originRailCity: origin.state === "known" && origin.selection?.region ? railCityOfRegion(origin.selection.region, origin.value) : null,

@@ -251,6 +251,8 @@ function TransportPreferenceField({
             <CertaintyTag state={field.state} />
           </p>
         ) : null}
+        {/* Nothing chosen stays nothing chosen; only the planner reads it as flexible (2026-11-22). */}
+        {field.state === "missing" ? <p className={styles.fieldNote}>{text.transportUnsetNote}</p> : null}
       </dd>
     </div>
   );

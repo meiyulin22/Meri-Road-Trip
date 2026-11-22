@@ -313,7 +313,8 @@ export function PlanDraftSection({ tripId, handoff, onPreferenceSaved = () => {}
         transport={handoff.tripState.transportPreference.state === "known" ? handoff.tripState.transportPreference.value : null}
         gettingThere={{
           tripId,
-          askChoice: handoff.tripState.transportPreference.state !== "known",
+          // No longer asked (2026-11-22): a trip without a way of travelling is planned as flexible.
+          askChoice: false,
           onFilled: (filled) => {
             onHandoffChange(filled.handoff);
             setState({ kind: "ready", plan: filled.plan, progress: state.progress });

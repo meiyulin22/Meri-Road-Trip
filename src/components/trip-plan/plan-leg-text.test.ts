@@ -14,10 +14,11 @@ const leg = (overrides: Partial<DriveLeg>): DriveLeg => ({
 
 test("a road leg is worded by how the traveller gets around; a walk says walk (1.2103)", () => {
   assert.equal(legText(leg({}), "self_drive", "zh", names), "开车约 4 分钟 · 2.5 公里");
-  assert.equal(legText(leg({}), "no_self_drive", "zh", names), "打车约 4 分钟 · 2.5 公里");
+  assert.equal(legText(leg({}), "flight", "zh", names), "打车约 4 分钟 · 2.5 公里");
+  assert.equal(legText(leg({}), "flexible", "zh", names), "车程约 4 分钟 · 2.5 公里");
   assert.equal(legText(leg({}), null, "zh", names), "车程约 4 分钟 · 2.5 公里");
   assert.equal(legText(leg({ mode: "walk", durationMinutes: 14, distanceKm: 1 }), "self_drive", "zh", names), "步行约 14 分钟 · 1 公里");
-  assert.equal(legText(leg({}), "public_transport", "en", names), "About 4 min by taxi · 2.5 km");
+  assert.equal(legText(leg({}), "train", "en", names), "About 4 min by taxi · 2.5 km");
   // Plans made in 1.2102 have no mode: they drove.
   assert.equal(legText(leg({ mode: undefined }), "flexible", "zh", names), "车程约 4 分钟 · 2.5 公里");
 });

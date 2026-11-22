@@ -24,7 +24,7 @@ test("a drive's length reads as people say it, rounded to ten minutes once it is
 test("an estimated leg is worded for a self-driver or by road, and a long one points to trains and flights", () => {
   assert.equal(transferText(leg(drive(163, 186)), "self_drive", "zh"), "开车约 2 小时 40 分钟 · 186 公里（估算）");
   assert.equal(transferText(leg(drive(163, 186)), null, "zh"), "车程约 2 小时 40 分钟 · 186 公里（估算）");
-  assert.equal(transferText(leg(drive(163, 186)), "public_transport", "en"), "About 2 h 40 min by road · 186 km (estimate)");
+  assert.equal(transferText(leg(drive(163, 186)), "train", "en"), "About 2 h 40 min by road · 186 km (estimate)");
   assert.equal(transferText(leg(drive(2280, 2700)), null, "zh"), "车程约 38 小时 · 2700 公里（估算），路程较远，可以考虑火车或飞机");
 });
 
@@ -38,11 +38,11 @@ test("a leg without a time says why", () => {
 });
 
 test("a missing train or a chosen flight is said first, with the drive as a reference (1.2107–1.2108)", () => {
-  assert.equal(transferText({ ...leg(drive(163, 186)), trainsMissing: "none" }, "public_transport", "zh", "train"),
+  assert.equal(transferText({ ...leg(drive(163, 186)), trainsMissing: "none" }, "train", "zh", "train"),
     "这段没查到合适的直达车次（可能要中转）；先给开车参考：车程约 2 小时 40 分钟 · 186 公里（估算）");
   // Not searched (no train service turned on): no claim about trains at all.
-  assert.equal(transferText(leg(drive(163, 186)), "public_transport", "zh", "train"), "车程约 2 小时 40 分钟 · 186 公里（估算）");
-  assert.equal(transferText(leg(drive(2280, 2700)), "public_transport", "zh", "flight"),
+  assert.equal(transferText(leg(drive(163, 186)), "train", "zh", "train"), "车程约 2 小时 40 分钟 · 186 公里（估算）");
+  assert.equal(transferText(leg(drive(2280, 2700)), "train", "zh", "flight"),
     "你选了飞机，航班暂时查不到；先给开车参考：车程约 38 小时 · 2700 公里（估算）");
   assert.equal(transferText(leg(drive(163, 186)), "self_drive", "zh", "drive"), "开车约 2 小时 40 分钟 · 186 公里（估算）");
   assert.equal(transferText(leg({ status: "origin_missing" }, { kind: "return", to: null }), null, "zh"), "出发地还没写，在上面的启程卡里填写后一起估算");

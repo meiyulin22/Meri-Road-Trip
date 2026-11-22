@@ -719,6 +719,15 @@ The same live check found the day-planning call failing when Kimi wrote a time a
 string: that answer shape is now read, and a malformed answer gets the second attempt instead of
 failing the run.
 
+**Transport preference, 2026-11-22.** The Workspace's four ways of travelling became the plan page's
+four: train, flight, self-drive, flexible (`transportPreferences`), so a flight picked on the plan page
+is saved as a flight, no longer as public transport. Saved `public_transport` reads as train and
+`no_self_drive` as flexible (`currentTransportValue`, applied wherever TripState is validated, so old
+states, handoffs and plan versions read the same; nothing is rewritten). A trip with no way chosen is
+planned as flexible (`travelChoiceOf`): the transport agent compares train, flight and the drive, and
+the plan page no longer asks 「怎么去？」. TripState itself still says nothing was chosen. Cost: every
+plan with an origin now looks up trains and flights (flights ¥0.25 a search, at most ¥2 a plan).
+
 ### Drive times and the map (1.2100–1.2106)
 
 The map check keeps each located spot's coordinates (1.2100), and the plan page draws the stops

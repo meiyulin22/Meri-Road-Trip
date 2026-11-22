@@ -24,5 +24,5 @@ test("the buttons under a reply ask only for what TripState still lacks", () => 
   const dated: TripState = { ...empty, startDate: { state: "known", value: "2026-11-24", source: "user" },
     duration: { state: "known", value: "3天", source: "user" } };
   assert.deepEqual(missingTripFields(dated), ["transport"]);
-  assert.deepEqual(missingTripFields({ ...dated, transportPreference: { state: "known", value: "public_transport", source: "user" } }), []);
+  assert.deepEqual(missingTripFields({ ...dated, transportPreference: { state: "known", value: "train", source: "user" } }), []);
 });

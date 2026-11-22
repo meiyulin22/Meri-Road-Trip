@@ -26,11 +26,11 @@ export function legText(leg: DriveLeg, transport: TransportPreference | null, lo
   const how = leg.mode === "walk"
     ? (zh ? "步行约" : "About")
     : transport === "self_drive" ? (zh ? "开车约" : "About")
-      : transport === "no_self_drive" || transport === "public_transport" ? (zh ? "打车约" : "About")
+      : transport === "train" || transport === "flight" ? (zh ? "打车约" : "About")
         : (zh ? "车程约" : "About");
   const by = leg.mode === "walk" ? "on foot"
     : transport === "self_drive" ? "by car"
-      : transport === "no_self_drive" || transport === "public_transport" ? "by taxi" : "by road";
+      : transport === "train" || transport === "flight" ? "by taxi" : "by road";
   const base = zh ? `${how} ${leg.durationMinutes} 分钟 · ${leg.distanceKm} 公里` : `${how} ${leg.durationMinutes} min ${by} · ${leg.distanceKm} km`;
   const notes: string[] = [];
   if (reach.startGapMeters > 0) notes.push(zh ? `出发处约 ${metres(reach.startGapMeters)} 米地图上没有路` : `the first ${metres(reach.startGapMeters)} m has no road on the map`);

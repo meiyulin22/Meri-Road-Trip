@@ -257,20 +257,21 @@ export function transferLegs(frames: readonly DayFrame[], origin: LocationField,
 export const travelChoices = ["drive", "train", "flight", "auto"] as const;
 export type TravelChoice = (typeof travelChoices)[number];
 
-/** The trip's transport preference a choice stands for: train and flight are both public transport. */
+/** The trip's transport preference a plan-page choice stands for, one to one since 2026-11-22. */
 export function transportPreferenceFor(choice: TravelChoice): TransportPreference {
-  return choice === "drive" ? "self_drive" : choice === "auto" ? "flexible" : "public_transport";
+  return choice === "drive" ? "self_drive" : choice === "auto" ? "flexible" : choice;
 }
 
 /**
- * The choice a trip's transport preference stands for when nothing was chosen on the plan page
- * (1.2108): self-drive drives, public transport takes the train (flights are not wired yet), not
- * driving or flexible lets Meri compare. No preference means no choice: only the drive is estimated.
+ * The choice a trip's transport preference stands for: self-drive drives, train and flight take
+ * them, flexible lets Meri compare. Since 2026-11-22 (merlin) no preference counts as flexible at
+ * planning time only: TripState still says nothing was chosen, but the plan compares train, flight
+ * and the drive instead of estimating the drive alone, and the plan page no longer asks.
  */
-export function travelChoiceOf(preference: TripStateField<TransportPreference>): TravelChoice | null {
-  if (preference.state !== "known") return null;
+export function travelChoiceOf(preference: TripStateField<TransportPreference>): TravelChoice {
+  if (preference.state !== "known") return "auto";
   if (preference.value === "self_drive") return "drive";
-  return preference.value === "public_transport" ? "train" : "auto";
+  return preference.value === "flexible" ? "auto" : preference.value;
 }
 
 /**

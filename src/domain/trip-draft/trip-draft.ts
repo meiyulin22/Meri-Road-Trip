@@ -1,13 +1,29 @@
 import { validateDestinationEdit, type DestinationEdit } from "@/domain/trip-state/destination-edit";
 
+/**
+ * How the traveller wants to travel (changed 2026-11-22, merlin): the same four as the plan page's
+ * 「怎么去？」, so nothing is lost between them. Until then the Workspace had self-drive, no self-drive,
+ * public transport and flexible, and a flight picked on the plan page was saved as public transport.
+ */
 export const transportPreferences = [
+  "train",
+  "flight",
   "self_drive",
-  "no_self_drive",
-  "public_transport",
   "flexible",
 ] as const;
 
 export type TransportPreference = (typeof transportPreferences)[number];
+
+/** Values saved before 2026-11-22, read as the nearest current one; nothing in the database is rewritten. */
+const legacyTransportPreferences: Readonly<Record<string, TransportPreference>> = {
+  public_transport: "train",
+  no_self_drive: "flexible",
+};
+
+/** A saved or proposed transport value in today's terms: a legacy value becomes its successor, anything else stays as given. */
+export function currentTransportValue(value: unknown): unknown {
+  return typeof value === "string" ? legacyTransportPreferences[value] ?? value : value;
+}
 
 export type TripDraftField<T extends string = string> =
   | { readonly state: "known"; readonly value: T }

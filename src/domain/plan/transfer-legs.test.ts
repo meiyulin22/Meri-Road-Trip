@@ -79,7 +79,7 @@ test("a saved flight-then-train journey reads back (1.2114)", () => {
 
 test("a choice stands for a transport preference, and only a picked Tianditu origin has a point (1.2107)", () => {
   assert.deepEqual(["drive", "train", "flight", "auto"].map((choice) => transportPreferenceFor(choice as TravelChoice)),
-    ["self_drive", "public_transport", "public_transport", "flexible"]);
+    ["self_drive", "train", "flight", "flexible"]);
   assert.equal(originPoint(shanghai), null);
   assert.deepEqual(originPoint({ ...shanghai, selection: { provider: "tianditu", coordinates: { longitude: 121.32, latitude: 31.19, coordinateSystem: "CGCS2000" } } }),
     { longitude: 121.32, latitude: 31.19 });
@@ -95,10 +95,10 @@ test("12306 is asked for the leg's own day inside its presale window, and a same
   assert.equal(railQueryDate("2026-11-10", "2026-11-17"), null);
 });
 
-test("a trip's transport preference stands for a choice; none means only the drive", () => {
+test("a trip's transport preference stands for a choice, one to one; none counts as flexible (2026-11-22)", () => {
   assert.equal(travelChoiceOf({ state: "known", value: "self_drive", source: "user" }), "drive");
-  assert.equal(travelChoiceOf({ state: "known", value: "public_transport", source: "user" }), "train");
+  assert.equal(travelChoiceOf({ state: "known", value: "train", source: "user" }), "train");
+  assert.equal(travelChoiceOf({ state: "known", value: "flight", source: "user" }), "flight");
   assert.equal(travelChoiceOf({ state: "known", value: "flexible", source: "user" }), "auto");
-  assert.equal(travelChoiceOf({ state: "known", value: "no_self_drive", source: "user" }), "auto");
-  assert.equal(travelChoiceOf({ state: "missing" }), null);
+  assert.equal(travelChoiceOf({ state: "missing" }), "auto");
 });

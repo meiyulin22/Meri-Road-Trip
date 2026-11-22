@@ -1,5 +1,6 @@
 import type { RecommendationScope } from "@/domain/trip-message/trip-message";
 import {
+  currentTransportValue,
   transportPreferences,
   type TripDraft,
   type TripDraftField,
@@ -294,12 +295,17 @@ export function validateTripState(value: unknown): TripState {
     endDate: validateStateField(value.endDate, "endDate"),
     duration: validateStateField(value.duration, "duration"),
     transportPreference: validateStateField(
-      value.transportPreference,
+      withCurrentTransport(value.transportPreference),
       "transportPreference",
       (fieldValue) =>
         transportPreferences.some((preference) => preference === fieldValue),
     ),
   };
+}
+
+/** A transport field with a pre-2026-11-22 value read in today's terms (public_transport → train). */
+function withCurrentTransport(field: unknown): unknown {
+  return isRecord(field) && "value" in field ? { ...field, value: currentTransportValue(field.value) } : field;
 }
 
 export function validateTripStatePatch(value: unknown): TripStatePatch {
@@ -337,7 +343,7 @@ export function validateTripStatePatch(value: unknown): TripStatePatch {
       continue;
     }
     const field = validateStateField(
-      value[key],
+      key === "transportPreference" ? withCurrentTransport(value[key]) : value[key],
       key,
       key === "transportPreference"
         ? (fieldValue) =>

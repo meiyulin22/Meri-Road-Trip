@@ -13,7 +13,7 @@ const tripState: TripState = {
   name: { state: "missing" }, origin: { state: "known", value: "成都", source: "user" },
   destination: { state: "missing" }, startDate: { state: "missing" },
   endDate: { state: "missing" }, duration: { state: "missing" },
-  transportPreference: { state: "known", value: "public_transport", source: "user" },
+  transportPreference: { state: "known", value: "train", source: "user" },
 };
 const history: TripMessage[] = [
   { id: "u1", tripId, role: "user", content: "想出去走走，不自驾", createdAt },
