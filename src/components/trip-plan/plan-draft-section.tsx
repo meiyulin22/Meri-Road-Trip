@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowRight, CalendarCheck, Car, ChevronDown, Footprints, Clock, ExternalLink, Info, MapPin, MoonStar, RotateCw, Route, Shirt, Sparkles, Star, Sun, Sunrise, TriangleAlert } from "lucide-react";
+import { ArrowRight, CalendarCheck, Car, CheckCircle2, LoaderCircle, ChevronDown, Footprints, Clock, ExternalLink, Info, MapPin, MoonStar, RotateCw, Route, Shirt, Sparkles, Star, Sun, Sunrise, TriangleAlert } from "lucide-react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import Image from "next/image";
 import { type CSSProperties, Fragment, useEffect, useMemo, useReducer, useState } from "react";
@@ -14,6 +14,7 @@ import { type DaySlot, type DriveLeg, legReach, type PlanDay, type PlanRoute, ty
 import { readyPlanSchema, type ReadyPlan } from "@/domain/plan/plan-draft-response";
 import type { PlanHandoff } from "@/domain/plan/plan-handoff";
 import type { TransportPreference } from "@/domain/trip-draft/trip-draft";
+import type { PlanStage } from "@/domain/plan/plan-progress";
 import type { PlanFactField, PlanRunStartResponse } from "@/domain/plan/plan-run";
 import type { SpotCard, SpotEvidence } from "@/domain/plan/spot-card";
 import type { TransferKind } from "@/domain/plan/transfer-legs";
@@ -108,6 +109,13 @@ const copy = {
       address_runs: "You’ve made today’s plans already. Please come back tomorrow.",
     } satisfies Record<PlanDraftFailure, string>,
     cityDays: (from: number, to: number) => from === to ? `Day ${from}` : `Days ${from}–${to}`,
+    pending: {
+      mapTitle: "Map", map: "The map appears once the plan is saved.",
+      outfitTitle: "What to wear each day", outfit: "Dressing for each day's weather…",
+      staysTitle: (city: string) => `Where to stay · ${city}`, stays: "Looking for places to stay…",
+      foodTitle: (city: string) => `What to eat · ${city}`, food: "Looking for local food…",
+      ready: "Done; shown as soon as the plan is saved.",
+    },
     previousPlan: (made: string) => `Below is the plan made on ${made}; tomorrow Meri can make it again.`,
     previousChanged: (facts: string) => `It was made before you changed ${facts}, so it doesn’t use them yet.`,
     factNames: {
@@ -170,6 +178,13 @@ const copy = {
       address_runs: "你今天的规划次数已经用完了，明天再来吧。",
     } satisfies Record<PlanDraftFailure, string>,
     cityDays: (from: number, to: number) => from === to ? `第 ${from} 天` : `第 ${from}–${to} 天`,
+    pending: {
+      mapTitle: "地图", map: "计划保存后显示地图。",
+      outfitTitle: "每天穿什么", outfit: "正在按每天的天气搭配穿衣…",
+      staysTitle: (city: string) => `住哪里 · ${city}`, stays: "正在找住处…",
+      foodTitle: (city: string) => `吃什么 · ${city}`, food: "正在找当地吃的…",
+      ready: "已经好了，计划保存后马上显示。",
+    },
     previousPlan: (made: string) => `下面是 ${made} 生成的上一版计划，明天可以按新信息重新生成。`,
     previousChanged: (facts: string) => `这一版是在你改动${facts}之前生成的，还没用上新的信息。`,
     factNames: {
@@ -413,6 +428,15 @@ function LiveRun({ tripId, runId, text, locale, onDone, onFailed, onAnswered }: 
       <PlanRunActivity view={view} />
       {view.question ? <PlanQuestionCard key={view.question.id} question={view.question} onAnswer={answer} /> : null}
       {view.route ? <RouteStrip route={view.route} text={text} /> : null}
+      {/* Where the map and the outfits will be, held while the run works (2026-11-22, merlin): they are
+          drawn from the saved plan, so before it the page showed nothing there and looked stuck. */}
+      {view.route ? (
+        <>
+          <PendingModule title={text.pending.mapTitle} note={text.pending.map} done={false} />
+          <PendingModule title={text.pending.outfitTitle} note={stageDone(view, "outfit") ? text.pending.ready : text.pending.outfit}
+            done={stageDone(view, "outfit")} />
+        </>
+      ) : null}
       {view.days.length > 0 || view.route ? (
         <div className={draftStyles.days}>
           {view.days.map((day, index) => (
@@ -432,8 +456,36 @@ function LiveRun({ tripId, runId, text, locale, onDone, onFailed, onAnswered }: 
               <span className={draftStyles.skeletonLines}><span /><span /></span>
             </div>
           ))}
+          {/* Each city's stay and food, held the same way; a step the run does not take shows nothing. */}
+          {(view.route?.cities ?? []).map(({ city }) => (
+            <Fragment key={city}>
+              {view.stages.some(({ stage }) => stage === "stays") ? (
+                <PendingModule title={text.pending.staysTitle(city)} note={stageDone(view, "stays") ? text.pending.ready : text.pending.stays}
+                  done={stageDone(view, "stays")} />
+              ) : null}
+              {view.stages.some(({ stage }) => stage === "food") ? (
+                <PendingModule title={text.pending.foodTitle(city)} note={stageDone(view, "food") ? text.pending.ready : text.pending.food}
+                  done={stageDone(view, "food")} />
+              ) : null}
+            </Fragment>
+          ))}
         </div>
       ) : null}
+    </section>
+  );
+}
+
+const stageDone = (view: ProgressView, stage: PlanStage) => view.stages.some((item) => item.stage === stage && item.status === "done");
+
+/** A module the saved plan will fill in: a spinner while its step works, a tick once the step is done. */
+function PendingModule({ title, note, done }: { readonly title: string; readonly note: string; readonly done: boolean }) {
+  return (
+    <section className={draftStyles.pendingModule} aria-busy={!done}>
+      {done ? <CheckCircle2 aria-hidden="true" size={18} /> : <LoaderCircle aria-hidden="true" className={draftStyles.pendingSpin} size={18} />}
+      <div>
+        <h3>{title}</h3>
+        <p role="status">{note}</p>
+      </div>
     </section>
   );
 }

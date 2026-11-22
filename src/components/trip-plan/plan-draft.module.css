@@ -515,3 +515,19 @@
 .cityHeading > svg { align-self: center; }
 .cityHeading h3 { color: var(--ink, #263238); font-size: 17px; font-weight: 700; }
 .cityHeading span { color: var(--muted, #6b7280); font-size: 13px; }
+
+/* A module the saved plan will fill in, held while the run works (2026-11-22). */
+.pendingModule {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 18px;
+  border: 1px dashed rgba(79, 131, 107, .35);
+  border-radius: 16px;
+  background: #fffdf8;
+  color: var(--green, #4f836b);
+}
+.pendingModule h3 { color: var(--ink, #263238); font-size: 14px; font-weight: 650; }
+.pendingModule p { color: var(--muted, #6b7280); font-size: 12px; }
+.pendingSpin { flex: none; animation: originSpin 1s linear infinite; }
+@media (prefers-reduced-motion: reduce) { .pendingSpin { animation: none; } }
