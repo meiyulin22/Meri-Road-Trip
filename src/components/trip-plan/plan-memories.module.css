@@ -50,3 +50,40 @@
   line-height: 1.6;
 }
 .pending svg { flex-shrink: 0; margin-top: 3px; color: var(--green); }
+
+/* The add button and one-tap suggestions (2026-11-22): easy to find, as the card exists to be told things. */
+.add {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-height: 32px;
+  padding: 6px 14px;
+  border: 0;
+  border-radius: 9px;
+  color: #fff;
+  background: var(--green);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.add:hover:not(:disabled) { filter: brightness(1.08); }
+.add:focus-visible, .quick button:focus-visible { outline: 2px solid var(--green); outline-offset: 2px; }
+.add:disabled { opacity: .7; cursor: progress; }
+
+.quick { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+.quick button {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 30px;
+  padding: 4px 11px;
+  border: 1px solid rgba(79, 131, 107, .4);
+  border-radius: 999px;
+  color: var(--green);
+  background: #fff;
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+.quick button:hover:not(:disabled) { background: var(--green-soft); }

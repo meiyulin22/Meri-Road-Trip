@@ -10,7 +10,6 @@ import type { PlanPreference } from "@/domain/plan/trip-preference";
 import { PreferenceSheet } from "./plan-preferences";
 import { addPreference, kindOfSuggestion, listPreferences, removePreference } from "./plan-preferences-model";
 import memoryStyles from "./plan-memories.module.css";
-import styles from "./trip-plan.module.css";
 
 const copy = {
   en: {
@@ -91,13 +90,24 @@ export function PlanMemories({ tripId, handoff, refreshKey = 0 }: {
     <section className={memoryStyles.memories} aria-labelledby="plan-preferences-heading">
       <div className={memoryStyles.header}>
         <h2 id="plan-preferences-heading">{words.plan.memoriesTitle}</h2>
-        <button type="button" className={styles.addPreference} onClick={() => setSheetOpen(true)} disabled={status === "saving"}>
-          <Plus aria-hidden="true" size={13} />{status === "saving" ? text.saving : words.plan.addPreference}
+        {/* A solid button, not a dashed one: telling Meri is the point of this card (merlin, 2026-11-21). */}
+        <button type="button" className={memoryStyles.add} onClick={() => setSheetOpen(true)} disabled={status === "saving"}>
+          <Plus aria-hidden="true" size={14} />{status === "saving" ? text.saving : words.plan.addPreference}
         </button>
       </div>
 
       {preferences.length === 0 ? (
-        <p className={memoryStyles.hint}>{handoff.preferenceStatus === "unavailable" ? text.unavailable : text.empty}</p>
+        <>
+          <p className={memoryStyles.hint}>{handoff.preferenceStatus === "unavailable" ? text.unavailable : text.empty}</p>
+          {/* One tap saves a common preference; the sheet takes anything else. */}
+          <div className={memoryStyles.quick}>
+            {words.plan.preferenceSuggestions.map((suggestion) => (
+              <button type="button" key={suggestion} disabled={status === "saving"} onClick={() => void add([suggestion])}>
+                <Plus aria-hidden="true" size={12} />{suggestion}
+              </button>
+            ))}
+          </div>
+        </>
       ) : (
         <ul className={memoryStyles.chips}>
           {preferences.map((preference) => (
