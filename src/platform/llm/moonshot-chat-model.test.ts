@@ -6,7 +6,7 @@ import { createTool } from "@mastra/core/tools";
 import { z } from "zod";
 
 import {
-  createMoonshotChatModel, isAlwaysReasoningModel, modelDeadlineMs, moonshotRequestBody, reasoningEffortFromEnvironment, reasoningModelMinOutputTokens,
+  createMoonshotChatModel, decidingReasoningEffort, isAlwaysReasoningModel, modelDeadlineMs, moonshotRequestBody, reasoningEffortFromEnvironment, reasoningModelMinOutputTokens,
 } from "./moonshot-chat-model";
 
 test("K2 keeps thinking off; K3 gets a reasoning effort, no thinking or temperature, and room under max_tokens", () => {
@@ -62,4 +62,10 @@ test("deadlines stay as written for K2 and stretch 3.5 times for K3, which write
   assert.equal(modelDeadlineMs(70_000, "kimi-k2.6"), 70_000);
   assert.equal(modelDeadlineMs(70_000, "kimi-k3.1-pro"), 245_000);
   assert.equal(modelDeadlineMs(8 * 60_000, "kimi-k3"), 28 * 60_000);
+});
+
+test("the deciding steps reason at high on K3; the body shows it", () => {
+  assert.equal(decidingReasoningEffort, "high");
+  assert.equal(moonshotRequestBody({}, "kimi-k3.1-pro", decidingReasoningEffort).reasoning_effort, "high");
+  assert.equal("reasoning_effort" in moonshotRequestBody({}, "kimi-k2.6", decidingReasoningEffort), false);
 });

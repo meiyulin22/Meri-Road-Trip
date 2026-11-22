@@ -3,7 +3,7 @@ import { InMemoryStore, MastraCompositeStore } from "@mastra/core/storage";
 import { WorkflowsPG } from "@mastra/pg";
 
 import { findPlaceImage } from "@/capabilities/destination/place-images";
-import { createMoonshotChatModelFromEnvironment } from "@/platform/llm/moonshot-chat-model";
+import { createDecidingModelFromEnvironment, createMoonshotChatModelFromEnvironment } from "@/platform/llm/moonshot-chat-model";
 import { createPlacePhotoProvider } from "@/platform/map-providers";
 import { createPlanSearchFromEnvironment, type PlanSearch } from "@/platform/search/plan-search";
 import { createTiandituClient } from "@/platform/tianditu/tianditu-fetch";
@@ -61,7 +61,8 @@ export function planGenerationDependencies(
       deepSearch: (query, signal) => (planSearch ??= createPlanSearchFromEnvironment()).deep(query, signal),
       model: createMoonshotChatModelFromEnvironment,
     }, onProgress),
-    planModel: { model: createMoonshotChatModelFromEnvironment },
+    // Routing and choosing days reason harder on K3 (2026-11-22); other steps keep LLM_REASONING_EFFORT.
+    planModel: { model: createMoonshotChatModelFromEnvironment, decidingModel: createDecidingModelFromEnvironment },
     verifySpots: (cards, options, onProgress) => verifySpots(cards, options, {
       search: (query, signal) => (planSearch ??= createPlanSearchFromEnvironment()).search(query, signal),
       deepSearch: (query, signal) => (planSearch ??= createPlanSearchFromEnvironment()).deep(query, signal),

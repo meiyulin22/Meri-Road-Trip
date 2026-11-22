@@ -18,10 +18,9 @@ import type { CityResearch, SpotCard } from "@/domain/plan/spot-card";
 import { maxDetourRatio } from "@/domain/plan/route-distance";
 import { type PoorDay, routeChoice } from "@/domain/plan/route-weather";
 import { cityForecast, forecastSummary, type GeoPoint, outdoorRating } from "@/domain/plan/weather";
-import { createMoonshotChatModelFromEnvironment } from "@/platform/llm/moonshot-chat-model";
+import { createDecidingModelFromEnvironment, createMoonshotChatModelFromEnvironment, modelDeadlineMs } from "@/platform/llm/moonshot-chat-model";
 import { logger } from "@/platform/observability/logger";
 import { serializeError } from "@/platform/observability/serialize-error";
-import { modelDeadlineMs } from "@/platform/llm/moonshot-chat-model";
 
 const maxAttempts = 2;
 // Both attempts share it. Measured 2026-11-15: an answer carrying a question can take Kimi over 30 s.
@@ -117,11 +116,14 @@ export function fallbackQuestion(
 }
 
 export type PlanModelDependencies = {
-  readonly model: typeof createMoonshotChatModelFromEnvironment;
+  readonly model: () => ReturnType<typeof createMoonshotChatModelFromEnvironment>;
+  /** For the steps that decide (route, days): more reasoning on K3; the ordinary model when absent. */
+  readonly decidingModel?: () => ReturnType<typeof createMoonshotChatModelFromEnvironment>;
 };
 
 const defaultDependencies: PlanModelDependencies = {
   model: createMoonshotChatModelFromEnvironment,
+  decidingModel: createDecidingModelFromEnvironment,
 };
 
 export type PlanUsage = { inputTokens: number; outputTokens: number };
@@ -179,7 +181,7 @@ export async function planRoute(
 ): Promise<PlanRouteResult> {
   let model: ReturnType<PlanModelDependencies["model"]>;
   try {
-    model = deps.model();
+    model = (deps.decidingModel ?? deps.model)();
   } catch (error) {
     logger.warn({ error: serializeError(error) }, "Plan Agent model unavailable");
     return { status: "unavailable" };

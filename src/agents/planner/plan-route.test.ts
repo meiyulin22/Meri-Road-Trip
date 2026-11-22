@@ -385,3 +385,13 @@ test("distance first, weather second: an order meeting a storm another equal ord
   assert.equal(dry.status === "ready" && dry.attempts, 1);
   assert.equal(dry.status === "ready" && dry.plan.route.cities[0].city, "丽江市");
 });
+
+test("routing uses the deciding model when there is one, which reasons harder on K3 (2026-11-22)", async () => {
+  const trip = handoff(["丽江市"], fiveDays);
+  const answer = modelAnswering({ routes: [{ cities: [{ id: "c1", days: 5, reason: "慢慢玩" }], days: [], omitted: [] }] });
+  const result = await planRoute(trip, ready(planScope(trip.tripState)), [lijiang], {
+    model() { throw new Error("the ordinary model is not for routing"); },
+    decidingModel: answer,
+  });
+  assert.equal(result.status, "ready");
+});

@@ -106,7 +106,7 @@ export async function draftCityDays(
   }
   let model: ReturnType<PlanModelDependencies["model"]>;
   try {
-    model = deps.model();
+    model = (deps.decidingModel ?? deps.model)();
   } catch (error) {
     logger.warn({ error: serializeError(error) }, "Plan Agent model unavailable");
     return { status: "unavailable" };

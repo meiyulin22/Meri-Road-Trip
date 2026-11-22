@@ -83,7 +83,7 @@ export function createMoonshotChatModel(options: MoonshotChatModelOptions) {
  * The model the environment configures: MOONSHOT_API_KEY, optional MOONSHOT_BASE_URL and LLM_MODEL.
  * Every call goes through the day's Kimi money and PAID_CALLS_ENABLED (step 2).
  */
-export function createMoonshotChatModelFromEnvironment() {
+export function createMoonshotChatModelFromEnvironment(options: { readonly reasoningEffort?: ReasoningEffort } = {}) {
   const apiKey = process.env.MOONSHOT_API_KEY?.trim();
   if (!apiKey) throw new MissingLlmConfigurationError();
   return createMoonshotChatModel({
@@ -91,5 +91,17 @@ export function createMoonshotChatModelFromEnvironment() {
     baseUrl: process.env.MOONSHOT_BASE_URL?.trim() || DEFAULT_MOONSHOT_BASE_URL,
     model: process.env.LLM_MODEL?.trim() || DEFAULT_MOONSHOT_MODEL,
     fetch: kimiFetch,
+    ...(options.reasoningEffort ? { reasoningEffort: options.reasoningEffort } : {}),
   });
+}
+
+/**
+ * The steps that weigh things up and decide, routing the trip and choosing each day's stops, reason
+ * harder on K3 (merlin, 2026-11-22): their answers are short, so more thought costs little, and they are
+ * where it can help. Reading and copying steps keep LLM_REASONING_EFFORT. K2 does not reason either way.
+ */
+export const decidingReasoningEffort: ReasoningEffort = "high";
+
+export function createDecidingModelFromEnvironment() {
+  return createMoonshotChatModelFromEnvironment({ reasoningEffort: decidingReasoningEffort });
 }

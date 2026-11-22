@@ -756,7 +756,10 @@ message, and a test shows Mastra's tool loop sends it. Live check the same day o
 loop in 8.4 s with 38 reasoning tokens, a three-day itinerary JSON in 5.3 s with 100. Switching is `LLM_MODEL` only. K3 also writes long JSON more slowly: the first 3-case eval timed out
 in research (70 s) and food (60 s), so on K3 every step's deadline, the run's 8-minute limit and the chat timeout are
 stretched 3.5× (`modelDeadlineMs`). The re-run passed 4/4 on 丽江+大理 and on three cities, about 6.5 minutes and ¥1.2
-of Kimi a plan (K2: 2–5 minutes, ¥0.3–0.5); merlin kept K3 (2026-11-22).
+of Kimi a plan (K2: 2–5 minutes, ¥0.3–0.5); merlin kept K3 (2026-11-22). Reasoning is `low` everywhere except the two steps that
+weigh things up and decide, routing and choosing each day's stops, which run at `high` (`decidingModel`,
+`createDecidingModelFromEnvironment`): their answers are short, so thinking more costs little. Not yet measured
+against `low`; a route-step comparison belongs to the final evaluation.
 
 ### Drive times and the map (1.2100–1.2106)
 
