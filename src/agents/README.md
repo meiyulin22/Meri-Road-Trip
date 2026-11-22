@@ -900,7 +900,10 @@ default ¥40 (`KIMI_MAX_YUAN_PER_DAY`); an unknown model is priced as the deares
 guards, not the bill. A new Generate plan is also refused once the site has started 15 that day
 (`PLAN_RUNS_PER_DAY`, counted in `plan_runs`, so a restart does not reset it); a saved plan, the same
 handoff or a resumed run never counts. The start answers `limited` with the reason and the page says
-it with no retry; a run Kimi refused midway ends as `daily_quota` or `paid_calls_paused`, and the
+it with no retry; since 2026-11-22 it also carries the trip's last saved plan (`previous`), which the page
+shows under the notice with when it was made and which facts changed since (`changedPlanFacts`: origin,
+destination, dates, length, transport, preferences), so a traveller who just filled in dates still sees
+their plan, marked as made before the dates; a run Kimi refused midway ends as `daily_quota` or `paid_calls_paused`, and the
 Workspace chat shows "today's demo allowance is used up" or "the demo is paused" instead of "refresh".
 The switch also stops Kimi search, Bocha and VariFlight. Measured from 16 saved runs: 10–28k tokens a
 plan (11-16/17), 5–14 searches.

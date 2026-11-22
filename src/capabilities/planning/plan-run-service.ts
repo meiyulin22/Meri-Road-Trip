@@ -19,7 +19,8 @@ import {
   type QuestionStep,
 } from "@/domain/plan/plan-progress";
 import type { LabelledAnswer } from "@/capabilities/planning/extract-plan-preferences";
-import type { PlanAnswer, PlanRun, PlanRunUsage, PlanVersion } from "@/domain/plan/plan-run";
+import { type PlanAnswer, type PlanFactField, planFactFields, type PlanRun, type PlanRunUsage, type PlanVersion } from "@/domain/plan/plan-run";
+import type { TripState } from "@/domain/trip-state/trip-state";
 import { maxActivePreferences, maxPreferenceQuoteLength, paceFor, type PlanPreference } from "@/domain/plan/trip-preference";
 import { logger } from "@/platform/observability/logger";
 import { serializeError } from "@/platform/observability/serialize-error";
@@ -53,8 +54,11 @@ const startingRuns = (globals[startsKey] ??= new Map()) as Map<string, Promise<P
 export type PlanRunStart =
   | { readonly status: "ready"; readonly runId: string; readonly version: PlanVersion }
   | { readonly status: "running"; readonly runId: string }
-  /** No run was started (step 2): today's runs are used up, Kimi's money is spent, or paid calls are off. */
-  | { readonly status: "limited"; readonly reason: PlanRunLimit };
+  /**
+   * No run was started (step 2): today's runs are used up, Kimi's money is spent, or paid calls are off.
+   * `previous` is the trip's last saved plan, shown instead of nothing (merlin, 2026-11-21).
+   */
+  | { readonly status: "limited"; readonly reason: PlanRunLimit; readonly previous: PlanVersion | null };
 
 export type PlanRunLimit = "daily_runs" | "daily_quota" | "paid_calls_paused"
   // Step 3: this visitor's runs today, or this address's in the last 24 hours, are used up.
@@ -145,6 +149,23 @@ function tripCities(handoff: PlanHandoff): string[] {
 }
 
 /** Key order is not kept by jsonb, so compare and digest objects with their keys sorted. */
+/**
+ * Which of the facts a saved plan was made from differ from the handoff now: a TripState field, or the
+ * preferences (by id). The page says so when it shows an older plan; nothing here changes either.
+ */
+export function changedPlanFacts(
+  made: { readonly tripState: TripState; readonly preferences: readonly PlanPreference[] },
+  now: { readonly tripState: TripState; readonly preferences: readonly PlanPreference[] },
+): PlanFactField[] {
+  return planFactFields.filter((field) => {
+    if (field === "preferences") {
+      const ids = (list: readonly PlanPreference[]) => list.map(({ id }) => id).sort().join(",");
+      return ids(made.preferences) !== ids(now.preferences);
+    }
+    return canonicalJson(made.tripState[field]) !== canonicalJson(now.tripState[field]);
+  });
+}
+
 export function canonicalJson(value: unknown): string {
   return JSON.stringify(value, (_key, item: unknown) => item && typeof item === "object" && !Array.isArray(item)
     ? Object.fromEntries(Object.entries(item).sort(([left], [right]) => left.localeCompare(right)))
@@ -210,7 +231,7 @@ export class PlanRunService {
     const limited = await this.limitFor(visitor);
     if (limited) {
       logger.info({ tripId, reason: limited }, "Plan run not started: a site limit is reached");
-      return { status: "limited", reason: limited };
+      return { status: "limited", reason: limited, previous: await this.deps.repository.findLatestVersion(tripId) };
     }
 
     const run: PlanRun = {

@@ -5,7 +5,7 @@ import { Mastra } from "@mastra/core";
 import { InMemoryStore } from "@mastra/core/storage";
 
 import { afternoon, dali, day, fiveDays, handoff, lijiang, modelAnswering } from "@/agents/planner/plan-test-fixtures";
-import { beijingDayStart, type PlanRunLimits, type PlanRunStart, PlanRunService, workingMs } from "@/capabilities/planning/plan-run-service";
+import { beijingDayStart, changedPlanFacts, type PlanRunLimits, type PlanRunStart, PlanRunService, workingMs } from "@/capabilities/planning/plan-run-service";
 import type { PlanProgressEnvelope } from "@/domain/plan/plan-progress";
 import type { CityResearch } from "@/domain/plan/spot-card";
 import type { TripPreference } from "@/domain/plan/trip-preference";
@@ -543,8 +543,16 @@ test("the site's runs a day count only new runs; a saved plan or the same handof
   assert.equal((await service.start(tripId, trip)).status, "ready");
   // Another trip's run would be the second today.
   const other = handoff(["丽江市"], fiveDays);
-  assert.deepEqual(await service.start("8c3f9f0e-6f4b-4d0a-9f55-1d2a3b4c5d6e", other), { status: "limited", reason: "daily_runs" });
+  assert.deepEqual(await service.start("8c3f9f0e-6f4b-4d0a-9f55-1d2a3b4c5d6e", other), { status: "limited", reason: "daily_runs", previous: null });
   assert.equal(repository.runs.size, 1);
+  // The same trip with changed facts: no run, but its last saved plan comes back with the refusal (2026-11-22).
+  const refused = await service.start(tripId, other);
+  assert.equal(refused.status, "limited");
+  assert.equal(refused.status === "limited" && refused.previous?.runId, first.runId);
+  const changed = refused.status === "limited" && refused.previous ? changedPlanFacts(refused.previous, other) : [];
+  assert.ok(changed.includes("destination"));
+  assert.equal(changed.includes("preferences"), false);
+  assert.deepEqual(refused.status === "limited" && refused.previous && changedPlanFacts(refused.previous, trip), []);
   // Runs from before midnight in Beijing do not count.
   assert.equal(beijingDayStart(new Date("2026-11-19T08:00:00.000Z")), "2026-11-18T16:00:00.000Z");
   assert.equal(beijingDayStart(new Date("2026-11-18T17:00:00.000Z")), "2026-11-18T16:00:00.000Z");
@@ -552,7 +560,7 @@ test("the site's runs a day count only new runs; a saved plan or the same handof
 
 test("with paid calls off or Kimi's day spent, no run starts, and a run Kimi stopped says why", async () => {
   const paused = setup({}, undefined, { runsPerDay: 15, kimiRefusal: () => "paid_calls_paused" });
-  assert.deepEqual(await paused.service.start(tripId, trip), { status: "limited", reason: "paid_calls_paused" });
+  assert.deepEqual(await paused.service.start(tripId, trip), { status: "limited", reason: "paid_calls_paused", previous: null });
   assert.equal(paused.repository.runs.size, 0);
   // Kimi refused mid-run: the run ends with the limit's code, not "planner unavailable".
   let refusing = false;
@@ -582,14 +590,14 @@ test("one visitor and one address get their own runs a day; a run that failed on
   assert.equal(repository.runs.get(first.runId)?.status, "succeeded");
   guestCount = 1;
   // The same visitor again: its one run a day is used.
-  assert.deepEqual(await service.start(otherTrip(2), trip, visitor), { status: "limited", reason: "guest_runs" });
+  assert.deepEqual(await service.start(otherTrip(2), trip, visitor), { status: "limited", reason: "guest_runs", previous: null });
   // A new cookie from the same address gets the address's second run, then no more.
   const fresh = { guestId: "guest-b", address: "203.0.113.70" };
   guestCount = 0;
   const second = begun(await service.start(otherTrip(3), trip, fresh));
   await followToEnd(service, repository, second.runId);
   assert.equal(repository.runs.get(second.runId)?.status, "succeeded");
-  assert.deepEqual(await service.start(otherTrip(4), trip, { guestId: "guest-c", address: "203.0.113.70" }), { status: "limited", reason: "address_runs" });
+  assert.deepEqual(await service.start(otherTrip(4), trip, { guestId: "guest-c", address: "203.0.113.70" }), { status: "limited", reason: "address_runs", previous: null });
 });
 
 test("a run that fails on Meri's side does not use up the address's runs", async () => {

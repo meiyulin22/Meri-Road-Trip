@@ -14,7 +14,7 @@ import { type DaySlot, type DriveLeg, legReach, type PlanDay, type PlanRoute, ty
 import type { ReadyPlan } from "@/domain/plan/plan-draft-response";
 import type { PlanHandoff } from "@/domain/plan/plan-handoff";
 import type { TransportPreference } from "@/domain/trip-draft/trip-draft";
-import type { PlanRunStartResponse } from "@/domain/plan/plan-run";
+import type { PlanFactField, PlanRunStartResponse } from "@/domain/plan/plan-run";
 import type { SpotCard, SpotEvidence } from "@/domain/plan/spot-card";
 import type { TransferKind } from "@/domain/plan/transfer-legs";
 import { legModeOffer } from "@/domain/plan/leg-mode";
@@ -106,6 +106,12 @@ const copy = {
       guest_runs: "You’ve made today’s plans already. Please come back tomorrow.",
       address_runs: "You’ve made today’s plans already. Please come back tomorrow.",
     } satisfies Record<PlanDraftFailure, string>,
+    previousPlan: (made: string) => `Below is the plan made on ${made}; tomorrow Meri can make it again.`,
+    previousChanged: (facts: string) => `It was made before you changed ${facts}, so it doesn’t use them yet.`,
+    factNames: {
+      origin: "where you set off", destination: "the destination", startDate: "the start date", endDate: "the end date",
+      duration: "the trip’s length", transportPreference: "how you travel", preferences: "your preferences",
+    } satisfies Record<PlanFactField, string>,
     retry: "Try again",
   },
   zh: {
@@ -161,6 +167,12 @@ const copy = {
       guest_runs: "你今天的规划次数已经用完了，明天再来吧。",
       address_runs: "你今天的规划次数已经用完了，明天再来吧。",
     } satisfies Record<PlanDraftFailure, string>,
+    previousPlan: (made: string) => `下面是 ${made} 生成的上一版计划，明天可以按新信息重新生成。`,
+    previousChanged: (facts: string) => `这一版是在你改动${facts}之前生成的，还没用上新的信息。`,
+    factNames: {
+      origin: "出发地", destination: "目的地", startDate: "出发日期", endDate: "结束日期",
+      duration: "行程时长", transportPreference: "交通偏好", preferences: "偏好",
+    } satisfies Record<PlanFactField, string>,
     retry: "重试",
   },
 } as const;
@@ -170,7 +182,11 @@ type Copy = (typeof copy)[Locale];
 type DraftState =
   | { readonly kind: "starting" }
   | { readonly kind: "running"; readonly runId: string }
-  | { readonly kind: "ready"; readonly plan: ReadyPlan; readonly progress: ProgressView | null }
+  | {
+    readonly kind: "ready"; readonly plan: ReadyPlan; readonly progress: ProgressView | null;
+    /** The day's runs are used up: this is the trip's last saved plan, shown with why (2026-11-22). */
+    readonly limited?: { readonly reason: PlanDraftFailure; readonly createdAt: string; readonly changed: readonly PlanFactField[] };
+  }
   | { readonly kind: "unsupported" }
   | { readonly kind: "failed"; readonly reason: PlanDraftFailure; readonly progress: ProgressView | null };
 
@@ -223,7 +239,10 @@ export function PlanDraftSection({ tripId, handoff, onPreferenceSaved = () => {}
         if (!active) return;
         if (response.status === "ready") setState({ kind: "ready", plan: response.plan, progress: null });
         else if (response.status === "running") setState({ kind: "running", runId: response.runId });
-        else if (response.status === "limited") setState({ kind: "failed", reason: response.reason, progress: null });
+        else if (response.status === "limited" && response.previous) {
+          const { plan, createdAt, changed } = response.previous;
+          setState({ kind: "ready", plan, progress: null, limited: { reason: response.reason, createdAt, changed } });
+        } else if (response.status === "limited") setState({ kind: "failed", reason: response.reason, progress: null });
         else setState({ kind: "unsupported" });
       })
       .catch((error: unknown) => {
@@ -272,6 +291,7 @@ export function PlanDraftSection({ tripId, handoff, onPreferenceSaved = () => {}
   return (
     <div className={draftStyles.draft}>
       {state.progress ? <PlanRunActivity view={state.progress} /> : null}
+      {state.limited ? <PreviousPlanNotice limited={state.limited} text={text} locale={locale} /> : null}
       <DraftDays response={state.plan} text={text} locale={locale}
         transport={handoff.tripState.transportPreference.state === "known" ? handoff.tripState.transportPreference.value : null}
         gettingThere={{
@@ -284,6 +304,28 @@ export function PlanDraftSection({ tripId, handoff, onPreferenceSaved = () => {}
           onPlanChanged: (plan) => setState({ kind: "ready", plan, progress: state.progress }),
         }} />
     </div>
+  );
+}
+
+/** Why an older plan is showing: the refusal, when that plan was made, and which facts it predates. */
+function PreviousPlanNotice({ limited, text, locale }: {
+  readonly limited: NonNullable<Extract<DraftState, { kind: "ready" }>["limited"]>;
+  readonly text: Copy;
+  readonly locale: Locale;
+}) {
+  const made = new Intl.DateTimeFormat(locale === "zh" ? "zh-CN" : "en", {
+    month: "short", day: "numeric", hour: "2-digit", minute: "2-digit", timeZone: "Asia/Shanghai",
+  }).format(new Date(limited.createdAt));
+  const facts = limited.changed.map((field) => text.factNames[field]).join(locale === "zh" ? "、" : ", ");
+  return (
+    <section className={draftStyles.notice} data-tone="warn" role="status">
+      <Info aria-hidden="true" size={18} />
+      <div>
+        <p>{text.failed[limited.reason]}</p>
+        <p>{text.previousPlan(made)}</p>
+        {limited.changed.length > 0 ? <p>{text.previousChanged(facts)}</p> : null}
+      </div>
+    </section>
   );
 }
 

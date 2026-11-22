@@ -7,7 +7,7 @@ import { TripNotFoundError } from "@/domain/trip/trip-errors";
 import { logger } from "@/platform/observability/logger";
 import { serializeError } from "@/platform/observability/serialize-error";
 
-import { canonicalJson, type PlanRunService } from "./plan-run-service";
+import { canonicalJson, changedPlanFacts, type PlanRunService } from "./plan-run-service";
 
 export type PlanRunDependencies = {
   readonly loadJourney: (tripId: string, ownerGuestId: string) => Promise<{ tripState: TripState }>;
@@ -59,7 +59,14 @@ export async function handlePlanRunPost(
     }
     const started = await deps.service.start(tripId, handoff, { guestId: ownerGuestId, address: deps.address ?? null });
     if (started.status === "limited") {
-      return noStore({ status: "limited", reason: started.reason } satisfies PlanRunStartResponse);
+      // The last saved plan rather than an empty page, with what changed since it was made.
+      const previous = started.previous ? {
+        versionId: started.previous.id,
+        createdAt: started.previous.createdAt,
+        changed: changedPlanFacts(started.previous, handoff),
+        plan: started.previous.plan,
+      } : null;
+      return noStore({ status: "limited", reason: started.reason, previous } satisfies PlanRunStartResponse);
     }
     if (started.status === "ready") {
       return noStore({

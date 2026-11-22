@@ -128,6 +128,25 @@ test("starts a run for a handoff that matches the saved journey, or answers with
   assert.equal(ready.status === "ready" && ready.plan.draft.days[0].stops[1].anchor?.time, "16:00");
 });
 
+test("runs used up: the trip's last saved plan comes back with the refusal and what changed since (2026-11-22)", async () => {
+  const datedState: TripState = { ...tripState, startDate: { state: "known", value: "2026-11-24", source: "user" } };
+  const dated: PlanHandoff = { ...handoff, tripState: datedState };
+  const answer = await startPlanRun(tripId, dated, new AbortController().signal, async (_url, init) =>
+    handlePlanRunPost(tripId, "owner-id", JSON.parse(String(init?.body)), deps({
+      start: async () => ({ status: "limited", reason: "guest_runs", previous: version }),
+    }, datedState)));
+  assert.equal(answer.status, "limited");
+  assert.ok(answer.status === "limited" && answer.previous);
+  assert.deepEqual([answer.previous.versionId, answer.previous.changed], [versionId, ["startDate"]]);
+  assert.equal(answer.previous.plan.draft.days[0].stops[1].anchor?.time, "16:00");
+
+  const none = await startPlanRun(tripId, handoff, new AbortController().signal, async (_url, init) =>
+    handlePlanRunPost(tripId, "owner-id", JSON.parse(String(init?.body)), deps({
+      start: async () => ({ status: "limited", reason: "daily_runs", previous: null }),
+    })));
+  assert.deepEqual(none, { status: "limited", reason: "daily_runs", previous: null });
+});
+
 test("refuses a changed journey before any run, answers a trip without a city, and maps the other failures", async () => {
   const changed: TripState = { ...tripState, duration: { state: "known", value: "3天", source: "user" } };
   const conflict = await handlePlanRunPost(tripId, "owner-id", handoff, deps({}, changed));

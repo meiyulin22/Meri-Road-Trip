@@ -54,13 +54,27 @@ export type PlanVersion = {
   readonly createdAt: string;
 };
 
+/** The facts a saved plan was made from that the traveller can change later, in the order the page lists them. */
+export const planFactFields = ["origin", "destination", "startDate", "endDate", "duration", "transportPreference", "preferences"] as const;
+export type PlanFactField = (typeof planFactFields)[number];
+
 /** What POST plan-runs answers: the saved plan for this handoff, the run making it, or why there is none. */
 export const planRunStartResponseSchema = z.discriminatedUnion("status", [
   z.strictObject({ status: z.literal("ready"), runId: z.uuid(), versionId: z.uuid(), plan: readyPlanSchema }),
   z.strictObject({ status: z.literal("running"), runId: z.uuid() }),
   z.strictObject({ status: z.literal("unsupported"), reason: z.literal("no_city") }),
   // No run was started (step 2): the site's runs for today are used up, or paid calls are switched off.
-  z.strictObject({ status: z.literal("limited"), reason: z.enum(["daily_runs", "daily_quota", "paid_calls_paused", "guest_runs", "address_runs"]) }),
+  // Since 2026-11-22 it carries the trip's last saved plan, if any, and what changed since it was made.
+  z.strictObject({
+    status: z.literal("limited"),
+    reason: z.enum(["daily_runs", "daily_quota", "paid_calls_paused", "guest_runs", "address_runs"]),
+    previous: z.strictObject({
+      versionId: z.uuid(),
+      createdAt: z.iso.datetime(),
+      changed: z.array(z.enum(planFactFields)),
+      plan: readyPlanSchema,
+    }).nullable().optional(),
+  }),
 ]);
 export type PlanRunStartResponse = z.output<typeof planRunStartResponseSchema>;
 
