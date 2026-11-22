@@ -94,7 +94,10 @@ export function ConversationPanel({
   // cards or while cards are on their way, and never while a turn or a pick is being saved (2026-11-22).
   const showsMissingFields = (message: (typeof messages)[number]) => message.role === "assistant"
     && !destinationChoicePresentation(message) && !pendingRecommendationPresentation(message)
-    && revealing?.id !== message.id && !isSubmitting && selectionPendingMessageId === null && !hasError;
+    // The reveal marker stays on a reply after it has fully appeared, so "still typing" means fewer
+    // characters shown than the reply has (found 2026-11-22: the buttons never showed).
+    && !(revealing?.id === message.id && revealing.visibleCharacters < Array.from(messageText(message)).length)
+    && !isSubmitting && selectionPendingMessageId === null && !hasError;
   // A reply that promised cards and is still the latest message is waiting for them,
   // whether it was just sent or the Journey was reopened before they arrived.
   const pendingCardsId = latestMessage?.role === "assistant" && pendingRecommendationPresentation(latestMessage)
