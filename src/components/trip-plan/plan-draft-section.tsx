@@ -107,6 +107,7 @@ const copy = {
       guest_runs: "You’ve made today’s plans already. Please come back tomorrow.",
       address_runs: "You’ve made today’s plans already. Please come back tomorrow.",
     } satisfies Record<PlanDraftFailure, string>,
+    cityDays: (from: number, to: number) => from === to ? `Day ${from}` : `Days ${from}–${to}`,
     previousPlan: (made: string) => `Below is the plan made on ${made}; tomorrow Meri can make it again.`,
     previousChanged: (facts: string) => `It was made before you changed ${facts}, so it doesn’t use them yet.`,
     factNames: {
@@ -168,6 +169,7 @@ const copy = {
       guest_runs: "你今天的规划次数已经用完了，明天再来吧。",
       address_runs: "你今天的规划次数已经用完了，明天再来吧。",
     } satisfies Record<PlanDraftFailure, string>,
+    cityDays: (from: number, to: number) => from === to ? `第 ${from} 天` : `第 ${from}–${to} 天`,
     previousPlan: (made: string) => `下面是 ${made} 生成的上一版计划，明天可以按新信息重新生成。`,
     previousChanged: (facts: string) => `这一版是在你改动${facts}之前生成的，还没用上新的信息。`,
     factNames: {
@@ -569,9 +571,32 @@ function DraftDays({ response, text, locale, transport, gettingThere }: {
 
       <div className={draftStyles.days}>
         {transferCard("outbound", null)}
-        {draft.days.map((day, index) => (
+        {draft.days.map((day, index) => {
+          // Days grouped by city (2026-11-22): the stay and the food belong to the city, not to its last
+          // day, so they head the city's days; the hotel is needed from the first night.
+          const startsCity = index === 0 || draft.days[index - 1].city !== day.city;
+          let runEnd = index;
+          while (runEnd + 1 < draft.days.length && draft.days[runEnd + 1].city === day.city) runEnd += 1;
+          const lastOfRun = draft.days[runEnd].day;
+          return (
           <Fragment key={day.day}>
           {transferCard("between", day.day)}
+          {startsCity ? (
+            <>
+              <div className={draftStyles.cityHeading}>
+                <MapPin aria-hidden="true" size={15} />
+                <h3>{day.city}</h3>
+                <span>{text.cityDays(day.day, lastOfRun)}</span>
+              </div>
+              {(draft.stays ?? []).filter(({ city, firstDay }) => city === day.city && firstDay >= day.day && firstDay <= lastOfRun).map((stay) => (
+                <PlanStayCard key={`${stay.city}-${stay.firstDay}`} stay={stay} locale={locale} onShowOnMap={showHotel} />
+              ))}
+              {(draft.food ?? []).filter(({ city, lastDay }) => city === day.city && lastDay >= day.day && lastDay <= lastOfRun).map((food) => (
+                <PlanFoodCard key={`${food.city}-${food.lastDay}`} food={food} locale={locale}
+                  onShowOnMap={(restaurant) => restaurant.place && showPlace({ name: restaurant.name, kind: "food", point: restaurant.place.point })} />
+              ))}
+            </>
+          ) : null}
           <DraftDay day={day} cards={cards} text={text} locale={locale} index={index} photo={photos.get(day.day) ?? null}
             preview={draft.mode === "preview"} showTransferTag={!draft.transfers}
             unverified={new Map(draft.unverified.map(({ spotId, fields }) => [spotId, fields]))}
@@ -583,15 +608,9 @@ function DraftDays({ response, text, locale, transport, gettingThere }: {
               document.getElementById("plan-outfit")?.scrollIntoView({ behavior: "smooth", block: "start" });
             }}
             open={openDay === day.day} onOpen={() => setOpenDay(openDay === day.day ? null : day.day)} />
-          {(draft.stays ?? []).filter(({ lastDay }) => lastDay === day.day).map((stay) => (
-            <PlanStayCard key={`${stay.city}-${stay.firstDay}`} stay={stay} locale={locale} onShowOnMap={showHotel} />
-          ))}
-          {(draft.food ?? []).filter(({ lastDay }) => lastDay === day.day).map((food) => (
-            <PlanFoodCard key={`${food.city}-${food.lastDay}`} food={food} locale={locale}
-              onShowOnMap={(restaurant) => restaurant.place && showPlace({ name: restaurant.name, kind: "food", point: restaurant.place.point })} />
-          ))}
           </Fragment>
-        ))}
+          );
+        })}
         {transferCard("return", null)}
       </div>
 

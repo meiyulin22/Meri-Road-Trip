@@ -18,7 +18,7 @@ import styles from "./plan-outfit.module.css";
 
 const copy = {
   zh: {
-    title: "今天穿什么",
+    title: "每天穿什么",
     subtitle: "按每天的天气给小熊猫换装",
     day: (day: number) => `第 ${day} 天`,
     pick: "点一件装备，看为什么要带它。",
@@ -41,7 +41,7 @@ const copy = {
     days: (days: readonly number[]) => `第 ${days.join("、")} 天`,
   },
   en: {
-    title: "What to wear",
+    title: "What to wear each day",
     subtitle: "The red panda dresses for each day's weather",
     day: (day: number) => `Day ${day}`,
     pick: "Tap a piece of kit to see why it's there.",
