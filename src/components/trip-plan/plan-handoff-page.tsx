@@ -3,7 +3,7 @@
 import { ArrowLeft, Lock } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
-import { useMemo, useState, useSyncExternalStore } from "react";
+import { type ReactNode, useMemo, useState, useSyncExternalStore } from "react";
 
 import { useLocale, useMessages } from "@/components/i18n/locale-context";
 import type { Messages } from "@/components/i18n/messages";
@@ -13,7 +13,7 @@ import type { PlanHandoff } from "@/domain/plan/plan-handoff";
 import { parseExactDate, parseExactDays } from "@/domain/trip-state/trip-dates";
 import { destinationText, type TripState, type TripStateField } from "@/domain/trip-state/trip-state";
 
-import { PlanDatesPicker } from "./plan-dates-picker";
+import { AddDatesButton, PlanDatesPicker } from "./plan-dates-picker";
 import { PlanDraftSection } from "./plan-draft-section";
 import { PlanMemories } from "./plan-memories";
 import handoffStyles from "./plan-handoff-page.module.css";
@@ -59,6 +59,7 @@ export function PlanHandoffPage({ tripId, savedHandoff = null }: {
   const [preferenceChanges, setPreferenceChanges] = useState(0);
   // Bumped when the dates are filled in, so the plan section starts again from the new handoff.
   const [planRestarts, setPlanRestarts] = useState(0);
+  const [datesOpen, setDatesOpen] = useState(false);
 
   const state = handoff?.tripState;
   const dayCount = state ? parseExactDays(state.duration) : null;
@@ -85,17 +86,18 @@ export function PlanHandoffPage({ tripId, savedHandoff = null }: {
           {handoff ? (
             <>
               <p className={styles.overview}>{text.received}</p>
-              <PlanFacts state={handoff.tripState} words={words} endDateLabel={text.endDate} dayCount={dayCount} />
-              {/* No exact start date: filled in once here, then the plan is made again (2026-11-21). */}
-              {parseExactDate(handoff.tripState.startDate) === null ? (
-                <PlanDatesPicker tripId={tripId} days={dayCount} locale={locale}
-                  onFilled={(next) => { savePlanHandoff(tripId, next); setFilled(next); setPlanRestarts((count) => count + 1); }} />
-              ) : null}
+              {/* No exact start date: filled in once, from the facts or wherever the plan needs it (2026-11-21/22). */}
+              <PlanFacts state={handoff.tripState} words={words} endDateLabel={text.endDate} dayCount={dayCount}
+                addDates={parseExactDate(handoff.tripState.startDate) === null
+                  ? <AddDatesButton locale={locale} onClick={() => setDatesOpen(true)} /> : null} />
+              <PlanDatesPicker tripId={tripId} days={dayCount} locale={locale} open={datesOpen} onClose={() => setDatesOpen(false)}
+                onFilled={(next) => { savePlanHandoff(tripId, next); setFilled(next); setPlanRestarts((count) => count + 1); }} />
               <PlanMemories tripId={tripId} handoff={handoff} refreshKey={preferenceChanges} />
               <div className={handoffStyles.itinerary}>
                 <section className={handoffStyles.itineraryHeading} aria-labelledby="plan-itinerary-heading">
                   <h2 id="plan-itinerary-heading">{text.itinerary}</h2>
                   <PlanDraftSection key={planRestarts} tripId={tripId} handoff={handoff}
+                    onAddDates={parseExactDate(handoff.tripState.startDate) === null ? () => setDatesOpen(true) : undefined}
                     onPreferenceSaved={() => setPreferenceChanges((count) => count + 1)}
                     onHandoffChange={(next) => { savePlanHandoff(tripId, next); setFilled(next); }} />
                 </section>
@@ -114,11 +116,13 @@ export function PlanHandoffPage({ tripId, savedHandoff = null }: {
   );
 }
 
-function PlanFacts({ state, words, endDateLabel, dayCount }: {
+function PlanFacts({ state, words, endDateLabel, dayCount, addDates }: {
   readonly state: TripState;
   readonly words: Messages;
   readonly endDateLabel: string;
   readonly dayCount: number | null;
+  /** The add-dates button, shown in the start date's own cell while it is empty. */
+  readonly addDates: ReactNode;
 }) {
   const brief = words.brief;
   function fieldLabel(field: TripStateField, knownLabel?: string): string {
@@ -131,22 +135,23 @@ function PlanFacts({ state, words, endDateLabel, dayCount }: {
     return fieldLabel(field, date && words.dates.monthDay(date, true));
   }
 
-  const facts = [
+  const facts: readonly (readonly [string, string, ReactNode?])[] = [
     [brief.fields.origin, fieldLabel(state.origin)],
     [brief.fields.destination, destinationText(state.destination) || brief.certainty.missing],
-    [words.plan.factLabels.startDate, dateLabel(state.startDate)],
+    [words.plan.factLabels.startDate, dateLabel(state.startDate), addDates],
     [endDateLabel, dateLabel(state.endDate)],
     [words.dates.length, fieldLabel(state.duration, dayCount === null ? undefined : words.dates.days(dayCount))],
     [brief.fields.transportPreference, fieldLabel(state.transportPreference,
       state.transportPreference.state === "known" ? brief.transport[state.transportPreference.value] : undefined)],
-  ] as const;
+  ];
 
   return (
     <dl className={handoffStyles.facts}>
-      {facts.map(([label, value]) => (
+      {facts.map(([label, value, action]) => (
         <div key={label}>
           <dt>{label}</dt>
           <dd>{value}</dd>
+          {action ?? null}
         </div>
       ))}
     </dl>

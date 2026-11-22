@@ -14,6 +14,7 @@ import {
 import { itemName, outfitNotes, type SlotEntry, slotEntries, slotLabel, thermometerAt } from "./plan-outfit-view";
 import { SkyIcon } from "./plan-weather";
 import type { DayWeatherView } from "./plan-weather-view";
+import { AddDatesButton } from "./plan-dates-picker";
 import styles from "./plan-outfit.module.css";
 
 const copy = {
@@ -155,7 +156,7 @@ function swatchOf(entry: SlotEntry): string {
  * a day re-dresses it from the day's weather; the equipment slots list what goes where, and a
  * chosen item says why. It follows the day opened in the itinerary.
  */
-export function OutfitRoom({ days, outfits, weatherOf, selectedDay, onSelectDay, locale, onRefreshWeather }: {
+export function OutfitRoom({ days, outfits, weatherOf, selectedDay, onSelectDay, locale, onRefreshWeather, onAddDates }: {
   readonly days: readonly PlanDay[];
   readonly outfits: readonly DayOutfit[];
   readonly weatherOf: (day: PlanDay) => DayWeatherView;
@@ -164,6 +165,8 @@ export function OutfitRoom({ days, outfits, weatherOf, selectedDay, onSelectDay,
   readonly locale: Locale;
   /** 「重新查天气」 for a saved plan whose weather was not found (2026-11-22); true when it worked. */
   readonly onRefreshWeather?: () => Promise<boolean>;
+  /** Opens the page's add-dates dialog when the trip has no start date (2026-11-22). */
+  readonly onAddDates?: () => void;
 }) {
   const text = copy[locale];
   const [refresh, setRefresh] = useState<"idle" | "working" | "failed">("idle");
@@ -189,6 +192,7 @@ export function OutfitRoom({ days, outfits, weatherOf, selectedDay, onSelectDay,
           <div>
             <h3 id="plan-outfit-heading">{text.title}</h3>
             <p>{reason}</p>
+            {reason === text.needDates && onAddDates ? <AddDatesButton locale={locale} onClick={onAddDates} solid /> : null}
             {reason === text.noWeather && onRefreshWeather ? (
               <>
                 <button type="button" className={styles.refresh} disabled={refresh === "working"} onClick={() => {

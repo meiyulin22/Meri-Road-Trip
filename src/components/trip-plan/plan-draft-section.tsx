@@ -233,9 +233,11 @@ function checkedDate(evidence: SpotEvidence, locale: Locale): string {
  * The plan for the handoff this tab holds. The server either has it saved, is making it,
  * or starts a run; a running plan streams its real progress and its days as they come.
  */
-export function PlanDraftSection({ tripId, handoff, onPreferenceSaved = () => {}, onHandoffChange = () => {} }: {
+export function PlanDraftSection({ tripId, handoff, onPreferenceSaved = () => {}, onHandoffChange = () => {}, onAddDates }: {
   readonly tripId: string;
   readonly handoff: PlanHandoff;
+  /** Opens the page's add-dates dialog while the trip has no start date (2026-11-22). */
+  readonly onAddDates?: () => void;
   /** Called when filling in the origin gave the tab a new handoff to keep (1.2107). */
   readonly onHandoffChange?: (handoff: PlanHandoff) => void;
   /** Called when answering the plan's question saved a new preference. */
@@ -307,7 +309,7 @@ export function PlanDraftSection({ tripId, handoff, onPreferenceSaved = () => {}
     <div className={draftStyles.draft}>
       {state.progress ? <PlanRunActivity view={state.progress} /> : null}
       {state.limited ? <PreviousPlanNotice limited={state.limited} text={text} locale={locale} /> : null}
-      <DraftDays response={state.plan} text={text} locale={locale}
+      <DraftDays response={state.plan} text={text} locale={locale} onAddDates={onAddDates}
         transport={handoff.tripState.transportPreference.state === "known" ? handoff.tripState.transportPreference.value : null}
         gettingThere={{
           tripId,
@@ -449,8 +451,9 @@ function DraftLoading({ text }: { readonly text: Copy }) {
   );
 }
 
-function DraftDays({ response, text, locale, transport, gettingThere }: {
+function DraftDays({ response, text, locale, transport, gettingThere, onAddDates }: {
   readonly response: ReadyPlan;
+  readonly onAddDates?: () => void;
   /** Filling in the origin from the setting-off card (1.2107); absent where it cannot be filled. */
   readonly gettingThere: {
     readonly tripId: string;
@@ -563,6 +566,7 @@ function DraftDays({ response, text, locale, transport, gettingThere }: {
 
       {/* One red panda for the trip, a tab a day, following the day opened below (1.2117 outfit). */}
       <OutfitRoom days={draft.days} outfits={draft.outfits ?? []} locale={locale} selectedDay={openDay} onSelectDay={setOpenDay}
+        onAddDates={onAddDates}
         onRefreshWeather={gettingThere ? () => refreshPlanWeather(gettingThere.tripId).then((plan) => {
           if (plan) gettingThere.onPlanChanged(plan);
           return plan !== null;
@@ -616,7 +620,7 @@ function DraftDays({ response, text, locale, transport, gettingThere }: {
 
       {/* No dates, no nights to search: say so instead of showing nothing (1.2117 stays). */}
       {!draft.stays && draft.mode === "full" && draft.days.length > 1 && draft.days.every(({ date }) => date === null)
-        ? <PlanStayHint locale={locale} /> : null}
+        ? <PlanStayHint locale={locale} onAddDates={onAddDates} /> : null}
 
       <PackingList outfits={draft.outfits ?? []} locale={locale} storageKey={`meri:packing:v1:${gettingThere?.tripId ?? "plan"}`} />
 

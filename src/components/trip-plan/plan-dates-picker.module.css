@@ -54,3 +54,52 @@
 .cancel { border: 1px solid var(--line); color: var(--ink); background: transparent; }
 .confirm:focus-visible,
 .cancel:focus-visible { outline: 2px solid var(--green); outline-offset: 2px; }
+
+/* One dialog for the dates, opened from the facts, the dressing room or the stay card (2026-11-22). */
+.backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: grid;
+  place-items: center;
+  padding: 16px;
+  background: rgba(30, 40, 36, .35);
+}
+.backdrop .panel {
+  width: min(680px, 100%);
+  max-height: calc(100vh - 32px);
+  margin-top: 0;
+  overflow-y: auto;
+  box-shadow: 0 18px 48px rgba(30, 40, 36, .22);
+}
+.panelHeader { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.panelHeader h3 { font-size: 16px; font-weight: 700; }
+.close {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border: 0;
+  border-radius: 8px;
+  color: var(--muted);
+  background: transparent;
+  cursor: pointer;
+}
+.close:hover { background: var(--green-soft); }
+.cta {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 8px;
+  padding: 7px 12px;
+  border: 0;
+  border-radius: 8px;
+  color: #fff;
+  background: var(--green);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.cta:hover { filter: brightness(1.08); }
+.cta:focus-visible { outline: 2px solid var(--green); outline-offset: 2px; }

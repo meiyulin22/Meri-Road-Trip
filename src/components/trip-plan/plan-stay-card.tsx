@@ -8,6 +8,7 @@ import type { Locale } from "@/domain/locale/locale";
 import type { CityStay, HotelOption, StayPick, StayTier } from "@/domain/plan/stays";
 import { hotelPreviewUrl } from "@/platform/hotel/hotel-photos";
 
+import { AddDatesButton } from "./plan-dates-picker";
 import styles from "./plan-stay-card.module.css";
 
 const copy = {
@@ -181,7 +182,7 @@ function HotelTile({ pick, label, kind, nights, nearName, checkIn, text, onShowO
  * Where to stay, when the plan has no dates (1.2117 stays): hotels are searched for the stay's
  * nights, so without dates there is nothing to search; the card says what is missing.
  */
-export function PlanStayHint({ locale }: { readonly locale: Locale }) {
+export function PlanStayHint({ locale, onAddDates }: { readonly locale: Locale; readonly onAddDates?: () => void }) {
   const zh = locale === "zh";
   return (
     <section className={styles.card} aria-label={copy[locale].title}>
@@ -190,6 +191,7 @@ export function PlanStayHint({ locale }: { readonly locale: Locale }) {
         <div>
           <h3>{copy[locale].title}</h3>
           <p>{zh ? "填了出发日期，才能按每晚的日期查酒店和参考价。" : "Add a start date to look up hotels and reference prices for each night."}</p>
+          {onAddDates ? <AddDatesButton locale={locale} onClick={onAddDates} solid /> : null}
         </div>
       </header>
     </section>

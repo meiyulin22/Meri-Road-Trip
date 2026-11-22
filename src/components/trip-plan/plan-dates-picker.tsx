@@ -1,7 +1,7 @@
 "use client";
 
-import { CalendarDays, TriangleAlert } from "lucide-react";
-import { useState } from "react";
+import { CalendarDays, TriangleAlert, X } from "lucide-react";
+import { useEffect, useState, useSyncExternalStore } from "react";
 import { type DateRange, DayPicker } from "react-day-picker";
 import { enUS, zhCN } from "react-day-picker/locale";
 import "react-day-picker/style.css";
@@ -57,27 +57,55 @@ const copy = {
 type ErrorKey = keyof (typeof copy)["zh"]["errors"];
 const iso = (date: Date) => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
 
+const wideQuery = "(min-width: 760px)";
+function subscribeToWidth(onChange: () => void): () => void {
+  const media = window.matchMedia(wideQuery);
+  media.addEventListener("change", onChange);
+  return () => media.removeEventListener("change", onChange);
+}
+
+/** Where the dates can be added from (2026-11-22): the facts, the dressing room and the stay card. */
+export function AddDatesButton({ locale, onClick, solid = false }: {
+  readonly locale: Locale;
+  readonly onClick: () => void;
+  readonly solid?: boolean;
+}) {
+  return (
+    <button type="button" className={solid ? styles.cta : styles.open} onClick={onClick}>
+      <CalendarDays aria-hidden="true" size={14} />{copy[locale].open}
+    </button>
+  );
+}
+
 /**
- * Filling in the dates once on the plan page (2026-11-21), for a plan made without them: a start
- * when the trip's length is known, otherwise a start and an end. On success the page makes the
- * whole plan again from the handoff the server returns.
+ * Filling in the dates once on the plan page (2026-11-21), for a plan made without them, in a dialog
+ * that the facts, the dressing room and the stay card all open (2026-11-22). The calendar is a range,
+ * as in the Workspace's 「何时」: with a known length, the day picked starts the range and the end
+ * follows. On success the page makes the whole plan again from the handoff the server returns.
  */
-export function PlanDatesPicker({ tripId, days, locale, onFilled }: {
+export function PlanDatesPicker({ tripId, days, locale, open, onClose, onFilled }: {
   readonly tripId: string;
   /** The trip's known length in days, or null when it is not known. */
   readonly days: number | null;
   readonly locale: Locale;
+  readonly open: boolean;
+  readonly onClose: () => void;
   readonly onFilled: (handoff: PlanHandoff) => void;
 }) {
   const text = copy[locale];
-  const [open, setOpen] = useState(false);
-  const [single, setSingle] = useState<Date | undefined>();
   const [range, setRange] = useState<DateRange | undefined>();
+  const wide = useSyncExternalStore(subscribeToWidth, () => window.matchMedia(wideQuery).matches, () => false);
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (event: KeyboardEvent) => { if (event.key === "Escape") onClose(); };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [open, onClose]);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<ErrorKey | null>(null);
   const today = new Date();
   today.setHours(0, 0, 0, 0);
-  const start = days !== null ? single : range?.from;
+  const start = range?.from;
   const end = days !== null ? null : range?.to ?? null;
   const ready = start !== undefined && (days !== null || end !== null);
 
@@ -102,7 +130,7 @@ export function PlanDatesPicker({ tripId, days, locale, onFilled }: {
         setError("failed");
         return;
       }
-      setOpen(false);
+      onClose();
       onFilled(handoff.data);
     } catch {
       setError("failed");
@@ -111,30 +139,34 @@ export function PlanDatesPicker({ tripId, days, locale, onFilled }: {
     }
   }
 
-  if (!open) {
-    return (
-      <button type="button" className={styles.open} onClick={() => setOpen(true)}>
-        <CalendarDays aria-hidden="true" size={14} />{text.open}
-      </button>
-    );
-  }
+  if (!open) return null;
+  // With a known length the day picked is the start and the range runs on from it.
+  const pick = (next: DateRange | undefined, picked: Date) => {
+    if (days === null) return setRange(next);
+    const last = new Date(picked);
+    last.setDate(last.getDate() + days - 1);
+    setRange({ from: picked, to: last });
+  };
   return (
-    <div className={styles.panel} role="dialog" aria-label={text.title}>
-      <p className={styles.hint}>{days !== null ? text.pickStart(days) : text.pickRange}</p>
-      <div className={styles.calendar}>
-        {days !== null ? (
-          <DayPicker mode="single" selected={single} onSelect={setSingle} disabled={{ before: today }} locale={locale === "zh" ? zhCN : enUS} />
-        ) : (
-          <DayPicker mode="range" selected={range} onSelect={setRange} disabled={{ before: today }} locale={locale === "zh" ? zhCN : enUS} />
-        )}
-      </div>
-      <p className={styles.warning}><TriangleAlert aria-hidden="true" size={14} />{text.warning}</p>
-      {error ? <p className={styles.error} role="alert">{text.errors[error]}</p> : null}
-      <div className={styles.actions}>
-        <button type="button" className={styles.confirm} disabled={!ready || saving} onClick={() => void submit()}>
-          {saving ? text.saving : text.confirm}
-        </button>
-        <button type="button" className={styles.cancel} onClick={() => { setOpen(false); setError(null); }}>{text.cancel}</button>
+    <div className={styles.backdrop} onClick={(event) => { if (event.target === event.currentTarget) onClose(); }}>
+      <div className={styles.panel} role="dialog" aria-modal="true" aria-label={text.title}>
+        <div className={styles.panelHeader}>
+          <h3>{text.title}</h3>
+          <button type="button" className={styles.close} aria-label={text.cancel} onClick={onClose}><X aria-hidden="true" size={16} /></button>
+        </div>
+        <p className={styles.hint}>{days !== null ? text.pickStart(days) : text.pickRange}</p>
+        <div className={styles.calendar}>
+          <DayPicker mode="range" selected={range} onSelect={pick} disabled={{ before: today }} numberOfMonths={wide ? 2 : 1}
+            locale={locale === "zh" ? zhCN : enUS} />
+        </div>
+        <p className={styles.warning}><TriangleAlert aria-hidden="true" size={14} />{text.warning}</p>
+        {error ? <p className={styles.error} role="alert">{text.errors[error]}</p> : null}
+        <div className={styles.actions}>
+          <button type="button" className={styles.confirm} disabled={!ready || saving} onClick={() => void submit()}>
+            {saving ? text.saving : text.confirm}
+          </button>
+          <button type="button" className={styles.cancel} onClick={() => { onClose(); setError(null); }}>{text.cancel}</button>
+        </div>
       </div>
     </div>
   );
