@@ -13,6 +13,7 @@ import {
   createMoonshotChatModel,
   DEFAULT_MOONSHOT_BASE_URL,
   DEFAULT_MOONSHOT_MODEL,
+  modelDeadlineMs,
 } from "@/platform/llm/moonshot-chat-model";
 import { kimiFetch } from "@/platform/llm/kimi-spend";
 import { logger, logEvents } from "@/platform/observability/logger";
@@ -227,7 +228,7 @@ export class AiSdkKimiClient implements StructuredOutputModelClient {
             tools: request.tools,
             stopWhen: stepCountIs(1),
             maxRetries: 0,
-            timeout: this.options.requestTimeoutMs ?? REQUEST_TIMEOUT_MS,
+            timeout: this.options.requestTimeoutMs ?? modelDeadlineMs(REQUEST_TIMEOUT_MS, this.options.model),
           })
         : null;
       const result = await generateText({
@@ -243,7 +244,7 @@ export class AiSdkKimiClient implements StructuredOutputModelClient {
           schema: jsonSchema(request.jsonSchema),
         }),
         maxRetries: 0,
-        timeout: this.options.requestTimeoutMs ?? REQUEST_TIMEOUT_MS,
+        timeout: this.options.requestTimeoutMs ?? modelDeadlineMs(REQUEST_TIMEOUT_MS, this.options.model),
       });
       const finalResponse = createResponse({
         fallbackContent: result.text === "" ? null : result.text,

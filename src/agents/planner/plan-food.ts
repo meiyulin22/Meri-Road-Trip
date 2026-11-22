@@ -15,6 +15,7 @@ import { serializeError } from "@/platform/observability/serialize-error";
 
 import type { MapCheckDependencies, MapCheckStop } from "./map-check";
 import type { PlanModelDependencies, PlanUsage } from "./plan-route";
+import { modelDeadlineMs } from "@/platform/llm/moonshot-chat-model";
 
 export type FoodDependencies = {
   /** Kimi's web search, ten results a search; a spent day throws and the city goes without. */
@@ -58,7 +59,7 @@ async function cityFood(
 ): Promise<CityResult> {
   const usage: PlanUsage = { inputTokens: 0, outputTokens: 0 };
   const base = { province: run.province, city: run.city, lastDay: run.days.at(-1)?.day ?? 0 };
-  const signal = AbortSignal.timeout(cityDeadlineMs);
+  const signal = AbortSignal.timeout(modelDeadlineMs(cityDeadlineMs));
   const near = nearOf(run.days, cards, run.city, bigAreas);
   const queries = foodQueries(run.province, run.city, near.kind === "spot" ? near.name : "");
   const checkedAt = new Date().toISOString();

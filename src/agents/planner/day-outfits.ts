@@ -13,6 +13,7 @@ import { logger } from "@/platform/observability/logger";
 import { serializeError } from "@/platform/observability/serialize-error";
 
 import type { PlanModelDependencies, PlanUsage } from "./plan-route";
+import { modelDeadlineMs } from "@/platform/llm/moonshot-chat-model";
 
 // One short call for the whole trip; a slow answer costs the additions, never the plan.
 const outfitTimeoutMs = 30_000;
@@ -78,7 +79,7 @@ export async function dressDays(
   try {
     const { output, usage: callUsage } = await generateText({
       model,
-      abortSignal: AbortSignal.timeout(outfitTimeoutMs),
+      abortSignal: AbortSignal.timeout(modelDeadlineMs(outfitTimeoutMs)),
       maxRetries: 0,
       maxOutputTokens: Math.min(300 + bases.length * 160, 4000),
       output: Output.object({ name: "day_outfits", schema: answerSchema }),

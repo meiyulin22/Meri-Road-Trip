@@ -1,0 +1,376 @@
+{
+  "label": "k3-low-1.2117",
+  "commit": "8fc227d",
+  "referenceDate": "2026-11-22",
+  "startedAt": "2026-11-22T08:07:03.430Z",
+  "finishedAt": "2026-11-22T08:18:34.276Z",
+  "stopped": null,
+  "cases": [
+    "02-lijiang-dali",
+    "04-three-cities-preferences",
+    "09-hangzhou-english"
+  ],
+  "runs": [
+    {
+      "caseId": "02-lijiang-dali",
+      "attempt": 1,
+      "metrics": {
+        "status": "succeeded",
+        "errorCode": null,
+        "durationMs": 183223,
+        "stageMs": {
+          "scope": 2,
+          "research": 70013,
+          "map": 1,
+          "route": 18553,
+          "transfers": 23495,
+          "days": 4,
+          "verify": 3,
+          "drive": 0,
+          "outfit": 1,
+          "stays": 11113,
+          "food": 60013,
+          "photos": 13,
+          "save": 1
+        },
+        "inputTokens": 13262,
+        "outputTokens": 2055,
+        "searches": {
+          "research": 8,
+          "verify": 0
+        },
+        "mapLookups": 0,
+        "mapStopped": false,
+        "routeAttempts": 1,
+        "dayRetries": 0,
+        "routeSource": "agent",
+        "asked": false,
+        "cities": {
+          "selected": 2,
+          "routed": 2,
+          "omitted": 0
+        },
+        "cards": {
+          "total": 0,
+          "sourced": 0
+        },
+        "requested": {
+          "total": 0,
+          "scheduled": 0
+        },
+        "days": {
+          "total": 5,
+          "empty": 5,
+          "stops": 0
+        },
+        "checks": {
+          "open": 0,
+          "partial": 0,
+          "closed": 0,
+          "uncertain": 0,
+          "unchecked": 0
+        },
+        "reservations": 0,
+        "conflicts": {
+          "not_enough_candidates": 5
+        },
+        "unverifiedFields": 0,
+        "repair": {
+          "rounds": 0,
+          "moved": 0
+        }
+      },
+      "expectations": [
+        {
+          "name": "mode",
+          "passed": true,
+          "detail": "full"
+        },
+        {
+          "name": "keeps all cities",
+          "passed": true,
+          "detail": "routed 大理白族自治州、丽江市; left out none"
+        },
+        {
+          "name": "at most 3 stops a day",
+          "passed": true,
+          "detail": "most 0"
+        },
+        {
+          "name": "no empty days",
+          "passed": false,
+          "detail": "empty: 1,2,3,4,5"
+        }
+      ],
+      "question": null,
+      "days": [
+        {
+          "day": 1,
+          "date": "2026-12-14",
+          "city": "大理白族自治州",
+          "stops": []
+        },
+        {
+          "day": 2,
+          "date": "2026-12-15",
+          "city": "大理白族自治州",
+          "stops": []
+        },
+        {
+          "day": 3,
+          "date": "2026-12-16",
+          "city": "大理白族自治州",
+          "stops": []
+        },
+        {
+          "day": 4,
+          "date": "2026-12-17",
+          "city": "丽江市",
+          "stops": []
+        },
+        {
+          "day": 5,
+          "date": "2026-12-18",
+          "city": "丽江市",
+          "stops": []
+        }
+      ]
+    },
+    {
+      "caseId": "04-three-cities-preferences",
+      "attempt": 1,
+      "metrics": {
+        "status": "succeeded",
+        "errorCode": null,
+        "durationMs": 332133,
+        "stageMs": {
+          "scope": 1,
+          "research": 122872,
+          "map": 0,
+          "route": 12342,
+          "transfers": 28476,
+          "days": 10626,
+          "verify": 31121,
+          "drive": 1080,
+          "outfit": 1,
+          "stays": 5587,
+          "food": 120012,
+          "photos": 8,
+          "save": 0
+        },
+        "inputTokens": 33744,
+        "outputTokens": 8426,
+        "searches": {
+          "research": 6,
+          "verify": 5
+        },
+        "mapLookups": 4,
+        "mapStopped": false,
+        "routeAttempts": 1,
+        "dayRetries": 0,
+        "routeSource": "agent",
+        "asked": false,
+        "cities": {
+          "selected": 3,
+          "routed": 3,
+          "omitted": 0
+        },
+        "cards": {
+          "total": 5,
+          "sourced": 5
+        },
+        "requested": {
+          "total": 0,
+          "scheduled": 0
+        },
+        "days": {
+          "total": 4,
+          "empty": 0,
+          "stops": 5
+        },
+        "checks": {
+          "open": 3,
+          "partial": 0,
+          "closed": 0,
+          "uncertain": 1,
+          "unchecked": 1
+        },
+        "reservations": 3,
+        "conflicts": {},
+        "unverifiedFields": 23,
+        "repair": {
+          "rounds": 0,
+          "moved": 0
+        }
+      },
+      "expectations": [
+        {
+          "name": "mode",
+          "passed": true,
+          "detail": "full"
+        },
+        {
+          "name": "keeps all cities",
+          "passed": true,
+          "detail": "routed 大理白族自治州、丽江市、迪庆藏族自治州; left out none"
+        },
+        {
+          "name": "asks",
+          "passed": true,
+          "detail": "did not ask"
+        },
+        {
+          "name": "no empty days",
+          "passed": true,
+          "detail": "none empty"
+        }
+      ],
+      "question": null,
+      "days": [
+        {
+          "day": 1,
+          "date": "2026-12-14",
+          "city": "大理白族自治州",
+          "stops": [
+            "崇圣寺三塔文化旅游区 (morning)"
+          ]
+        },
+        {
+          "day": 2,
+          "date": "2026-12-15",
+          "city": "丽江市",
+          "stops": [
+            "玉龙雪山 (afternoon)",
+            "蓝月谷 (afternoon)"
+          ]
+        },
+        {
+          "day": 3,
+          "date": "2026-12-16",
+          "city": "丽江市",
+          "stops": [
+            "文峰寺 (morning)"
+          ]
+        },
+        {
+          "day": 4,
+          "date": "2026-12-17",
+          "city": "迪庆藏族自治州",
+          "stops": [
+            "梅里雪山 (afternoon)"
+          ]
+        }
+      ]
+    },
+    {
+      "caseId": "09-hangzhou-english",
+      "attempt": 1,
+      "metrics": {
+        "status": "succeeded",
+        "errorCode": null,
+        "durationMs": 175457,
+        "stageMs": {
+          "scope": 0,
+          "research": 63296,
+          "map": 0,
+          "route": 6405,
+          "transfers": 1,
+          "days": 3880,
+          "verify": 35509,
+          "drive": 1551,
+          "outfit": 0,
+          "stays": 4797,
+          "food": 60005,
+          "photos": 8,
+          "save": 0
+        },
+        "inputTokens": 13817,
+        "outputTokens": 2745,
+        "searches": {
+          "research": 4,
+          "verify": 3
+        },
+        "mapLookups": 4,
+        "mapStopped": false,
+        "routeAttempts": 1,
+        "dayRetries": 0,
+        "routeSource": "agent",
+        "asked": false,
+        "cities": {
+          "selected": 1,
+          "routed": 1,
+          "omitted": 0
+        },
+        "cards": {
+          "total": 3,
+          "sourced": 3
+        },
+        "requested": {
+          "total": 1,
+          "scheduled": 1
+        },
+        "days": {
+          "total": 2,
+          "empty": 0,
+          "stops": 3
+        },
+        "checks": {
+          "open": 3,
+          "partial": 0,
+          "closed": 0,
+          "uncertain": 0,
+          "unchecked": 0
+        },
+        "reservations": 1,
+        "conflicts": {},
+        "unverifiedFields": 13,
+        "repair": {
+          "rounds": 0,
+          "moved": 0
+        }
+      },
+      "expectations": [
+        {
+          "name": "mode",
+          "passed": true,
+          "detail": "full"
+        },
+        {
+          "name": "scheduled 西湖",
+          "passed": true,
+          "detail": "西湖、中国茶叶博物馆、雷峰塔"
+        },
+        {
+          "name": "no empty days",
+          "passed": true,
+          "detail": "none empty"
+        },
+        {
+          "name": "English route and themes",
+          "passed": true,
+          "detail": "126 letters, 0 Han"
+        }
+      ],
+      "question": null,
+      "days": [
+        {
+          "day": 1,
+          "date": "2026-12-12",
+          "city": "杭州市",
+          "stops": [
+            "西湖 (morning)"
+          ]
+        },
+        {
+          "day": 2,
+          "date": "2026-12-13",
+          "city": "杭州市",
+          "stops": [
+            "中国茶叶博物馆 (morning)",
+            "雷峰塔 (afternoon)"
+          ]
+        }
+      ]
+    }
+  ]
+}

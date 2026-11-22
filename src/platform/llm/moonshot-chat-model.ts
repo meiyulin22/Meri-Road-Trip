@@ -51,6 +51,18 @@ export function moonshotRequestBody(body: Record<string, unknown>, model: string
 }
 
 /**
+ * K3 writes long JSON more slowly than K2 (2026-11-22 eval: 丽江 and 大理 research and every city's food hit
+ * their K2-sized deadlines), so on K3 each step's deadline, the run's limit and the chat timeout are
+ * stretched by this much. K2 keeps its deadlines.
+ */
+export const reasoningModelDeadlineFactor = 2.5;
+
+/** A deadline in ms for the configured model: as written for K2, stretched for K3. */
+export function modelDeadlineMs(ms: number, model: string = process.env.LLM_MODEL?.trim() || DEFAULT_MOONSHOT_MODEL): number {
+  return isAlwaysReasoningModel(model) ? Math.round(ms * reasoningModelDeadlineFactor) : ms;
+}
+
+/**
  * The one way Meri builds a Kimi model, for the structured-output client and for the
  * agents alike, with the request body each Kimi model needs (`moonshotRequestBody`).
  */

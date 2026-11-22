@@ -26,6 +26,7 @@ import { logger } from "@/platform/observability/logger";
 import { serializeError } from "@/platform/observability/serialize-error";
 import type { PlanRunRepository } from "@/platform/persistence/plan-run-repository";
 import type { TripPreferenceRepository } from "@/platform/persistence/trip-preference-repository";
+import { modelDeadlineMs } from "@/platform/llm/moonshot-chat-model";
 
 /**
  * A backstop for the whole run. Each part has its own deadline (70 s a city, two cities at
@@ -195,7 +196,7 @@ export class PlanRunService {
   constructor(private readonly deps: PlanRunServiceDependencies) {
     this.now = deps.now ?? (() => new Date());
     this.newId = deps.newId ?? randomUUID;
-    this.timeLimitMs = deps.timeLimitMs ?? runTimeLimitMs;
+    this.timeLimitMs = deps.timeLimitMs ?? modelDeadlineMs(runTimeLimitMs);
   }
 
   /**

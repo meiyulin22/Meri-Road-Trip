@@ -10,6 +10,7 @@ import type { DiscoverySearchResult } from "@/platform/search/discovery-search";
 import { createPlanSearchFromEnvironment } from "@/platform/search/plan-search";
 
 import type { PlanUsage } from "./plan-route";
+import { modelDeadlineMs } from "@/platform/llm/moonshot-chat-model";
 
 /** Searches at once, and per run; enough for about 3 spots a day over a week. */
 const searchConcurrency = 4;
@@ -193,7 +194,7 @@ export async function verifySpots(
   const searched = new Set<string>();
   let searches = 0;
   let done = 0;
-  const signal = AbortSignal.timeout(extractTimeoutMs * 2);
+  const signal = AbortSignal.timeout(modelDeadlineMs(extractTimeoutMs * 2));
 
   const year = /^\d{4}/u.exec(options.month)?.[0] ?? options.referenceDate.slice(0, 4);
   let total = checked.length;
@@ -230,7 +231,7 @@ export async function verifySpots(
       try {
         const { output, usage: callUsage } = await generateText({
           model: deps.model(),
-          abortSignal: AbortSignal.timeout(extractTimeoutMs),
+          abortSignal: AbortSignal.timeout(modelDeadlineMs(extractTimeoutMs)),
           maxRetries: 0,
           maxOutputTokens: 800,
           output: Output.object({ name: "second_look", schema: secondLookSchema }),
@@ -275,7 +276,7 @@ export async function verifySpots(
       const model = deps.model();
       const { output, usage: callUsage } = await generateText({
         model,
-        abortSignal: AbortSignal.timeout(extractTimeoutMs),
+        abortSignal: AbortSignal.timeout(modelDeadlineMs(extractTimeoutMs)),
         maxRetries: 0,
         maxOutputTokens: 4000,
         output: Output.object({ name: "spot_availability", schema: extractionSchema }),

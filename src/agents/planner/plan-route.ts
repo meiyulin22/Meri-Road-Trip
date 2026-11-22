@@ -21,6 +21,7 @@ import { cityForecast, forecastSummary, type GeoPoint, outdoorRating } from "@/d
 import { createMoonshotChatModelFromEnvironment } from "@/platform/llm/moonshot-chat-model";
 import { logger } from "@/platform/observability/logger";
 import { serializeError } from "@/platform/observability/serialize-error";
+import { modelDeadlineMs } from "@/platform/llm/moonshot-chat-model";
 
 const maxAttempts = 2;
 // Both attempts share it. Measured 2026-11-15: an answer carrying a question can take Kimi over 30 s.
@@ -288,7 +289,7 @@ export async function planRoute(
         + `and meets poor weather on: ${poorText(best.poor)}. Keep each city's days and prefer that order.` };
   };
 
-  const signal = AbortSignal.timeout(routeTimeoutMs);
+  const signal = AbortSignal.timeout(modelDeadlineMs(routeTimeoutMs));
   let errors: readonly string[] = [];
   let attempts = 0;
   while (attempts < maxAttempts && !signal.aborted) {

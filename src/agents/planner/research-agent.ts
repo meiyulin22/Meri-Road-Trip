@@ -15,6 +15,7 @@ import { createMoonshotChatModelFromEnvironment } from "@/platform/llm/moonshot-
 import { logger } from "@/platform/observability/logger";
 import type { DiscoverySearchResult } from "@/platform/search/discovery-search";
 import { createPlanSearchFromEnvironment } from "@/platform/search/plan-search";
+import { modelDeadlineMs } from "@/platform/llm/moonshot-chat-model";
 
 /** The plan workflow researches this many cities at once too. */
 export const cityConcurrency = 2;
@@ -260,7 +261,7 @@ export async function researchCity(
   onProgress: ResearchProgress = () => {},
 ): Promise<CityResearch> {
   const { target, areas, ...city } = task;
-  const signal = AbortSignal.timeout(cityTimeoutMs);
+  const signal = AbortSignal.timeout(modelDeadlineMs(cityTimeoutMs));
   const sources: Source[] = [];
   let searchCalls = 0;
   let searchFailed = false;

@@ -6,7 +6,7 @@ import { createTool } from "@mastra/core/tools";
 import { z } from "zod";
 
 import {
-  createMoonshotChatModel, isAlwaysReasoningModel, moonshotRequestBody, reasoningEffortFromEnvironment, reasoningModelMinOutputTokens,
+  createMoonshotChatModel, isAlwaysReasoningModel, modelDeadlineMs, moonshotRequestBody, reasoningEffortFromEnvironment, reasoningModelMinOutputTokens,
 } from "./moonshot-chat-model";
 
 test("K2 keeps thinking off; K3 gets a reasoning effort, no thinking or temperature, and room under max_tokens", () => {
@@ -56,4 +56,10 @@ test("in a Mastra tool loop on K3, the reasoning of the tool-calling turn is sen
   const messages = bodies[1].messages as { role: string; reasoning_content?: string; tool_calls?: unknown }[];
   const assistant = messages.find((message) => message.role === "assistant" && message.tool_calls);
   assert.equal(assistant?.reasoning_content, "先查一下天气。");
+});
+
+test("deadlines stay as written for K2 and stretch 2.5 times for K3, which writes long JSON more slowly", () => {
+  assert.equal(modelDeadlineMs(70_000, "kimi-k2.6"), 70_000);
+  assert.equal(modelDeadlineMs(70_000, "kimi-k3.1-pro"), 175_000);
+  assert.equal(modelDeadlineMs(8 * 60_000, "kimi-k3"), 20 * 60_000);
 });

@@ -22,6 +22,7 @@ import { logger } from "@/platform/observability/logger";
 import { serializeError } from "@/platform/observability/serialize-error";
 
 import type { PlanModelDependencies, PlanUsage } from "./plan-route";
+import { modelDeadlineMs } from "@/platform/llm/moonshot-chat-model";
 
 const maxAttempts = 2;
 const draftTimeoutMs = 60_000;
@@ -113,7 +114,7 @@ export async function draftCityDays(
 
   // The model sees s1, s2… instead of the long card IDs, which it would copy imperfectly.
   const shortIds = new Map(cards.map((card, index) => ["s" + (index + 1), card.id]));
-  const signal = AbortSignal.timeout(draftTimeoutMs);
+  const signal = AbortSignal.timeout(modelDeadlineMs(draftTimeoutMs));
   // The city's own weather each day (1.2117), when there is a forecast.
   const cityWeather = cityForecast(cards.map(({ weather }) => weather));
   const weatherOn = (date: string | null) => {

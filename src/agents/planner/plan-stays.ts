@@ -13,6 +13,7 @@ import { serializeError } from "@/platform/observability/serialize-error";
 import type { HotelSearch, HotelSearchAnswer } from "@/platform/hotel/rollinggo";
 
 import type { PlanModelDependencies, PlanUsage } from "./plan-route";
+import { modelDeadlineMs } from "@/platform/llm/moonshot-chat-model";
 
 export type StayDependencies = {
   readonly search: (search: HotelSearch) => Promise<HotelSearchAnswer>;
@@ -54,7 +55,7 @@ async function recommend(
     const model = deps.model();
     const { output, usage: callUsage } = await generateText({
       model,
-      abortSignal: AbortSignal.timeout(pickTimeoutMs),
+      abortSignal: AbortSignal.timeout(modelDeadlineMs(pickTimeoutMs)),
       maxRetries: 0,
       maxOutputTokens: Math.min(200 + found.length * 120, 2000),
       output: Output.object({ name: "stay_picks", schema: answerSchema }),
