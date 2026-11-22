@@ -728,6 +728,14 @@ planned as flexible (`travelChoiceOf`): the transport agent compares train, flig
 the plan page no longer asks 「怎么去？」. TripState itself still says nothing was chosen. Cost: every
 plan with an origin now looks up trains and flights (flights ¥0.25 a search, at most ¥2 a plan).
 
+**Trains from VariFlight, 2026-11-22.** 12306-mcp kept failing and is an unofficial scraper, so trains now come
+from VariFlight's Tripmatch server (`searchTrainTickets`, same key as flights, ¥0.25 a search, VariFlight's daily
+money budget) whenever `RAIL_PROVIDER` is unset or `variflight`; `12306` keeps the free one for development, `off`
+turns trains off ([rail-variflight.ts](../platform/rail/rail-variflight.ts)). Its answer has stops across the
+destination's whole prefecture (鹤庆, 祥云 for 大理) and no departure window, so code keeps the two cities' own
+stations, applies the leg's window and keeps one row a train; 暂无数据 beyond presale is "none". The answer has
+the 12306 adapter's shape, so the transport agent is unchanged.
+
 **Fallback and the card, 2026-11-22 (merlin).** The chosen way is searched first; when it gives nothing the
 other is tried before the drive estimate: a train bound to setting off or heading home that finds no train
 already searched flights (the 1.2112 comparison); now a flight bound the same way that finds no flight may search

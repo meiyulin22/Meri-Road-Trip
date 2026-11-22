@@ -15,14 +15,15 @@ import { sharedCityPointMemory } from "@/platform/tianditu/city-point-memory";
 import { createTiandituCityPoint } from "@/platform/tianditu/tianditu-city-point";
 import { create12306Rail, type TrainSearch } from "@/platform/rail/rail-12306";
 import { sharedRailBudget } from "@/platform/rail/rail-budget";
-import { railEnabled, railTools } from "@/platform/rail/rail-mcp";
+import { railEnabled, railProvider, railTools } from "@/platform/rail/rail-mcp";
+import { createVariflightRail } from "@/platform/rail/rail-variflight";
 import { withFallbackForecast } from "@/platform/weather/fallback-forecast";
 import { createMetNorwayForecast } from "@/platform/weather/met-norway";
 import { createOpenMeteoForecast } from "@/platform/weather/open-meteo";
 import { createKimiSearchProFromEnvironment, type KimiSearchPro } from "@/platform/search/kimi-search-pro";
 import { createRollingGoHotels, hotelEnabled, rollinggoTools, sharedHotelBudget, type RollingGoHotels } from "@/platform/hotel/rollinggo";
 import type { WeatherForecast } from "@/platform/weather/weather-forecast";
-import { createVariflightHubs, createVariflightSearch, flightEnabled, type FlightSearch, sharedFlightBudget, variflightTools } from "@/platform/flight/variflight";
+import { createVariflightHubs, createVariflightSearch, flightEnabled, type FlightSearch, sharedFlightBudget, variflightTools, variflightTrainTools } from "@/platform/flight/variflight";
 
 import { researchCity } from "./planner/research-agent";
 import { verifySpots } from "./planner/verify-spots";
@@ -40,6 +41,7 @@ let hotels: RollingGoHotels | null = null;
 let foodSearch: KimiSearchPro | null = null;
 let cityPoint: ReturnType<typeof createTiandituCityPoint> | null = null;
 let rail: ReturnType<typeof create12306Rail> | null = null;
+let variflightRail: ReturnType<typeof createVariflightRail> | null = null;
 let flights: ReturnType<typeof createVariflightSearch> | null = null;
 let flightHubs: ReturnType<typeof createVariflightHubs> | null = null;
 let planSearch: PlanSearch | null = null;
@@ -104,9 +106,14 @@ export function planGenerationDependencies(
     } : {}),
     // A search switched off is left out, so the transport agent is not run for it and the card says so (1.2113 step 1).
     transport: {
-      // 12306 only when RAIL_PROVIDER=12306; its server starts on the first search, not on import.
-      ...(railEnabled() ? {
+      // Trains from VariFlight by default (¥0.25 a search, its money budget); 12306 with RAIL_PROVIDER=12306
+      // for development, its server started on the first search; none with RAIL_PROVIDER=off (2026-11-22).
+      ...(railProvider() === "12306" ? {
         searchTrains: (search: TrainSearch) => (rail ??= create12306Rail({ enabled: railEnabled, tools: railTools, budget: sharedRailBudget, now: () => new Date() }))(search),
+      } : railProvider() === "variflight" ? {
+        searchTrains: (search: TrainSearch) => (variflightRail ??= createVariflightRail({
+          enabled: () => railProvider() === "variflight", tools: variflightTrainTools, budget: sharedFlightBudget, now: () => new Date(),
+        }))(search),
       } : {}),
       // VariFlight only when FLIGHT_PROVIDER=variflight and a key are set; each fare search costs ¥0.25.
       ...(flightEnabled() ? {

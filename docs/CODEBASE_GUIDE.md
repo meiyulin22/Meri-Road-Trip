@@ -759,6 +759,8 @@ Generate plan 背后的计划页先用示例数据做出完整页面（设计决
 | [src/platform/rail/rail-names.ts](../src/platform/rail/rail-names.ts) | 外部集成适配器 | 1.2108：行政区名转 12306 的城市短名（大理白族自治州 → 大理），点选出发地的地区取城市（上海市闵行区 → 上海）。 |
 | [src/platform/rail/rail-names.test.ts](../src/platform/rail/rail-names.test.ts) | 测试 | 自治州、市、直辖市和地区的转换。 |
 | [src/platform/rail/rail-12306.ts](../src/platform/rail/rail-12306.ts) | 外部集成适配器 | 1.2108：查两座城某天的火车：车站名来自子进程自己的车站表（不发请求），只有查余票发请求（每次 2 个，记入每日上限）；超出预售期改查同星期几的参考日期；JSON 结果用 zod 校验；出发站和到达站必须属于这两座城，到达时间由出发加历时计算；「有回应没数据」算没车，真正失败才暂停。 |
+| [src/platform/rail/rail-variflight.ts](../src/platform/rail/rail-variflight.ts) | 外部集成适配器 | 2026-11-22：飞常准 Tripmatch `searchTrainTickets` 查火车（上线默认）：一次 ¥0.25，走飞常准的钱数预算；只留两座城自己的车站、按出发时段过滤、去重；「暂无数据」算没有车次；失败暂停、不重试。和 12306 适配器同一种回答 |
+| [src/platform/rail/rail-variflight.test.ts](../src/platform/rail/rail-variflight.test.ts) | 测试 | 用录下的丽江→大理样例：只留两城车站、时段、去重、预售期外、计费调用、失败暂停，以及 `RAIL_PROVIDER` 的选择 |
 | [src/platform/rail/rail-12306.test.ts](../src/platform/rail/rail-12306.test.ts) | 测试 | 车站核对和跨午夜、参考日期、没有车站 / 没有数据 / 失败的区分、关闭时不启动、过去的日期。 |
 | [src/platform/tianditu/tianditu-city-point.ts](../src/platform/tianditu/tianditu-city-point.ts) | 外部集成适配器 | 1.2106：按名字查一次城市中心：只读天地图的行政区回答（`area`），名字必须是问的那个（或只多行政区后缀，如 大理 → 大理白族自治州）；POI 列表、别的地名、境外都算没找到，不猜；不重试。实测 2026-11-17：丽江市 → 156530700，(100.225258, 26.8583)。 |
 | [src/platform/tianditu/tianditu-city-point.test.ts](../src/platform/tianditu/tianditu-city-point.test.ts) | 测试 | 行政区回答的名字核对、短名加后缀、POI 和无结果、坏坐标、拒绝不重试。 |

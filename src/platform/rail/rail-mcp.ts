@@ -18,9 +18,22 @@ function textOf(result: unknown): string {
   return content.map((part) => part.text ?? "").join("\n");
 }
 
-/** Whether this server may ask 12306 at all: only when RAIL_PROVIDER says so (1.2108). */
+/** Whether this server may ask 12306 at all: only when RAIL_PROVIDER says so (1.2108), for development. */
 export function railEnabled(): boolean {
   return process.env.RAIL_PROVIDER?.trim() === "12306";
+}
+
+/**
+ * Where trains come from (2026-11-22): VariFlight by default, as decided for launch (2026-11-18), when
+ * its key is set and paid calls are on; 12306 only with RAIL_PROVIDER=12306 (development, free, flaky);
+ * none with RAIL_PROVIDER=off.
+ */
+export function railProvider(env: NodeJS.ProcessEnv = process.env): "variflight" | "12306" | null {
+  const chosen = env.RAIL_PROVIDER?.trim() ?? "";
+  if (chosen === "12306") return "12306";
+  if (chosen === "off") return null;
+  const paid = env.PAID_CALLS_ENABLED?.trim() !== "false";
+  return Boolean(env.VARIFLIGHT_API_KEY?.trim()) && paid ? "variflight" : null;
 }
 
 /**

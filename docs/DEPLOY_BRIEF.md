@@ -72,6 +72,6 @@ catalog) ships with the code.
   goes to Neon's HTTP driver. A Postgres on another host (e.g. a Docker service name) needs this check widened.
   Then the four multi-step writes in the `transactions-todo` note can become real transactions.
 - Captcha (ALTCHA agreed) on Generate plan — not built.
-- Trains default to VariFlight's `searchTrainTickets` before launch; 12306 stays dev-only — not built.
+- Trains: VariFlight's `searchTrainTickets` is the default since 2026-11-22 (`RAIL_PROVIDER` unset or `variflight`); do not set `RAIL_PROVIDER=12306` on a server.
 - Kimi K2 goes offline end of December 2026: move `LLM_MODEL` to `kimi-k3.1-pro` with a check on the eval set.
 - Tianditu tile relay (`/api/map-tiles/…`) uses the server key; check it from the server once.

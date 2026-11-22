@@ -19,7 +19,7 @@ import { parseLabelledLiteral } from "./python-literal";
  */
 export const flightLimits = { intervalMs: 1_000, dailyUnits: providerLimits.variflightFenPerDay, pauseMs: 30 * 60 * 1_000 } as const;
 /** What each tool Meri calls costs, in fen, from VariFlight's price list. */
-export const variflightFen = { getFlightPriceByCities: 25, getFlightTransferInfo: 25 } as const;
+export const variflightFen = { getFlightPriceByCities: 25, getFlightTransferInfo: 25, searchTrainTickets: 25 } as const;
 /** Fen as the logs and the agent read it: ¥0.25. */
 export const yuan = (fen: number) => `¥${(fen / 100).toFixed(2)}`;
 const emptyBalancePauseMs = 12 * 60 * 60 * 1_000;
@@ -40,34 +40,53 @@ export function flightEnabled(): boolean {
   return process.env.FLIGHT_PROVIDER?.trim() === "variflight" && Boolean(process.env.VARIFLIGHT_API_KEY?.trim()) && paidCallsEnabled();
 }
 
-let starting: Promise<FlightToolCaller> | null = null;
-let client: MCPClient | null = null;
+/** VariFlight's two remote MCP servers: flights on Aviation, trains on Tripmatch (2026-11-22). Same key. */
+const servers = {
+  aviation: endpoint,
+  tripmatch: "https://ai.variflight.com/servers/tripmatch/mcp",
+} as const;
+const starting = new Map<keyof typeof servers, Promise<FlightToolCaller>>();
+const clients = new Map<keyof typeof servers, MCPClient>();
 
 /**
- * VariFlight's remote Aviation MCP, connected the first time a flight is looked up (1.2111). The key
- * goes in the X-API-Key header and never into a log. Listing tools is free; only tool calls cost.
+ * One of VariFlight's remote MCP servers, connected the first time it is needed (1.2111; Tripmatch for
+ * trains since 2026-11-22). The key goes in the X-API-Key header and never into a log. Listing tools
+ * is free; only tool calls cost.
  */
-export async function variflightTools(): Promise<FlightToolCaller> {
-  if (starting) return starting;
-  starting = (async () => {
+function connect(server: keyof typeof servers): Promise<FlightToolCaller> {
+  const running = starting.get(server);
+  if (running) return running;
+  const started = (async () => {
     const key = process.env.VARIFLIGHT_API_KEY?.trim().replace(/^["']|["']$/gu, "") ?? "";
     const { MCPClient: Client } = await import("@mastra/mcp");
-    client = new Client({ id: "meri-flight", servers: { flight: { url: new URL(endpoint), requestInit: { headers: { "X-API-Key": key } }, timeout: 30_000 } } });
-    process.once("exit", () => { void client?.disconnect(); });
-    const tools = (await client.listToolsets()).flight ?? {};
-    return async (name, input) => {
+    const client = new Client({ id: `meri-${server}`, servers: { [server]: { url: new URL(servers[server]), requestInit: { headers: { "X-API-Key": key } }, timeout: 30_000 } } });
+    clients.set(server, client);
+    process.once("exit", () => { void client.disconnect(); });
+    const tools = (await client.listToolsets())[server] ?? {};
+    return async (name: string, input: Record<string, unknown>) => {
       const tool = tools[name];
       if (!tool?.execute) throw new Error(`VariFlight tool ${name} is not available.`);
       const result = await tool.execute(input, {} as never) as { content?: { text?: string }[] } | null;
       return (result?.content ?? []).map(({ text }) => text ?? "").join("\n");
     };
   })();
-  starting.catch(() => {
-    starting = null;
-    void client?.disconnect();
-    client = null;
+  starting.set(server, started);
+  started.catch(() => {
+    starting.delete(server);
+    void clients.get(server)?.disconnect();
+    clients.delete(server);
   });
-  return starting;
+  return started;
+}
+
+/** VariFlight's Aviation server: fares, change cities (1.2111). */
+export function variflightTools(): Promise<FlightToolCaller> {
+  return connect("aviation");
+}
+
+/** VariFlight's Tripmatch server: train tickets (2026-11-22). */
+export function variflightTrainTools(): Promise<FlightToolCaller> {
+  return connect("tripmatch");
 }
 
 export type FlightSearch = {
