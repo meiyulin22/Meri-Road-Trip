@@ -257,6 +257,11 @@ type Unit = Candidate & {
    * searched for comparison, but only once the quickest train is over 12 hours or none was found.
    */
   readonly comparison: boolean;
+  /**
+   * Setting off or heading home bound to a flight (2026-11-22, merlin: "飞机没查到查火车"): trains may be
+   * searched, but only once the leg's flight search found none or could not be made.
+   */
+  readonly trainFallback: boolean;
 };
 
 function transportUnits(legs: readonly TransferLeg[], input: TransportInput): Unit[] {
@@ -270,6 +275,7 @@ function transportUnits(legs: readonly TransferLeg[], input: TransportInput): Un
       trains: trains.has(index), flights: flights.has(index),
       trainBound, flightBound: flights.get(index)?.bound ?? false,
       comparison: input.allowQuestion && trainBound && base.leg.kind !== "between" && !flights.has(index),
+      trainFallback: (flights.get(index)?.bound ?? false) && base.leg.kind !== "between" && !trains.has(index),
     };
   });
 }
@@ -334,8 +340,8 @@ async function findTransport(
   const searchTrains = deps.searchTrains;
   // A search switched off is not offered to the agent at all.
   const units = transportUnits(legs, input)
-    .map((unit) => ({ ...unit, trains: unit.trains && Boolean(searchTrains) }))
-    .filter((unit) => unit.trains || ((unit.flights || unit.comparison) && deps.searchFlights));
+    .map((unit) => ({ ...unit, trains: unit.trains && Boolean(searchTrains), trainFallback: unit.trainFallback && Boolean(searchTrains) }))
+    .filter((unit) => unit.trains || unit.trainFallback || ((unit.flights || unit.comparison) && deps.searchFlights));
   if (units.length === 0) return { findings: { legs: [] }, searches: 0, flightSearches: 0, variflightFen: 0, usage };
 
   const found = new Map<number, { trains: LegTrains | null; answers: RailAnswer[] }>();
@@ -404,6 +410,15 @@ async function findTransport(
       options: journeys,
     } });
     return summary({ status: "found", trains: { ...first.trains, options: journeys } });
+  };
+  /** A fallback train only once the bound flight is known to be missing (2026-11-22). */
+  const trainRefusal = (unit: Unit): unknown => {
+    if (unit.trains) return null;
+    if (!unit.trainFallback) return { status: "trains_not_for_this_leg" };
+    const tried = flown.get(unit.index);
+    if (!tried) return { status: "search_flights_first" };
+    if (tried.flights) return { status: "flight_found" };
+    return null;
   };
   /** Flights for a leg between IATA city codes the agent gives (1.2111); code checks the cities in the answer. */
   /** What is left of the run's ¥2, as the agent reads it. */
@@ -551,8 +566,9 @@ async function findTransport(
     // Named for what it is: live, the model read a bare "window" as the arrival time (2026-11-17).
     departureHours: `${String(unit.window[0]).padStart(2, "0")}:00-${String(unit.window[1]).padStart(2, "0")}:00`,
     driveMinutes: unit.leg.estimate.status === "estimated" ? unit.leg.estimate.durationMinutes : null,
-    canSearch: [...(unit.trains ? ["trains"] : []), ...((unit.flights || unit.comparison) && deps.searchFlights ? ["flights"] : [])],
+    canSearch: [...(unit.trains || unit.trainFallback ? ["trains"] : []), ...((unit.flights || unit.comparison) && deps.searchFlights ? ["flights"] : [])],
     ...(unit.comparison && deps.searchFlights ? { flightsOnlyIfTrainOver12h: true } : {}),
+    ...(unit.trainFallback ? { trainsOnlyIfNoFlight: true } : {}),
   }));
   const legSchema = z.number().int().min(0).max(units.length - 1);
   let model: ReturnType<typeof deps.model> | null = null;
@@ -566,7 +582,8 @@ async function findTransport(
         execute: async ({ leg, earliestHour, latestHour }) => {
           const unit = units[leg];
           if (!unit) return { status: "unknown_leg" };
-          if (!unit.trains) return { status: "trains_not_for_this_leg" };
+          const refused = trainRefusal(unit);
+          if (refused) return refused;
           const window: [number, number] = [earliestHour ?? unit.window[0], latestHour ?? unit.window[1]];
           if (window[0] >= window[1]) return { status: "bad_window" };
           return summary(await search(unit, window));
@@ -579,7 +596,7 @@ async function findTransport(
         execute: async ({ leg, via }) => {
           const unit = units[leg];
           if (!unit) return { status: "unknown_leg" };
-          return unit.trains ? connect(unit, via) : { status: "trains_not_for_this_leg" };
+          return trainRefusal(unit) ?? connect(unit, via);
         },
       }),
       ...(deps.searchFlights ? {
@@ -644,6 +661,7 @@ async function findTransport(
         "Search every leg once: trains where it may, and flights where it may. Search a leg's trains again with a wider or different window only when nothing fits.",
         "When a leg has no direct train at all, you may search one connection through a big rail hub on the way; a change costs two train searches.",
         "A leg marked flightsOnlyIfTrainOver12h may search flights only after its trains, and only when the quickest train takes over 12 hours or none was found.",
+        "A leg marked trainsOnlyIfNoFlight is bound to a flight: search its flights first, and its trains only when no flight was found.",
         "When a leg's flight search finds no direct flight, you may search one change of plane in a big airport on the way;"
           + " if that finds no connection, suggest-flight-hubs names VariFlight's own change cities to try once."
           + " Where the end has no airport, search-air-rail flies to a nearby city and takes the train on.",
@@ -815,6 +833,7 @@ export function applyTransport(
       recommendation = { mode: "train", trainCode: fastest.code, flightNo: null, by: "code", reason: answered === "train"
         ? (zh ? "你选了坚持坐火车，这是用时最短的一趟" : "You chose to stay on the train; this is the quickest")
         : trainBound ? (zh ? "按你选的高铁，选了用时最短的一趟" : "You chose the train; this is the quickest")
+          : flightBound && !flights ? (zh ? "没查到航班，这是用时最短的一趟火车" : "No flight was found; this is the quickest train")
           : (zh ? "用时最短的一趟" : "The quickest train") };
     }
     if (trains) {

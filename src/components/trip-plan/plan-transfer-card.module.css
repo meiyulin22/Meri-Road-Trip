@@ -207,3 +207,19 @@
   .time { font-size: 18px; }
   .body { padding: 12px 14px; }
 }
+
+/* The train or flight the traveller chose and this leg could not give them (2026-11-22). */
+.missed {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  margin-top: 8px;
+  padding: 7px 10px;
+  border-radius: 8px;
+  color: #8a3b20;
+  background: #fbeee6;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.5;
+}
+.missed svg { flex: none; margin-top: 2px; color: #c95f3d; }

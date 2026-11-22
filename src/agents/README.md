@@ -728,6 +728,16 @@ planned as flexible (`travelChoiceOf`): the transport agent compares train, flig
 the plan page no longer asks 「怎么去？」. TripState itself still says nothing was chosen. Cost: every
 plan with an origin now looks up trains and flights (flights ¥0.25 a search, at most ¥2 a plan).
 
+**Fallback and the card, 2026-11-22 (merlin).** The chosen way is searched first; when it gives nothing the
+other is tried before the drive estimate: a train bound to setting off or heading home that finds no train
+already searched flights (the 1.2112 comparison); now a flight bound the same way that finds no flight may search
+trains (`trainFallback`, `trainsOnlyIfNoFlight`, refused by code until the flight search came back empty), and
+code then recommends the quickest train ("没查到航班，这是用时最短的一趟火车"). A change of city searches flights
+only for a drive over six hours, so a short one (上海 → 苏州, 70 min) ends at the drive. The transfer card says
+what the traveller chose and did not get first, in colour, with why and what is shown instead (`missedChoice`):
+「你选的是火车：车次暂时查不到（查询出错），先按开车估算时间」. While a plan is made, the map, the outfits and each
+city's stay and food hold their places with a spinner and their step's state, as they are drawn from the saved plan.
+
 ### Drive times and the map (1.2100–1.2106)
 
 The map check keeps each located spot's coordinates (1.2100), and the plan page draws the stops

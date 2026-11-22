@@ -1,4 +1,4 @@
-import { Car, ChevronDown, Home, MapPinned, Plane, Route, Sparkles, TrainFront } from "lucide-react";
+import { Car, ChevronDown, Home, MapPinned, Plane, Route, Sparkles, TrainFront, TriangleAlert } from "lucide-react";
 import type { ReactNode } from "react";
 
 import type { Locale } from "@/domain/locale/locale";
@@ -27,6 +27,8 @@ import {
   trainSeat,
   transferEnds,
   transferLabel,
+  missedChoice,
+  missedChoiceText,
   transferNote,
   transferText,
 } from "./plan-transfer-text";
@@ -96,6 +98,12 @@ export function PlanTransferCard({ leg, legDate = null, transport, travelChoice 
             </>
           )}
         </div>
+        {/* What the traveller chose and did not get, said first and in colour (2026-11-22). */}
+        {missedChoice(leg, transport, travelChoice) ? (
+          <p className={styles.missed} role="note">
+            <TriangleAlert aria-hidden="true" size={14} />{missedChoiceText(missedChoice(leg, transport, travelChoice)!, leg, locale)}
+          </p>
+        ) : null}
         {children ?? (airRail ? <AirRailDetails leg={leg} picked={airRail} drive={drive} locale={locale} />
           : !found ? <DriveDetails leg={leg} drive={drive} transport={transport} travelChoice={travelChoice} locale={locale} />
           : flight || !trains ? <FlightDetails leg={leg} picked={flight} drive={drive} locale={locale} />
@@ -343,7 +351,8 @@ function DriveDetails({ leg, drive, transport, travelChoice, locale }: {
   readonly travelChoice: TravelChoice | null;
   readonly locale: Locale;
 }) {
-  const note = transferNote(leg, travelChoice, locale);
+  // The coloured line above already says what was missed and why.
+  const note = missedChoice(leg, transport, travelChoice) ? null : transferNote(leg, travelChoice, locale);
   if (drive) return note ? <div className={styles.details}><p className={styles.note}>{note}</p></div> : null;
   return <div className={styles.details}><p className={styles.note} data-tone="muted">{transferText(leg, transport, locale, travelChoice)}</p></div>;
 }

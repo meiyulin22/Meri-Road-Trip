@@ -373,6 +373,34 @@ test("no train at all: the comparison flight is used without a question, and the
     { mode: "flight", trainCode: null, flightNo: "CA8559", reason: "没查到火车，这是用时最短的一班飞机", by: "code" });
 });
 
+test("a flight choice with no flight falls back to the train, searched only after the flights (2026-11-22)", async () => {
+  const trainsAsked: string[] = [];
+  const flightsFirst = [
+    [{ tool: "searchTrains", args: { leg: 0 } }],
+    [{ tool: "searchFlights", args: { leg: 0, fromCode: "SHA", toCode: "LJG" } }],
+    [{ tool: "searchTrains", args: { leg: 0 } }],
+  ];
+  const outcome = await planTransport([legs[0]], input({ choice: "flight" }), {
+    searchTrains: async (search) => { trainsAsked.push(search.date); return found({ ...sleeper, durationMinutes: 1712 }); },
+    searchFlights: async () => ({ status: "none" }),
+    model: fakeModelSteps(flightsFirst, { legs: [] }),
+  });
+  // The first train search, before any flight, was refused; the one after "no flight" was made.
+  assert.equal(trainsAsked.length, 1);
+  assert.equal(outcome.legs[0].flightsMissing, "none");
+  assert.equal(outcome.legs[0].recommendation?.mode, "train");
+  assert.equal(outcome.legs[0].recommendation?.reason, "没查到航班，这是用时最短的一趟火车");
+
+  // A flight found: no train is searched for that leg.
+  const flown: string[] = [];
+  await planTransport([legs[0]], input({ choice: "flight" }), {
+    searchTrains: async (search) => { flown.push(search.date); return found(sleeper); },
+    searchFlights: async () => flightsFound(flight("CA8559", "07:55", 235, 670)),
+    model: fakeModelSteps(flightsFirst.slice(1), { legs: [] }),
+  });
+  assert.deepEqual(flown, []);
+});
+
 // Changing planes (1.2113): 上海 → 迪庆 has no direct flight; VariFlight's recorded connection is via 成都.
 const toDiqing: TransferLeg = { kind: "outbound", day: 1, from: "上海虹桥站", to: "迪庆藏族自治州", estimate: drive(2900) };
 const mu9181 = { ...flight("MU9181", "12:30", 190, 980), fromAirport: "上海虹桥", toAirport: "成都天府", arrives: "15:40" };

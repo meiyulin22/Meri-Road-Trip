@@ -8,6 +8,7 @@ import {
   changeCaption, changeSeats, changeTrains, changeWarning, driveDuration, driveSummary, legDayLabel, trainChecked, trainClock, trainLine, trainReferenceNote, trainSeat, trainSource,
   transferEnds, transferLabel, transferNote, transferText,
 } from "./plan-transfer-text";
+import { missedChoice, missedChoiceText } from "./plan-transfer-text";
 
 const leg = (estimate: TransferLeg["estimate"], overrides: Partial<TransferLeg> = {}): TransferLeg =>
   ({ kind: "between", day: 3, from: "丽江市", to: "大理白族自治州", estimate, ...overrides });
@@ -148,4 +149,20 @@ test("flying near then the train reads as one ticket: where to change, the wait,
   assert.equal(airRailFare({ ...journey, price: null }, "zh"), "机票 ¥600，火车票价未查到");
   assert.equal(airRailRide(journey, "zh"), "从景德镇罗家到景德镇北站，市内交通另算，换乘时间共 2 小时 20 分");
   assert.equal(airRailCaption(journey, "en").caption, "Fly to 景德镇, then the train · 5 h 10 min in all");
+});
+
+test("a train or flight the traveller chose and this leg could not give is said first, with why (2026-11-22)", () => {
+  const leg: TransferLeg = { kind: "between", day: 2, from: "上海市", to: "苏州市",
+    estimate: { status: "estimated", distanceKm: 96, durationMinutes: 70, path: [[121, 31], [120, 31]] }, trainsMissing: "unavailable" };
+  assert.equal(missedChoice(leg, "train", null), "train");
+  assert.equal(missedChoiceText("train", leg, "zh"), "你选的是火车：车次暂时查不到（查询出错），先按开车估算时间");
+  assert.equal(missedChoice({ ...leg, trainsMissing: "none" }, null, "train"), "train");
+  // Nothing chosen, driving, a switched-off search, or the train after all: nothing to flag.
+  assert.equal(missedChoice(leg, null, null), null);
+  assert.equal(missedChoice(leg, "self_drive", null), null);
+  assert.equal(missedChoice({ ...leg, trainsMissing: "off" }, "train", null), null);
+  const flown: TransferLeg = { ...leg, kind: "outbound", flightsMissing: "none", trainsMissing: undefined,
+    recommendation: { mode: "train", trainCode: "G7", flightNo: null, reason: "", by: "code" } };
+  assert.equal(missedChoice(flown, "flight", null), "flight");
+  assert.equal(missedChoiceText("flight", flown, "zh"), "你选的是飞机：这段没查到航班，改为推荐火车");
 });

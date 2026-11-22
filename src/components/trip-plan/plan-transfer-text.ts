@@ -364,3 +364,36 @@ export function airRailRide(journey: AirRailOption, locale: Locale): string {
     ? `从${journey.flight.toAirport}到${journey.train.from}站，市内交通另算，换乘时间共 ${trainDuration(journey.waitMinutes, true)}`
     : `From ${journey.flight.toAirport} to ${journey.train.from} station; the ride is not included (${trainDuration(journey.waitMinutes, false)} to change)`;
 }
+
+/**
+ * The way of travelling the traveller chose that this leg could not give them (2026-11-22, merlin:
+ * "你要突出显示没查到"): the train or flight they picked, here or in the trip, when it was searched for
+ * this leg and nothing came of it. Null when they chose nothing, chose to drive, or got what they chose.
+ */
+export function missedChoice(
+  leg: TransferLeg, transport: TransportPreference | null, travelChoice: TravelChoice | null,
+): "train" | "flight" | null {
+  const chosen = travelChoice === "train" || travelChoice === "flight" ? travelChoice
+    : transport === "train" || transport === "flight" ? transport : null;
+  if (chosen === "train" && leg.trainsMissing && leg.trainsMissing !== "off" && leg.recommendation?.mode !== "train") return "train";
+  if (chosen === "flight" && leg.flightsMissing && leg.flightsMissing !== "off" && leg.recommendation?.mode !== "flight") return "flight";
+  return null;
+}
+
+/** The headline for a missed choice: what was wanted, and what the card shows instead. */
+export function missedChoiceText(missed: "train" | "flight", leg: TransferLeg, locale: Locale): string {
+  const zh = locale === "zh";
+  const instead = leg.recommendation?.mode === "flight" ? (zh ? "改为推荐航班" : "showing a flight instead")
+    : leg.recommendation?.mode === "train" ? (zh ? "改为推荐火车" : "showing a train instead")
+      : leg.recommendation?.mode === "air_rail" ? (zh ? "改为飞机转火车" : "showing a flight and train instead")
+        : (zh ? "先按开车估算时间" : "the drive is shown as an estimate");
+  if (missed === "train") {
+    const why = leg.trainsMissing === "unavailable" ? (zh ? "车次暂时查不到（查询出错）" : "trains couldn't be looked up just now")
+      : leg.trainsMissing === "no_station" ? (zh ? "这段有一头没有火车站" : "one end has no railway station")
+        : (zh ? "这段没查到合适的直达车次" : "no suitable direct train for this leg");
+    return zh ? `你选的是火车：${why}，${instead}` : `You chose the train: ${why}; ${instead}`;
+  }
+  const why = leg.flightsMissing === "unavailable" ? (zh ? "航班暂时查不到（查询出错）" : "flights couldn't be looked up just now")
+    : (zh ? "这段没查到航班" : "no flight found for this leg");
+  return zh ? `你选的是飞机：${why}，${instead}` : `You chose to fly: ${why}; ${instead}`;
+}
