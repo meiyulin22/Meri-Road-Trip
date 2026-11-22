@@ -5,6 +5,8 @@ import type { ToolSet } from "ai";
 import { logger, logEvents } from "@/platform/observability/logger";
 import { serializeError } from "@/platform/observability/serialize-error";
 
+import { moonshotRequestBody, reasoningEffortFromEnvironment } from "./moonshot-chat-model";
+
 const DEFAULT_MODEL = "kimi-k2.6";
 const DEFAULT_BASE_URL = "https://api.moonshot.cn/v1";
 const REQUEST_TIMEOUT_MS = 60_000;
@@ -121,8 +123,10 @@ class KimiClient implements StructuredOutputModelClient {
         },
         thinking: { type: "disabled" },
       };
-      const completion =
-        await this.client.chat.completions.create(completionRequest);
+      // The same per-model body as the AI SDK path: no `thinking` for K3 (2026-11-22).
+      const completion = await this.client.chat.completions.create(
+        moonshotRequestBody({ ...completionRequest }, this.options.model, reasoningEffortFromEnvironment()) as unknown as KimiChatCompletionRequest,
+      );
 
       const choice = completion.choices[0];
       const reasoningTokens =

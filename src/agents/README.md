@@ -746,6 +746,15 @@ what the traveller chose and did not get first, in colour, with why and what is 
 「你选的是火车：车次暂时查不到（查询出错），先按开车估算时间」. While a plan is made, the map, the outfits and each
 city's stay and food hold their places with a spinner and their step's state, as they are drawn from the saved plan.
 
+**Kimi K3, 2026-11-22.** K2 goes offline at the end of December. K3 (`kimi-k3.1-pro`) always reasons and takes no
+`thinking` field, counts its reasoning toward `max_tokens` (Kimi advises at least 16000) and wants the reasoning sent
+back in a tool loop. One rule in [moonshot-chat-model.ts](../platform/llm/moonshot-chat-model.ts) (`moonshotRequestBody`)
+handles it for every call: K2 requests are unchanged; K3 ones drop `thinking` and `temperature`, send `reasoning_effort`
+(`LLM_REASONING_EFFORT`, low by default) and raise any output cap below 16000, so the planner's caps (300–6000,
+sized for the answer) need no edit. The AI SDK already reads `reasoning_content` and puts it back on the assistant
+message, and a test shows Mastra's tool loop sends it. Live check the same day on K3 at low effort: a two-call tool
+loop in 8.4 s with 38 reasoning tokens, a three-day itinerary JSON in 5.3 s with 100. Switching is `LLM_MODEL` only.
+
 ### Drive times and the map (1.2100–1.2106)
 
 The map check keeps each located spot's coordinates (1.2100), and the plan page draws the stops

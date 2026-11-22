@@ -685,6 +685,7 @@ Generate plan 背后的计划页先用示例数据做出完整页面（设计决
 | [src/platform/llm/ai-sdk-kimi-client.test.ts](../src/platform/llm/ai-sdk-kimi-client.test.ts) | 测试（对应模块边界） | mock 验证 schema/历史转发、旧新 SDK 契约、非法/截断输出、超时/HTTP 错误及配置校验。 |
 | [src/platform/llm/ai-sdk-kimi-client.ts](../src/platform/llm/ai-sdk-kimi-client.ts) | 基础设施端口/适配器 | Kimi 的 Vercel AI SDK 适配器，结构化输出、finish reason/usage 归一化、60 秒超时、零自动重试和日志。；第 2 步起从环境创建的客户端用 `kimiFetch` 计费 |
 | [src/platform/llm/moonshot-chat-model.ts](../src/platform/llm/moonshot-chat-model.ts) | 基础设施端口/适配器 | 唯一构造 Kimi 模型的地方（关闭 thinking、默认 kimi-k2.6 与 api.moonshot.cn），结构化输出客户端和 Agent 共用；可从环境变量构造。；第 2 步起从环境创建的模型都用 `kimiFetch` 计费 |
+| [src/platform/llm/moonshot-chat-model.test.ts](../src/platform/llm/moonshot-chat-model.test.ts) | 测试 | 2026-11-22：K2/K3 的请求体（K3 不发 thinking、发 reasoning_effort、输出上限至少 16000），以及 Mastra 工具循环在 K3 上把思考内容带回去 |
 | [src/platform/llm/kimi-spend.ts](../src/platform/llm/kimi-spend.ts) | 基础设施/限额 | 第 2 步：Kimi 每天花多少钱。价格表（k2.6、k2.7、k3.1-pro、k3，表外的按最贵算）、按输入/输出/缓存命中 token 算分、读 JSON 和流式返回里的用量；`meteredKimiFetch` 调用前查总开关和当天余额，被拒回 403（带标记，`kimiRefusalOf` 能认出来），返回后记账；`kimiRefusalNow` 给规划说明停下的原因。 |
 | [src/platform/llm/kimi-spend.test.ts](../src/platform/llm/kimi-spend.test.ts) | 测试 | 价格和缓存命中、两种缓存字段、记账后到上限拒绝、总开关、流式用量、经过 AI SDK 的错误仍能认出拒绝。 |
 | [src/platform/llm/kimi-client.ts](../src/platform/llm/kimi-client.ts) | 基础设施端口/适配器 | StructuredOutputModelClient 端口及通用模型错误，同时保留旧 OpenAI SDK Kimi 实现；当前应用入口默认 AI SDK 客户端。 |
