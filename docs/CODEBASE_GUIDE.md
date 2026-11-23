@@ -230,6 +230,7 @@ LLM 解释自然语言并提出受限 JSON；应用校验、决定是否执行�
 | [src/app/api/trips/[id]/plan-runs/[runId]/events/route.ts](../src/app/api/trips/%5Bid%5D/plan-runs/%5BrunId%5D/events/route.ts) | HTTP 接口层 | GET 以 Server-Sent Events 推送一次运行的进度，按 Last-Event-ID（或回答后新连接的 `?after=`）补发漏掉的事件。 |
 | [src/app/api/trips/[id]/plan-runs/[runId]/answer/route.ts](../src/app/api/trips/%5Bid%5D/plan-runs/%5BrunId%5D/answer/route.ts) | HTTP 接口层 | POST 回答运行正在等的问题（选项或「你来定」），交给 plan-run-handler，成功后运行在后台恢复（202）。 |
 | [src/app/api/trips/[id]/plan/route.ts](../src/app/api/trips/%5Bid%5D/plan/route.ts) | HTTP 接口层 | GET 返回旅程最新的计划版本（是否过期）和最近一次运行。 |
+| [src/app/api/trips/[id]/plan/pdf/route.ts](../src/app/api/trips/%5Bid%5D/plan/pdf/route.ts) | HTTP 接口层 | POST 读取访客 cookie，把 PDF 请求交给进程内的导出服务。 |
 | [src/app/api/trips/[id]/plan/getting-there/route.ts](../src/app/api/trips/%5Bid%5D/plan/getting-there/route.ts) | HTTP 接口层 | 1.2107：POST 计划页补填出发地（和交通方式），装配旅程服务、运行 repository 和天地图交通依赖，交给 getting-there。；1.2115 起也接受只补交通方式 |
 | [src/app/api/trips/[id]/plan/leg-mode/route.ts](../src/app/api/trips/%5Bid%5D/plan/leg-mode/route.ts) | 入口/HTTP | 1.2115：`POST`，把启程或回程在已经查到的火车和航班之间切换，只改这份计划；不调用模型、不重新查。 |
 | [src/app/api/trips/[id]/plan/weather/route.ts](../src/app/api/trips/%5Bid%5D/plan/weather/route.ts) | 入口/HTTP | 2026-11-22：`POST`「重新查天气」：给最新一版计划重新查天气、配穿搭，就地写回；不算一次规划，调一次 Kimi，受每 IP 的 Kimi 限额约束。 |
@@ -246,6 +247,7 @@ LLM 解释自然语言并提出受限 JSON；应用校验、决定是否执行�
 | [src/app/photo-credits/photo-credits.module.css](../src/app/photo-credits/photo-credits.module.css) | 页面/框架入口 | 介绍页示例照片署名页的排版、可聚焦链接及窄屏单列样式。 |
 | [src/app/trips/[id]/error.tsx](../src/app/trips/%5Bid%5D/error.tsx) | 页面/框架入口 | Workspace 页面错误边界，按访客语言提供失败提示和重试入口。 |
 | [src/app/trips/[id]/plan/page.tsx](../src/app/trips/%5Bid%5D/plan/page.tsx) | 页面/框架入口 | 真实计划页，服务端先核对旅程归属，再挂载交接页面。；2026-11-21：把这趟旅程最近一次运行的交接快照传给页面，没有标签页快照时也能打开计划 |
+| [src/app/trips/[id]/plan/print/page.tsx](../src/app/trips/%5Bid%5D/plan/print/page.tsx) | 页面/框架入口 | PDF 打印页，核对旅程归属，从最新完整的计划版本渲染只读手册。 |
 | [src/app/api/trips/[id]/plan/dates/route.ts](../src/app/api/trips/%5Bid%5D/plan/dates/route.ts) | 接口入口 | 2026-11-21 `POST` 补填日期，按 MERI_TIMEZONE 算今天 |
 | [src/app/trips/[id]/page.tsx](../src/app/trips/%5Bid%5D/page.tsx) | 页面/框架入口 | Workspace 服务端加载入口，检查归属、读取状态/消息，区分 404 与缺失状态；最多等 1.5 秒带上已选地点照片；页面标题与缺失状态提示按访客语言。；2026-11-21：旅程有过 Generate plan 运行就跳到计划页（旅程锁） |
 | [src/app/trips/journey-delete-action.tsx](../src/app/trips/journey-delete-action.tsx) | 页面/框架入口 | 列表页客户端删除控件，调用 owner-scoped DELETE 并更新页面，文字按访客语言。 |
@@ -353,6 +355,15 @@ Generate plan 背后的计划页先用示例数据做出完整页面（设计决
 
 | 文件地址 | 层/类别 | 做什么 |
 | --- | --- | --- |
+| [src/components/trip-plan/pdf-export/export-button.tsx](../src/components/trip-plan/pdf-export/export-button.tsx) | 表现层 | 行程安排标题、导出按钮、禁用原因、版本和过期提示、进度与重试。 |
+| [src/components/trip-plan/pdf-export/export-button.module.css](../src/components/trip-plan/pdf-export/export-button.module.css) | 样式 | 响应式标题和按钮、禁用提示、版本标签和进度条。 |
+| [src/components/trip-plan/pdf-export/pdf-download.ts](../src/components/trip-plan/pdf-export/pdf-download.ts) | 表现层 | 读取 PDF 导出 NDJSON，解码并下载文件。 |
+| [src/components/trip-plan/pdf-export/pdf-download.test.ts](../src/components/trip-plan/pdf-export/pdf-download.test.ts) | 测试 | 验证分块 NDJSON、中文文件名，以及请求与流结束错误。 |
+| [src/components/trip-plan/pdf-export/print/handbook.tsx](../src/components/trip-plan/pdf-export/print/handbook.tsx) | 表现层 | A4 手册封面、路线总览、目录、交通、打包清单和来源。 |
+| [src/components/trip-plan/pdf-export/print/handbook.module.css](../src/components/trip-plan/pdf-export/print/handbook.module.css) | 样式 | A4 纸张、页码、分页、字号及手册的打印配色。 |
+| [src/components/trip-plan/pdf-export/print/handbook-day.tsx](../src/components/trip-plan/pdf-export/print/handbook-day.tsx) | 表现层 | 每日天气、穿搭、分时段景点、营业与预约、路段。 |
+| [src/components/trip-plan/pdf-export/print/handbook-city.tsx](../src/components/trip-plan/pdf-export/print/handbook-city.tsx) | 表现层 | 城市住宿、参考价格、特色菜和餐厅核实状态。 |
+| [src/components/trip-plan/pdf-export/print/handbook-photos.tsx](../src/components/trip-plan/pdf-export/print/handbook-photos.tsx) | 表现层 | 现有照片的打印尺寸、来源与署名。 |
 | [src/components/trip-plan/plan-handoff-page.tsx](../src/components/trip-plan/plan-handoff-page.tsx) | 表现层 | 真实计划页，展示快照里的旅程事实，挂「Meri 记得」和行程区块（回答计划的问题后让「Meri 记得」重新读取），没有交接时提示回旅程；1.2107 起补填出发地后换成服务器给的新交接并存回本标签页。；2026-11-21：左上角改为「回到主页」；没有标签页快照时用服务端的快照 |
 | [src/components/trip-plan/plan-handoff-page.module.css](../src/components/trip-plan/plan-handoff-page.module.css) | 样式 | 真实计划页的事实、偏好和行程区块布局。 |
 | [src/components/trip-plan/plan-draft-section.tsx](../src/components/trip-plan/plan-draft-section.tsx) | 表现层 | 开始或接上计划运行，用 EventSource 跟随进度：活动流、问题卡（回答后从最后一个事件重新连接，并通知刷新「Meri 记得」）、路线条和逐块出现的每日卡片；运行结束后换成保存的版本，显示统计、冲突、按时段分组的每日卡片、当天照片、时间锚点、待核实字段和出处；失败时按错误码说明并可重试；1.2013 起每站显示核实标签（当天开放、部分关闭、需预约、从第 N 天换来）、开放与预约的事实行和「当天关闭」冲突；1.2100 起在每天的卡片上面放天地图地图卡片，选中的天和展开的卡片联动。；1.2115：有出发地、没交通方式时在启程卡下面显示交通方式按钮；火车超过 12 小时又有航班时显示切换按钮；1.2117：每天的卡片标题显示当地天气，展开写预报或「出发前再看预报」，户外景点在天气差或海拔差 300 m 以上时写自己的预报；有天气时末尾写「天气为预报，出发前请再查看」和 Open-Meteo 的署名链接；1.2117 穿衣：地图下面放换装间，日程卡里一行「今日穿搭」跳过去，日程后面放打包清单；1.2117 住宿：每座城最后一天后面放住宿卡，「在地图上看」把酒店标到地图上 |
@@ -612,6 +623,10 @@ Generate plan 背后的计划页先用示例数据做出完整页面（设计决
 
 | 文件地址 | 层/类别 | 做什么 |
 | --- | --- | --- |
+| [src/capabilities/planning/pdf-export/plan-pdf.ts](../src/capabilities/planning/pdf-export/plan-pdf.ts) | 应用层 | 核对旅程归属、读取打印快照和语言、判断过期、限制排队和生成耗时、输出进度流。 |
+| [src/capabilities/planning/pdf-export/chromium.ts](../src/capabilities/planning/pdf-export/chromium.ts) | 适配器 | 启动无头 Chromium，携带访客 cookie 打开内部打印页，等待图片字体，在内存生成 PDF 并关闭浏览器。 |
+| [src/capabilities/planning/pdf-export/protocol.ts](../src/capabilities/planning/pdf-export/protocol.ts) | 契约 | 客户端和服务端共用的导出阶段、文件及错误事件。 |
+| [src/capabilities/planning/pdf-export/plan-pdf.test.ts](../src/capabilities/planning/pdf-export/plan-pdf.test.ts) | 测试 | 用替身渲染器覆盖快照、归属、NDJSON、排队、限额、取消和超时。 |
 | [src/capabilities/planning/journey-lock.ts](../src/capabilities/planning/journey-lock.ts) | 应用层 | 2026-11-21 旅程锁：有过 Generate plan 运行的旅程，Workspace 的写接口返回 409 `journey_locked`（非本人或未登录照旧走原逻辑，不透露有没有计划）；计划页的写入不受影响 |
 | [src/capabilities/planning/journey-lock.test.ts](../src/capabilities/planning/journey-lock.test.ts) | 测试 | 有运行即锁、本人得到 409、未锁/无访客/非本人照常。 |
 | [src/capabilities/planning/plan-dates.ts](../src/capabilities/planning/plan-dates.ts) | 应用层 | 2026-11-21 计划页补填日期：只在有过运行、出发日期不准确时接受一次；检查不早于今天、一年内、和已知天数一致、不超过 60 天；写进旅程后返回新交接（最近运行的交接 + 新旅程状态 + 今天） |

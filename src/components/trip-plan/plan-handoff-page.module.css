@@ -37,8 +37,3 @@
   display: grid;
   gap: 12px;
 }
-
-.itineraryHeading > h2 {
-  font-size: 18px;
-  font-weight: 650;
-}

@@ -1,0 +1,133 @@
+.heading {
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.heading > h2 {
+  padding-block: 8px;
+  font-size: 18px;
+  font-weight: 650;
+}
+
+.export {
+  display: grid;
+  justify-items: end;
+  gap: 5px;
+  color: var(--muted);
+  font-size: 12px;
+  text-align: end;
+}
+
+.controls {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  justify-content: end;
+  gap: 8px;
+}
+
+.control {
+  position: relative;
+}
+
+.button {
+  display: inline-flex;
+  min-height: 38px;
+  align-items: center;
+  gap: 7px;
+  padding: 6px 12px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: #fffdf8;
+  color: var(--green);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 650;
+  cursor: pointer;
+}
+
+.button:hover:not([aria-disabled="true"]) {
+  background: var(--green-soft);
+}
+
+.button:focus-visible {
+  outline: 2px solid var(--green);
+  outline-offset: 2px;
+}
+
+.button[aria-disabled="true"] {
+  color: var(--muted);
+  cursor: default;
+}
+
+.hint {
+  position: absolute;
+  z-index: 3;
+  inset-block-start: calc(100% + 5px);
+  inset-inline-end: 0;
+  width: max-content;
+  max-width: min(240px, 75vw);
+  padding: 6px 9px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fffdf8;
+  box-shadow: 0 3px 10px rgba(23, 53, 44, .1);
+  opacity: 0;
+  pointer-events: none;
+}
+
+.control:hover .hint,
+.control:focus-within .hint {
+  opacity: 1;
+}
+
+.version {
+  font-weight: 600;
+}
+
+.version[data-outdated="true"],
+.staleHint {
+  color: #84512c;
+}
+
+.error {
+  color: #963b38;
+}
+
+.done {
+  color: var(--green);
+}
+
+.progress {
+  display: grid;
+  gap: 3px;
+  width: min(220px, 100%);
+}
+
+.progress progress {
+  width: 100%;
+  height: 8px;
+  accent-color: var(--green);
+}
+
+@media (max-width: 560px) {
+  .heading { flex-direction: column; gap: 4px; }
+  .heading > h2 { padding-block: 3px; }
+  .export { justify-items: start; text-align: start; }
+  .controls { justify-content: start; }
+  .button { min-height: 44px; }
+}
+
+@media (hover: none), (max-width: 560px) {
+  .hint {
+    position: static;
+    max-width: 100%;
+    padding: 4px 0 0;
+    border: 0;
+    background: transparent;
+    box-shadow: none;
+    opacity: 1;
+  }
+}

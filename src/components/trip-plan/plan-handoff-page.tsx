@@ -16,6 +16,7 @@ import { destinationText, type TripState, type TripStateField } from "@/domain/t
 import { AddDatesButton, PlanDatesPicker } from "./plan-dates-picker";
 import { PlanDraftSection } from "./plan-draft-section";
 import { PlanMemories } from "./plan-memories";
+import { PlanPdfExportHeading } from "./pdf-export/export-button";
 import handoffStyles from "./plan-handoff-page.module.css";
 import styles from "./trip-plan.module.css";
 
@@ -95,8 +96,7 @@ export function PlanHandoffPage({ tripId, savedHandoff = null }: {
               <PlanMemories tripId={tripId} handoff={handoff} refreshKey={preferenceChanges} />
               <div className={handoffStyles.itinerary}>
                 <section className={handoffStyles.itineraryHeading} aria-labelledby="plan-itinerary-heading">
-                  <h2 id="plan-itinerary-heading">{text.itinerary}</h2>
-                  <PlanDraftSection key={planRestarts} tripId={tripId} handoff={handoff}
+                  <PlanDraftSection key={planRestarts} tripId={tripId} handoff={handoff} heading={text.itinerary}
                     onAddDates={parseExactDate(handoff.tripState.startDate) === null ? () => setDatesOpen(true) : undefined}
                     onPreferenceSaved={() => setPreferenceChanges((count) => count + 1)}
                     onHandoffChange={(next) => { savePlanHandoff(tripId, next); setFilled(next); }} />
@@ -109,7 +109,12 @@ export function PlanHandoffPage({ tripId, savedHandoff = null }: {
                 ) : null}
               </div>
             </>
-          ) : <p className={styles.overview} role="status">{hydrated ? text.missing(words.generatePlan.label) : text.loading}</p>}
+          ) : (
+            <section className={`${handoffStyles.itinerary} ${handoffStyles.itineraryHeading}`} aria-labelledby="plan-itinerary-heading">
+              <PlanPdfExportHeading title={text.itinerary} tripId={tripId} plan={null} locale={locale} />
+              <p className={styles.overview} role="status">{hydrated ? text.missing(words.generatePlan.label) : text.loading}</p>
+            </section>
+          )}
         </main>
       </div>
     </div>

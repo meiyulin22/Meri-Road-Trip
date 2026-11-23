@@ -50,6 +50,7 @@ import { PlanFoodCard } from "./plan-food-card";
 import type { HotelOption } from "@/domain/plan/stays";
 import { outfitLine } from "./plan-outfit-view";
 import type { DayOutfit } from "@/domain/plan/outfit";
+import { PlanPdfExportHeading } from "./pdf-export/export-button";
 import draftStyles from "./plan-draft.module.css";
 import styles from "./trip-plan.module.css";
 
@@ -248,9 +249,10 @@ function checkedDate(evidence: SpotEvidence, locale: Locale): string {
  * The plan for the handoff this tab holds. The server either has it saved, is making it,
  * or starts a run; a running plan streams its real progress and its days as they come.
  */
-export function PlanDraftSection({ tripId, handoff, onPreferenceSaved = () => {}, onHandoffChange = () => {}, onAddDates }: {
+export function PlanDraftSection({ tripId, handoff, heading, onPreferenceSaved = () => {}, onHandoffChange = () => {}, onAddDates }: {
   readonly tripId: string;
   readonly handoff: PlanHandoff;
+  readonly heading: string;
   /** Opens the page's add-dates dialog while the trip has no start date (2026-11-22). */
   readonly onAddDates?: () => void;
   /** Called when filling in the origin gave the tab a new handoff to keep (1.2107). */
@@ -285,58 +287,67 @@ export function PlanDraftSection({ tripId, handoff, onPreferenceSaved = () => {}
 
   const retry = () => { setState({ kind: "starting" }); setAttempt(attempt + 1); };
 
-  if (state.kind === "starting") return <DraftLoading text={text} />;
-  if (state.kind === "running") {
-    return (
-      <LiveRun key={state.runId} tripId={tripId} runId={state.runId} text={text} locale={locale}
-        onAnswered={onPreferenceSaved}
-        onDone={(plan, progress) => setState({ kind: "ready", plan, progress })}
-        onFailed={(reason, progress) => setState({ kind: "failed", reason, progress })} />
-    );
-  }
-  if (state.kind === "failed") {
+  function renderDraft() {
+    if (state.kind === "starting") return <DraftLoading text={text} />;
+    if (state.kind === "running") {
+      return (
+        <LiveRun key={state.runId} tripId={tripId} runId={state.runId} text={text} locale={locale}
+          onAnswered={onPreferenceSaved}
+          onDone={(plan, progress) => setState({ kind: "ready", plan, progress })}
+          onFailed={(reason, progress) => setState({ kind: "failed", reason, progress })} />
+      );
+    }
+    if (state.kind === "failed") {
+      return (
+        <div className={draftStyles.draft}>
+          {state.progress ? <PlanRunActivity view={state.progress} /> : null}
+          <section className={draftStyles.notice} data-tone="error" role="alert">
+            <TriangleAlert aria-hidden="true" size={18} />
+            <div>
+              <p>{text.failed[state.reason]}</p>
+              {state.reason === "journey_changed" || limitFailures.includes(state.reason) ? null : (
+                <button type="button" className={draftStyles.retry} onClick={retry}>
+                  <RotateCw aria-hidden="true" size={14} />{text.retry}
+                </button>
+              )}
+            </div>
+          </section>
+        </div>
+      );
+    }
+    if (state.kind === "unsupported") {
+      return (
+        <section className={draftStyles.notice} role="status">
+          <Info aria-hidden="true" size={18} />
+          <p>{text.noCity}</p>
+        </section>
+      );
+    }
     return (
       <div className={draftStyles.draft}>
         {state.progress ? <PlanRunActivity view={state.progress} /> : null}
-        <section className={draftStyles.notice} data-tone="error" role="alert">
-          <TriangleAlert aria-hidden="true" size={18} />
-          <div>
-            <p>{text.failed[state.reason]}</p>
-            {state.reason === "journey_changed" || limitFailures.includes(state.reason) ? null : (
-              <button type="button" className={draftStyles.retry} onClick={retry}>
-                <RotateCw aria-hidden="true" size={14} />{text.retry}
-              </button>
-            )}
-          </div>
-        </section>
+        {state.limited ? <PreviousPlanNotice limited={state.limited} text={text} locale={locale} /> : null}
+        <DraftDays response={state.plan} text={text} locale={locale} onAddDates={onAddDates}
+          transport={handoff.tripState.transportPreference.state === "known" ? handoff.tripState.transportPreference.value : null}
+          gettingThere={{
+            tripId,
+            // No longer asked (2026-11-22): a trip without a way of travelling is planned as flexible.
+            askChoice: false,
+            onFilled: (filled) => {
+              onHandoffChange(filled.handoff);
+              setState({ kind: "ready", plan: filled.plan, progress: state.progress });
+            },
+            onPlanChanged: (plan) => setState({ kind: "ready", plan, progress: state.progress }),
+          }} />
       </div>
     );
   }
-  if (state.kind === "unsupported") {
-    return (
-      <section className={draftStyles.notice} role="status">
-        <Info aria-hidden="true" size={18} />
-        <p>{text.noCity}</p>
-      </section>
-    );
-  }
+
   return (
-    <div className={draftStyles.draft}>
-      {state.progress ? <PlanRunActivity view={state.progress} /> : null}
-      {state.limited ? <PreviousPlanNotice limited={state.limited} text={text} locale={locale} /> : null}
-      <DraftDays response={state.plan} text={text} locale={locale} onAddDates={onAddDates}
-        transport={handoff.tripState.transportPreference.state === "known" ? handoff.tripState.transportPreference.value : null}
-        gettingThere={{
-          tripId,
-          // No longer asked (2026-11-22): a trip without a way of travelling is planned as flexible.
-          askChoice: false,
-          onFilled: (filled) => {
-            onHandoffChange(filled.handoff);
-            setState({ kind: "ready", plan: filled.plan, progress: state.progress });
-          },
-          onPlanChanged: (plan) => setState({ kind: "ready", plan, progress: state.progress }),
-        }} />
-    </div>
+    <>
+      <PlanPdfExportHeading title={heading} tripId={tripId} plan={state.kind === "ready" ? state.plan : null} locale={locale} />
+      {renderDraft()}
+    </>
   );
 }
 

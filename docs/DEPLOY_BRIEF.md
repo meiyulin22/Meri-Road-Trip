@@ -66,6 +66,19 @@ catalog) ships with the code.
    the cost.
 7. Report back to merlin: server location, what passed, timings, every failure with its log line.
 
+### PDF export on Ubuntu (1.2200)
+
+- The production dependencies `playwright` and `@playwright/browser-chromium` are pinned together. Run `npm ci`
+  under the Meri service account so Chromium downloads to a location the process can read. If deployment uses
+  a different build account, set the same `PLAYWRIGHT_BROWSERS_PATH` for the install and the service.
+- On Ubuntu, run `npx playwright install-deps chromium` and install the `fonts-noto-cjk` OS package. In a
+  container, include these system packages and the bundled browser in the runtime image. Chromium runs headless.
+- The print browser opens `http://127.0.0.1:${PORT:-3000}`. Set `MERI_PDF_PRINT_ORIGIN` to the app's internal
+  HTTP origin if it differs. The PDF route streams NDJSON with `X-Accel-Buffering: no` and a 60-second export
+  deadline. A PDF export needs no PDF volume and does not use the planning provider keys.
+- Smoke-test a saved Chinese plan with the service account. Check the font, page breaks, contents links and
+  download through the reverse proxy. This check reads a saved plan and spends no model quota.
+
 ## 6. Code changes still needed before launch (not your scope unless merlin assigns them)
 
 - `src/platform/persistence/database/db.ts` uses node-postgres only for `localhost`/`127.0.0.1`; any other host

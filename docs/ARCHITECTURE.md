@@ -59,6 +59,7 @@ flowchart TB
 | 技术/工具 | 当前用途 | 接入位置 | 边界/状态 |
 | --- | --- | --- | --- |
 | Next.js 16.3.5 / App Router | 页面、服务端组件、HTTP route、metadata/manifest | `src/app/`、`next.config.ts` | 开发前读安装包内相关 Next.js 指南 |
+| Playwright 1.65.1 / Chromium（1.2200） | 打开仅旅程所属访客可读的打印页，按 CSS 生成 A4 PDF | `src/capabilities/planning/pdf-export/`、`src/components/trip-plan/pdf-export/` | 专用浏览器 context 访问内部 origin，内存生成并以 NDJSON 返回；两款 npm 依赖同版本锁定，服务器另装 Chromium 系统库及 CJK 字体 |
 | React 19.2.8 / TypeScript 5 | UI、状态协调、类型及业务契约 | `src/components/`、`src/domain/`、`tsconfig.json` | 类型检查不能代替运行时校验 |
 | CSS Modules / 全局 CSS | 页面与组件样式、响应式布局 | `*.module.css`、`src/app/globals.css` | 当前没有整套 Tailwind UI 样式框架 |
 | Motion 13 / Radix Popover / Lucide / Embla | 入场与浮层动画、照片环旋转、图标、首页 Aceternity 风格轮播的悬停视差；Embla 用于聊天卡片按省横滑 | `src/components/ui/`、`src/components/meri-shell/`、`journey-orbit.tsx`、`destination-choices-card.tsx` | 首页轮播以 CSS 轨道与透视缩放适配参考组件，无 Tailwind 依赖；背景水彩显露尚未实施 |
