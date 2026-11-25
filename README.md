@@ -36,7 +36,7 @@ Required:
 | Variable | Used for |
 | --- | --- |
 | `MOONSHOT_API_KEY` | The LLM behind conversation, extraction, and recommendation |
-| `DATABASE_URL` | Neon Postgres connection string |
+| `DATABASE_URL` | Postgres connection string (development: local Homebrew Postgres 18 + pgvector, see `docs/ARCHITECTURE.md` 8.1) |
 | `TIANDITU_API_KEY` | Tianditu, the national map platform, which validates that a destination really exists and suggests places as you type |
 
 Optional. Recommendation degrades without it rather than failing:

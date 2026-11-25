@@ -1,6 +1,6 @@
 # Meri 数据库结构与关系目录
 
-> 核对日期：2026-10-01；计划运行三张表 2026-11-15。根据当前 Drizzle schema、repository 和迁移文件整理，供 AI 定位代码及向用户讲解。本文记录仓库定义，不代表已检查某个在线数据库的实际表或迁移执行状态；本次没有连接数据库或执行迁移。
+> 核对日期：2026-10-01；计划运行三张表 2026-11-15；目录表 catalog_entries 2026-11-25（本机 Postgres 18 已执行 0014 并导入）。根据当前 Drizzle schema、repository 和迁移文件整理，供 AI 定位代码及向用户讲解。本文记录仓库定义，不代表已检查某个在线数据库的实际表或迁移执行状态；本次没有连接数据库或执行迁移。
 
 阅读顺序：数据库代码目录 → 表关系 → 字段字典 → JSONB 内容 → 操作与代码映射 → 迁移历史。总体分层见 [ARCHITECTURE.md](ARCHITECTURE.md)，完整业务与失败边界见 [USER_FLOW_CURRENT.md](USER_FLOW_CURRENT.md)。
 
@@ -11,12 +11,13 @@
 | 目录/文件 | 职责 | 与其他部分的关系 |
 | --- | --- | --- |
 | [drizzle.config.ts](../drizzle.config.ts) | Drizzle Kit 配置：schema 来源、SQL 输出目录及连接配置 | 读取 `DATABASE_URL`；管理生成/执行迁移 |
-| [database/db.ts](../src/platform/persistence/database/db.ts) | 创建 Neon HTTP + Drizzle 客户端 | 将当前 schema 装配到 `db`，供生产 repository 使用 |
+| [database/db.ts](../src/platform/persistence/database/db.ts) | 按 host 创建 Drizzle 客户端：localhost 用 node-postgres，其余用 Neon HTTP | 将当前 schema 装配到 `db`，供生产 repository 使用 |
 | [database/schema/index.ts](../src/platform/persistence/database/schema/index.ts) | 导出当前全部表 | 供数据库客户端和 schema 工具加载 |
 | [database/schema/trips.ts](../src/platform/persistence/database/schema/trips.ts) | Trip 根表及 status enum | 状态和消息通过外键指向它 |
 | [database/schema/trip-states.ts](../src/platform/persistence/database/schema/trip-states.ts) | 权威状态 JSONB 表 | 一个 Trip 最多一条状态记录 |
 | [database/schema/trip-messages.ts](../src/platform/persistence/database/schema/trip-messages.ts) | 消息及 presentation 表、role enum | 一个 Trip 可以有多条消息 |
 | [database/schema/trip-preferences.ts](../src/platform/persistence/database/schema/trip-preferences.ts) | 旅程偏好表、kind/source/status 三个 enum、(trip_id, status) 索引 | 一个 Trip 可以有多条偏好 |
+| [database/schema/catalog-entries.ts](../src/platform/persistence/database/schema/catalog-entries.ts) | Meri 目录表 catalog_entries（RAG 第 1 步） | 独立表，和旅程表没有外键；由 `scripts/import-catalog.ts` 写入，应用代码还不读它 |
 | [database/schema/plan-runs.ts](../src/platform/persistence/database/schema/plan-runs.ts) | 计划运行、运行事件、计划版本三张表及 plan_run_status enum（1.2010） | 一个 Trip 可以有多次运行和多个版本；一次运行最多一个版本 |
 | `src/platform/persistence/*.ts` | repository 接口和 JourneySummary 读模型 | 应用服务依赖的存储能力契约，不是 SQL 本身 |
 | `src/platform/persistence/postgres/` | 生产查询、写入、数据映射、CAS 和错误包装 | 通过 Drizzle 操作七张表 |
@@ -88,6 +89,16 @@ erDiagram
     text type
     jsonb payload
     timestamptz at
+  }
+  CATALOG_ENTRIES {
+    text id PK
+    text kind
+    text name
+    text prefecture
+    text_array tags
+    integer source_count
+    text search_text
+    vector embedding
   }
   PLAN_VERSIONS {
     uuid id PK
@@ -213,9 +224,38 @@ Trip 不再保存 name、origin、destination 或日期列，避免与 TripState
 
 唯一约束 `(workflow_name, run_id)`；写入是 `INSERT … ON CONFLICT (workflow_name, run_id) DO UPDATE`，每个运行一行、状态变化时覆盖。实测一个暂停在路线前的三城运行约 23 KB。恢复时 Mastra 按 run_id 读回这一行。没有设清理策略，快照会随运行累积，以后需要时再按 `updatedAtZ` 清理。
 
-### 3.7 索引与约束范围
+### 3.7 `catalog_entries`：Meri 的目录（RAG 第 1 步，2026-11-25）
 
-各表主键提供唯一性及对应索引；除 trip_preferences 的 (trip_id, status) 和 plan_runs 的 (trip_id, started_at) 外，当前 schema 未声明额外的 owner、消息时间或 JSONB 查询索引。外键保证归属对象存在，不代替 owner 授权，也不会自动为外键列建立额外索引。这里只记录现状，不提前增加索引或新表。
+目录来自私有仓库 meri-catalog-cn（127 个城市 NDJSON 文件，从攻略 PDF 提取的事实，不含原文）。数据和原文都不进本仓库，只有表结构和导入脚本在这里。表和旅程表没有外键；一行就是目录的一条记录，主键用目录自己的 id。`historical`（旧价格、开放时间、交通）和 `source_refs`（攻略文档与页码）只存不展示。
+
+| 列 | 类型 | 约束 | 用途 |
+| --- | --- | --- | --- |
+| `id` | text | 主键 | 目录 id，如 `spot_dali_erhai` |
+| `kind` | text | 非空，CHECK ∈ spot/dish/restaurant/stay/transport/tip | 种类 |
+| `name` | text | 非空，pg_trgm GIN 索引 | 名称 |
+| `aliases` | text[] | 非空 | 别名 |
+| `aliases_text` | text | 非空，pg_trgm GIN 索引 | 别名用空格连起来（代码拼）；pg_trgm 不能给数组建索引 |
+| `province` / `prefecture` | text | 非空；(prefecture, kind) 索引 | 省、州/市（全称，如「大理白族自治州」） |
+| `county` | text | 可空 | 区县 |
+| `summary` | text | 非空 | Meri 自己写的一两句介绍 |
+| `tags` | text[] | 非空 | 固定标签（[归并表](../src/domain/catalog/catalog-tags.ts)：景点 23 个；其他种类就是种类本身） |
+| `tags_raw` | text[] | 非空 | 目录原来的自由标签，改归并表时可以重算 |
+| `details` | jsonb | 非空 | 按种类：景点 highlights/suggested_hours/best_season/visit_note/walking；菜 ingredients/flavor/preparations；餐馆 cuisine/signature_dishes/branch/address；住宿 stay_type/area/features/branch/address；交通 from/to/modes；提示 applies_in/advice |
+| `related` | jsonb | 非空 | `[{ id, relation }]`，指向别的条目（nearby、applies_to 等） |
+| `historical` | jsonb | 可空 | 旧的 price_note/hours_note/access_note/duration_note，**永不展示** |
+| `source_refs` | jsonb | 非空 | `[{ document_id, pdf_pages, guide_year }]`，**永不展示** |
+| `confidence` | text | 非空，CHECK ∈ high/medium/low | 提取时的把握 |
+| `source_count` | integer | 非空 | `source_refs` 的份数（几本攻略提到） |
+| `search_text` | text | 非空 | 名称、别名、种类、固定标签、摘要、景点亮点，由代码拼；第 3 步拿它做向量 |
+| `embedding` | vector（不定维度） | 可空 | 第 3 步选定向量接口后改成固定维度、填值并加向量索引；导入时 search_text 变了就清空 |
+| `catalog_version` | text | 非空 | 导入时私有仓库的 git 提交号，`data/` 有未提交改动时加 `-dirty` |
+| `imported_at` | timestamptz | 非空 | 本次导入时间 |
+
+导入（[scripts/import-catalog.ts](../scripts/import-catalog.ts)）先校验全部行：zod 严格 schema、文件名的省市与记录一致、标签都在归并表里、id 不重复，有一处问题就一行不写；然后在一个事务里按 id `INSERT … ON CONFLICT DO UPDATE`，再删除目录里已经没有的 id，所以可以重复执行。不读 `identity_check` 和 `schema_version`（后者校验时固定为 1）。2026-11-25 首次导入：提交 4ac288c，2284 条（spot 1349、dish 316、restaurant 157、stay 254、transport 118、tip 90），127 个州/市。
+
+### 3.8 索引与约束范围
+
+各表主键提供唯一性及对应索引；除 trip_preferences 的 (trip_id, status)、plan_runs 的 (trip_id, started_at) 和 catalog_entries 的三个索引外，当前 schema 未声明额外的 owner、消息时间或 JSONB 查询索引。外键保证归属对象存在，不代替 owner 授权，也不会自动为外键列建立额外索引。这里只记录现状，不提前增加索引或新表。
 
 ## 4. JSONB 内部结构
 
@@ -288,6 +328,7 @@ pending 标记只保存推荐范围，不保存要推荐什么：卡片请求从
 | 回答问题并恢复运行（1.2011） | plan_runs、trip_preferences、mastra.mastra_workflow_snapshot | plan-run-service 的 `answer` | `UPDATE … SET status = 'running' WHERE status = 'suspended'` 认领，只有一个回答成功；答案存成 `source = question` 的偏好；Mastra 从快照恢复。运行暂停时用同样的条件 UPDATE 改回 `suspended` |
 | 计划页补填出发地（1.2107） | trip_states、plan_versions、plan_runs | [getting-there](../src/capabilities/planning/getting-there.ts)、运行 repository 的 `fillPlanFacts` | 先 CAS 写 TripState 的出发地（和没填的交通方式）；再更新最新版本的 `trip_state` 和 `plan`（只重算启程和回程）；最后把这次运行的 `handoff` 和 `handoff_key` 换成与新 TripState 一致的交接，页面刷新仍找到同一份计划。不是一个事务：中途失败时同样的请求再发一次会补完，不会重复写 TripState |
 | 保存计划版本 | plan_versions | [plan-generation](../src/agents/workflows/plan-generation.ts) 的 save-plan 步骤 | 先查该旅程最大版本号再插入下一个；唯一约束拒绝并发重复 |
+| 导入目录 | catalog_entries | [import-catalog](../scripts/import-catalog.ts)、[校验与拼行](../scripts/import-catalog-read.ts) | 人工执行；全部校验通过后一个事务写入并删除目录已没有的条目；不碰旅程表 |
 | 删除 Journey | trips，级联其余六表 | [Trip repository](../src/platform/persistence/postgres/postgres-trip-repository.ts) | DELETE 同时带 Trip ID/owner 条件，依赖外键级联 |
 
 状态和消息 repository 按 tripId 读写，owner 授权主要由上层 Trip/Journey/Message 服务负责。不要因为子表没有 owner 列就跳过根记录授权，也不要把外键当成访客权限检查。
@@ -311,6 +352,7 @@ pending 标记只保存推荐范围，不保存要推荐什么：卡片请求从
 | [0011_plan_runs.sql](../drizzle/0011_plan_runs.sql) | 创建 plan_runs、plan_run_events、plan_versions 和 plan_run_status enum，四个级联外键、唯一约束和 (trip_id, started_at) 索引（drizzle-kit 生成，没有多余语句） |
 | [0013_trip_preference_pace.sql](../drizzle/0013_trip_preference_pace.sql) | 1.2017：新 enum `trip_preference_pace`（packed、relaxed），`trip_preferences` 加可空列 `pace` 和 CHECK 约束 `trip_preferences_pace_kind_check`；已有行为空，不需补数据 |
 | [0012_plan_run_suspended.sql](../drizzle/0012_plan_run_suspended.sql) | `plan_run_status` 加 `suspended`（在 `succeeded` 之前） |
+| [0014_catalog_entries.sql](../drizzle/0014_catalog_entries.sql) | RAG 第 1 步：`CREATE EXTENSION IF NOT EXISTS pg_trgm` 和 `vector`（手动加在 drizzle-kit 生成的语句前面，新库也能直接迁移；需要能建扩展的用户），创建 catalog_entries、两个 CHECK、(prefecture, kind) 索引和 name / aliases_text 的 GIN 三元组索引 |
 
 `_journal.json` 记录仓库迁移顺序；历史 snapshots 只覆盖已有快照，不应拿最后一份历史 snapshot 当完整当前 schema。执行状态需针对实际环境另行确认，本文件不授权清库或执行 DROP。
 

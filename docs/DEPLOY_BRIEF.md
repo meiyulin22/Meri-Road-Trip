@@ -52,9 +52,14 @@ catalog) ships with the code.
    (Caddy `header_up X-Real-IP {remote_host}`). `src/platform/http/client-address.ts` trusts `x-real-ip`, then
    the last `x-forwarded-for` entry; per-IP limits depend on it. Server-sent events (`/api/trips/*/plan-runs/*/events`)
    run for minutes: they already send `X-Accel-Buffering: no`; raise the proxy read timeout (≥ 10 min).
-3. PostgreSQL in Docker (`pgvector/pgvector` image, so vectors are possible later), data on a named volume,
-   bound to localhost only. Run migrations with `DATABASE_URL=… npm run db:migrate`. `docker-compose.yml` in the
-   repo is the dev setup to start from.
+3. PostgreSQL 18 with the pgvector and pg_trgm extensions (distribution packages or the `pgvector/pgvector:pg18`
+   image), data on persistent storage, bound to localhost only. Development runs the same versions from Homebrew
+   (see `docs/ARCHITECTURE.md` 8.1). Run migrations with `DATABASE_URL=… npm run db:migrate` as a user that may
+   create extensions (migration 0014 creates `pg_trgm` and `vector`).
+   **Catalog:** the catalog data is private and never goes on the server as files. merlin imports it from his Mac
+   through an SSH tunnel with the same script: `ssh -N -L 15432:localhost:5432 <server>`, then
+   `DATABASE_URL=postgresql://<user>:<password>@localhost:15432/meri node --env-file=.env.local --import tsx
+   scripts/import-catalog.ts` (`--dry-run` first; the command-line `DATABASE_URL` wins over `.env.local`).
 4. Environment: copy `.env.example` to the server's `.env.local` and fill it. Set on purpose: `HOTEL_PROVIDER`,
    `FLIGHT_PROVIDER`, `RAIL_PROVIDER`, `PLAN_SEARCH_PROVIDER`. Launch limits agreed 2026-11-19:
    `PLAN_RUNS_PER_DAY=15`, `PLAN_RUNS_PER_GUEST_PER_DAY=2`, `PLAN_RUNS_PER_IP_PER_DAY=2`. Set

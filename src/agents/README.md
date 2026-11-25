@@ -131,8 +131,20 @@ the named attractions, or the city as a whole when there are none.
 Search-led discovery was replaced in 1.2004. In the live check of 1.2003 it found
 大理海洋世界 and remote counties for Dali but missed 洱海 and 苍山, and found only
 three candidates for a three-day Lijiang trip. With nominations the same cases
-gave 洱海, 崇圣寺三塔 and 蝴蝶泉 for Dali and seven candidates for Lijiang. A
-curated spot catalog is planned to replace the nomination call later.
+gave 洱海, 崇圣寺三塔 and 蝴蝶泉 for Dali and seven candidates for Lijiang.
+
+**Meri's catalog (RAG step 1, 2026-11-25): stored, not used yet.** Facts extracted from
+travel-guide PDFs into the private repo meri-catalog-cn are imported into the
+`catalog_entries` table by [scripts/import-catalog.ts](../../scripts/import-catalog.ts) (2284
+entries in 127 州/市: 1349 spots, 316 dishes, 157 restaurants, 254 stays, 118 transport, 90 tips;
+93 cities have six spots or more). Free tags are folded into fixed tags by
+[catalog-tags.ts](../domain/catalog/catalog-tags.ts); old prices, hours and guide page numbers are
+stored but never shown. Research does not read the table yet. Agreed next (step 2): a city with
+six catalog spots or more skips the nomination and discovery searches, its cards labelled
+「Meri 的整理」 without a web quote, opening and booking still checked live; fewer, or none, falls
+back to the Kimi path above; outdoor or indoor from the fixed tags; catalog dishes feed What to
+eat, catalog restaurants do not (their addresses and prices are old); `CATALOG_ENABLED` turns it
+all off. Step 3 adds embeddings and hybrid search (vector top 50 + pg_trgm names top 20, RRF k=60).
 
 The first round researches up to ten cities, two at a time, with a 70-second
 deadline and up to five search calls per city. Extraction asks for only as many cards
@@ -1155,8 +1167,10 @@ without depending on Mastra, and model-graded quality scores for what has no rul
 
 Development runs locally under `next dev`, where a long run has no time limit. The
 target host is a VPS in the United States (decided 2026-11-12, replacing Japan). Kimi
-(`api.moonshot.cn`) and Tianditu are in China and the Neon database is in Singapore, so
-reachability and latency from the US are measured before launch. Tianditu's firewall
+(`api.moonshot.cn`) and Tianditu are in China, so reachability and latency from the server
+are measured before launch. Since 2026-11-25 development uses a local Homebrew Postgres 18
+with pgvector instead of Neon; the catalog is imported into the server's database with the
+same script, through an SSH tunnel (see [DEPLOY_BRIEF.md](../../docs/DEPLOY_BRIEF.md)). Tianditu's firewall
 once refused this development machine (HTTP 418); since 2026-11-12 it is whitelisted
 and answers. Tianditu checks still start with a single request and stop at the first
 failure. The trial times above come from a development machine and are not a

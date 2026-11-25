@@ -296,9 +296,18 @@ Adaptive Workspace 的简短方向见 [product/adaptive-workspace.md](product/ad
 
 `src/platform/persistence/database/db.ts` 按 `DATABASE_URL` 的 host 选驱动：`localhost` / `127.0.0.1` 用 `pg` + `drizzle-orm/node-postgres`（长连接池），其余用 Neon HTTP（无连接池）。两个驱动的仓库操作一致，类型边界在 `db.ts` 里一次断言并注明原因；`db.test.ts` 用子进程检查选择结果，不建立连接。
 
-本地库流程：`npm run db:local`（`scripts/db-local.ps1`）起 `docker-compose.yml` 里的 `postgres:17-alpine`（5433 → 5432，命名卷 `meri-pgdata`，`pg_isready` 健康检查），等就绪后用**强制覆盖的** `DATABASE_URL` 跑 `drizzle-kit migrate`，最后打印要粘进 `.env.local` 的连接串；`npm run db:local -- -Stop` 停容器但保留数据卷。迁移文件和 schema 完全来自仓库（`drizzle/*.sql` + `src/platform/persistence/database/schema/`），换一台机器只需 Docker + 两条命令，不需要手工建表。
+2026-11-25 起开发用本机 **Homebrew Postgres 18 + pgvector**（macOS；不用 Docker，Neon 不再使用）：
 
-本地库是**空的**：仓库不导入线上数据；需要看 Neon 上的旧旅程时，把 `.env.local` 的 `DATABASE_URL` 换回线上连接串。实测同一台机器：本地 `select 1` 约 0.6 ms，线上 Neon（新加坡，经代理）数百毫秒到数秒，所以开发期默认用本地库，速度差异只出在数据库这一段，与天地图无关。
+```bash
+brew install postgresql@18 pgvector      # Homebrew 的 pgvector 只为 PG 18/19 编译
+brew services start postgresql@18        # 同时开机自启；停用 brew services stop postgresql@18
+createdb meri
+npm run db:migrate                       # 0014 会建 pg_trgm 和 vector 扩展
+```
+
+`.env.local` 写 `DATABASE_URL=postgresql://<macOS 用户名>@localhost:5432/meri`（本机 trust 认证，没有密码）；`/opt/homebrew/opt/postgresql@18/bin` 要在 PATH 上才有 `psql`、`createdb`。迁移文件和 schema 完全来自仓库（`drizzle/*.sql` + `src/platform/persistence/database/schema/`），不需要手工建表。Mastra 的工作流快照（`mastra` schema）用同一个连接串，应用第一次连库时自己建。
+
+本地库一开始是**空的**：旅程数据不导入；Meri 目录（catalog_entries）用 `node --env-file=.env.local --import tsx scripts/import-catalog.ts` 从私有仓库导入（`CATALOG_DIR` 指向它），见 [DATABASE_SCHEMA.md](DATABASE_SCHEMA.md) 3.7。实测同一台机器：本地 `select 1` 约 0.6 ms，原来的 Neon（新加坡，经代理）数百毫秒到数秒。
 
 ## 9. 本文更新格式
 

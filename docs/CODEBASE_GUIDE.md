@@ -51,6 +51,7 @@
 | `src/domain/trip-draft/` | 首页自然语言提取的草稿契约 | 输入领域模型 |
 | `src/domain/trip-message/` | 持久化消息、支持的 presentation、选择项偏好身份 | 会话领域模型 |
 | `src/domain/location/` | 地点候选、建议、合理匹配规则和推荐校验 | 地点领域模型及纯规则 |
+| `src/domain/catalog/` | Meri 目录条目的 schema、标签归并表、入库行的拼法（RAG 第 1 步） | 领域层；目录数据本身在私有仓库，不进本仓库 |
 | `src/domain/locale/` | 支持的语言（zh/en）与 `<html lang>` 取值 | 领域层基础类型 |
 | `src/capabilities/` | 围绕具体能力组织服务、用例、prompt 和流程编排 | 应用层（application layer），回答“完成一个操作需要哪些步骤” |
 | `src/capabilities/journey/` | 创建、加载、更新、删除 Journey 和草稿提取 | Journey 应用用例 |
@@ -473,6 +474,10 @@ Generate plan 背后的计划页先用示例数据做出完整页面（设计决
 | [src/domain/plan/plan-handoff.ts](../src/domain/plan/plan-handoff.ts) | 领域层 | 交接快照与响应契约，校验 TripState、参考日期、语言和当前有效的偏好。 |
 | [src/domain/plan/trip-preference.ts](../src/domain/plan/trip-preference.ts) | 领域层 | 旅程偏好：标签、类型、原话、来源、状态；类型、来源与上限常量；原话比较；体力和同行人类偏好把每天上限降到 3。1.2017：节奏偏好的隐藏方向 `pace`（packed/relaxed，只在 kind 为 pace 时有值，`paceFor` 去掉其他类型的方向），relaxed 也把上限降到 3，`wantsPackedPace`、`wantsRelaxedPace`（1.2018）供路线判断；旧数据缺这个字段读作 null。 |
 | [src/domain/plan/spot-card.ts](../src/domain/plan/spot-card.ts) | 领域层 | 景点卡、原文证据、天地图定位结果和单城调研结果的类型，未知字段可以为空；1.2013 起景点卡可带第二轮查到的 availability；1.2116 `CityResearch` 加 `mapLookups`；1.2117 加 `outdoor`（调研模型判断是否户外，不当事实显示）和 `weather`（该景点在行程日期的预报），单城结果加 `weatherCalls` |
+| [src/domain/catalog/catalog-entry.ts](../src/domain/catalog/catalog-entry.ts) | 领域层 | Meri 目录（私有仓库 meri-catalog-cn 的 NDJSON）每条记录的 zod 严格 schema，按 spot/dish/restaurant/stay/transport/tip 区分 details；格式一变导入就报错。 |
+| [src/domain/catalog/catalog-tags.ts](../src/domain/catalog/catalog-tags.ts) | 领域层 | 标签归并表：景点的 162 种自由标签归成 23 个固定标签（2026-11-25 merlin 定），其他种类的固定标签就是种类；表里没有的标签返回出来，导入停下。 |
+| [src/domain/catalog/catalog-row.ts](../src/domain/catalog/catalog-row.ts) | 领域层 | 一条目录记录变成 catalog_entries 的一行：固定标签、source_count、别名拼成的 aliases_text、search_text（名称、别名、种类、固定标签、摘要、景点亮点）。 |
+| [src/domain/catalog/catalog-row.test.ts](../src/domain/catalog/catalog-row.test.ts) | 测试（领域规则） | 标签归并的顺序与去重、未知标签、其他种类、search_text 拼法、schema 拒绝多字段和错 details。 |
 | [src/domain/plan/plan-draft.ts](../src/domain/plan/plan-draft.ts) | 领域层 | 计划草稿与路线类型；规划范围（示范日或全部城市与日期）；校验 Plan Agent 的路线（覆盖、放弃条件、天数、区县）并生成每天的城市、转场、重点区县和主题；按添加顺序兜底分天；校验选点提案（候选、所在城市、跨天重复、每天上限与转场日少 1、有原文支持的时间锚点、点名景点），整理冲突和待核实字段；识别用户点名的区域（以市、县、旗结尾的区县名）；用户选择放弃的城市才允许在天数够时放弃；`legReach` 判断一段路的时间能不能用：没路、一头离路超过 1 公里是一大片区域（1.2105）、或可用但头尾有一截超过 300 米没路。；1.2117 加 `reorderRoute`：绕路兜底时按最短顺序重排城市，每城天数、理由和每天的重点区与主题跟着城市走 |
 | [src/domain/plan/availability.ts](../src/domain/plan/availability.ts) | 领域层 | 第二轮精查的判断规则（1.2013）：值必须出现在原文里（周几、时刻、月日、天数）、日期算星期几和跨年范围、通知是否过期（一年）；按每站的日期和时段得出 开放 / 部分关闭 / 关闭 / 待确认 / 未核实。 |
 | [src/domain/plan/availability.test.ts](../src/domain/plan/availability.test.ts) | 测试 | 验证原文核对、星期与跨年范围、过期通知，以及各种情况下每站的结论（含查了但什么都没找到时不算开放）。 |
@@ -820,12 +825,11 @@ Generate plan 背后的计划页先用示例数据做出完整页面（设计决
 | --- | --- | --- |
 | [src/platform/persistence/database/db.ts](../src/platform/persistence/database/db.ts) | 数据库基础设施 | 检查 DATABASE_URL，按 host 选驱动：localhost/127.0.0.1 用 `pg` + `drizzle-orm/node-postgres` 长连接池，其余用 Neon HTTP；两个驱动的仓库操作一致，类型边界在此一次断言并注明原因。 |
 | [src/platform/persistence/database/db.test.ts](../src/platform/persistence/database/db.test.ts) | 测试（对应模块边界） | 用子进程检查驱动选择而不建立连接：localhost / 127.0.0.1 / LOCALHOST 走 pg，neon.tech 与 localhost.example.com 仍走 Neon，缺失或空白 DATABASE_URL 报错。 |
-| [docker-compose.yml](../docker-compose.yml) | 开发环境 | 本地 PostgreSQL 17（5433 → 5432，用户/库均为 meri，命名卷 meri-pgdata，pg_isready 健康检查）；由 `npm run db:local` 启动。 |
-| [scripts/db-local.ps1](../scripts/db-local.ps1) | 开发验证工具 | `npm run db:local`：起容器 → 轮询就绪 → 强制用本地 URL 跑 `drizzle-kit migrate` → 打印 .env.local 要粘贴的连接串；`-Stop` 停容器并保留数据卷。 |
-| [src/platform/persistence/database/schema/index.ts](../src/platform/persistence/database/schema/index.ts) | 数据库基础设施 | 导出当前三张表的 schema，不包含旧 user actions 表。 |
+| [src/platform/persistence/database/schema/index.ts](../src/platform/persistence/database/schema/index.ts) | 数据库基础设施 | 导出当前全部表的 schema（含 catalog_entries），不包含旧 user actions 表。 |
 | [src/platform/persistence/database/schema/trip-messages.ts](../src/platform/persistence/database/schema/trip-messages.ts) | 数据库基础设施 | trip_messages 表和角色 enum，正文/presentation/时间戳及 Trip 外键级联。 |
 | [src/platform/persistence/database/schema/trip-preferences.ts](../src/platform/persistence/database/schema/trip-preferences.ts) | 基础设施/schema | trip_preferences 表、四个 enum（含 1.2017 的 pace）、(trip_id, status) 索引和「只有节奏偏好有方向」的 CHECK 约束。 |
 | [src/platform/persistence/database/schema/plan-runs.ts](../src/platform/persistence/database/schema/plan-runs.ts) | 基础设施/schema | plan_runs、plan_run_events、plan_versions 三张表和 plan_run_status enum、外键、唯一约束与索引。 |
+| [src/platform/persistence/database/schema/catalog-entries.ts](../src/platform/persistence/database/schema/catalog-entries.ts) | 基础设施/schema | catalog_entries 表（RAG 第 1 步）：目录条目、固定和原始标签、historical/source_refs（只存不展示）、不定维度的 embedding（第 3 步再定维度）；(prefecture, kind) 索引、name 和 aliases_text 的 pg_trgm 索引，kind/confidence 检查约束。 |
 | [src/platform/persistence/database/schema/trip-states.ts](../src/platform/persistence/database/schema/trip-states.ts) | 数据库基础设施 | trip_states 表，以 Trip ID 为主键，JSONB 保存状态，删除 Trip 时级联。 |
 | [src/platform/persistence/database/schema/trips.ts](../src/platform/persistence/database/schema/trips.ts) | 数据库基础设施 | trips 表及 idea/planning enum，保存 ID/owner/status/时间戳。 |
 | [src/platform/persistence/in-memory/in-memory-trip-message-repository.test.ts](../src/platform/persistence/in-memory/in-memory-trip-message-repository.test.ts) | 测试（对应模块边界） | 验证完整对话顺序、独立原话/助手消息及重复身份处理。 |
@@ -871,6 +875,7 @@ Generate plan 背后的计划页先用示例数据做出完整页面（设计决
 | [drizzle/0011_plan_runs.sql](../drizzle/0011_plan_runs.sql) | 迁移 | 创建 plan_runs、plan_run_events、plan_versions 和 plan_run_status enum、外键、唯一约束和索引。 |
 | [drizzle/0012_plan_run_suspended.sql](../drizzle/0012_plan_run_suspended.sql) | 迁移 | `plan_run_status` 加 `suspended`。 |
 | [drizzle/0013_trip_preference_pace.sql](../drizzle/0013_trip_preference_pace.sql) | 迁移 | 1.2017：`trip_preference_pace` enum、`trip_preferences.pace` 可空列和 CHECK 约束。 |
+| [drizzle/0014_catalog_entries.sql](../drizzle/0014_catalog_entries.sql) | 迁移 | RAG 第 1 步：开启 pg_trgm 和 vector 扩展，创建 catalog_entries 表、(prefecture, kind) 索引和两个三元组索引。 |
 | [drizzle/meta/0000_snapshot.json](../drizzle/meta/0000_snapshot.json) | 数据库演进/工具元数据 | 第 0 次迁移生成的历史 schema 快照（public.trips），用于 Drizzle 差异计算，不是当前在线数据库状态。 |
 | [drizzle/meta/0001_snapshot.json](../drizzle/meta/0001_snapshot.json) | 数据库演进/工具元数据 | 第 1 次迁移生成的历史 schema 快照（public.trips），用于 Drizzle 差异计算，不是当前在线数据库状态。 |
 | [drizzle/meta/0002_snapshot.json](../drizzle/meta/0002_snapshot.json) | 数据库演进/工具元数据 | 第 2 次迁移生成的历史 schema 快照（public.trip_states、public.trips），用于 Drizzle 差异计算，不是当前在线数据库状态。 |
@@ -881,6 +886,7 @@ Generate plan 背后的计划页先用示例数据做出完整页面（设计决
 | [drizzle/meta/0010_snapshot.json](../drizzle/meta/0010_snapshot.json) | 数据库演进/工具元数据 | 第 10 次迁移生成的完整 schema 快照（含 trip_preferences），用于 Drizzle 差异计算，不是当前在线数据库状态。 |
 | [drizzle/meta/0011_snapshot.json](../drizzle/meta/0011_snapshot.json) | 数据库演进/工具元数据 | 第 11 次迁移生成的完整 schema 快照（含计划运行三张表），用于 Drizzle 差异计算，不是当前在线数据库状态。 |
 | [drizzle/meta/0012_snapshot.json](../drizzle/meta/0012_snapshot.json) | 数据库演进/工具元数据 | 第 12 次迁移生成的完整 schema 快照，用于 Drizzle 差异计算，不是当前在线数据库状态。 |
+| [drizzle/meta/0014_snapshot.json](../drizzle/meta/0014_snapshot.json) | 数据库演进/工具元数据 | 第 14 次迁移生成的完整 schema 快照（含 catalog_entries）。 |
 | [drizzle/meta/_journal.json](../drizzle/meta/_journal.json) | 数据库演进/工具元数据 | Drizzle 迁移顺序记录，包含 0000–0009；不等于某环境已全部执行。 |
 
 ### 6.15 人工验证脚本
@@ -894,6 +900,9 @@ Generate plan 背后的计划页先用示例数据做出完整页面（设计决
 | [scripts/eval-plan.ts](../scripts/eval-plan.ts) | 评测工具 | 1.2014：读 `evals/plan/cases/` 的用例（可按 ID 前缀筛选，`--repeat N` 覆盖次数，`--label` 命名结果文件），按计划页的方式逐个跑真实 plan-generation 工作流（内存仓库和快照），提问按用例指定的选项回答；每次运行记下指标和断言结果，写入 `evals/plan/results/<日期>-<label>.json`。某次运行天地图定位停下（`map.checked` 为 stopped）或 Kimi 不可达就终止整批，不重试。 |
 | [scripts/eval-plan-score.ts](../scripts/eval-plan-score.ts) | 评测工具 | 用例格式（`evalCaseSchema`）、从用例生成 PlanHandoff、从事件和计划算指标（时长、各阶段耗时、token、调研/验证搜索、天地图查询、重试、覆盖、检查结果、预约、冲突、修复轮数），以及代码判定的断言；纯函数，无 IO。 |
 | [scripts/eval-plan-score.test.ts](../scripts/eval-plan-score.test.ts) | 测试 | 生成 handoff 的日期推算、指标来自事件和计划、周一闭馆/缺预约/空天各自判不通过、没有计划时给出原因。 |
+| [scripts/import-catalog.ts](../scripts/import-catalog.ts) | 维护工具 | 把 `CATALOG_DIR`（私有仓库根目录）的 `data/cities/*.ndjson` 导入 catalog_entries：先全部校验，有问题一行不写；一个事务里按 id 写入、删掉目录里已没有的条目，可重复执行；`catalog_version` 记私有仓库提交号（有未提交改动加 -dirty）；`--dry-run` 只报增改删数。连任何 Postgres（VPS 经 SSH 隧道）。 |
+| [scripts/import-catalog-read.ts](../scripts/import-catalog-read.ts) | 维护工具 | 导入的纯逻辑：逐行 JSON + zod + 文件名与省市一致 + 标签归并 + id 不重复（都是问题），related 指向不存在的条目（警告）；计算增改删数。 |
+| [scripts/import-catalog-read.test.ts](../scripts/import-catalog-read.test.ts) | 测试 | 坏 JSON、字段错、城市不符、重复 id、未知标签、缺失的 related、文件名不对、增改删计数。 |
 | [evals/plan/cases/](../evals/plan/cases/) | 评测用例 | 11 个典型旅程：单城、两城、三城天数不够、三城有偏好、点名区县、北京周一故宫、无天数预览、哈尔滨冬季、英文界面、跨省加步行上限、三城刚够但想慢玩（1.2016）；每个写明覆盖什么和断言。 |
 | [evals/plan/results/](../evals/plan/results/) | 评测结果 | 每次批量运行一个 JSON：提交、日期、每次运行的指标、断言、提问和每天的景点，用来做版本之间的对比。 |
 | [scripts/verify-workspace-location-tool.ts](../scripts/verify-workspace-location-tool.ts) | 开发验证工具 | 人工调用真实 Workspace 解释器，检查地点意图结构；文件名保留旧 tool 命名，当前不是开放式工具 Agent。 |
