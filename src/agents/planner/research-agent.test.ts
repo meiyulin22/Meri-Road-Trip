@@ -1,10 +1,11 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
+import type { CatalogSpot, CityCatalog } from "@/domain/catalog/catalog-pick";
 import type { PlanHandoff } from "@/domain/plan/plan-handoff";
 import { createMoonshotChatModel } from "@/platform/llm/moonshot-chat-model";
 
-import { researchTasks, runFirstRoundResearch } from "./research-agent";
+import { researchCity, researchTasks, runFirstRoundResearch } from "./research-agent";
 
 const handoff: PlanHandoff = {
   tripState: {
@@ -324,4 +325,89 @@ test("the agent may take its one follow-up to the second engine when the first r
   assert.deepEqual(toolNames.sort(), ["search", "searchDeeper"]);
   assert.deepEqual(asked, ["first:四川省 成都市 景点 宽窄巷子", "deep:四川省 成都市 宽窄巷子 开放时间"]);
   assert.equal(result.cities[0].searchCalls, 2);
+});
+
+const catalogSpot = (name: string, overrides: Partial<CatalogSpot> = {}): CatalogSpot => ({
+  id: `spot_${name}`, name, aliases: [], county: null, summary: `${name}的介绍。`, highlights: [`${name}一景`],
+  tags: ["自然", "水域"], sourceCount: 1, confidence: "high", ...overrides,
+});
+const daliCatalog: CityCatalog = {
+  spots: [
+    catalogSpot("洱海", { sourceCount: 3 }), catalogSpot("苍山", { sourceCount: 2, tags: ["山地"] }),
+    catalogSpot("崇圣寺三塔", { tags: ["古建筑", "宗教"] }), catalogSpot("喜洲镇", { aliases: ["喜洲古镇"], tags: ["古镇街区"] }),
+    catalogSpot("大理古城"), catalogSpot("蝴蝶泉"), catalogSpot("大理市博物馆", { sourceCount: 2, tags: ["展馆"] }),
+  ],
+  dishes: [],
+};
+const daliTask = { province: "云南省", city: "大理白族自治州", requested: [] as string[], areas: [] as string[], target: 4 };
+
+function countingModel(calls: string[]) {
+  return () => createMoonshotChatModel({
+    apiKey: "test", baseUrl: "https://model.test/v1", model: "test",
+    fetch: async (_url, init) => {
+      const request = JSON.parse(String(init?.body)) as ChatRequest;
+      calls.push(schemaName(request) ?? (request.tools ? "tools" : "text"));
+      if (request.tools) return chatResponse(request, { content: "enough" });
+      if (schemaName(request) === "spot_nominations") return chatResponse(request, { content: JSON.stringify({ spots: ["洱海"] }) });
+      return chatResponse(request, { content: JSON.stringify({ spots: [
+        { name: "未查到的景点", location: { sourceId: 1, quote: "未查到的景点位于大理白族自治州", cityName: "大理白族自治州" } },
+      ] }) });
+    },
+  });
+}
+
+test("a city with six catalog spots or more takes them from the catalog: no model call, no search (RAG step 2)", async () => {
+  const calls: string[] = [];
+  const queries: string[] = [];
+  const activities: string[] = [];
+  const city = await researchCity(daliTask, handoff, {
+    search: async (query) => { queries.push(query); return []; },
+    model: countingModel(calls),
+    catalog: async () => daliCatalog,
+  }, (activity) => activities.push(activity.kind));
+
+  assert.deepEqual([calls, queries], [[], []]);
+  assert.deepEqual(activities, ["catalog"]);
+  assert.equal(city.status, "ready");
+  assert.equal(city.searchCalls, 0);
+  // Most guides first, then by name (zh collation: 苍 before 大, 崇 before 大).
+  assert.deepEqual(city.spots.map(({ name }) => name), ["洱海", "苍山", "大理市博物馆", "崇圣寺三塔"]);
+  const [erhai, cangshan, museum] = city.spots;
+  assert.deepEqual(erhai.catalog, { id: "spot_洱海", summary: "洱海的介绍。", highlights: ["洱海一景"] });
+  assert.equal(erhai.location, null);
+  assert.deepEqual([erhai.outdoor, cangshan.outdoor, museum.outdoor], [true, true, false]);
+});
+
+test("named spots come from the catalog by name or alias; one it lacks is searched alone, without nominations", async () => {
+  const calls: string[] = [];
+  const queries: string[] = [];
+  const city = await researchCity({ ...daliTask, requested: ["喜洲古镇", "未查到的景点"] }, handoff, {
+    search: async (query) => {
+      queries.push(query);
+      return [{ source: "web", url: "https://example.com/x", title: "未查到的景点", snippet: "未查到的景点位于大理白族自治州" }];
+    },
+    model: countingModel(calls),
+    catalog: async () => daliCatalog,
+  });
+
+  assert.ok(!calls.includes("spot_nominations"));
+  assert.deepEqual(queries, ["云南省 大理白族自治州 景点 未查到的景点"]);
+  const named = city.spots.filter(({ requested }) => requested);
+  assert.deepEqual(named.map(({ name, catalog, location }) => [name, catalog !== undefined, location !== null]),
+    [["喜洲镇", true, false], ["未查到的景点", false, true]]);
+  assert.equal(city.spots.filter(({ catalog }) => catalog).length, 1 + daliTask.target);
+  assert.equal(city.status, "ready");
+});
+
+test("fewer than six catalog spots, the switch off or a failed read: research searches as before", async () => {
+  for (const catalog of [
+    async () => ({ spots: daliCatalog.spots.slice(0, 5), dishes: [] }),
+    async () => null,
+    async () => { throw new Error("database down"); },
+  ]) {
+    const calls: string[] = [];
+    const city = await researchCity(daliTask, handoff, { search: async () => [], model: countingModel(calls), catalog });
+    assert.equal(calls[0], "spot_nominations");
+    assert.ok(city.spots.every((spot) => spot.catalog === undefined));
+  }
 });

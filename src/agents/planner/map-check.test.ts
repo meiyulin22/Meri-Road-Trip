@@ -137,3 +137,18 @@ test("one run's stop is shared: a failure in one city stops the lookups of every
   assert.equal(second.status, "stopped");
   assert.equal(second.lookups, 0);
 });
+
+test("a catalog card has no web quote but is still looked up, for its point; a card with neither is not (RAG step 2)", async () => {
+  const looked: string[] = [];
+  const catalog = { id: "spot_dali_erhai", summary: "大理的淡水湖。", highlights: [] };
+  await checkSpotsOnMap([{ province: "云南省", city: "大理白族自治州", status: "ready", searchCalls: 0, spots: [
+    card("洱海", { location: null, catalog }), card("没有依据", { location: null }),
+  ] }], {
+    async search(name) {
+      looked.push(name);
+      return { status: "success", candidates: [daliErhai] };
+    },
+    memory: new SpotLocationMemory(null),
+  });
+  assert.deepEqual(looked, ["洱海"]);
+});

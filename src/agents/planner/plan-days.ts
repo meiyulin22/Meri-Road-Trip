@@ -81,6 +81,8 @@ function candidateSummary(card: SpotCard, shortId: string, frames: readonly DayF
   return {
     id: shortId, name: card.name, requested: card.requested,
     located, district: card.mapCheck.status === "located" ? card.mapCheck.district : null, ...facts,
+    // A catalog card has no quotes; Meri's own note says what the place is (RAG step 2).
+    ...(card.catalog ? { note: [card.catalog.summary, ...card.catalog.highlights].join(" ").slice(0, maxQuoteCharacters) } : {}),
     ...(card.weather?.status === "forecast" ? { outdoor: card.outdoor ?? null, poorWeatherDays: poorDaysOf(card, frames) } : {}),
   };
 }

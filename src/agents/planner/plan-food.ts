@@ -2,9 +2,10 @@ import { generateText, Output } from "ai";
 import { z } from "zod";
 
 import {
-  checkedFood, type CityFood, cityRuns, type FoodSource, foodLimits, isPromotional, placeRestaurant, type Restaurant,
+  checkedFood, type CityFood, cityRuns, type Dish, type FoodSource, foodLimits, isPromotional, placeRestaurant, type Restaurant,
   restaurantWitnesses, siteOf,
 } from "@/domain/plan/food";
+import { type CityCatalog, minCatalogDishes } from "@/domain/catalog/catalog-pick";
 import type { PlanDay } from "@/domain/plan/plan-draft";
 import type { PlanHandoff } from "@/domain/plan/plan-handoff";
 import type { SpotCard } from "@/domain/plan/spot-card";
@@ -22,7 +23,28 @@ export type FoodDependencies = {
   readonly search: (query: string, signal: AbortSignal) => Promise<readonly DiscoverySearchResult[]>;
   /** One Tianditu lookup with the province and city as hints; it must not retry. */
   readonly map: MapCheckDependencies["search"];
+  /** Meri's catalog for one 州/市 (RAG step 2); null when CATALOG_ENABLED is off. */
+  readonly catalog?: (province: string, prefecture: string) => Promise<CityCatalog | null>;
 };
+
+/**
+ * The city's dishes from Meri's catalog, most-mentioned first, when it has enough of them and the
+ * plan is in Chinese (the catalog's notes are Chinese only); otherwise none and the dish search runs.
+ */
+async function catalogDishes(run: Run, handoff: PlanHandoff, deps: FoodDependencies): Promise<Dish[]> {
+  if (!deps.catalog || handoff.locale !== "zh") return [];
+  try {
+    const catalog = await deps.catalog(run.province, run.city);
+    if (!catalog || catalog.dishes.length < minCatalogDishes) return [];
+    return [...catalog.dishes]
+      .sort((left, right) => right.sourceCount - left.sourceCount || left.name.localeCompare(right.name, "zh"))
+      .slice(0, foodLimits.dishes)
+      .map(({ name, summary }) => ({ name, note: summary, evidence: null }));
+  } catch (error) {
+    logger.warn({ city: run.city, error: error instanceof Error ? error.name : "unknown" }, "Catalog read failed; searching dishes");
+    return [];
+  }
+}
 
 /** Hears each city as its food is looked for, for the plan page's live line. */
 export type FoodProgress = (progress: { city: string; done: number; total: number }) => void;
@@ -61,7 +83,9 @@ async function cityFood(
   const base = { province: run.province, city: run.city, lastDay: run.days.at(-1)?.day ?? 0 };
   const signal = AbortSignal.timeout(modelDeadlineMs(cityDeadlineMs));
   const near = nearOf(run.days, cards, run.city, bigAreas);
-  const queries = foodQueries(run.province, run.city, near.kind === "spot" ? near.name : "");
+  const fromCatalog = await catalogDishes(run, handoff, deps);
+  // With the catalog's dishes the dish search is not needed; restaurants are still searched (RAG step 2).
+  const queries = foodQueries(run.province, run.city, near.kind === "spot" ? near.name : "").slice(fromCatalog.length > 0 ? 1 : 0);
   const checkedAt = new Date().toISOString();
   const answers = await Promise.allSettled(queries.map((query) => deps.search(query, signal)));
   const sources: FoodSource[] = [];
@@ -84,7 +108,12 @@ async function cityFood(
     }
   }
   const counted = { usage, searches: queries.length, lookups: 0 };
-  if (sources.length === 0) return { ...counted, food: { ...base, status: failed > 0 ? "unavailable" : "none" } };
+  if (sources.length === 0) {
+    const food: CityFood = fromCatalog.length > 0
+      ? { ...base, status: "found", dishes: fromCatalog, restaurants: [], mentioned: [] }
+      : { ...base, status: failed > 0 ? "unavailable" : "none" };
+    return { ...counted, food };
+  }
 
   let proposed: z.infer<typeof answerSchema> = {};
   try {
@@ -114,10 +143,15 @@ async function cityFood(
     proposed = output;
   } catch (error) {
     logger.warn({ city: run.city, error: serializeError(error) }, "Food extraction failed for a city");
-    return { ...counted, food: { ...base, status: "unavailable" } };
+    const food: CityFood = fromCatalog.length > 0
+      ? { ...base, status: "found", dishes: fromCatalog, restaurants: [], mentioned: [] }
+      : { ...base, status: "unavailable" };
+    return { ...counted, food };
   }
 
-  const { dishes, restaurants } = checkedFood(proposed, sources);
+  const checked = checkedFood(proposed, sources);
+  const dishes = fromCatalog.length > 0 ? fromCatalog : checked.dishes;
+  const { restaurants } = checked;
   // The likeliest first: named by the most sites.
   const ranked = [...restaurants].sort((left, right) => right.evidence.length - left.evidence.length);
   const shown: Restaurant[] = [];
@@ -145,7 +179,7 @@ async function cityFood(
   logger.info({
     city: run.city, sources: sources.length, promotional, proposed: Array.isArray(proposed.restaurants) ? proposed.restaurants.length : 0,
     quoted: restaurants.length, twoSites: restaurants.filter(({ evidence }) => evidence.length >= 2).length,
-    lookups, shown: shown.length, mentioned: mentioned.length, dropped, dishes: dishes.length,
+    lookups, shown: shown.length, mentioned: mentioned.length, dropped, dishes: dishes.length, catalogDishes: fromCatalog.length > 0,
   }, "City food checked");
   return {
     usage, searches: queries.length, lookups,

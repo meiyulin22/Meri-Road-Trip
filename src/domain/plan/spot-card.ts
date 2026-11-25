@@ -23,6 +23,17 @@ export type SpotMapCheck =
   | { readonly status: "not_located" }
   | { readonly status: "unchecked" };
 
+/**
+ * What Meri's own catalog says about a spot (RAG step 2, 2026-11-25): shown as 「Meri 的整理」,
+ * never as a web source. Opening and booking are still checked live in the second round.
+ */
+export type SpotCatalogNote = {
+  /** The catalog entry's id in catalog_entries. */
+  readonly id: string;
+  readonly summary: string;
+  readonly highlights: readonly string[];
+};
+
 export type SpotCard = {
   readonly id: string;
   readonly province: string;
@@ -41,6 +52,8 @@ export type SpotCard = {
    * for arranging days by weather, never shown as a fact. Null when unsure; absent before 1.2117.
    */
   readonly outdoor?: boolean | null;
+  /** Present when the card comes from Meri's catalog rather than a web search; absent before RAG step 2. */
+  readonly catalog?: SpotCatalogNote;
   /** The forecast at this spot on the trip's dates (1.2117); absent without dates or before it. */
   readonly weather?: SpotWeather;
   /** What the second round found about opening on the trip's dates; absent until it runs. */
@@ -81,3 +94,8 @@ export type CityResearch = {
   /** Open-Meteo calls the city's weather counted (1.2117); absent before weather was added. */
   readonly weatherCalls?: number;
 };
+
+/** A card has something behind it: a quoted web source for where it is, or Meri's catalog. */
+export function isGrounded(card: Pick<SpotCard, "location" | "catalog">): boolean {
+  return card.location !== null || card.catalog !== undefined;
+}

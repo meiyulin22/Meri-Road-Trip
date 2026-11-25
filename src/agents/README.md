@@ -133,18 +133,27 @@ Search-led discovery was replaced in 1.2004. In the live check of 1.2003 it foun
 three candidates for a three-day Lijiang trip. With nominations the same cases
 gave 洱海, 崇圣寺三塔 and 蝴蝶泉 for Dali and seven candidates for Lijiang.
 
-**Meri's catalog (RAG step 1, 2026-11-25): stored, not used yet.** Facts extracted from
+**Meri's catalog (RAG steps 1–2, 2026-11-25).** Facts extracted from
 travel-guide PDFs into the private repo meri-catalog-cn are imported into the
 `catalog_entries` table by [scripts/import-catalog.ts](../../scripts/import-catalog.ts) (2284
 entries in 127 州/市: 1349 spots, 316 dishes, 157 restaurants, 254 stays, 118 transport, 90 tips;
 93 cities have six spots or more). Free tags are folded into fixed tags by
 [catalog-tags.ts](../domain/catalog/catalog-tags.ts); old prices, hours and guide page numbers are
-stored but never shown. Research does not read the table yet. Agreed next (step 2): a city with
-six catalog spots or more skips the nomination and discovery searches, its cards labelled
-「Meri 的整理」 without a web quote, opening and booking still checked live; fewer, or none, falls
-back to the Kimi path above; outdoor or indoor from the fixed tags; catalog dishes feed What to
-eat, catalog restaurants do not (their addresses and prices are old); `CATALOG_ENABLED` turns it
-all off. Step 3 adds embeddings and hybrid search (vector top 50 + pg_trgm names top 20, RRF k=60).
+stored but never shown. With `CATALOG_ENABLED=true` ([catalog-pick.ts](../domain/catalog/catalog-pick.ts),
+[catalog-source.ts](../platform/catalog/catalog-source.ts)):
+
+| Rule | Why |
+| --- | --- |
+| A city (by province and full 州/市 name) with six catalog spots or more takes them from the catalog: no nomination, no discovery search, no extraction call | Search discovery was weak (1.2003) and costs most of research's time and tokens; the catalog is stable knowledge |
+| Ranked: spots in a county the traveller named first, then by how many guides mention them, then confidence, then name; as many as the search path would take (`target`) | Repeatable, and leans to where the traveller wants to be |
+| A named spot that matches a catalog name or alias is that catalog card; one that does not is searched by name, alone | The traveller's choice is never dropped, and only it costs a search |
+| Outdoors from fixed tags: an outdoor tag without 展馆 is outdoor, 展馆 alone indoor, the rest unsure (caves, temples, culture) | Code decides, as agreed; the weather guard then works as before |
+| A catalog card has `catalog` (id, summary, highlights) and no web quote; it is still located on Tianditu, for its point, and the Plan Agent reads its summary as `note` | Map, weather, drive times and distances need the point; without a note the agent sees only a name |
+| The page shows 「Meri 的整理」 with the summary (Chinese plans only: the notes are Chinese), no 「位置未核实」; opening and booking are still checked live | Agreed with merlin; Meri's notes are not presented as sourced evidence |
+| What to eat, Chinese plans: three catalog dishes or more replace the dish search (up to five, most-mentioned first, no source); restaurants are still searched and need two witnesses; catalog restaurants are not used | Their addresses and prices are old |
+| Fewer than six spots, no catalog, the switch off, or a failed read: research and food search as before | `CATALOG_ENABLED` is the comparison switch for evals |
+
+Step 3 adds embeddings and hybrid search (vector top 50 + pg_trgm names top 20, RRF k=60).
 
 The first round researches up to ten cities, two at a time, with a 70-second
 deadline and up to five search calls per city. Extraction asks for only as many cards

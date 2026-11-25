@@ -4,10 +4,18 @@ import { generateText, Output } from "ai";
 import { z } from "zod";
 
 import { namesSamePlace, placeNameStem } from "@/capabilities/destination/resolve-destination-place";
+import {
+  type CatalogSpot,
+  catalogOutdoor,
+  type CityCatalog,
+  findCatalogSpot,
+  minCatalogSpots,
+  rankCatalogSpots,
+} from "@/domain/catalog/catalog-pick";
 import { normalizeRecommendationName } from "@/domain/location/recommendation-identity";
 import type { PlanHandoff } from "@/domain/plan/plan-handoff";
 import type { PlanActivity } from "@/domain/plan/plan-progress";
-import type { CityResearch, SpotCard, SpotEvidence } from "@/domain/plan/spot-card";
+import { type CityResearch, isGrounded, type SpotCard, type SpotEvidence } from "@/domain/plan/spot-card";
 import { splitRequested } from "@/domain/plan/plan-draft";
 import { MAX_TRIP_DESTINATION_CITIES } from "@/domain/trip-state/destination-areas";
 import { parseExactDays } from "@/domain/trip-state/trip-dates";
@@ -15,6 +23,7 @@ import { createMoonshotChatModelFromEnvironment } from "@/platform/llm/moonshot-
 import { logger } from "@/platform/observability/logger";
 import type { DiscoverySearchResult } from "@/platform/search/discovery-search";
 import { createPlanSearchFromEnvironment } from "@/platform/search/plan-search";
+import { readCityCatalogFromEnvironment } from "@/platform/catalog/catalog-source";
 import { modelDeadlineMs } from "@/platform/llm/moonshot-chat-model";
 
 /** The plan workflow researches this many cities at once too. */
@@ -115,12 +124,15 @@ export type ResearchDependencies = {
   /** Kimi's search, for the agent's follow-up when the first results are thin; absent, the follow-up uses `search`. */
   readonly deepSearch?: (query: string, signal: AbortSignal) => Promise<readonly DiscoverySearchResult[]>;
   readonly model: typeof createMoonshotChatModelFromEnvironment;
+  /** Meri's catalog for one 州/市 (RAG step 2); null when CATALOG_ENABLED is off. Absent, research only searches. */
+  readonly catalog?: (province: string, prefecture: string) => Promise<CityCatalog | null>;
 };
 
 const defaultDependencies: ResearchDependencies = {
   search: (query, signal) => createPlanSearchFromEnvironment().search(query, signal),
   deepSearch: (query, signal) => createPlanSearchFromEnvironment().deep(query, signal),
   model: createMoonshotChatModelFromEnvironment,
+  catalog: readCityCatalogFromEnvironment,
 };
 
 function spotCard(city: City, name: string, requested: boolean): SpotCard {
@@ -251,14 +263,16 @@ async function nominateSpots(
 }
 
 /**
- * Researches one city: nominate, search the names a few at a time, one follow-up search,
- * then extract cards whose quotes code finds in the sources.
+ * Researches one city by web search: nominate (unless the catalog already chose the city's spots),
+ * search the names a few at a time, one follow-up search, then extract cards whose quotes code
+ * finds in the sources.
  */
-export async function researchCity(
+async function researchBySearch(
   task: ResearchTask,
   handoff: PlanHandoff,
-  deps: ResearchDependencies = defaultDependencies,
-  onProgress: ResearchProgress = () => {},
+  deps: ResearchDependencies,
+  onProgress: ResearchProgress,
+  nominate: boolean,
 ): Promise<CityResearch> {
   const { target, areas, ...city } = task;
   const signal = AbortSignal.timeout(modelDeadlineMs(cityTimeoutMs));
@@ -306,8 +320,10 @@ export async function researchCity(
   let nominated: string[] = [];
   try {
     model = deps.model();
-    onProgress({ kind: "nominating", city: city.city });
-    nominated = await nominateSpots(city, areas, handoff, target, model, signal, countUsage);
+    if (nominate) {
+      onProgress({ kind: "nominating", city: city.city });
+      nominated = await nominateSpots(city, areas, handoff, target, model, signal, countUsage);
+    }
   } catch (error) {
     // Without nominations the requested spots are still searched, or the city as a whole.
     failures.push(`nominate:${error instanceof Error ? error.name : "unknown"}`);
@@ -433,7 +449,7 @@ export async function researchCity(
   }
 
   const spots = buildCards(city, sources, proposals);
-  const grounded = spots.some((spot) => spot.location !== null);
+  const grounded = spots.some(isGrounded);
   const unresolved = spots.some((spot) => spot.requested && spot.location === null);
   const status = !grounded ? "unavailable" : searchFailed || unresolved ? "partial" : "ready";
   if (status !== "ready") {
@@ -442,6 +458,90 @@ export async function researchCity(
       proposals: proposals.length, timedOut: signal.aborted, failures }, "City research incomplete");
   }
   return { province: city.province, city: city.city, status, searchCalls, spots, usage };
+}
+
+function catalogCard(city: City, spot: CatalogSpot, requested: boolean): SpotCard {
+  return {
+    ...spotCard(city, spot.name, requested),
+    outdoor: catalogOutdoor(spot.tags),
+    catalog: { id: spot.id, summary: spot.summary, highlights: spot.highlights },
+  };
+}
+
+/** The city's catalog, or null when it is off or cannot be read: a failed read falls back to search. */
+async function readCatalog(task: ResearchTask, deps: ResearchDependencies): Promise<CityCatalog | null> {
+  if (!deps.catalog) return null;
+  try {
+    return await deps.catalog(task.province, task.city);
+  } catch (error) {
+    logger.warn({ city: task.city, error: error instanceof Error ? error.name : "unknown" }, "Catalog read failed; researching by search");
+    return null;
+  }
+}
+
+/**
+ * A city with enough catalog spots (RAG step 2): the traveller's named spots and the best-ranked
+ * others come from the catalog, with no nomination or discovery search. A named spot the catalog
+ * does not have is still searched by name, and only those.
+ */
+async function researchFromCatalog(
+  task: ResearchTask,
+  handoff: PlanHandoff,
+  catalog: CityCatalog,
+  deps: ResearchDependencies,
+  onProgress: ResearchProgress,
+): Promise<CityResearch> {
+  const city: City = { province: task.province, city: task.city, requested: task.requested };
+  const ranked = rankCatalogSpots(catalog.spots, task.areas);
+  const used = new Set<string>();
+  const requestedCards: SpotCard[] = [];
+  const notInCatalog: string[] = [];
+  for (const name of task.requested) {
+    const spot = findCatalogSpot(ranked, name);
+    if (!spot) {
+      notInCatalog.push(name);
+    } else if (!used.has(spot.id)) {
+      used.add(spot.id);
+      requestedCards.push(catalogCard(city, spot, true));
+    }
+  }
+  const others = ranked.filter(({ id }) => !used.has(id)).slice(0, task.target).map((spot) => catalogCard(city, spot, false));
+  onProgress({ kind: "catalog", city: city.city, spots: requestedCards.length + others.length });
+
+  const searched = notInCatalog.length > 0
+    ? await researchBySearch({ ...task, requested: notInCatalog }, handoff, deps, onProgress, false)
+    : null;
+  const cards = new Map<string, SpotCard>();
+  for (const card of [...requestedCards, ...(searched?.spots ?? []), ...others]) {
+    if (!cards.has(card.id)) cards.set(card.id, card);
+  }
+  // The catalog grounds the city; only a named spot no search could find leaves it partial.
+  const status = searched && searched.status !== "ready" ? "partial" : "ready";
+  return {
+    province: city.province,
+    city: city.city,
+    status,
+    searchCalls: searched?.searchCalls ?? 0,
+    spots: [...cards.values()],
+    usage: searched?.usage ?? { inputTokens: 0, outputTokens: 0 },
+  };
+}
+
+/**
+ * Researches one city: from Meri's catalog when it has at least six spots for the city, else by
+ * web search as before the catalog (also whenever CATALOG_ENABLED is off).
+ */
+export async function researchCity(
+  task: ResearchTask,
+  handoff: PlanHandoff,
+  deps: ResearchDependencies = defaultDependencies,
+  onProgress: ResearchProgress = () => {},
+): Promise<CityResearch> {
+  const catalog = await readCatalog(task, deps);
+  if (catalog && catalog.spots.length >= minCatalogSpots) {
+    return researchFromCatalog(task, handoff, catalog, deps, onProgress);
+  }
+  return researchBySearch(task, handoff, deps, onProgress, true);
 }
 
 /**

@@ -66,6 +66,7 @@
 | `src/platform/llm/` | 模型客户端契约、Kimi 调用、SDK 错误与超时适配 | 模型提供方适配 |
 | `src/platform/location-provider/` | 地点搜索/输入建议接口（实现在 `src/platform/tianditu/`） | 地图提供方适配 |
 | `src/platform/search/` | Discovery Search 接口及 Bocha、Kimi Search Pro 请求/响应适配 | 搜索提供方适配 |
+| `src/platform/catalog/` | 读 Meri 目录（catalog_entries）某个州/市的景点和特色菜；`CATALOG_ENABLED` 开关 | 数据库只读适配器（RAG 第 2 步） |
 | `src/platform/rail/` | 火车：12306-mcp 子进程、请求节奏和每日上限、城市名转换、查余票适配（1.2108） | 外部集成适配器 |
 | `src/platform/place-photos/` | 地点照片接口、本地图集（地区与名称匹配），以及推荐卡的运行时补图（Wikimedia 先、Pixabay 后：客户端、身份判断、媒体目录存储） | 照片提供方适配 |
 | `src/platform/persistence/` | repository 接口，隔离应用层与数据库实现 | 持久化端口；这里的接口不等于 SQL 实现 |
@@ -477,6 +478,10 @@ Generate plan 背后的计划页先用示例数据做出完整页面（设计决
 | [src/domain/catalog/catalog-entry.ts](../src/domain/catalog/catalog-entry.ts) | 领域层 | Meri 目录（私有仓库 meri-catalog-cn 的 NDJSON）每条记录的 zod 严格 schema，按 spot/dish/restaurant/stay/transport/tip 区分 details；格式一变导入就报错。 |
 | [src/domain/catalog/catalog-tags.ts](../src/domain/catalog/catalog-tags.ts) | 领域层 | 标签归并表：景点的 162 种自由标签归成 23 个固定标签（2026-11-25 merlin 定），其他种类的固定标签就是种类；表里没有的标签返回出来，导入停下。 |
 | [src/domain/catalog/catalog-row.ts](../src/domain/catalog/catalog-row.ts) | 领域层 | 一条目录记录变成 catalog_entries 的一行：固定标签、source_count、别名拼成的 aliases_text、search_text（名称、别名、种类、固定标签、摘要、景点亮点）。 |
+| [src/domain/catalog/catalog-pick.ts](../src/domain/catalog/catalog-pick.ts) | 领域层 | 调研怎么用目录（RAG 第 2 步）：≥ 6 个景点才用目录、≥ 3 道菜才用目录菜；按固定标签判断户外/室内；景点排序（点名的区县 → 攻略数 → 把握 → 名字）；按名字或别名找用户点名的景点。 |
+| [src/domain/catalog/catalog-pick.test.ts](../src/domain/catalog/catalog-pick.test.ts) | 测试（领域规则） | 户外判断、排序、按名字和别名查找。 |
+| [src/platform/catalog/catalog-source.ts](../src/platform/catalog/catalog-source.ts) | 基础设施适配器 | 按（省，州/市）读 catalog_entries 的 spot 和 dish 转成领域类型；`CATALOG_ENABLED=true` 才读，数据库客户端第一次用到时才加载；读失败抛 CatalogReadError，调研和吃什么接住后改走搜索。 |
+| [src/platform/catalog/catalog-source.test.ts](../src/platform/catalog/catalog-source.test.ts) | 测试（适配器） | 开关只认 true；行转成景点（带亮点）和菜，其他种类不要。 |
 | [src/domain/catalog/catalog-row.test.ts](../src/domain/catalog/catalog-row.test.ts) | 测试（领域规则） | 标签归并的顺序与去重、未知标签、其他种类、search_text 拼法、schema 拒绝多字段和错 details。 |
 | [src/domain/plan/plan-draft.ts](../src/domain/plan/plan-draft.ts) | 领域层 | 计划草稿与路线类型；规划范围（示范日或全部城市与日期）；校验 Plan Agent 的路线（覆盖、放弃条件、天数、区县）并生成每天的城市、转场、重点区县和主题；按添加顺序兜底分天；校验选点提案（候选、所在城市、跨天重复、每天上限与转场日少 1、有原文支持的时间锚点、点名景点），整理冲突和待核实字段；识别用户点名的区域（以市、县、旗结尾的区县名）；用户选择放弃的城市才允许在天数够时放弃；`legReach` 判断一段路的时间能不能用：没路、一头离路超过 1 公里是一大片区域（1.2105）、或可用但头尾有一截超过 300 米没路。；1.2117 加 `reorderRoute`：绕路兜底时按最短顺序重排城市，每城天数、理由和每天的重点区与主题跟着城市走 |
 | [src/domain/plan/availability.ts](../src/domain/plan/availability.ts) | 领域层 | 第二轮精查的判断规则（1.2013）：值必须出现在原文里（周几、时刻、月日、天数）、日期算星期几和跨年范围、通知是否过期（一年）；按每站的日期和时段得出 开放 / 部分关闭 / 关闭 / 待确认 / 未核实。 |

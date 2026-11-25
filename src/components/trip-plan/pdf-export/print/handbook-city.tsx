@@ -29,6 +29,7 @@ const copy = {
     restaurants: "餐厅",
     mentioned: "文章里提到的 · 未核实",
     unverified: "地址待核实",
+    catalogNote: "Meri 的整理",
   },
   en: {
     city: "City guide",
@@ -52,6 +53,7 @@ const copy = {
     restaurants: "Restaurants",
     mentioned: "Mentioned in articles · Unverified",
     unverified: "Address to check",
+    catalogNote: "Meri's notes",
   },
 } as const;
 
@@ -137,7 +139,7 @@ function Food({ food, locale }: { readonly food: CityFood; readonly locale: Loca
           <ul>{food.dishes.map(({ name, note, evidence }) => (
             <li key={name} className={styles.cityEntry}>
               <p><strong>{name}</strong> · {note}</p>
-              <FoodSources sources={[evidence]} />
+              {evidence ? <FoodSources sources={[evidence]} /> : <p className={styles.sourceLinks}>{text.catalogNote}</p>}
             </li>
           ))}</ul>
         </div>

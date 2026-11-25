@@ -31,6 +31,7 @@ const copy = {
     opening: "开放",
     reservation: "预约",
     unlocated: "位置未核实",
+    catalogNote: "Meri 的整理",
     transfer: "转场",
     travelLink: "查看往返与转场",
   },
@@ -50,6 +51,7 @@ const copy = {
     opening: "Opening",
     reservation: "Booking",
     unlocated: "Location unverified",
+    catalogNote: "Meri's notes",
     transfer: "Transfer",
     travelLink: "See travel details",
   },
@@ -150,7 +152,9 @@ function DailyStop({ stop, day, draft, cards, cityCards, locale, transport }: {
       {card ? (
         <>
           <StopWeatherLine line={stopWeather(card, day.date, cityCards)} locale={locale} />
-          {card.mapCheck.status !== "located" ? <p className={styles.muted}>{copy[locale].unlocated}</p> : null}
+          {card.catalog ? (
+            <p className={styles.muted}>{copy[locale].catalogNote}{locale === "zh" ? ` · ${card.catalog.summary}` : ""}</p>
+          ) : card.mapCheck.status !== "located" ? <p className={styles.muted}>{copy[locale].unlocated}</p> : null}
           <StopOpening card={card} draft={draft} locale={locale} />
         </>
       ) : null}

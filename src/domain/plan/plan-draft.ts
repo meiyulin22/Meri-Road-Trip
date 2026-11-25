@@ -482,7 +482,8 @@ export function finishDraft(
 
   const unverified = cards
     .filter((card) => scheduled.has(card.id))
-    .map((card) => ({ spotId: card.id, fields: spotFacts.filter((fact) => card[fact] === null) }))
+    // A catalog card's place comes from Meri's catalog, so its location is not a fact left to check.
+    .map((card) => ({ spotId: card.id, fields: spotFacts.filter((fact) => card[fact] === null && !(fact === "location" && card.catalog)) }))
     .filter(({ fields }) => fields.length > 0);
   return { mode: allocation.mode, totalDays: allocation.totalDays, route: allocation.route, days, conflicts, unverified };
 }

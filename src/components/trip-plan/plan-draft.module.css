@@ -304,6 +304,16 @@
 .facts dt { color: var(--soft); }
 .facts dd { color: #4b605b; overflow-wrap: anywhere; }
 
+/* Meri's own catalog note on a stop (RAG step 2): an editorial line, not a quoted source. */
+.catalogSummary { margin-top: 6px; color: #4b605b; font-size: 13px; line-height: 1.6; }
+.catalogNote {
+  padding: 2px 8px;
+  border-radius: 6px;
+  color: var(--green);
+  background: var(--paper-deep);
+  font-size: 11px;
+}
+
 .stopMeta { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; margin-top: 8px; }
 .toCheck {
   padding: 2px 8px;

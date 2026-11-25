@@ -20,6 +20,8 @@ const name = z.string().min(1);
  */
 export const planActivitySchema = z.discriminatedUnion("kind", [
   z.strictObject({ kind: z.literal("nominating"), city: name }),
+  /** The city's spots taken from Meri's catalog instead of a discovery search (RAG step 2). */
+  z.strictObject({ kind: z.literal("catalog"), city: name, spots: count }),
   z.strictObject({ kind: z.literal("searching"), city: name, names: z.array(name), done: count, total: count }),
   z.strictObject({ kind: z.literal("reviewing"), city: name, sources: count }),
   z.strictObject({ kind: z.literal("extracting"), city: name, sources: count }),

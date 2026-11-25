@@ -52,6 +52,7 @@ const copy = {
     activity: (activity: PlanActivity, locale: Locale): string => {
       switch (activity.kind) {
         case "nominating": return `${activity.city} · picking the spots it's known for`;
+        case "catalog": return `${activity.city} · ${activity.spots} ${activity.spots === 1 ? "spot" : "spots"} from Meri's notes`;
         case "searching": return `${activity.city} · searching ${names(locale, activity.names)} (${activity.done}/${activity.total})`;
         case "reviewing": return `${activity.city} · reading ${activity.sources} results, one more search if needed`;
         case "extracting": return `${activity.city} · quoting sources from ${activity.sources} results`;
@@ -108,6 +109,7 @@ const copy = {
     activity: (activity: PlanActivity, locale: Locale): string => {
       switch (activity.kind) {
         case "nominating": return `${activity.city} · 提名代表景点`;
+        case "catalog": return `${activity.city} · 从 Meri 的整理取 ${activity.spots} 个景点`;
         case "searching": return `${activity.city} · 搜索 ${names(locale, activity.names)}（${activity.done}/${activity.total}）`;
         case "reviewing": return `${activity.city} · 检查 ${activity.sources} 条结果，必要时补查一次`;
         case "extracting": return `${activity.city} · 从 ${activity.sources} 条结果摘录出处`;

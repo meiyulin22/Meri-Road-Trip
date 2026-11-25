@@ -1,7 +1,7 @@
 import { namesSamePlace } from "@/capabilities/destination/resolve-destination-place";
 import type { LocationCandidate } from "@/domain/location/location";
 import { normalizeRecommendationName } from "@/domain/location/recommendation-identity";
-import type { CityResearch, SpotCard, SpotMapCheck } from "@/domain/plan/spot-card";
+import { type CityResearch, isGrounded, type SpotCard, type SpotMapCheck } from "@/domain/plan/spot-card";
 import type { LocationSearchResult } from "@/platform/location-provider/location-provider";
 import { logger } from "@/platform/observability/logger";
 import type { RememberedSpotLocation } from "@/platform/tianditu/spot-location-memory";
@@ -79,7 +79,7 @@ export async function checkSpotsOnMap(
   let lookups = 0;
   const checkable = (city: CityResearch) => city.status === "deferred"
     ? 0
-    : Math.min(maxChecksPerCity, city.spots.filter(({ location }) => location !== null).length);
+    : Math.min(maxChecksPerCity, city.spots.filter(isGrounded).length);
   const total = cities.reduce((sum, city) => sum + checkable(city), 0);
   let done = 0;
   const finished = (card: SpotCard) => {
@@ -91,8 +91,9 @@ export async function checkSpotsOnMap(
     const spots: SpotCard[] = [];
     let considered = 0;
     for (const card of city.spots) {
-      // Only cards a search already supports, and only so many per city.
-      if (city.status === "deferred" || card.location === null || considered >= maxChecksPerCity) {
+      // Only cards a search or the catalog supports, and only so many per city. A catalog card is
+      // looked up for its point (map, weather, drive times), not to prove it exists.
+      if (city.status === "deferred" || !isGrounded(card) || considered >= maxChecksPerCity) {
         spots.push(card);
         continue;
       }

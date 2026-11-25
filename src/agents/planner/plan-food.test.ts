@@ -128,3 +128,46 @@ test("one site and the map make a restaurant; one site without the map is not sh
   assert.deepEqual(city.restaurants.map(({ name, evidence }) => [name, evidence.length]), [["渣渣米线(古城店)", 1]]);
   assert.deepEqual(city.mentioned, []);
 });
+
+const catalogDish = (name: string, sourceCount: number) => ({ id: `dish_${name}`, name, summary: `${name}的说明`, sourceCount });
+
+test("with three catalog dishes or more, dishes come from the catalog and only restaurants are searched (RAG step 2)", async () => {
+  const queries: string[] = [];
+  const result = await planFood(handoff(["丽江市"], fiveDays), days, cards, {
+    search: async (query) => {
+      queries.push(query);
+      return results[Object.keys(results).find((key) => query.includes(key)) as keyof typeof results];
+    },
+    map: async () => ({ status: "success", candidates: [] }),
+    catalog: async () => ({ spots: [], dishes: [catalogDish("鸡豆凉粉", 1), catalogDish("丽江粑粑", 3), catalogDish("腊排骨", 2)] }),
+  }, { model: answering(answer) }, { stopped: false });
+
+  assert.equal(queries.length, 2);
+  assert.ok(queries.every((query) => !query.includes("特色美食")));
+  const [city] = result.food;
+  assert.equal(city.status, "found");
+  if (city.status !== "found") return;
+  assert.deepEqual(city.dishes, [
+    { name: "丽江粑粑", note: "丽江粑粑的说明", evidence: null },
+    { name: "腊排骨", note: "腊排骨的说明", evidence: null },
+    { name: "鸡豆凉粉", note: "鸡豆凉粉的说明", evidence: null },
+  ]);
+  assert.equal(result.searches, 2);
+});
+
+test("an English plan, or fewer than three catalog dishes, keeps the dish search", async () => {
+  const english = { ...handoff(["丽江市"], fiveDays), locale: "en" as const };
+  const dishes = [catalogDish("鸡豆凉粉", 1), catalogDish("丽江粑粑", 3), catalogDish("腊排骨", 2)];
+  for (const [plan, catalog] of [[english, dishes], [handoff(["丽江市"], fiveDays), dishes.slice(0, 2)]] as const) {
+    const queries: string[] = [];
+    await planFood(plan, days, cards, {
+      search: async (query) => {
+        queries.push(query);
+        return results[Object.keys(results).find((key) => query.includes(key)) as keyof typeof results];
+      },
+      map: async () => ({ status: "success", candidates: [] }),
+      catalog: async () => ({ spots: [], dishes: catalog }),
+    }, { model: answering(answer) }, { stopped: false });
+    assert.equal(queries.length, 3);
+  }
+});

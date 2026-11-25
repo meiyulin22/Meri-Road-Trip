@@ -22,6 +22,7 @@ const copy = {
     copied: "已复制",
     map: "在地图上看",
     sources: (count: number) => `${count} 个出处`,
+    catalogNote: "Meri 的整理",
     none: "这次没查到当地美食的可靠出处。",
     unavailable: "当地美食暂时查不到。",
     disclaimer: "来自公开网页搜索，Meri 不收商家任何费用，已尽量排除推广内容。口味因人而异，营业时间出发前请再确认。",
@@ -39,6 +40,7 @@ const copy = {
     copied: "Copied",
     map: "Show on map",
     sources: (count: number) => `${count} ${count === 1 ? "source" : "sources"}`,
+    catalogNote: "Meri's notes",
     none: "No reliable sources about local food came up this time.",
     unavailable: "Local food couldn't be looked up just now.",
     disclaimer: "From public web search. Meri takes no payment from any business and filters out promotion as far as it can. Tastes differ; check opening hours before you go.",
@@ -73,7 +75,7 @@ function DishItem({ dish, text }: { readonly dish: Dish; readonly text: Copy }) 
     <li className={styles.dish}>
       <span className={styles.dishName}>{dish.name}</span>
       <span className={styles.dishNote}>{dish.note}</span>
-      <Sources evidence={[dish.evidence]} text={text} />
+      {dish.evidence ? <Sources evidence={[dish.evidence]} text={text} /> : <span className={styles.catalogNote}>{text.catalogNote}</span>}
     </li>
   );
 }

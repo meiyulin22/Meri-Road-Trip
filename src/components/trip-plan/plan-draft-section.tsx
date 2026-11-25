@@ -68,7 +68,8 @@ const copy = {
     // No spot photos (no licensed source a China server can reach, 2026-11-22): the articles often have them.
     sources: (count: number) => `${count} ${count === 1 ? "source" : "sources"} · photos in the article`,
     checked: (date: string) => `checked ${date}`,
-    summary: { days: "days", stops: "stops", sourced: "with sources", located: "on the map", conflicts: "to resolve" },
+    summary: { days: "days", stops: "stops", sourced: "with sources", catalog: "Meri's notes", located: "on the map", conflicts: "to resolve" },
+    catalogNote: "Meri's notes",
     located: (district: string | null) => district ? `On the map · ${district}` : "On the map",
     notLocated: "Not found on the map",
     check: {
@@ -137,7 +138,8 @@ const copy = {
     unverified: (fields: string) => `待核实：${fields}`,
     sources: (count: number) => `${count} 条出处 · 原文里看图片`,
     checked: (date: string) => `${date} 查询`,
-    summary: { days: "天", stops: "个景点", sourced: "有出处", located: "已定位", conflicts: "待处理" },
+    summary: { days: "天", stops: "个景点", sourced: "有出处", catalog: "Meri 的整理", located: "已定位", conflicts: "待处理" },
+    catalogNote: "Meri 的整理",
     located: (district: string | null) => district ? `已定位 · ${district}` : "已定位",
     notLocated: "位置未核实",
     check: {
@@ -546,6 +548,7 @@ function DraftDays({ response, text, locale, transport, gettingThere, onAddDates
   const stops = draft.days.reduce((count, day) => count + day.stops.length, 0);
   const sourced = draft.days.flatMap((day) => day.stops).filter(({ spotId }) => cards.get(spotId)?.location).length;
   const located = draft.days.flatMap((day) => day.stops).filter(({ spotId }) => cards.get(spotId)?.mapCheck.status === "located").length;
+  const fromCatalog = draft.days.flatMap((day) => day.stops).filter(({ spotId }) => cards.get(spotId)?.catalog).length;
   const partial = response.cities.filter(({ status }) => status === "partial" || status === "unavailable").map(({ city }) => city);
   const nameOf = (spotId: string) => cards.get(spotId)?.name ?? spotId;
   // Setting off, each change of city and heading home, where the plan has them (1.2106).
@@ -578,6 +581,7 @@ function DraftDays({ response, text, locale, transport, gettingThere, onAddDates
         <div><dt>{text.summary.days}</dt><dd>{draft.days.length}</dd></div>
         <div><dt>{text.summary.stops}</dt><dd>{stops}</dd></div>
         <div><dt>{text.summary.sourced}</dt><dd>{sourced}/{stops}</dd></div>
+        {fromCatalog > 0 ? <div><dt>{text.summary.catalog}</dt><dd>{fromCatalog}/{stops}</dd></div> : null}
         <div><dt>{text.summary.located}</dt><dd>{located}/{stops}</dd></div>
         {draft.conflicts.length > 0 ? (
           <div data-tone="warn"><dt>{text.summary.conflicts}</dt><dd>{draft.conflicts.length}</dd></div>
@@ -823,7 +827,8 @@ function DraftDay({ day, cards, unverified, checks, arriving, transport = null, 
                               {card?.requested ? (
                                 <span className={draftStyles.requested}><Star aria-hidden="true" size={11} />{text.requested}</span>
                               ) : null}
-                              {card ? (
+                              {/* A catalog spot Tianditu did not place is not in doubt; it just has no point (RAG step 2). */}
+                              {card && !(card.catalog && card.mapCheck.status !== "located") ? (
                                 <span className={draftStyles.mapBadge} data-located={card.mapCheck.status === "located"}>
                                   <MapPin aria-hidden="true" size={11} />
                                   {card.mapCheck.status === "located" ? text.located(card.mapCheck.district) : text.notLocated}
@@ -901,6 +906,8 @@ function StopFacts({ card, missing, text, locale }: {
   ];
   return (
     <>
+      {/* The catalog's notes are Chinese only, so an English plan shows the label without them. */}
+      {card.catalog && locale === "zh" ? <p className={draftStyles.catalogSummary}>{card.catalog.summary}</p> : null}
       {facts.length > 0 || opening.length > 0 ? (
         <dl className={draftStyles.facts}>
           {facts.map(({ fact, evidence }) => (
@@ -912,6 +919,7 @@ function StopFacts({ card, missing, text, locale }: {
         </dl>
       ) : null}
       <div className={draftStyles.stopMeta}>
+        {card.catalog ? <span className={draftStyles.catalogNote}>{text.catalogNote}</span> : null}
         {stillMissing.length > 0 ? (
           <span className={draftStyles.toCheck}>{text.unverified(stillMissing.map((fact) => text.facts[fact]).join(locale === "zh" ? "、" : ", "))}</span>
         ) : null}

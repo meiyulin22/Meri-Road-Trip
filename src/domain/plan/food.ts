@@ -26,7 +26,8 @@ export type FoodSource = {
 
 export type FoodEvidence = { readonly url: string; readonly title: string; readonly site: string; readonly quote: string };
 
-export type Dish = { readonly name: string; readonly note: string; readonly evidence: FoodEvidence };
+/** A local dish; evidence is null for one from Meri's catalog (RAG step 2), shown as 「Meri 的整理」. */
+export type Dish = { readonly name: string; readonly note: string; readonly evidence: FoodEvidence | null };
 
 export type Restaurant = {
   readonly name: string;

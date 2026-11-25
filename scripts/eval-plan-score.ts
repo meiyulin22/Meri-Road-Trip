@@ -117,7 +117,8 @@ export type RunMetrics = {
   readonly routeSource: "agent" | "fallback" | null;
   readonly asked: boolean;
   readonly cities: { readonly selected: number; readonly routed: number; readonly omitted: number };
-  readonly cards: { readonly total: number; readonly sourced: number };
+  /** sourced counts web-quoted and catalog cards; catalog, the cards from Meri's catalog (RAG step 2). */
+  readonly cards: { readonly total: number; readonly sourced: number; readonly catalog: number };
   readonly requested: { readonly total: number; readonly scheduled: number };
   readonly days: { readonly total: number; readonly empty: number; readonly stops: number };
   readonly checks: Readonly<Record<"open" | "partial" | "closed" | "uncertain" | "unchecked", number>>;
@@ -192,7 +193,7 @@ export function measureRun(capture: RunCapture, handoff: PlanHandoff): RunMetric
     routeSource: draft?.route.source ?? null,
     asked: events.some(({ type }) => type === "run.waiting"),
     cities: { selected: selected.length, routed: draft?.route.cities.length ?? 0, omitted: draft?.route.omitted.length ?? 0 },
-    cards: { total: cards, sourced },
+    cards: { total: cards, sourced, catalog: plan?.spots.filter(({ catalog }) => catalog !== undefined).length ?? 0 },
     requested: { total: requestedTotal, scheduled: plan ? scheduledCards(plan).filter(({ requested }) => requested).length : 0 },
     days: {
       total: draft?.days.length ?? 0,

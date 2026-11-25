@@ -25,6 +25,7 @@ import { createRollingGoHotels, hotelEnabled, rollinggoTools, sharedHotelBudget,
 import type { WeatherForecast } from "@/platform/weather/weather-forecast";
 import { createVariflightHubs, createVariflightSearch, flightEnabled, type FlightSearch, sharedFlightBudget, variflightTools, variflightTrainTools } from "@/platform/flight/variflight";
 
+import { readCityCatalogFromEnvironment } from "@/platform/catalog/catalog-source";
 import { researchCity } from "./planner/research-agent";
 import { verifySpots } from "./planner/verify-spots";
 import { scoutAgent } from "./scout-agent";
@@ -60,6 +61,8 @@ export function planGenerationDependencies(
       search: (query, signal) => (planSearch ??= createPlanSearchFromEnvironment()).search(query, signal),
       deepSearch: (query, signal) => (planSearch ??= createPlanSearchFromEnvironment()).deep(query, signal),
       model: createMoonshotChatModelFromEnvironment,
+      // Meri's catalog first when CATALOG_ENABLED=true (RAG step 2); off, research only searches.
+      catalog: readCityCatalogFromEnvironment,
     }, onProgress),
     // Routing and choosing days reason harder on K3 (2026-11-22); other steps keep LLM_REASONING_EFFORT.
     planModel: { model: createMoonshotChatModelFromEnvironment, decidingModel: createDecidingModelFromEnvironment },
@@ -97,6 +100,7 @@ export function planGenerationDependencies(
     weather: (points, range) => (weather ??= withFallbackForecast(createOpenMeteoForecast(), createMetNorwayForecast(),
       { primary: "Open-Meteo", fallback: "MET Norway" }))(points, range),
     // Kimi search_pro with ten results a search, at the price of one, counted in its daily cap (1.2117 food).
+    catalog: readCityCatalogFromEnvironment,
     foodSearch: (query, signal) => (foodSearch ??= createKimiSearchProFromEnvironment({ limit: 10 })).search(query, signal),
     // RollingGo only when HOTEL_PROVIDER=rollinggo and a key are set; query only, never booking (1.2117 stays).
     ...(hotelEnabled() ? {

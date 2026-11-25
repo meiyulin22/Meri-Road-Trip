@@ -30,7 +30,8 @@ import type { ReadyPlan } from "@/domain/plan/plan-draft-response";
 import type { PlanHandoff } from "@/domain/plan/plan-handoff";
 import { type PlanProgressEvent, type PlanQuestion, planQuestionSchema, type PlanStage } from "@/domain/plan/plan-progress";
 import type { PlanRunUsage, PlanVersion } from "@/domain/plan/plan-run";
-import type { CityResearch, SpotCard } from "@/domain/plan/spot-card";
+import type { CityCatalog } from "@/domain/catalog/catalog-pick";
+import { type CityResearch, isGrounded, type SpotCard } from "@/domain/plan/spot-card";
 import { originPoint, type TransferLeg, transferLegs, travelChoiceOf } from "@/domain/plan/transfer-legs";
 import { transportAnswerOf } from "@/domain/plan/transport-question";
 import { railCityOfRegion } from "@/platform/rail/rail-names";
@@ -59,6 +60,8 @@ export type PlanGenerationDependencies = {
   readonly hotels?: StayDependencies;
   /** The web search the food step reads (1.2117 food): Kimi's, as research's. */
   readonly foodSearch: PlanSearchCall;
+  /** Meri's catalog for one 州/市 (RAG step 2), for What to eat's dishes; absent or null, dishes are searched. */
+  readonly catalog?: (province: string, prefecture: string) => Promise<CityCatalog | null>;
   /** The second round on these cards; the real one is verifySpots with Kimi search and model. */
   readonly verifySpots: (
     cards: readonly SpotCard[],
@@ -341,7 +344,7 @@ export function createPlanGenerationWorkflow(deps: PlanGenerationDependencies) {
       const city: CityResearch = { ...weathered.city, mapLookups: located.lookups, weatherCalls: weathered.calls };
       emit({
         type: "city.researched", province: city.province, city: city.city, status: city.status,
-        cards: city.spots.length, sourced: city.spots.filter(({ location }) => location !== null).length,
+        cards: city.spots.length, sourced: city.spots.filter(isGrounded).length,
         searches: city.searchCalls, ms: Math.round(performance.now() - startedAt),
       });
       await flush();
@@ -569,7 +572,7 @@ export function createPlanGenerationWorkflow(deps: PlanGenerationDependencies) {
       const scheduled = [...new Set(draft.days.flatMap(({ stops }) => stops.map(({ spotId }) => spotId)))];
       const routed = draft.route.cities.map(({ city }) => city);
       const backups = routed.flatMap((city) => [...cards.values()]
-        .filter((card) => card.city === city && !scheduled.includes(card.id) && card.location !== null)
+        .filter((card) => card.city === city && !scheduled.includes(card.id) && isGrounded(card))
         .sort((left, right) => Number(right.mapCheck.status === "located") - Number(left.mapCheck.status === "located"))
         .slice(0, backupsPerCity));
       const targets = [...scheduled.flatMap((id) => cards.get(id) ?? []), ...backups];
@@ -810,7 +813,7 @@ export function createPlanGenerationWorkflow(deps: PlanGenerationDependencies) {
     execute: async ({ inputData, state, writer }) => {
       const { emit, flush } = emitter(writer);
       const result = await planFood(state.handoff, inputData.draft.days, cardsOf(inputData.cities),
-        { search: deps.foodSearch, map: deps.map.search }, deps.planModel, { stopped: inputData.status === "stopped" },
+        { search: deps.foodSearch, map: deps.map.search, catalog: deps.catalog }, deps.planModel, { stopped: inputData.status === "stopped" },
         ({ city, done, total }) => emit({ type: "stage.activity", stage: "food", activity: { kind: "food", city, done, total } }),
         bigAreaStops(inputData.draft.legs ?? []));
       for (const food of result.food) emit({ type: "food.ready", food });

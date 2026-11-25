@@ -52,3 +52,6 @@
 @media (prefers-reduced-motion: reduce) {
   .sourceToggle svg { transition: none; }
 }
+
+/* A dish from Meri's catalog: no web source, so a quiet label instead of the sources toggle (RAG step 2). */
+.catalogNote { color: var(--soft); font-size: 12px; }

@@ -88,6 +88,7 @@ export const spotCardSchema: z.ZodType<SpotCard> = z.strictObject({
   suggestedDuration: spotEvidenceSchema.nullable(),
   mapCheck: spotMapCheckSchema,
   outdoor: z.boolean().nullable().optional(),
+  catalog: z.strictObject({ id: z.string().min(1), summary: z.string().min(1), highlights: z.array(z.string().min(1)) }).optional(),
   weather: spotWeatherSchema.optional(),
   availability: spotAvailabilitySchema.optional(),
 });
@@ -308,7 +309,7 @@ export const cityFoodSchema: z.ZodType<CityFood> = z.discriminatedUnion("status"
   z.strictObject({
     ...cityFoodBase,
     status: z.literal("found"),
-    dishes: z.array(z.strictObject({ name: z.string().min(1), note: z.string().min(1), evidence: foodEvidenceSchema })),
+    dishes: z.array(z.strictObject({ name: z.string().min(1), note: z.string().min(1), evidence: foodEvidenceSchema.nullable() })),
     restaurants: z.array(restaurantSchema),
     mentioned: z.array(restaurantSchema),
   }),
