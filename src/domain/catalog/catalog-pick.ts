@@ -82,28 +82,40 @@ function byPopularity(left: CatalogSpot, right: CatalogSpot): number {
     || left.name.localeCompare(right.name, "zh");
 }
 
-/** Takes from each list in turn, best first, skipping what an earlier turn already took. */
-export function interleave(lists: readonly (readonly string[])[]): string[] {
+/**
+ * Takes from each list in turn, best first, skipping what an earlier turn already took. `weights`
+ * says how many a list takes each round (default one each).
+ */
+export function interleave(lists: readonly (readonly string[])[], weights: readonly number[] = []): string[] {
   const taken = new Set<string>();
   const order: string[] = [];
-  const longest = Math.max(0, ...lists.map((list) => list.length));
-  for (let index = 0; index < longest; index += 1) {
-    for (const list of lists) {
-      const id = list[index];
-      if (id !== undefined && !taken.has(id)) {
+  const next = lists.map(() => 0);
+  const share = (index: number) => Math.max(1, Math.floor(weights[index] ?? 1));
+  while (lists.some((list, index) => next[index] < list.length)) {
+    lists.forEach((list, index) => {
+      let took = 0;
+      while (took < share(index) && next[index] < list.length) {
+        const id = list[next[index]];
+        next[index] += 1;
+        if (taken.has(id)) continue;
         taken.add(id);
         order.push(id);
+        took += 1;
       }
-    }
+    });
   }
   return order;
 }
 
+/** Each round two from the preference order, then one from popularity (merlin, 2026-11-26, after the retrieval eval). */
+export const preferenceShare = 2;
+
 /**
  * The order candidates are taken in. Spots in a county the traveller named (such as 大理市) come
  * first. Without preference rankings the rest follow popularity. With them, the vector and keyword
- * lists are fused (RRF) into a preference order, which then takes turns with popularity: the spot
- * that best answers the preferences, the most-mentioned spot, the next of each, and so on.
+ * lists are fused (RRF) into a preference order, which then takes turns with popularity, two to one:
+ * the two spots that best answer the preferences, the most-mentioned spot, and so on. One to one gave
+ * recall@4 0.79 against 0.92 for the preference order alone (retrieval eval, 2026-11-26).
  *
  * Taking turns, not a third RRF list: on 2026-11-26 popularity fused as a third list left 玉龙雪山
  * (first for 雪山) out of 丽江's top four. A city has only a few dozen spots, so with k = 60 a spot
@@ -119,7 +131,7 @@ export function rankCatalogSpots(
   const preference = rankings
     ? [...fuseRankings([rankings.vector, rankings.keyword])].sort((left, right) => right[1] - left[1]).map(([id]) => id).filter((id) => byId.has(id))
     : [];
-  const order = interleave([preference, popular.map(({ id }) => id)]).flatMap((id) => byId.get(id) ?? []);
+  const order = interleave([preference, popular.map(({ id }) => id)], [preferenceShare, 1]).flatMap((id) => byId.get(id) ?? []);
   const preferred = (spot: CatalogSpot) => (spot.county !== null && areas.includes(spot.county) ? 0 : 1);
   // A stable sort keeps the order above within each group.
   return order.sort((left, right) => preferred(left) - preferred(right));

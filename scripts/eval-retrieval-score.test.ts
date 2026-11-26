@@ -16,7 +16,7 @@ test("each ranker's order; spots a list leaves out follow by popularity", () => 
   assert.deepEqual(rankBy("popularity", spots, rankings), ["湖", "古城", "寺", "草甸", "雪山"]);
   assert.deepEqual(rankBy("vector", spots, rankings), ["雪山", "草甸", "湖", "古城", "寺"]);
   assert.deepEqual(rankBy("preference", spots, rankings).slice(0, 3), ["雪山", "寺", "草甸"]);
-  assert.deepEqual(rankBy("interleave", spots, rankings).slice(0, 4), ["雪山", "湖", "寺", "古城"]);
+  assert.deepEqual(rankBy("interleave", spots, rankings).slice(0, 4), ["雪山", "寺", "湖", "草甸"]);
 });
 
 test("hit@4, recall@4 and recall@12, and their means", () => {

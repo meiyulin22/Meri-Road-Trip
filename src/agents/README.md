@@ -159,7 +159,7 @@ filled by [scripts/embed-catalog.ts](../../scripts/embed-catalog.ts): 2284 rows,
 With preferences, research embeds their quotes as one query and asks two lists side by side: the city's
 spots nearest in meaning (cosine, top 50) and spots whose name or alias the quotes write
 (`word_similarity ≥ 0.5`, top 20). RRF (k = 60) fuses those two into a preference order, which then takes
-turns with popularity: best answer, most-mentioned, next of each. A named county still comes first.
+turns with popularity, two to one: the two best answers, the most-mentioned, and so on. A named county still comes first.
 
 | Checked 2026-11-26 with case 04's quotes (最想看雪山和藏传寺庙) | Top four |
 | --- | --- |
@@ -176,11 +176,13 @@ English, about ¥0.001 a run):
 | Popularity only (step 2) | 0.57 | 0.31 | 0.73 |
 | Vector only | 1.00 | 0.92 | 1.00 |
 | Vector + names, RRF | 1.00 | 0.92 | 1.00 |
-| Taking turns with popularity (built) | 0.95 | 0.79 | 0.97 |
+| Taking turns with popularity, one to one | 0.95 | 0.79 | 0.97 |
+| Taking turns, two preference to one popular (built, 1.2206) | 1.00 | 0.89 | 0.99 |
 
-The name list added nothing here, since no case names a spot; it is for travellers who do. Taking turns
-gives the preferences only every other one of the first four places, which costs recall@4; at twelve,
-the number of candidates research hands on, it is nearly even, and famous spots stay in the list.
+The name list added nothing here, since no case names a spot; it is for travellers who do. One to one
+gave the preferences only every other one of the first four places, which cost recall@4; merlin chose two
+to one. Famous spots still come every third place, so a traveller whose preferences say little still
+gets them.
 
 Popularity as a third RRF list was tried first and dropped: a city has a few dozen spots, so with k = 60 a
 spot in the middle of two lists outscored the top of one. Without preferences, without a key, or when the

@@ -423,7 +423,7 @@ test("with preferences, the catalog's rankings choose first; without them or whe
     },
   });
   assert.deepEqual(asked, ["少走台阶"]);
-  assert.deepEqual(withPreferences.spots.map(({ name }) => name).slice(0, 4), ["大理市博物馆", "洱海", "蝴蝶泉", "苍山"]);
+  assert.deepEqual(withPreferences.spots.map(({ name }) => name).slice(0, 4), ["大理市博物馆", "蝴蝶泉", "洱海", "苍山"]);
 
   const failing = await researchCity(daliTask, handoff, {
     search: async () => [], model: countingModel([]), catalog: async () => daliCatalog,
