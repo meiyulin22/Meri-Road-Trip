@@ -359,11 +359,12 @@ add/set 使用 Promise.all 查询表达。解析层保留不同 provider ID，�
 **实际推荐流水线：**
 
 1. [构造上下文](../src/capabilities/recommendation/destination-recommendation-context.ts)：TripState、scope、最多 10 条/6000 字符对话；追加触发推荐的真实原话并使用 source=conversation（唯一入口），来源标记只存在于本次调用上下文。
-2. [Discovery Search](../src/platform/search/discovery-search.ts)：Bocha 取最多 8 条启发信息，失败退化为空搜索上下文。
-3. [推荐生成器](../src/capabilities/recommendation/destination-recommendation-generator.ts)：Kimi 输出省、市/州和理由。
-4. [领域校验](../src/domain/location/destination-recommendations.ts)：形状校验、去重、最多 12 个地点。
-5. 生成器每个地点还给出一个代表地标（`landmark`，如丽江市→玉龙雪山）和它的英文名（`landmarkEn`，Jade Dragon Snow Mountain），只用来配图，不当作计划或已核验事实。英文名只用于天地图模式下的 Pixabay 搜图，不合法时只丢掉这个字段。工作流**不再查图**：地标随卡片存进消息，卡片先到，照片随后由浏览器单独请求（见 5.6）。
-6. [workflow](../src/capabilities/recommendation/destination-recommendation-workflow.ts)：within 用 withinSettledProvinces 按规范化省名限制已定省，并采用用户保存的省名拼写；elsewhere 用 outsideSavedProvinces 丢弃所有已保存省份，即使模型换了写法。给卡项赋 ID。
+2. **先查 Meri 的目录（RAG 第 4 步，`CATALOG_ENABLED=true` 且有百炼 key 时）**：用旅行者最近 3 句原话（不带出发地）算一次查询向量，在全库景点和特色菜里按余弦距离取前 50（within 且已定省时只在这些省里，elsewhere 时排除已存省份）；按州/市汇总，最像的一条算满分、第二条一半、第三条四分之一，取前 6 座城，每座城带 3 条匹配（名字、种类、介绍）（[city-scores](../src/domain/catalog/city-scores.ts)、[catalog-source](../src/platform/catalog/catalog-source.ts)）。最像的一条相似度低于 0.5 时当作目录没有相关内容。有城市时不调博查，城市和匹配作为一段数据加进推荐提示词（优先从中推荐，理由可提匹配的景点或菜；不带分数）；没有、开关关、没有 key 或调用失败时照原来走下一步。
+3. [Discovery Search](../src/platform/search/discovery-search.ts)：（目录没有给出城市时）Bocha 取最多 8 条启发信息，失败退化为空搜索上下文。
+4. [推荐生成器](../src/capabilities/recommendation/destination-recommendation-generator.ts)：Kimi 输出省、市/州和理由。
+5. [领域校验](../src/domain/location/destination-recommendations.ts)：形状校验、去重、最多 12 个地点。
+6. 生成器每个地点还给出一个代表地标（`landmark`，如丽江市→玉龙雪山）和它的英文名（`landmarkEn`，Jade Dragon Snow Mountain），只用来配图，不当作计划或已核验事实。英文名只用于天地图模式下的 Pixabay 搜图，不合法时只丢掉这个字段。工作流**不再查图**：地标随卡片存进消息，卡片先到，照片随后由浏览器单独请求（见 5.6）。
+7. [workflow](../src/capabilities/recommendation/destination-recommendation-workflow.ts)：within 用 withinSettledProvinces 按规范化省名限制已定省，并采用用户保存的省名拼写；elsewhere 用 outsideSavedProvinces 丢弃所有已保存省份，即使模型换了写法。给卡项赋 ID。
 7. 卡片作为 pending 之后的下一条助手消息保存 destination_recommendations presentation（每张卡带 landmark、还没有 image），正文是工作流的固定句子，UI 适配为统一多选卡。卡项仍是建议，提交时才高德复核。地点名称只出现在这条卡片消息里，因此不会再出现正文列举的地点和卡片不一致。
 
 该执行链没有访问检查或风险排序；照片只是装饰（见 5.6）。搜索上下文不能证明开放、安全或可达。搜索失败可降级，模型失败仍可能令请求失败。

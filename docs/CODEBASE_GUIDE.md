@@ -119,7 +119,7 @@ UI 同步状态；刷新从数据库恢复
 
 LLM 解释自然语言并提出受限 JSON；应用校验、决定是否执行、核验地点并保存。助手建议即使经过天地图核验，仍需要用户显式确认才成为目的地。Gen UI 是受限数据驱动的预写 React 组件，不是模型生成 JSX。
 
-推荐是确定性流程：Discovery Search → Kimi 结构化推荐（含配图用的代表地标）→ 校验/去重 → 省份过滤 → 保存建议（卡片带地标、无照片）→ 浏览器另行请求照片，服务器按地标和地区查询当前照片提供方、逐张流式返回并写回卡片消息 → 显式选中时复核地点。推荐流程没有接入访问检查或排序，推荐卡照片只作装饰。Generate plan 检查准备度后将保存的状态和偏好交给真实计划页。独立调研脚本读取同一交接契约，调用 Research Agent 返回有来源的候选景点。PWA 有 manifest 和图标，没有离线 service worker。
+推荐是确定性流程：Meri 目录的城市匹配（开关打开且够相似时）或 Discovery Search → Kimi 结构化推荐（含配图用的代表地标）→ 校验/去重 → 省份过滤 → 保存建议（卡片带地标、无照片）→ 浏览器另行请求照片，服务器按地标和地区查询当前照片提供方、逐张流式返回并写回卡片消息 → 显式选中时复核地点。推荐流程没有接入访问检查或排序，推荐卡照片只作装饰。Generate plan 检查准备度后将保存的状态和偏好交给真实计划页。独立调研脚本读取同一交接契约，调用 Research Agent 返回有来源的候选景点。PWA 有 manifest 和图标，没有离线 service worker。
 
 ### 3.4 两条实际操作链
 
@@ -480,6 +480,8 @@ Generate plan 背后的计划页先用示例数据做出完整页面（设计决
 | [src/domain/catalog/catalog-tags.ts](../src/domain/catalog/catalog-tags.ts) | 领域层 | 标签归并表：景点的 162 种自由标签归成 23 个固定标签（2026-11-25 merlin 定），其他种类的固定标签就是种类；表里没有的标签返回出来，导入停下。 |
 | [src/domain/catalog/catalog-row.ts](../src/domain/catalog/catalog-row.ts) | 领域层 | 一条目录记录变成 catalog_entries 的一行：固定标签、source_count、别名拼成的 aliases_text、search_text（名称、别名、种类、固定标签、摘要、景点亮点）。 |
 | [src/domain/catalog/catalog-pick.ts](../src/domain/catalog/catalog-pick.ts) | 领域层 | 调研怎么用目录（RAG 第 2 步）：≥ 6 个景点才用目录、≥ 3 道菜才用目录菜；按固定标签判断户外/室内；景点排序（点名的区县 → 有偏好时向量和名字两路 RRF（k=60）合成偏好排名，和热门度排名按 2:1 轮流取，第 3 步 → 否则攻略数 → 把握 → 名字）；按名字或别名找用户点名的景点。 |
+| [src/domain/catalog/city-scores.ts](../src/domain/catalog/city-scores.ts) | 领域层 | RAG 第 4 步：全库匹配按州/市汇总，最像的一条满分、第二条一半、第三条四分之一，取前 6 座城、每城 3 条；最像的低于 0.5 就不给城市。 |
+| [src/domain/catalog/city-scores.test.ts](../src/domain/catalog/city-scores.test.ts) | 测试（领域规则） | 加权让一条精确匹配胜过三条松散匹配（大熊猫：成都胜阿坝）、每城 3 条和 6 座城上限、门槛。 |
 | [src/domain/catalog/catalog-pick.test.ts](../src/domain/catalog/catalog-pick.test.ts) | 测试（领域规则） | 户外判断、排序、按名字和别名查找。 |
 | [src/platform/catalog/catalog-source.ts](../src/platform/catalog/catalog-source.ts) | 基础设施适配器 | 按（省，州/市）读 catalog_entries 的 spot 和 dish 转成领域类型；按偏好原话同时查向量（余弦前 50，查询向量由百炼算，失败时这一路为空）和名字（word_similarity 前 20），RAG 第 3 步；`CATALOG_ENABLED=true` 才读，数据库客户端第一次用到时才加载；读失败抛 CatalogReadError，调研和吃什么接住后改走搜索。 |
 | [src/platform/embedding/bailian-embedding.ts](../src/platform/embedding/bailian-embedding.ts) | 基础设施适配器 | 百炼 /embeddings：一次最多 20 条、按输入顺序返回、维度不对或缺一条就报 invalid_response；不重试；`PAID_CALLS_ENABLED=false` 不发，`EMBEDDING_MAX_CALLS_PER_DAY`（默认 500，计数在 `.cache/embedding-calls.json`）；没有 DASHSCOPE_API_KEY 或 EMBEDDING_BASE_URL 时不建客户端。 |
@@ -631,6 +633,7 @@ Generate plan 背后的计划页先用示例数据做出完整页面（设计决
 | [src/capabilities/recommendation/recommendation-photos.test.ts](../src/capabilities/recommendation/recommendation-photos.test.ts) | 测试（对应模块边界） | 验证按地标查图与逐张回报、已有答案或无省的卡不再查、同一照片不出现在两张卡上，本地命中不查远程、没有英文名也按中文地标查、远程查不了的卡保持未查、主地标没图时试第一个备选地标、本地已有的备选地标不触发搜索。 |
 | [src/capabilities/recommendation/destination-recommendation-workflow.ts](../src/capabilities/recommendation/destination-recommendation-workflow.ts) | 应用层/用例装配 | Discovery Search→模型生成→省份过滤（within 限已定省，elsewhere 排除已保存省）→卡项 ID（带配图用的地标，不查照片）的确定性流程；搜索故障降级，无排序/访问检查。 |
 | [src/capabilities/recommendation/prompts/destination-recommendation-prompt.ts](../src/capabilities/recommendation/prompts/destination-recommendation-prompt.ts) | 应用层/用例装配 | 受限省市推荐 prompt，含聊天触发说明、真实上下文和未核验搜索启发；理由用首页语言写，省/市/地标名保持中文；未定目的地且用户只说想出去玩时只给 3–4 个、各在不同省份的不同类型地方。 |
+| [src/capabilities/recommendation/prompts/destination-recommendation-prompt.test.ts](../src/capabilities/recommendation/prompts/destination-recommendation-prompt.test.ts) | 测试（prompt） | 只有目录给出城市时才加目录那段数据，不带分数，其余提示词不变（RAG 第 4 步）。 |
 
 ### 6.11a Planning 交接
 
@@ -919,6 +922,7 @@ Generate plan 背后的计划页先用示例数据做出完整页面（设计决
 | [scripts/eval-retrieval.ts](../scripts/eval-retrieval.ts) | 评测工具 | RAG 检索评测：读 `evals/retrieval/cases.json`，每组算一次查询向量，四种排法（热门度、只用向量、向量+关键词 RRF、和热门度轮流取）各排一遍，打印并保存 hit@4、recall@4、recall@12。约 ¥0.001 一次。 |
 | [scripts/eval-retrieval-score.ts](../scripts/eval-retrieval-score.ts) | 评测工具 | 用例格式、四种排法、打分和平均。 |
 | [scripts/eval-retrieval-score.test.ts](../scripts/eval-retrieval-score.test.ts) | 测试 | 四种排法的顺序、指标计算、用例文件合法。 |
+| [evals/retrieval/city-cases.json](../evals/retrieval/city-cases.json) | 评测用例 | RAG 第 4 步城市推荐 11 组：一句话和应排进前 4 的城市；空列表表示目录应该不给城市（极光、量子物理），退回网页搜索。 |
 | [evals/retrieval/cases.json](../evals/retrieval/cases.json) | 评测用例 | 21 组（14 座城，2 组英文）：城市、旅行者原话、应该排在前面的目录景点（2026-11-26 merlin 同意）。 |
 | [evals/retrieval/results/](../evals/retrieval/results/) | 评测结果 | 每次检索评测一个 JSON：提交、日期、向量模型、四种排法的总分和每组前 4 名。 |
 | [evals/plan/cases/](../evals/plan/cases/) | 评测用例 | 11 个典型旅程：单城、两城、三城天数不够、三城有偏好、点名区县、北京周一故宫、无天数预览、哈尔滨冬季、英文界面、跨省加步行上限、三城刚够但想慢玩（1.2016）；每个写明覆盖什么和断言。 |

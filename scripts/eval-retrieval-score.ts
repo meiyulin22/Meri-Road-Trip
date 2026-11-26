@@ -60,3 +60,20 @@ export function totals(scores: readonly CaseScore[]): RankerTotals {
     recallAt12: mean(scores.map(({ recallAt12 }) => recallAt12)),
   };
 }
+
+/** One city case (RAG step 4): what a traveller said, and the cities that should come first; none means the catalog should stay silent. */
+export const cityCaseSchema = z.strictObject({ id: z.string().min(1), query: z.string().min(1), cities: z.array(z.string().min(1)) });
+export const cityCasesSchema = z.strictObject({ note: z.string(), cases: z.array(cityCaseSchema).min(1) });
+
+export type CityCaseScore = { readonly passed: boolean; readonly recallAt4: number | null; readonly top4: readonly string[] };
+
+/**
+ * A silent case passes when the catalog suggests nothing; any other passes when one expected city is
+ * in the first four, and also reports what share of them are.
+ */
+export function scoreCityCase(expected: readonly string[], suggested: readonly string[] | null): CityCaseScore {
+  const top4 = (suggested ?? []).slice(0, 4);
+  if (expected.length === 0) return { passed: top4.length === 0, recallAt4: null, top4 };
+  const found = expected.filter((city) => top4.includes(city)).length;
+  return { passed: found > 0, recallAt4: found / expected.length, top4 };
+}

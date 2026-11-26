@@ -1,9 +1,11 @@
 import { randomUUID } from "node:crypto";
 
+import type { CatalogCity } from "@/domain/catalog/city-scores";
 import type { DestinationRecommendationGroup } from "@/domain/location/destination-recommendations";
 import { normalizeRecommendationRegion } from "@/domain/location/recommendation-identity";
 import type { DestinationArea } from "@/domain/trip-state/destination-areas";
 import type { DestinationRecommendationPresentation } from "@/domain/trip-message/trip-message";
+import { type ProvinceFilter, recommendCatalogCitiesFromEnvironment } from "@/platform/catalog/catalog-source";
 import { createBochaDiscoverySearchFromEnvironment } from "@/platform/search/bocha-discovery-search";
 import { searchJourneyDiscovery, type DiscoverySearch, type DiscoverySearchResult } from "@/platform/search/discovery-search";
 import { logger } from "@/platform/observability/logger";
@@ -20,8 +22,11 @@ export type DestinationRecommendationWorkflowDependencies = {
   readonly discovery: DiscoverySearch;
   readonly generate: (context: DestinationRecommendationContext & {
     readonly discoveryResults?: readonly DiscoverySearchResult[];
+    readonly catalogCities?: readonly CatalogCity[];
   }, requestId: string) => Promise<readonly DestinationRecommendationGroup[]>;
   readonly generateId: () => string;
+  /** Cities Meri's catalog suggests (RAG step 4), or null to search the web as before. Absent, never asked. */
+  readonly catalogCities?: (query: string, provinces: ProvinceFilter) => Promise<readonly CatalogCity[] | null>;
 };
 
 export function destinationRecommendationWorkflowDependencies(): DestinationRecommendationWorkflowDependencies {
@@ -29,7 +34,27 @@ export function destinationRecommendationWorkflowDependencies(): DestinationReco
     discovery: createBochaDiscoverySearchFromEnvironment(),
     generate: generateDestinationRecommendations,
     generateId: randomUUID,
+    catalogCities: recommendCatalogCitiesFromEnvironment,
   };
+}
+
+/** The traveller's own recent words, newest first: what the catalog is searched by (no origin, unlike the web query). */
+export function catalogQuery(context: DestinationRecommendationContext): string {
+  return context.conversationHistory
+    .filter((message) => message.role === "user")
+    .slice(-3)
+    .reverse()
+    .map((message) => message.content.replace(/\s+/gu, " ").trim().slice(0, 120))
+    .filter(Boolean)
+    .join(" ")
+    .slice(0, 300);
+}
+
+/** The same province rule the cards follow afterwards: inside the settled provinces, or outside the saved ones. */
+export function catalogProvinces(context: DestinationRecommendationContext): ProvinceFilter {
+  const provinces = (settledAreas(context) ?? []).map(({ province }) => province);
+  if (provinces.length === 0) return {};
+  return context.scope === "elsewhere" ? { except: provinces } : { only: provinces };
 }
 
 export async function runDestinationRecommendationWorkflow(
@@ -41,9 +66,16 @@ export async function runDestinationRecommendationWorkflow(
   logger.info({ event: "recommendation.workflow.started", requestId, source: context.source, scope: context.scope },
     "Destination recommendation workflow started");
 
-  const discovery = await searchJourneyDiscovery(context, dependencies.discovery);
-  const proposed = await dependencies.generate(
-    discovery.length ? { ...context, discoveryResults: discovery } : context, requestId);
+  // Meri's catalog first (RAG step 4): when it has cities close enough to what was said, the web search is skipped.
+  const catalogCities = dependencies.catalogCities
+    ? await dependencies.catalogCities(catalogQuery(context), catalogProvinces(context))
+    : null;
+  const discovery = catalogCities?.length ? [] : await searchJourneyDiscovery(context, dependencies.discovery);
+  const proposed = await dependencies.generate({
+    ...context,
+    ...(discovery.length ? { discoveryResults: discovery } : {}),
+    ...(catalogCities?.length ? { catalogCities } : {}),
+  }, requestId);
   const groups = context.scope === "elsewhere"
     ? outsideSavedProvinces(proposed, settledAreas(context))
     : withinSettledProvinces(proposed, settledAreas(context));
@@ -58,7 +90,7 @@ export async function runDestinationRecommendationWorkflow(
   })));
 
   logger.info({ event: "recommendation.workflow.completed", requestId,
-    discoveryCount: discovery.length, proposedProvinceCount: proposed.length,
+    discoveryCount: discovery.length, catalogCityCount: catalogCities?.length ?? 0, proposedProvinceCount: proposed.length,
     provinceCount: groups.length, placeCount: destinations.length,
     durationMs: Math.round(performance.now() - startedAt) }, "Destination recommendation workflow completed");
 

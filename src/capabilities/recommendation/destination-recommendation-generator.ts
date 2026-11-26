@@ -1,5 +1,6 @@
 import { validateDestinationRecommendations, type DestinationRecommendationGroup } from "@/domain/location/destination-recommendations";
 import { chinaProvinces } from "@/domain/location/china-destination-scope";
+import type { CatalogCity } from "@/domain/catalog/city-scores";
 import { buildDestinationRecommendationSystemPrompt } from "@/capabilities/recommendation/prompts/destination-recommendation-prompt";
 import type { DiscoverySearchResult } from "@/platform/search/discovery-search";
 import type { DestinationRecommendationContext } from "./destination-recommendation-context";
@@ -85,7 +86,10 @@ export class InvalidDestinationRecommendationOutputError extends Error {
 }
 
 export async function generateDestinationRecommendations(
-  context: DestinationRecommendationContext & { readonly discoveryResults?: readonly DiscoverySearchResult[] },
+  context: DestinationRecommendationContext & {
+    readonly discoveryResults?: readonly DiscoverySearchResult[];
+    readonly catalogCities?: readonly CatalogCity[];
+  },
   requestId: string,
   client: StructuredOutputModelClient = createAiSdkKimiClientFromEnvironment(),
 ): Promise<readonly DestinationRecommendationGroup[]> {

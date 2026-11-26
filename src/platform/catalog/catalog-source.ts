@@ -1,6 +1,7 @@
-import { and, cosineDistance, desc, eq, inArray, isNotNull, sql } from "drizzle-orm";
+import { and, cosineDistance, desc, eq, inArray, isNotNull, notInArray, sql } from "drizzle-orm";
 
 import type { CityCatalog, PreferenceRankings } from "@/domain/catalog/catalog-pick";
+import { type CatalogCity, type CatalogMatch, scoreCatalogCities } from "@/domain/catalog/city-scores";
 import type { CatalogTag } from "@/domain/catalog/catalog-tags";
 import { createEmbeddingFromEnvironment, type EmbeddingClient } from "@/platform/embedding/bailian-embedding";
 import { logger } from "@/platform/observability/logger";
@@ -18,7 +19,17 @@ export type CatalogSource = {
    * `queryVector` (top 50; none without a vector) and names or aliases the query writes (top 20).
    */
   readonly preferenceRankings: (province: string, prefecture: string, query: string, queryVector: readonly number[] | null) => Promise<PreferenceRankings>;
+  /**
+   * The spots and dishes nearest in meaning across the whole catalog (RAG step 4, top 50), only
+   * in `provinces.only` when given, never in `provinces.except`.
+   */
+  readonly nearestEntries: (queryVector: readonly number[], provinces: ProvinceFilter) => Promise<CatalogMatch[]>;
 };
+
+/** Where city recommendations may come from: inside the settled provinces, or outside the saved ones. */
+export type ProvinceFilter = { readonly only?: readonly string[]; readonly except?: readonly string[] };
+
+const nearestLimit = 50;
 
 /** Agreed 2026-11-25: vector top 50, names top 20. */
 const vectorLimit = 50;
@@ -79,6 +90,27 @@ export function createPostgresCatalogSource(database: CatalogDatabase): CatalogS
         return cityCatalogFromRows(rows);
       } catch (error) {
         throw new CatalogReadError(province, prefecture, error);
+      }
+    },
+    async nearestEntries(queryVector, provinces) {
+      const distance = cosineDistance(catalogEntries.embedding, [...queryVector]);
+      try {
+        const rows = await database.select({
+          province: catalogEntries.province,
+          city: catalogEntries.prefecture,
+          name: catalogEntries.name,
+          kind: catalogEntries.kind,
+          summary: catalogEntries.summary,
+          distance,
+        }).from(catalogEntries).where(and(
+          inArray(catalogEntries.kind, ["spot", "dish"]),
+          isNotNull(catalogEntries.embedding),
+          provinces.only?.length ? inArray(catalogEntries.province, [...provinces.only]) : undefined,
+          provinces.except?.length ? notInArray(catalogEntries.province, [...provinces.except]) : undefined,
+        )).orderBy(distance).limit(nearestLimit);
+        return rows.map(({ distance: away, kind, ...row }) => ({ ...row, kind: kind === "dish" ? "dish" : "spot", similarity: 1 - Number(away) }));
+      } catch (error) {
+        throw new CatalogReadError(provinces.only?.join("、") ?? "全国", "nearest entries", error);
       }
     },
     async preferenceRankings(province, prefecture, query, queryVector) {
@@ -152,4 +184,28 @@ export async function rankCityPreferencesFromEnvironment(province: string, prefe
     }
   }
   return environmentSource.preferenceRankings(province, prefecture, query, queryVector);
+}
+
+/**
+ * Cities the catalog suggests for what the traveller said (RAG step 4), or null when the catalog is
+ * off, there is no embedding key, a call fails, or nothing is close enough: then recommendations
+ * search the web as before. Failures are logged and never thrown, so a recommendation never fails
+ * because of the catalog.
+ */
+export async function recommendCatalogCitiesFromEnvironment(query: string, provinces: ProvinceFilter): Promise<CatalogCity[] | null> {
+  if (!catalogEnabled() || !query.trim()) return null;
+  if (environmentEmbedding === undefined) environmentEmbedding = createEmbeddingFromEnvironment(catalogEmbeddingDimensions);
+  if (!environmentEmbedding) return null;
+  try {
+    if (!environmentSource) {
+      const { db } = await import("@/platform/persistence/database/db");
+      environmentSource = createPostgresCatalogSource(db);
+    }
+    const [queryVector] = await environmentEmbedding.embed([query], AbortSignal.timeout(10_000));
+    const cities = scoreCatalogCities(await environmentSource.nearestEntries(queryVector, provinces));
+    return cities.length > 0 ? cities : null;
+  } catch (error) {
+    logger.warn({ error: error instanceof Error ? error.name : "unknown" }, "Catalog city search failed; recommending from web search");
+    return null;
+  }
 }

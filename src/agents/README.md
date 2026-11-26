@@ -184,6 +184,15 @@ gave the preferences only every other one of the first four places, which cost r
 to one. Famous spots still come every third place, so a traveller whose preferences say little still
 gets them.
 
+**Step 4 (2026-11-26): the catalog suggests cities in Workspace too** (not an agent: the fixed recommendation
+workflow, [city-scores.ts](../domain/catalog/city-scores.ts)). The traveller's last three messages are embedded
+once and matched against every spot and dish (top 50, inside the settled provinces or outside the saved ones);
+each 州/市 scores its best match in full, the second half, the third a quarter; the top six cities, each with
+three matches, go into the recommendation prompt as data, and Bocha is not called. A best match under 0.5
+cosine similarity means the catalog has nothing on it (极光 0.43, 量子物理 0.33), and the web search runs as
+before. The weighting came from 想看大熊猫: a plain sum put 阿坝 (熊猫海 is a lake) ahead of 成都. City eval
+([city-cases.json](../../evals/retrieval/city-cases.json)): 11 of 11, including the two that must stay silent.
+
 Popularity as a third RRF list was tried first and dropped: a city has a few dozen spots, so with k = 60 a
 spot in the middle of two lists outscored the top of one. Without preferences, without a key, or when the
 query or the database fails, the order is popularity alone (step 2). The query vector costs about ¥0.00002

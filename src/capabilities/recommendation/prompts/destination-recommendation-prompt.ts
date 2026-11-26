@@ -1,16 +1,35 @@
 import { destinationProvinceText } from "@/domain/trip-state/destination-areas";
 import type { DestinationRecommendationContext } from "@/capabilities/recommendation/destination-recommendation-context";
+import type { CatalogCity } from "@/domain/catalog/city-scores";
 import type { DiscoverySearchResult } from "@/platform/search/discovery-search";
 import { shownCardsGuidance } from "@/capabilities/conversation/conversation-history-content";
 import { promptLanguageName } from "@/capabilities/conversation/prompts/reply-language-guidance";
 
 export function buildDestinationRecommendationSystemPrompt(
-  context: DestinationRecommendationContext & { readonly discoveryResults?: readonly DiscoverySearchResult[] },
+  context: DestinationRecommendationContext & {
+    readonly discoveryResults?: readonly DiscoverySearchResult[];
+    readonly catalogCities?: readonly CatalogCity[];
+  },
 ): string {
-  const trigger = "The current real user message in conversation history triggered destination suggestions. No UI action occurred.";
   const discovery = context.discoveryResults?.length
     ? `\n\nUnverified discovery search results (inspiration only; never proof of existence, access, legality, safety, or current conditions):\n${JSON.stringify(context.discoveryResults)}`
     : "";
+  return `${basePrompt(context)}${discovery}${catalogBlock(context.catalogCities)}`;
+}
+
+/**
+ * Meri's own catalog (RAG step 4): cities whose spots or dishes come closest in meaning to what the
+ * user said, best first. Data, as the discovery results are; the rules of the prompt stay as they were.
+ */
+function catalogBlock(cities: readonly CatalogCity[] | undefined): string {
+  if (!cities?.length) return "";
+  const data = cities.map(({ province, city, matches }) => ({ province, city, matches }));
+  return `\n\nMeri's own catalog, compiled from travel guides, matched what the user said (best first). Prefer these cities when they fit the user and the scope rules above, and a reason may name their matched spots or dishes; a matched spot makes a good landmark. The catalog says nothing about current access, opening, prices or conditions:\n${JSON.stringify(data)}`;
+}
+
+const trigger = "The current real user message in conversation history triggered destination suggestions. No UI action occurred.";
+
+function basePrompt(context: DestinationRecommendationContext): string {
   return `You are Meri, an outdoor travel companion. ${trigger} Propose places the user could go, grouped by province, from the authoritative TripState and the real conversation history.
 
 Each place is one prefecture-level city or autonomous prefecture — 丽江市, 甘孜藏族自治州, 三亚市. Never a province, and never a single 景点、景区、山、湖、镇 or 村: which landmarks are worth the drive is decided later, when the plan is generated. Name the group with the full province-level name (云南省, 广西壮族自治区, 北京市).
@@ -23,7 +42,7 @@ ${reasonInstruction(context)} Do not treat assistant suggestions as confirmed us
 ${shownCardsGuidance}
 
 Authoritative TripState:
-${JSON.stringify(context.tripState)}${discovery}`;
+${JSON.stringify(context.tripState)}`;
 }
 
 /**

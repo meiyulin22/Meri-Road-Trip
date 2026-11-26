@@ -1,7 +1,9 @@
 /**
  * Retrieval eval for Meri's catalog (RAG): for each case in evals/retrieval/cases.json, the city's
  * spots ranked four ways (popularity, vector, preference, interleave) and scored hit@4, recall@4 and
- * recall@12. One query embedding a case, about ¥0.00005 each.
+ * recall@12; then evals/retrieval/city-cases.json against the city suggestions of RAG step 4 (a case passes
+ * with one expected city in the first four, or, when none is expected, with no suggestion). One query
+ * embedding a case, about ¥0.00005 each.
  *
  *   node --env-file=.env.local --import tsx scripts/eval-retrieval.ts [--label name]
  *
@@ -11,9 +13,11 @@ import { execFileSync } from "node:child_process";
 import { readFile, writeFile } from "node:fs/promises";
 import { parseArgs } from "node:util";
 
-import { rankCityPreferencesFromEnvironment, readCityCatalogFromEnvironment } from "@/platform/catalog/catalog-source";
+import { rankCityPreferencesFromEnvironment, readCityCatalogFromEnvironment, recommendCatalogCitiesFromEnvironment } from "@/platform/catalog/catalog-source";
 
-import { type CaseScore, rankBy, type Ranker, rankers, retrievalCasesSchema, scoreOrder, totals } from "./eval-retrieval-score";
+import {
+  type CaseScore, cityCasesSchema, rankBy, type Ranker, rankers, retrievalCasesSchema, scoreCityCase, scoreOrder, totals,
+} from "./eval-retrieval-score";
 
 async function main(): Promise<void> {
   const { values } = parseArgs({ options: { label: { type: "string" } } });
@@ -49,10 +53,23 @@ async function main(): Promise<void> {
     process.stdout.write(`${ranker.padEnd(12)} ${hitAt4.toFixed(2)}   ${recallAt4.toFixed(2)}      ${recallAt12.toFixed(2)}\n`);
   }
 
+  // City recommendations (RAG step 4): what the catalog suggests across the whole country.
+  const cityFile = cityCasesSchema.parse(JSON.parse(await readFile("evals/retrieval/city-cases.json", "utf8")));
+  const cityScores: Record<string, ReturnType<typeof scoreCityCase>> = {};
+  process.stdout.write("\ncity cases\n");
+  for (const cityCase of cityFile.cases) {
+    const suggested = await recommendCatalogCitiesFromEnvironment(cityCase.query, {});
+    const score = scoreCityCase(cityCase.cities, suggested?.map(({ city }) => city) ?? null);
+    cityScores[cityCase.id] = score;
+    process.stdout.write(`${cityCase.id.padEnd(22)} ${score.passed ? "pass" : "FAIL"} | ${score.top4.join("、") || "(nothing: web search)"}\n`);
+  }
+  const cityPassed = Object.values(cityScores).filter(({ passed }) => passed).length;
+  process.stdout.write(`city cases passed ${cityPassed}/${cityFile.cases.length}\n`);
+
   const commit = execFileSync("git", ["rev-parse", "--short", "HEAD"], { encoding: "utf8" }).trim();
   const date = new Date().toISOString().slice(0, 10);
   const file = `evals/retrieval/results/${date}-${values.label ?? commit}.json`;
-  await writeFile(file, `${JSON.stringify({ commit, date, model: process.env.EMBEDDING_MODEL ?? null, summary, cases: perCase }, null, 2)}\n`);
+  await writeFile(file, `${JSON.stringify({ commit, date, model: process.env.EMBEDDING_MODEL ?? null, summary, cases: perCase, cityPassed, cityCases: cityScores }, null, 2)}\n`);
   process.stdout.write(`\nSaved ${file}\n`);
 }
 

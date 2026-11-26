@@ -4,7 +4,7 @@ import test from "node:test";
 
 import type { CatalogSpot } from "@/domain/catalog/catalog-pick";
 
-import { rankBy, retrievalCasesSchema, scoreOrder, totals } from "./eval-retrieval-score";
+import { cityCasesSchema, rankBy, retrievalCasesSchema, scoreCityCase, scoreOrder, totals } from "./eval-retrieval-score";
 
 const spot = (name: string, sourceCount: number): CatalogSpot => ({
   id: name, name, aliases: [], county: null, summary: "", highlights: [], tags: [], sourceCount, confidence: "high",
@@ -30,4 +30,11 @@ test("hit@4, recall@4 and recall@12, and their means", () => {
 test("the case file is valid", () => {
   const file = retrievalCasesSchema.parse(JSON.parse(readFileSync("evals/retrieval/cases.json", "utf8")));
   assert.equal(new Set(file.cases.map(({ id }) => id)).size, file.cases.length);
+});
+
+test("a city case passes with one expected city in the first four; a silent case passes only when nothing is suggested", () => {
+  assert.deepEqual(scoreCityCase(["成都市", "重庆市"], ["阿坝", "成都市", "a", "b", "重庆市"]), { passed: true, recallAt4: 0.5, top4: ["阿坝", "成都市", "a", "b"] });
+  assert.deepEqual(scoreCityCase([], null), { passed: true, recallAt4: null, top4: [] });
+  assert.equal(scoreCityCase([], ["成都市"]).passed, false);
+  assert.equal(cityCasesSchema.parse(JSON.parse(readFileSync("evals/retrieval/city-cases.json", "utf8"))).cases.length > 0, true);
 });

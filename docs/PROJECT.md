@@ -111,7 +111,8 @@ The implemented destination flow includes:
   Removing a city removes its spots and retains the province. Removing a spot keeps
   the city; removing a province removes all its children.
 - Manual destination search and explicit addition after provider verification.
-- Discovery Search, structured recommendation generation, and filtering to the
+- Meri's own catalog first (cities whose spots or dishes are closest in meaning to what the
+  traveller said, when the catalog is on), else Discovery Search; then structured recommendation generation, and filtering to the
   user’s settled provinces — or, when the user asks for somewhere else, to provinces
   not yet saved. Up to 12 suggested places may be shown; selection rechecks identity
   with the map provider before saving. An explicit request is enough to get cards. Meri's reply

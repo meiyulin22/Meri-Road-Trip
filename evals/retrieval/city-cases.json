@@ -1,0 +1,88 @@
+{
+  "note": "RAG step 4 city eval (2026-11-26): what a traveller said, and the cities that should be among the catalog's first four. An empty list means the catalog should suggest nothing (below 0.5), so recommendations fall back to web search.",
+  "cases": [
+    {
+      "id": "c01-snow",
+      "query": "想看雪山",
+      "cities": [
+        "迪庆藏族自治州",
+        "丽江市",
+        "甘孜藏族自治州"
+      ]
+    },
+    {
+      "id": "c02-panda",
+      "query": "想看大熊猫",
+      "cities": [
+        "成都市"
+      ]
+    },
+    {
+      "id": "c03-seaside",
+      "query": "想去海边玩水",
+      "cities": [
+        "三亚市",
+        "青岛市",
+        "秦皇岛市",
+        "厦门市"
+      ]
+    },
+    {
+      "id": "c04-desert",
+      "query": "想看沙漠和骆驼",
+      "cities": [
+        "酒泉市"
+      ]
+    },
+    {
+      "id": "c05-water-towns",
+      "query": "想看古镇和小桥流水",
+      "cities": [
+        "苏州市",
+        "嘉兴市"
+      ]
+    },
+    {
+      "id": "c06-ice",
+      "query": "冬天想看冰雪",
+      "cities": [
+        "哈尔滨市"
+      ]
+    },
+    {
+      "id": "c07-tibetan-temples",
+      "query": "想看藏传佛教寺庙",
+      "cities": [
+        "拉萨市",
+        "日喀则市",
+        "甘南藏族自治州",
+        "甘孜藏族自治州"
+      ]
+    },
+    {
+      "id": "c08-hotpot",
+      "query": "想吃正宗的火锅",
+      "cities": [
+        "重庆市",
+        "成都市"
+      ]
+    },
+    {
+      "id": "c09-karst-en",
+      "query": "I want to see karst hills and a river cruise",
+      "cities": [
+        "桂林市"
+      ]
+    },
+    {
+      "id": "c10-aurora",
+      "query": "想去看极光",
+      "cities": []
+    },
+    {
+      "id": "c11-off-topic",
+      "query": "我想做量子物理研究",
+      "cities": []
+    }
+  ]
+}

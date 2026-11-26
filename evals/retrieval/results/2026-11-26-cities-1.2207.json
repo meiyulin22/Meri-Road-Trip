@@ -1,0 +1,1098 @@
+{
+  "commit": "da043fd",
+  "date": "2026-11-26",
+  "model": "qwen3.7-text-embedding",
+  "summary": {
+    "popularity": {
+      "hitAt4": 0.571,
+      "recallAt4": 0.309,
+      "recallAt12": 0.735
+    },
+    "vector": {
+      "hitAt4": 1,
+      "recallAt4": 0.92,
+      "recallAt12": 1
+    },
+    "preference": {
+      "hitAt4": 1,
+      "recallAt4": 0.92,
+      "recallAt12": 1
+    },
+    "interleave": {
+      "hitAt4": 1,
+      "recallAt4": 0.894,
+      "recallAt12": 0.988
+    }
+  },
+  "cases": {
+    "01-lijiang-snow": {
+      "popularity": {
+        "hitAt4": false,
+        "recallAt4": 0,
+        "recallAt12": 0.3333333333333333,
+        "top4": [
+          "拉市海",
+          "丽江古城",
+          "泸沽湖云南侧",
+          "束河古镇"
+        ]
+      },
+      "vector": {
+        "hitAt4": true,
+        "recallAt4": 0.6666666666666666,
+        "recallAt12": 1,
+        "top4": [
+          "玉龙雪山",
+          "牦牛坪",
+          "格姆女神山",
+          "蓝月谷"
+        ]
+      },
+      "preference": {
+        "hitAt4": true,
+        "recallAt4": 0.6666666666666666,
+        "recallAt12": 1,
+        "top4": [
+          "玉龙雪山",
+          "牦牛坪",
+          "格姆女神山",
+          "蓝月谷"
+        ]
+      },
+      "interleave": {
+        "hitAt4": true,
+        "recallAt4": 0.6666666666666666,
+        "recallAt12": 1,
+        "top4": [
+          "玉龙雪山",
+          "牦牛坪",
+          "拉市海",
+          "格姆女神山"
+        ]
+      }
+    },
+    "02-diqing-temple": {
+      "popularity": {
+        "hitAt4": false,
+        "recallAt4": 0,
+        "recallAt12": 1,
+        "top4": [
+          "飞来寺观景区",
+          "梅里雪山",
+          "碧塔海",
+          "独克宗古城"
+        ]
+      },
+      "vector": {
+        "hitAt4": true,
+        "recallAt4": 1,
+        "recallAt12": 1,
+        "top4": [
+          "松赞林寺",
+          "独克宗古城",
+          "龟山公园",
+          "飞来寺观景区"
+        ]
+      },
+      "preference": {
+        "hitAt4": true,
+        "recallAt4": 1,
+        "recallAt12": 1,
+        "top4": [
+          "松赞林寺",
+          "独克宗古城",
+          "龟山公园",
+          "飞来寺观景区"
+        ]
+      },
+      "interleave": {
+        "hitAt4": true,
+        "recallAt4": 1,
+        "recallAt12": 1,
+        "top4": [
+          "松赞林寺",
+          "独克宗古城",
+          "飞来寺观景区",
+          "龟山公园"
+        ]
+      }
+    },
+    "03-diqing-golden-peak": {
+      "popularity": {
+        "hitAt4": true,
+        "recallAt4": 1,
+        "recallAt12": 1,
+        "top4": [
+          "飞来寺观景区",
+          "梅里雪山",
+          "碧塔海",
+          "独克宗古城"
+        ]
+      },
+      "vector": {
+        "hitAt4": true,
+        "recallAt4": 1,
+        "recallAt12": 1,
+        "top4": [
+          "梅里雪山",
+          "飞来寺观景区",
+          "石卡雪山",
+          "雨崩村"
+        ]
+      },
+      "preference": {
+        "hitAt4": true,
+        "recallAt4": 1,
+        "recallAt12": 1,
+        "top4": [
+          "梅里雪山",
+          "飞来寺观景区",
+          "石卡雪山",
+          "雨崩村"
+        ]
+      },
+      "interleave": {
+        "hitAt4": true,
+        "recallAt4": 1,
+        "recallAt12": 1,
+        "top4": [
+          "梅里雪山",
+          "飞来寺观景区",
+          "碧塔海",
+          "石卡雪山"
+        ]
+      }
+    },
+    "04-dali-lake-ride": {
+      "popularity": {
+        "hitAt4": true,
+        "recallAt4": 0.5,
+        "recallAt12": 1,
+        "top4": [
+          "苍山",
+          "崇圣寺三塔",
+          "大理古城",
+          "洱海"
+        ]
+      },
+      "vector": {
+        "hitAt4": true,
+        "recallAt4": 1,
+        "recallAt12": 1,
+        "top4": [
+          "洱海",
+          "双廊镇",
+          "南诏风情岛",
+          "苍山"
+        ]
+      },
+      "preference": {
+        "hitAt4": true,
+        "recallAt4": 1,
+        "recallAt12": 1,
+        "top4": [
+          "洱海",
+          "双廊镇",
+          "南诏风情岛",
+          "苍山"
+        ]
+      },
+      "interleave": {
+        "hitAt4": true,
+        "recallAt4": 1,
+        "recallAt12": 1,
+        "top4": [
+          "洱海",
+          "双廊镇",
+          "苍山",
+          "南诏风情岛"
+        ]
+      }
+    },
+    "05-hangzhou-temple": {
+      "popularity": {
+        "hitAt4": true,
+        "recallAt4": 0.5,
+        "recallAt12": 1,
+        "top4": [
+          "西溪国家湿地公园",
+          "杭州西湖",
+          "灵隐寺",
+          "龙井村"
+        ]
+      },
+      "vector": {
+        "hitAt4": true,
+        "recallAt4": 1,
+        "recallAt12": 1,
+        "top4": [
+          "灵隐寺",
+          "秋雪庵",
+          "龙山岛",
+          "飞来峰"
+        ]
+      },
+      "preference": {
+        "hitAt4": true,
+        "recallAt4": 1,
+        "recallAt12": 1,
+        "top4": [
+          "灵隐寺",
+          "秋雪庵",
+          "龙山岛",
+          "飞来峰"
+        ]
+      },
+      "interleave": {
+        "hitAt4": true,
+        "recallAt4": 0.5,
+        "recallAt12": 1,
+        "top4": [
+          "灵隐寺",
+          "秋雪庵",
+          "西溪国家湿地公园",
+          "龙山岛"
+        ]
+      }
+    },
+    "06-hangzhou-tea": {
+      "popularity": {
+        "hitAt4": true,
+        "recallAt4": 0.5,
+        "recallAt12": 1,
+        "top4": [
+          "西溪国家湿地公园",
+          "杭州西湖",
+          "灵隐寺",
+          "龙井村"
+        ]
+      },
+      "vector": {
+        "hitAt4": true,
+        "recallAt4": 1,
+        "recallAt12": 1,
+        "top4": [
+          "龙井村",
+          "梅家坞",
+          "龙山岛",
+          "杭州西湖"
+        ]
+      },
+      "preference": {
+        "hitAt4": true,
+        "recallAt4": 1,
+        "recallAt12": 1,
+        "top4": [
+          "龙井村",
+          "梅家坞",
+          "龙山岛",
+          "杭州西湖"
+        ]
+      },
+      "interleave": {
+        "hitAt4": true,
+        "recallAt4": 1,
+        "recallAt12": 1,
+        "top4": [
+          "龙井村",
+          "梅家坞",
+          "西溪国家湿地公园",
+          "龙山岛"
+        ]
+      }
+    },
+    "07-beijing-wall": {
+      "popularity": {
+        "hitAt4": true,
+        "recallAt4": 0.5,
+        "recallAt12": 0.5,
+        "top4": [
+          "故宫博物院",
+          "景山公园",
+          "798艺术区",
+          "八达岭长城"
+        ]
+      },
+      "vector": {
+        "hitAt4": true,
+        "recallAt4": 1,
+        "recallAt12": 1,
+        "top4": [
+          "八达岭长城",
+          "慕田峪长城",
+          "故宫神武门",
+          "南锣鼓巷"
+        ]
+      },
+      "preference": {
+        "hitAt4": true,
+        "recallAt4": 1,
+        "recallAt12": 1,
+        "top4": [
+          "八达岭长城",
+          "慕田峪长城",
+          "故宫神武门",
+          "南锣鼓巷"
+        ]
+      },
+      "interleave": {
+        "hitAt4": true,
+        "recallAt4": 1,
+        "recallAt12": 1,
+        "top4": [
+          "八达岭长城",
+          "慕田峪长城",
+          "故宫博物院",
+          "故宫神武门"
+        ]
+      }
+    },
+    "08-beijing-museum": {
+      "popularity": {
+        "hitAt4": true,
+        "recallAt4": 0.5,
+        "recallAt12": 0.5,
+        "top4": [
+          "故宫博物院",
+          "景山公园",
+          "798艺术区",
+          "八达岭长城"
+        ]
+      },
+      "vector": {
+        "hitAt4": true,
+        "recallAt4": 1,
+        "recallAt12": 1,
+        "top4": [
+          "中国国家博物馆",
+          "故宫钟表馆",
+          "故宫博物院",
+          "故宫珍宝馆"
+        ]
+      },
+      "preference": {
+        "hitAt4": true,
+        "recallAt4": 1,
+        "recallAt12": 1,
+        "top4": [
+          "中国国家博物馆",
+          "故宫钟表馆",
+          "故宫博物院",
+          "故宫珍宝馆"
+        ]
+      },
+      "interleave": {
+        "hitAt4": true,
+        "recallAt4": 1,
+        "recallAt12": 1,
+        "top4": [
+          "中国国家博物馆",
+          "故宫钟表馆",
+          "故宫博物院",
+          "故宫珍宝馆"
+        ]
+      }
+    },
+    "09-xian-history": {
+      "popularity": {
+        "hitAt4": false,
+        "recallAt4": 0,
+        "recallAt12": 1,
+        "top4": [
+          "大明宫国家遗址公园",
+          "大唐芙蓉园",
+          "大雁塔",
+          "华清池"
+        ]
+      },
+      "vector": {
+        "hitAt4": true,
+        "recallAt4": 1,
+        "recallAt12": 1,
+        "top4": [
+          "秦始皇兵马俑",
+          "陕西历史博物馆",
+          "华清池",
+          "小雁塔"
+        ]
+      },
+      "preference": {
+        "hitAt4": true,
+        "recallAt4": 1,
+        "recallAt12": 1,
+        "top4": [
+          "秦始皇兵马俑",
+          "陕西历史博物馆",
+          "华清池",
+          "小雁塔"
+        ]
+      },
+      "interleave": {
+        "hitAt4": true,
+        "recallAt4": 1,
+        "recallAt12": 1,
+        "top4": [
+          "秦始皇兵马俑",
+          "陕西历史博物馆",
+          "大明宫国家遗址公园",
+          "华清池"
+        ]
+      }
+    },
+    "10-chengdu-panda": {
+      "popularity": {
+        "hitAt4": false,
+        "recallAt4": 0,
+        "recallAt12": 0,
+        "top4": [
+          "都江堰水利工程",
+          "二王庙",
+          "青城后山",
+          "青城前山"
+        ]
+      },
+      "vector": {
+        "hitAt4": true,
+        "recallAt4": 1,
+        "recallAt12": 1,
+        "top4": [
+          "成都大熊猫繁育研究基地",
+          "玉垒阁",
+          "离堆古园",
+          "月城湖"
+        ]
+      },
+      "preference": {
+        "hitAt4": true,
+        "recallAt4": 1,
+        "recallAt12": 1,
+        "top4": [
+          "成都大熊猫繁育研究基地",
+          "玉垒阁",
+          "离堆古园",
+          "月城湖"
+        ]
+      },
+      "interleave": {
+        "hitAt4": true,
+        "recallAt4": 1,
+        "recallAt12": 1,
+        "top4": [
+          "成都大熊猫繁育研究基地",
+          "玉垒阁",
+          "都江堰水利工程",
+          "离堆古园"
+        ]
+      }
+    },
+    "11-chengdu-taoist": {
+      "popularity": {
+        "hitAt4": true,
+        "recallAt4": 0.25,
+        "recallAt12": 1,
+        "top4": [
+          "都江堰水利工程",
+          "二王庙",
+          "青城后山",
+          "青城前山"
+        ]
+      },
+      "vector": {
+        "hitAt4": true,
+        "recallAt4": 1,
+        "recallAt12": 1,
+        "top4": [
+          "上清宫",
+          "青城前山",
+          "青城山",
+          "天师洞"
+        ]
+      },
+      "preference": {
+        "hitAt4": true,
+        "recallAt4": 1,
+        "recallAt12": 1,
+        "top4": [
+          "上清宫",
+          "青城前山",
+          "青城山",
+          "天师洞"
+        ]
+      },
+      "interleave": {
+        "hitAt4": true,
+        "recallAt4": 0.75,
+        "recallAt12": 1,
+        "top4": [
+          "上清宫",
+          "青城前山",
+          "都江堰水利工程",
+          "青城山"
+        ]
+      }
+    },
+    "12-guilin-raft": {
+      "popularity": {
+        "hitAt4": true,
+        "recallAt4": 0.5,
+        "recallAt12": 0.5,
+        "top4": [
+          "叠彩山",
+          "伏波山",
+          "漓江",
+          "两江四湖"
+        ]
+      },
+      "vector": {
+        "hitAt4": true,
+        "recallAt4": 1,
+        "recallAt12": 1,
+        "top4": [
+          "遇龙河",
+          "漓江",
+          "两江四湖",
+          "象鼻山"
+        ]
+      },
+      "preference": {
+        "hitAt4": true,
+        "recallAt4": 1,
+        "recallAt12": 1,
+        "top4": [
+          "遇龙河",
+          "漓江",
+          "两江四湖",
+          "象鼻山"
+        ]
+      },
+      "interleave": {
+        "hitAt4": true,
+        "recallAt4": 1,
+        "recallAt12": 1,
+        "top4": [
+          "遇龙河",
+          "漓江",
+          "叠彩山",
+          "两江四湖"
+        ]
+      }
+    },
+    "13-guilin-terraces": {
+      "popularity": {
+        "hitAt4": false,
+        "recallAt4": 0,
+        "recallAt12": 0.3333333333333333,
+        "top4": [
+          "叠彩山",
+          "伏波山",
+          "漓江",
+          "两江四湖"
+        ]
+      },
+      "vector": {
+        "hitAt4": true,
+        "recallAt4": 1,
+        "recallAt12": 1,
+        "top4": [
+          "平安梯田",
+          "金坑梯田",
+          "龙脊梯田",
+          "阳朔十里画廊"
+        ]
+      },
+      "preference": {
+        "hitAt4": true,
+        "recallAt4": 1,
+        "recallAt12": 1,
+        "top4": [
+          "平安梯田",
+          "金坑梯田",
+          "龙脊梯田",
+          "阳朔十里画廊"
+        ]
+      },
+      "interleave": {
+        "hitAt4": true,
+        "recallAt4": 1,
+        "recallAt12": 1,
+        "top4": [
+          "平安梯田",
+          "金坑梯田",
+          "叠彩山",
+          "龙脊梯田"
+        ]
+      }
+    },
+    "14-huangshan-villages": {
+      "popularity": {
+        "hitAt4": true,
+        "recallAt4": 1,
+        "recallAt12": 1,
+        "top4": [
+          "宏村景区",
+          "西递古村",
+          "承志堂",
+          "宏村南湖"
+        ]
+      },
+      "vector": {
+        "hitAt4": true,
+        "recallAt4": 1,
+        "recallAt12": 1,
+        "top4": [
+          "西递古村",
+          "宏村景区",
+          "棠樾牌坊群",
+          "宏村月沼"
+        ]
+      },
+      "preference": {
+        "hitAt4": true,
+        "recallAt4": 1,
+        "recallAt12": 1,
+        "top4": [
+          "西递古村",
+          "宏村景区",
+          "棠樾牌坊群",
+          "宏村月沼"
+        ]
+      },
+      "interleave": {
+        "hitAt4": true,
+        "recallAt4": 1,
+        "recallAt12": 1,
+        "top4": [
+          "西递古村",
+          "宏村景区",
+          "承志堂",
+          "棠樾牌坊群"
+        ]
+      }
+    },
+    "15-xiamen-seaside": {
+      "popularity": {
+        "hitAt4": true,
+        "recallAt4": 0.3333333333333333,
+        "recallAt12": 0.6666666666666666,
+        "top4": [
+          "鼓浪屿",
+          "鼓浪屿八卦楼",
+          "鼓浪屿钢琴博物馆",
+          "鼓浪屿龙头路"
+        ]
+      },
+      "vector": {
+        "hitAt4": true,
+        "recallAt4": 1,
+        "recallAt12": 1,
+        "top4": [
+          "厦门环岛路",
+          "鼓浪屿",
+          "曾厝垵",
+          "菽庄花园"
+        ]
+      },
+      "preference": {
+        "hitAt4": true,
+        "recallAt4": 1,
+        "recallAt12": 1,
+        "top4": [
+          "厦门环岛路",
+          "鼓浪屿",
+          "曾厝垵",
+          "菽庄花园"
+        ]
+      },
+      "interleave": {
+        "hitAt4": true,
+        "recallAt4": 1,
+        "recallAt12": 1,
+        "top4": [
+          "厦门环岛路",
+          "鼓浪屿",
+          "鼓浪屿八卦楼",
+          "曾厝垵"
+        ]
+      }
+    },
+    "16-harbin-ice": {
+      "popularity": {
+        "hitAt4": true,
+        "recallAt4": 0.5,
+        "recallAt12": 1,
+        "top4": [
+          "东北虎林园",
+          "伏尔加庄园",
+          "哈尔滨冰雪大世界",
+          "哈尔滨防洪胜利纪念塔"
+        ]
+      },
+      "vector": {
+        "hitAt4": true,
+        "recallAt4": 1,
+        "recallAt12": 1,
+        "top4": [
+          "哈尔滨冰雪大世界",
+          "兆麟公园",
+          "太阳岛风景区",
+          "东北虎林园"
+        ]
+      },
+      "preference": {
+        "hitAt4": true,
+        "recallAt4": 1,
+        "recallAt12": 1,
+        "top4": [
+          "哈尔滨冰雪大世界",
+          "兆麟公园",
+          "太阳岛风景区",
+          "东北虎林园"
+        ]
+      },
+      "interleave": {
+        "hitAt4": true,
+        "recallAt4": 1,
+        "recallAt12": 1,
+        "top4": [
+          "哈尔滨冰雪大世界",
+          "兆麟公园",
+          "东北虎林园",
+          "太阳岛风景区"
+        ]
+      }
+    },
+    "17-lhasa-lake": {
+      "popularity": {
+        "hitAt4": false,
+        "recallAt4": 0,
+        "recallAt12": 1,
+        "top4": [
+          "八廓街",
+          "布达拉宫",
+          "大昭寺",
+          "色拉寺"
+        ]
+      },
+      "vector": {
+        "hitAt4": true,
+        "recallAt4": 1,
+        "recallAt12": 1,
+        "top4": [
+          "扎西半岛",
+          "纳木错合掌石",
+          "纳木错",
+          "善恶洞"
+        ]
+      },
+      "preference": {
+        "hitAt4": true,
+        "recallAt4": 1,
+        "recallAt12": 1,
+        "top4": [
+          "扎西半岛",
+          "纳木错合掌石",
+          "纳木错",
+          "善恶洞"
+        ]
+      },
+      "interleave": {
+        "hitAt4": true,
+        "recallAt4": 1,
+        "recallAt12": 1,
+        "top4": [
+          "扎西半岛",
+          "纳木错合掌石",
+          "八廓街",
+          "纳木错"
+        ]
+      }
+    },
+    "18-zhangjiajie-caves": {
+      "popularity": {
+        "hitAt4": false,
+        "recallAt4": 0,
+        "recallAt12": 0.5,
+        "top4": [
+          "百龙天梯",
+          "宝峰湖",
+          "黄石寨",
+          "金鞭溪"
+        ]
+      },
+      "vector": {
+        "hitAt4": true,
+        "recallAt4": 1,
+        "recallAt12": 1,
+        "top4": [
+          "张家界黄龙洞",
+          "天门洞",
+          "金鞭溪",
+          "天门山国家森林公园"
+        ]
+      },
+      "preference": {
+        "hitAt4": true,
+        "recallAt4": 1,
+        "recallAt12": 1,
+        "top4": [
+          "张家界黄龙洞",
+          "天门洞",
+          "金鞭溪",
+          "天门山国家森林公园"
+        ]
+      },
+      "interleave": {
+        "hitAt4": true,
+        "recallAt4": 1,
+        "recallAt12": 1,
+        "top4": [
+          "张家界黄龙洞",
+          "天门洞",
+          "百龙天梯",
+          "金鞭溪"
+        ]
+      }
+    },
+    "19-suzhou-gardens": {
+      "popularity": {
+        "hitAt4": true,
+        "recallAt4": 0.4,
+        "recallAt12": 0.6,
+        "top4": [
+          "沧浪亭",
+          "木渎古镇",
+          "狮子林",
+          "同里古镇"
+        ]
+      },
+      "vector": {
+        "hitAt4": true,
+        "recallAt4": 0.4,
+        "recallAt12": 1,
+        "top4": [
+          "网师园",
+          "留园",
+          "退思园",
+          "耕乐堂"
+        ]
+      },
+      "preference": {
+        "hitAt4": true,
+        "recallAt4": 0.4,
+        "recallAt12": 1,
+        "top4": [
+          "网师园",
+          "留园",
+          "退思园",
+          "耕乐堂"
+        ]
+      },
+      "interleave": {
+        "hitAt4": true,
+        "recallAt4": 0.6,
+        "recallAt12": 1,
+        "top4": [
+          "网师园",
+          "留园",
+          "沧浪亭",
+          "退思园"
+        ]
+      }
+    },
+    "20-aba-waterfalls-en": {
+      "popularity": {
+        "hitAt4": false,
+        "recallAt4": 0,
+        "recallAt12": 0.5,
+        "top4": [
+          "黄龙风景名胜区",
+          "九寨沟",
+          "格尔底寺",
+          "海子沟"
+        ]
+      },
+      "vector": {
+        "hitAt4": true,
+        "recallAt4": 0.25,
+        "recallAt12": 1,
+        "top4": [
+          "九寨沟",
+          "九寨沟五彩池",
+          "长海",
+          "树正群海"
+        ]
+      },
+      "preference": {
+        "hitAt4": true,
+        "recallAt4": 0.25,
+        "recallAt12": 1,
+        "top4": [
+          "九寨沟",
+          "九寨沟五彩池",
+          "长海",
+          "树正群海"
+        ]
+      },
+      "interleave": {
+        "hitAt4": true,
+        "recallAt4": 0.25,
+        "recallAt12": 0.75,
+        "top4": [
+          "九寨沟",
+          "九寨沟五彩池",
+          "黄龙风景名胜区",
+          "长海"
+        ]
+      }
+    },
+    "21-chongqing-night-en": {
+      "popularity": {
+        "hitAt4": false,
+        "recallAt4": 0,
+        "recallAt12": 1,
+        "top4": [
+          "白公馆",
+          "朝天门",
+          "磁器口古镇",
+          "大足石刻"
+        ]
+      },
+      "vector": {
+        "hitAt4": true,
+        "recallAt4": 1,
+        "recallAt12": 1,
+        "top4": [
+          "南山一棵树观景台",
+          "南山风景区",
+          "洪崖洞",
+          "朝天门"
+        ]
+      },
+      "preference": {
+        "hitAt4": true,
+        "recallAt4": 1,
+        "recallAt12": 1,
+        "top4": [
+          "南山一棵树观景台",
+          "南山风景区",
+          "洪崖洞",
+          "朝天门"
+        ]
+      },
+      "interleave": {
+        "hitAt4": true,
+        "recallAt4": 1,
+        "recallAt12": 1,
+        "top4": [
+          "南山一棵树观景台",
+          "南山风景区",
+          "白公馆",
+          "洪崖洞"
+        ]
+      }
+    }
+  },
+  "cityPassed": 11,
+  "cityCases": {
+    "c01-snow": {
+      "passed": true,
+      "recallAt4": 1,
+      "top4": [
+        "甘孜藏族自治州",
+        "迪庆藏族自治州",
+        "林芝市",
+        "丽江市"
+      ]
+    },
+    "c02-panda": {
+      "passed": true,
+      "recallAt4": 1,
+      "top4": [
+        "成都市",
+        "阿坝藏族羌族自治州",
+        "西双版纳傣族自治州",
+        "甘孜藏族自治州"
+      ]
+    },
+    "c03-seaside": {
+      "passed": true,
+      "recallAt4": 0.5,
+      "top4": [
+        "青岛市",
+        "秦皇岛市",
+        "珠海市",
+        "日照市"
+      ]
+    },
+    "c04-desert": {
+      "passed": true,
+      "recallAt4": 1,
+      "top4": [
+        "酒泉市",
+        "吐鲁番市",
+        "海南藏族自治州",
+        "阿勒泰地区"
+      ]
+    },
+    "c05-water-towns": {
+      "passed": true,
+      "recallAt4": 1,
+      "top4": [
+        "苏州市",
+        "上海市",
+        "嘉兴市",
+        "丽江市"
+      ]
+    },
+    "c06-ice": {
+      "passed": true,
+      "recallAt4": 1,
+      "top4": [
+        "哈尔滨市",
+        "甘孜藏族自治州",
+        "白山市",
+        "迪庆藏族自治州"
+      ]
+    },
+    "c07-tibetan-temples": {
+      "passed": true,
+      "recallAt4": 1,
+      "top4": [
+        "日喀则市",
+        "甘孜藏族自治州",
+        "拉萨市",
+        "甘南藏族自治州"
+      ]
+    },
+    "c08-hotpot": {
+      "passed": true,
+      "recallAt4": 1,
+      "top4": [
+        "重庆市",
+        "丽江市",
+        "成都市",
+        "呼伦贝尔市"
+      ]
+    },
+    "c09-karst-en": {
+      "passed": true,
+      "recallAt4": 1,
+      "top4": [
+        "桂林市",
+        "张家界市",
+        "湘西土家族苗族自治州",
+        "黔南布依族苗族自治州"
+      ]
+    },
+    "c10-aurora": {
+      "passed": true,
+      "recallAt4": null,
+      "top4": []
+    },
+    "c11-off-topic": {
+      "passed": true,
+      "recallAt4": null,
+      "top4": []
+    }
+  }
+}

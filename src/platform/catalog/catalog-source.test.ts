@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { catalogEnabled, cityCatalogFromRows, rankCityPreferencesFromEnvironment } from "./catalog-source";
+import { catalogEnabled, cityCatalogFromRows, rankCityPreferencesFromEnvironment, recommendCatalogCitiesFromEnvironment } from "./catalog-source";
 
 test("only CATALOG_ENABLED=true turns the catalog on", () => {
   assert.equal(catalogEnabled("true"), true);
@@ -29,6 +29,16 @@ test("without CATALOG_ENABLED the preference ranking reads nothing", async () =>
   delete process.env.CATALOG_ENABLED;
   try {
     assert.equal(await rankCityPreferencesFromEnvironment("云南省", "丽江市", "雪山"), null);
+  } finally {
+    if (saved !== undefined) process.env.CATALOG_ENABLED = saved;
+  }
+});
+
+test("without CATALOG_ENABLED no city is suggested and nothing is embedded", async () => {
+  const saved = process.env.CATALOG_ENABLED;
+  delete process.env.CATALOG_ENABLED;
+  try {
+    assert.equal(await recommendCatalogCitiesFromEnvironment("想看雪山", {}), null);
   } finally {
     if (saved !== undefined) process.env.CATALOG_ENABLED = saved;
   }

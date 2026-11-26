@@ -4,7 +4,7 @@ import test from "node:test";
 import type { DestinationRecommendationGroup } from "@/domain/location/destination-recommendations";
 import type { TripState } from "@/domain/trip-state/trip-state";
 import type { DestinationRecommendationContext } from "./destination-recommendation-context";
-import { runDestinationRecommendationWorkflow, type DestinationRecommendationWorkflowDependencies } from "./destination-recommendation-workflow";
+import { catalogProvinces, catalogQuery, runDestinationRecommendationWorkflow, type DestinationRecommendationWorkflowDependencies } from "./destination-recommendation-workflow";
 
 const state: TripState = {
   name: { state: "missing" }, origin: { state: "missing" }, destination: { state: "missing" },
@@ -132,4 +132,40 @@ test("in English, the sentence above the cards and the empty answer are English"
   const { deps: none } = dependencies({ generated: [] });
   assert.match((await runDestinationRecommendationWorkflow({ ...context, locale: "en" }, "request-10", none)).content,
     /couldn't find suitable destinations/);
+});
+
+const catalogCities = [{ province: "云南省", city: "迪庆藏族自治州", score: 1.1, matches: [{ name: "梅里雪山", kind: "spot" as const, summary: "雪山群。" }] }];
+
+test("when the catalog has close cities, they go to the model and the web search is skipped (RAG step 4)", async () => {
+  const { deps, calls } = dependencies();
+  const asked: { query: string; provinces: unknown }[] = [];
+  let given: unknown;
+  const result = await runDestinationRecommendationWorkflow(
+    { ...context, conversationHistory: [{ role: "user", content: "想看  雪山" }, { role: "assistant", content: "好" }, { role: "user", content: "冬天去" }] },
+    "request-catalog",
+    {
+      ...deps,
+      discovery: { async search() { throw new Error("must not search the web"); } },
+      async generate(input) { given = input.catalogCities; return deps.generate(input, "request-catalog"); },
+      catalogCities: async (query, provinces) => { asked.push({ query, provinces }); return catalogCities; },
+    },
+  );
+  assert.deepEqual(asked, [{ query: "冬天去 想看 雪山", provinces: {} }]);
+  assert.deepEqual(given, catalogCities);
+  assert.equal(calls.discoveryGiven, 0);
+  assert.equal(result.presentation?.destinations.length, 3);
+});
+
+test("nothing from the catalog: the web search runs as before", async () => {
+  const { deps, calls } = dependencies();
+  await runDestinationRecommendationWorkflow(context, "request-fallback", { ...deps, catalogCities: async () => null });
+  assert.equal(calls.discoveryGiven, 1);
+});
+
+test("the catalog is asked inside the settled provinces, or outside the saved ones for somewhere else", () => {
+  const settled: TripState = { ...state, destination: { state: "known", source: "user", areas: [{ province: "云南省", places: [] }] } };
+  assert.deepEqual(catalogProvinces({ ...context, tripState: settled }), { only: ["云南省"] });
+  assert.deepEqual(catalogProvinces({ ...context, tripState: settled, scope: "elsewhere" }), { except: ["云南省"] });
+  assert.deepEqual(catalogProvinces(context), {});
+  assert.equal(catalogQuery({ ...context, conversationHistory: [{ role: "assistant", content: "你好" }] }), "");
 });
