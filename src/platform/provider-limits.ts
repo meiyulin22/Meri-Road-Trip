@@ -36,6 +36,8 @@ export type ProviderLimits = {
   readonly metNorwayCallsPerDay: number;
   /** ROLLINGGO_MAX_CALLS_PER_DAY: RollingGo hotel calls (searches and details) a Beijing day; it says free with no cap. Default 300 (1.2117 stays). */
   readonly rollinggoCallsPerDay: number;
+  /** EMBEDDING_MAX_CALLS_PER_DAY: 百炼 embedding requests (up to 20 texts each) a Beijing day; a full catalog embed is about 115. Default 500 (RAG step 3). */
+  readonly embeddingCallsPerDay: number;
 };
 
 export const defaultProviderLimits: ProviderLimits = {
@@ -54,6 +56,7 @@ export const defaultProviderLimits: ProviderLimits = {
   openMeteoCallsPerDay: 2_000,
   metNorwayCallsPerDay: 1_000,
   rollinggoCallsPerDay: 300,
+  embeddingCallsPerDay: 500,
 };
 
 type Environment = Readonly<Record<string, string | undefined>>;
@@ -88,6 +91,7 @@ export function providerLimitsFrom(env: Environment): ProviderLimits {
     openMeteoCallsPerDay: positive(env, "OPEN_METEO_MAX_CALLS_PER_DAY", defaultProviderLimits.openMeteoCallsPerDay, 1, true),
     metNorwayCallsPerDay: positive(env, "MET_NORWAY_MAX_CALLS_PER_DAY", defaultProviderLimits.metNorwayCallsPerDay, 1, true),
     rollinggoCallsPerDay: positive(env, "ROLLINGGO_MAX_CALLS_PER_DAY", defaultProviderLimits.rollinggoCallsPerDay, 1, true),
+    embeddingCallsPerDay: positive(env, "EMBEDDING_MAX_CALLS_PER_DAY", defaultProviderLimits.embeddingCallsPerDay, 1, true),
   };
 }
 

@@ -411,3 +411,28 @@ test("fewer than six catalog spots, the switch off or a failed read: research se
     assert.ok(city.spots.every((spot) => spot.catalog === undefined));
   }
 });
+
+test("with preferences, the catalog's rankings choose first; without them or when ranking fails, popularity (RAG step 3)", async () => {
+  const asked: string[] = [];
+  const withPreferences = await researchCity(daliTask, handoff, {
+    search: async () => [], model: countingModel([]), catalog: async () => daliCatalog,
+    catalogRankings: async (_province, _city, query) => {
+      asked.push(query);
+      return { vector: ["spot_大理市博物馆", "spot_蝴蝶泉"], keyword: [] };
+    },
+  });
+  assert.deepEqual(asked, ["少走台阶"]);
+  assert.deepEqual(withPreferences.spots.map(({ name }) => name), ["大理市博物馆", "洱海", "蝴蝶泉", "苍山"]);
+
+  const failing = await researchCity(daliTask, handoff, {
+    search: async () => [], model: countingModel([]), catalog: async () => daliCatalog,
+    catalogRankings: async () => { throw new Error("database down"); },
+  });
+  const noPreferences = await researchCity(daliTask, { ...handoff, preferences: [] }, {
+    search: async () => [], model: countingModel([]), catalog: async () => daliCatalog,
+    catalogRankings: async () => { throw new Error("not called without preferences"); },
+  });
+  for (const city of [failing, noPreferences]) {
+    assert.deepEqual(city.spots.map(({ name }) => name), ["洱海", "苍山", "大理市博物馆", "崇圣寺三塔"]);
+  }
+});

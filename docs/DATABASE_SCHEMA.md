@@ -249,15 +249,17 @@ RAG 第 2 步（2026-11-25）起景点卡可带 `catalog`（`{ id, summary, high
 | `confidence` | text | 非空，CHECK ∈ high/medium/low | 提取时的把握 |
 | `source_count` | integer | 非空 | `source_refs` 的份数（几本攻略提到） |
 | `search_text` | text | 非空 | 名称、别名、种类、固定标签、摘要、景点亮点，由代码拼；第 3 步拿它做向量 |
-| `embedding` | vector（不定维度） | 可空 | 第 3 步选定向量接口后改成固定维度、填值并加向量索引；导入时 search_text 变了就清空 |
+| `embedding` | vector(1024) | 可空；HNSW 索引（`vector_cosine_ops`） | `search_text` 的向量（百炼 qwen3.7-text-embedding，1024 维，RAG 第 3 步），由 [embed-catalog](../scripts/embed-catalog.ts) 补空的；导入时 search_text 变了就清空 |
 | `catalog_version` | text | 非空 | 导入时私有仓库的 git 提交号，`data/` 有未提交改动时加 `-dirty` |
 | `imported_at` | timestamptz | 非空 | 本次导入时间 |
 
-导入（[scripts/import-catalog.ts](../scripts/import-catalog.ts)）先校验全部行：zod 严格 schema、文件名的省市与记录一致、标签都在归并表里、id 不重复，有一处问题就一行不写；然后在一个事务里按 id `INSERT … ON CONFLICT DO UPDATE`，再删除目录里已经没有的 id，所以可以重复执行。不读 `identity_check` 和 `schema_version`（后者校验时固定为 1）。2026-11-25 首次导入：提交 4ac288c，2284 条（spot 1349、dish 316、restaurant 157、stay 254、transport 118、tip 90），127 个州/市。
+导入（[scripts/import-catalog.ts](../scripts/import-catalog.ts)）先校验全部行：zod 严格 schema、文件名的省市与记录一致、标签都在归并表里、id 不重复，有一处问题就一行不写；然后在一个事务里按 id `INSERT … ON CONFLICT DO UPDATE`，再删除目录里已经没有的 id，所以可以重复执行。不读 `identity_check` 和 `schema_version`（后者校验时固定为 1）。填向量（[scripts/embed-catalog.ts](../scripts/embed-catalog.ts)）：只给 `embedding` 为空的行算，每次请求 20 条，写回时再核对 `search_text` 没变；可重复执行，`--dry-run` 只报行数、字数和请求数。2026-11-26 首次填满 2284 条（115 次请求，58 秒）。调研排候选时（`CATALOG_ENABLED=true`、有偏好）同时查两路：同城景点按余弦距离取前 50，名字或别名用 `word_similarity(name, 偏好原话) ≥ 0.5` 取前 20。
+
+2026-11-25 首次导入：提交 4ac288c，2284 条（spot 1349、dish 316、restaurant 157、stay 254、transport 118、tip 90），127 个州/市。
 
 ### 3.8 索引与约束范围
 
-各表主键提供唯一性及对应索引；除 trip_preferences 的 (trip_id, status)、plan_runs 的 (trip_id, started_at) 和 catalog_entries 的三个索引外，当前 schema 未声明额外的 owner、消息时间或 JSONB 查询索引。外键保证归属对象存在，不代替 owner 授权，也不会自动为外键列建立额外索引。这里只记录现状，不提前增加索引或新表。
+各表主键提供唯一性及对应索引；除 trip_preferences 的 (trip_id, status)、plan_runs 的 (trip_id, started_at) 和 catalog_entries 的四个索引外，当前 schema 未声明额外的 owner、消息时间或 JSONB 查询索引。外键保证归属对象存在，不代替 owner 授权，也不会自动为外键列建立额外索引。这里只记录现状，不提前增加索引或新表。
 
 ## 4. JSONB 内部结构
 
@@ -354,6 +356,7 @@ pending 标记只保存推荐范围，不保存要推荐什么：卡片请求从
 | [0011_plan_runs.sql](../drizzle/0011_plan_runs.sql) | 创建 plan_runs、plan_run_events、plan_versions 和 plan_run_status enum，四个级联外键、唯一约束和 (trip_id, started_at) 索引（drizzle-kit 生成，没有多余语句） |
 | [0013_trip_preference_pace.sql](../drizzle/0013_trip_preference_pace.sql) | 1.2017：新 enum `trip_preference_pace`（packed、relaxed），`trip_preferences` 加可空列 `pace` 和 CHECK 约束 `trip_preferences_pace_kind_check`；已有行为空，不需补数据 |
 | [0012_plan_run_suspended.sql](../drizzle/0012_plan_run_suspended.sql) | `plan_run_status` 加 `suspended`（在 `succeeded` 之前） |
+| [0015_catalog_embedding_1024.sql](../drizzle/0015_catalog_embedding_1024.sql) | RAG 第 3 步：`catalog_entries.embedding` 改成 `vector(1024)`（当时全为空，不丢数据），加 HNSW 索引 `catalog_entries_embedding_hnsw_idx`（`vector_cosine_ops`） |
 | [0014_catalog_entries.sql](../drizzle/0014_catalog_entries.sql) | RAG 第 1 步：`CREATE EXTENSION IF NOT EXISTS pg_trgm` 和 `vector`（手动加在 drizzle-kit 生成的语句前面，新库也能直接迁移；需要能建扩展的用户），创建 catalog_entries、两个 CHECK、(prefecture, kind) 索引和 name / aliases_text 的 GIN 三元组索引 |
 
 `_journal.json` 记录仓库迁移顺序；历史 snapshots 只覆盖已有快照，不应拿最后一份历史 snapshot 当完整当前 schema。执行状态需针对实际环境另行确认，本文件不授权清库或执行 DROP。

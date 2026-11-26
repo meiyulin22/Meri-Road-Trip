@@ -1,0 +1,2 @@
+ALTER TABLE "catalog_entries" ALTER COLUMN "embedding" SET DATA TYPE vector(1024);--> statement-breakpoint
+CREATE INDEX "catalog_entries_embedding_hnsw_idx" ON "catalog_entries" USING hnsw ("embedding" vector_cosine_ops);

@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { catalogEnabled, cityCatalogFromRows } from "./catalog-source";
+import { catalogEnabled, cityCatalogFromRows, rankCityPreferencesFromEnvironment } from "./catalog-source";
 
 test("only CATALOG_ENABLED=true turns the catalog on", () => {
   assert.equal(catalogEnabled("true"), true);
@@ -22,4 +22,14 @@ test("rows become spots with their highlights and dishes with their summary; oth
   ]);
   assert.deepEqual(catalog.spots.map(({ name, highlights, tags }) => [name, highlights, tags]), [["洱海", ["湖景"], ["水域"]]]);
   assert.deepEqual(catalog.dishes, [{ id: "dish_a", name: "乳扇", summary: "奶制品。", sourceCount: 2 }]);
+});
+
+test("without CATALOG_ENABLED the preference ranking reads nothing", async () => {
+  const saved = process.env.CATALOG_ENABLED;
+  delete process.env.CATALOG_ENABLED;
+  try {
+    assert.equal(await rankCityPreferencesFromEnvironment("云南省", "丽江市", "雪山"), null);
+  } finally {
+    if (saved !== undefined) process.env.CATALOG_ENABLED = saved;
+  }
 });

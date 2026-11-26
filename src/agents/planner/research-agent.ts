@@ -9,6 +9,7 @@ import {
   catalogOutdoor,
   type CityCatalog,
   findCatalogSpot,
+  type PreferenceRankings,
   minCatalogSpots,
   rankCatalogSpots,
 } from "@/domain/catalog/catalog-pick";
@@ -23,7 +24,7 @@ import { createMoonshotChatModelFromEnvironment } from "@/platform/llm/moonshot-
 import { logger } from "@/platform/observability/logger";
 import type { DiscoverySearchResult } from "@/platform/search/discovery-search";
 import { createPlanSearchFromEnvironment } from "@/platform/search/plan-search";
-import { readCityCatalogFromEnvironment } from "@/platform/catalog/catalog-source";
+import { rankCityPreferencesFromEnvironment, readCityCatalogFromEnvironment } from "@/platform/catalog/catalog-source";
 import { modelDeadlineMs } from "@/platform/llm/moonshot-chat-model";
 
 /** The plan workflow researches this many cities at once too. */
@@ -126,6 +127,8 @@ export type ResearchDependencies = {
   readonly model: typeof createMoonshotChatModelFromEnvironment;
   /** Meri's catalog for one 州/市 (RAG step 2); null when CATALOG_ENABLED is off. Absent, research only searches. */
   readonly catalog?: (province: string, prefecture: string) => Promise<CityCatalog | null>;
+  /** The city's catalog spots ranked for the preferences, by meaning and by name (RAG step 3); null when off. */
+  readonly catalogRankings?: (province: string, prefecture: string, query: string) => Promise<PreferenceRankings | null>;
 };
 
 const defaultDependencies: ResearchDependencies = {
@@ -133,6 +136,7 @@ const defaultDependencies: ResearchDependencies = {
   deepSearch: (query, signal) => createPlanSearchFromEnvironment().deep(query, signal),
   model: createMoonshotChatModelFromEnvironment,
   catalog: readCityCatalogFromEnvironment,
+  catalogRankings: rankCityPreferencesFromEnvironment,
 };
 
 function spotCard(city: City, name: string, requested: boolean): SpotCard {
@@ -479,6 +483,23 @@ async function readCatalog(task: ResearchTask, deps: ResearchDependencies): Prom
   }
 }
 
+/** The traveller's preferences as one query, their own words; empty when they gave none. */
+export function preferenceQuery(handoff: PlanHandoff): string {
+  return handoff.preferences.slice(0, 10).map(({ quote }) => quote.trim()).filter(Boolean).join("；").slice(0, 400);
+}
+
+/** Rankings for the preferences, or null without preferences or on any failure: popularity alone then. */
+async function readRankings(task: ResearchTask, handoff: PlanHandoff, deps: ResearchDependencies): Promise<PreferenceRankings | null> {
+  const query = preferenceQuery(handoff);
+  if (!deps.catalogRankings || !query) return null;
+  try {
+    return await deps.catalogRankings(task.province, task.city, query);
+  } catch (error) {
+    logger.warn({ city: task.city, error: error instanceof Error ? error.name : "unknown" }, "Catalog ranking failed; ranking by popularity");
+    return null;
+  }
+}
+
 /**
  * A city with enough catalog spots (RAG step 2): the traveller's named spots and the best-ranked
  * others come from the catalog, with no nomination or discovery search. A named spot the catalog
@@ -492,7 +513,8 @@ async function researchFromCatalog(
   onProgress: ResearchProgress,
 ): Promise<CityResearch> {
   const city: City = { province: task.province, city: task.city, requested: task.requested };
-  const ranked = rankCatalogSpots(catalog.spots, task.areas);
+  // The preferences decide which spots come first (RAG step 3): 04 on popularity alone missed 玉龙雪山 and 松赞林寺.
+  const ranked = rankCatalogSpots(catalog.spots, task.areas, await readRankings(task, handoff, deps));
   const used = new Set<string>();
   const requestedCards: SpotCard[] = [];
   const notInCatalog: string[] = [];

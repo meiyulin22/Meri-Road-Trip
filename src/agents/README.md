@@ -153,7 +153,25 @@ stored but never shown. With `CATALOG_ENABLED=true` ([catalog-pick.ts](../domain
 | What to eat, Chinese plans: three catalog dishes or more replace the dish search (up to five, most-mentioned first, no source); restaurants are still searched and need two witnesses; catalog restaurants are not used | Their addresses and prices are old |
 | Fewer than six spots, no catalog, the switch off, or a failed read: research and food search as before | `CATALOG_ENABLED` is the comparison switch for evals |
 
-Step 3 adds embeddings and hybrid search (vector top 50 + pg_trgm names top 20, RRF k=60).
+**Step 3 (2026-11-26): preferences rank the catalog.** Every entry's `search_text` has a 1024-dimension
+vector from 百炼 qwen3.7-text-embedding ([bailian-embedding.ts](../platform/embedding/bailian-embedding.ts),
+filled by [scripts/embed-catalog.ts](../../scripts/embed-catalog.ts): 2284 rows, 115 requests, about ¥0.1).
+With preferences, research embeds their quotes as one query and asks two lists side by side: the city's
+spots nearest in meaning (cosine, top 50) and spots whose name or alias the quotes write
+(`word_similarity ≥ 0.5`, top 20). RRF (k = 60) fuses those two into a preference order, which then takes
+turns with popularity: best answer, most-mentioned, next of each. A named county still comes first.
+
+| Checked 2026-11-26 with case 04's quotes (最想看雪山和藏传寺庙) | Top four |
+| --- | --- |
+| 丽江, popularity only | 拉市海, 丽江古城, 泸沽湖云南侧, 束河古镇 |
+| 丽江, popularity as a third RRF list | 格姆女神山, 束河古镇, 玉湖村, 里格村: 玉龙雪山 missing |
+| 丽江, taking turns (built) | 玉龙雪山, 拉市海, 牦牛坪, 丽江古城 |
+| 迪庆, taking turns (built) | 松赞林寺, 飞来寺观景区, 梅里雪山, 碧塔海 |
+
+Popularity as a third RRF list was tried first and dropped: a city has a few dozen spots, so with k = 60 a
+spot in the middle of two lists outscored the top of one. Without preferences, without a key, or when the
+query or the database fails, the order is popularity alone (step 2). The query vector costs about ¥0.00002
+a city.
 
 The first round researches up to ten cities, two at a time, with a 70-second
 deadline and up to five search calls per city. Extraction asks for only as many cards

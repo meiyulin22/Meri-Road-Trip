@@ -67,6 +67,7 @@
 | `src/platform/location-provider/` | 地点搜索/输入建议接口（实现在 `src/platform/tianditu/`） | 地图提供方适配 |
 | `src/platform/search/` | Discovery Search 接口及 Bocha、Kimi Search Pro 请求/响应适配 | 搜索提供方适配 |
 | `src/platform/catalog/` | 读 Meri 目录（catalog_entries）某个州/市的景点和特色菜；`CATALOG_ENABLED` 开关 | 数据库只读适配器（RAG 第 2 步） |
+| `src/platform/embedding/` | 百炼向量接口（兼容 OpenAI 的 /embeddings），每天调用上限和总开关 | 外部集成适配器（RAG 第 3 步） |
 | `src/platform/rail/` | 火车：12306-mcp 子进程、请求节奏和每日上限、城市名转换、查余票适配（1.2108） | 外部集成适配器 |
 | `src/platform/place-photos/` | 地点照片接口、本地图集（地区与名称匹配），以及推荐卡的运行时补图（Wikimedia 先、Pixabay 后：客户端、身份判断、媒体目录存储） | 照片提供方适配 |
 | `src/platform/persistence/` | repository 接口，隔离应用层与数据库实现 | 持久化端口；这里的接口不等于 SQL 实现 |
@@ -478,9 +479,11 @@ Generate plan 背后的计划页先用示例数据做出完整页面（设计决
 | [src/domain/catalog/catalog-entry.ts](../src/domain/catalog/catalog-entry.ts) | 领域层 | Meri 目录（私有仓库 meri-catalog-cn 的 NDJSON）每条记录的 zod 严格 schema，按 spot/dish/restaurant/stay/transport/tip 区分 details；格式一变导入就报错。 |
 | [src/domain/catalog/catalog-tags.ts](../src/domain/catalog/catalog-tags.ts) | 领域层 | 标签归并表：景点的 162 种自由标签归成 23 个固定标签（2026-11-25 merlin 定），其他种类的固定标签就是种类；表里没有的标签返回出来，导入停下。 |
 | [src/domain/catalog/catalog-row.ts](../src/domain/catalog/catalog-row.ts) | 领域层 | 一条目录记录变成 catalog_entries 的一行：固定标签、source_count、别名拼成的 aliases_text、search_text（名称、别名、种类、固定标签、摘要、景点亮点）。 |
-| [src/domain/catalog/catalog-pick.ts](../src/domain/catalog/catalog-pick.ts) | 领域层 | 调研怎么用目录（RAG 第 2 步）：≥ 6 个景点才用目录、≥ 3 道菜才用目录菜；按固定标签判断户外/室内；景点排序（点名的区县 → 攻略数 → 把握 → 名字）；按名字或别名找用户点名的景点。 |
+| [src/domain/catalog/catalog-pick.ts](../src/domain/catalog/catalog-pick.ts) | 领域层 | 调研怎么用目录（RAG 第 2 步）：≥ 6 个景点才用目录、≥ 3 道菜才用目录菜；按固定标签判断户外/室内；景点排序（点名的区县 → 有偏好时向量和名字两路 RRF（k=60）合成偏好排名，和热门度排名轮流取，第 3 步 → 否则攻略数 → 把握 → 名字）；按名字或别名找用户点名的景点。 |
 | [src/domain/catalog/catalog-pick.test.ts](../src/domain/catalog/catalog-pick.test.ts) | 测试（领域规则） | 户外判断、排序、按名字和别名查找。 |
-| [src/platform/catalog/catalog-source.ts](../src/platform/catalog/catalog-source.ts) | 基础设施适配器 | 按（省，州/市）读 catalog_entries 的 spot 和 dish 转成领域类型；`CATALOG_ENABLED=true` 才读，数据库客户端第一次用到时才加载；读失败抛 CatalogReadError，调研和吃什么接住后改走搜索。 |
+| [src/platform/catalog/catalog-source.ts](../src/platform/catalog/catalog-source.ts) | 基础设施适配器 | 按（省，州/市）读 catalog_entries 的 spot 和 dish 转成领域类型；按偏好原话同时查向量（余弦前 50，查询向量由百炼算，失败时这一路为空）和名字（word_similarity 前 20），RAG 第 3 步；`CATALOG_ENABLED=true` 才读，数据库客户端第一次用到时才加载；读失败抛 CatalogReadError，调研和吃什么接住后改走搜索。 |
+| [src/platform/embedding/bailian-embedding.ts](../src/platform/embedding/bailian-embedding.ts) | 基础设施适配器 | 百炼 /embeddings：一次最多 20 条、按输入顺序返回、维度不对或缺一条就报 invalid_response；不重试；`PAID_CALLS_ENABLED=false` 不发，`EMBEDDING_MAX_CALLS_PER_DAY`（默认 500，计数在 `.cache/embedding-calls.json`）；没有 DASHSCOPE_API_KEY 或 EMBEDDING_BASE_URL 时不建客户端。 |
+| [src/platform/embedding/bailian-embedding.test.ts](../src/platform/embedding/bailian-embedding.test.ts) | 测试（适配器） | 请求格式和顺序、HTTP 失败不重试、维度不对或缺向量、总开关、每日上限、超过 20 条、缺配置。 |
 | [src/platform/catalog/catalog-source.test.ts](../src/platform/catalog/catalog-source.test.ts) | 测试（适配器） | 开关只认 true；行转成景点（带亮点）和菜，其他种类不要。 |
 | [src/domain/catalog/catalog-row.test.ts](../src/domain/catalog/catalog-row.test.ts) | 测试（领域规则） | 标签归并的顺序与去重、未知标签、其他种类、search_text 拼法、schema 拒绝多字段和错 details。 |
 | [src/domain/plan/plan-draft.ts](../src/domain/plan/plan-draft.ts) | 领域层 | 计划草稿与路线类型；规划范围（示范日或全部城市与日期）；校验 Plan Agent 的路线（覆盖、放弃条件、天数、区县）并生成每天的城市、转场、重点区县和主题；按添加顺序兜底分天；校验选点提案（候选、所在城市、跨天重复、每天上限与转场日少 1、有原文支持的时间锚点、点名景点），整理冲突和待核实字段；识别用户点名的区域（以市、县、旗结尾的区县名）；用户选择放弃的城市才允许在天数够时放弃；`legReach` 判断一段路的时间能不能用：没路、一头离路超过 1 公里是一大片区域（1.2105）、或可用但头尾有一截超过 300 米没路。；1.2117 加 `reorderRoute`：绕路兜底时按最短顺序重排城市，每城天数、理由和每天的重点区与主题跟着城市走 |
@@ -891,6 +894,8 @@ Generate plan 背后的计划页先用示例数据做出完整页面（设计决
 | [drizzle/meta/0010_snapshot.json](../drizzle/meta/0010_snapshot.json) | 数据库演进/工具元数据 | 第 10 次迁移生成的完整 schema 快照（含 trip_preferences），用于 Drizzle 差异计算，不是当前在线数据库状态。 |
 | [drizzle/meta/0011_snapshot.json](../drizzle/meta/0011_snapshot.json) | 数据库演进/工具元数据 | 第 11 次迁移生成的完整 schema 快照（含计划运行三张表），用于 Drizzle 差异计算，不是当前在线数据库状态。 |
 | [drizzle/meta/0012_snapshot.json](../drizzle/meta/0012_snapshot.json) | 数据库演进/工具元数据 | 第 12 次迁移生成的完整 schema 快照，用于 Drizzle 差异计算，不是当前在线数据库状态。 |
+| [drizzle/0015_catalog_embedding_1024.sql](../drizzle/0015_catalog_embedding_1024.sql) | 迁移 | RAG 第 3 步：embedding 改成 vector(1024)，加 HNSW 余弦索引。 |
+| [drizzle/meta/0015_snapshot.json](../drizzle/meta/0015_snapshot.json) | 数据库演进/工具元数据 | 第 15 次迁移生成的完整 schema 快照。 |
 | [drizzle/meta/0014_snapshot.json](../drizzle/meta/0014_snapshot.json) | 数据库演进/工具元数据 | 第 14 次迁移生成的完整 schema 快照（含 catalog_entries）。 |
 | [drizzle/meta/_journal.json](../drizzle/meta/_journal.json) | 数据库演进/工具元数据 | Drizzle 迁移顺序记录，包含 0000–0009；不等于某环境已全部执行。 |
 
@@ -906,6 +911,9 @@ Generate plan 背后的计划页先用示例数据做出完整页面（设计决
 | [scripts/eval-plan-score.ts](../scripts/eval-plan-score.ts) | 评测工具 | 用例格式（`evalCaseSchema`）、从用例生成 PlanHandoff、从事件和计划算指标（时长、各阶段耗时、token、调研/验证搜索、天地图查询、重试、覆盖、检查结果、预约、冲突、修复轮数），以及代码判定的断言；纯函数，无 IO。 |
 | [scripts/eval-plan-score.test.ts](../scripts/eval-plan-score.test.ts) | 测试 | 生成 handoff 的日期推算、指标来自事件和计划、周一闭馆/缺预约/空天各自判不通过、没有计划时给出原因。 |
 | [scripts/import-catalog.ts](../scripts/import-catalog.ts) | 维护工具 | 把 `CATALOG_DIR`（私有仓库根目录）的 `data/cities/*.ndjson` 导入 catalog_entries：先全部校验，有问题一行不写；一个事务里按 id 写入、删掉目录里已没有的条目，可重复执行；`catalog_version` 记私有仓库提交号（有未提交改动加 -dirty）；`--dry-run` 只报增改删数。连任何 Postgres（VPS 经 SSH 隧道）。 |
+| [scripts/embed-catalog.ts](../scripts/embed-catalog.ts) | 维护工具 | 给 catalog_entries 里没有向量的行算向量（百炼，每次 20 条），写回时核对 search_text 没变；可重复执行，`--dry-run` 只报数。 |
+| [scripts/embed-catalog-batches.ts](../scripts/embed-catalog-batches.ts) | 维护工具 | 按每次请求的条数分批。 |
+| [scripts/embed-catalog-batches.test.ts](../scripts/embed-catalog-batches.test.ts) | 测试 | 分批的顺序、最后一批、空、非法批大小。 |
 | [scripts/import-catalog-read.ts](../scripts/import-catalog-read.ts) | 维护工具 | 导入的纯逻辑：逐行 JSON + zod + 文件名与省市一致 + 标签归并 + id 不重复（都是问题），related 指向不存在的条目（警告）；计算增改删数。 |
 | [scripts/import-catalog-read.test.ts](../scripts/import-catalog-read.test.ts) | 测试 | 坏 JSON、字段错、城市不符、重复 id、未知标签、缺失的 related、文件名不对、增改删计数。 |
 | [evals/plan/cases/](../evals/plan/cases/) | 评测用例 | 11 个典型旅程：单城、两城、三城天数不够、三城有偏好、点名区县、北京周一故宫、无天数预览、哈尔滨冬季、英文界面、跨省加步行上限、三城刚够但想慢玩（1.2016）；每个写明覆盖什么和断言。 |

@@ -25,7 +25,7 @@ import { createRollingGoHotels, hotelEnabled, rollinggoTools, sharedHotelBudget,
 import type { WeatherForecast } from "@/platform/weather/weather-forecast";
 import { createVariflightHubs, createVariflightSearch, flightEnabled, type FlightSearch, sharedFlightBudget, variflightTools, variflightTrainTools } from "@/platform/flight/variflight";
 
-import { readCityCatalogFromEnvironment } from "@/platform/catalog/catalog-source";
+import { rankCityPreferencesFromEnvironment, readCityCatalogFromEnvironment } from "@/platform/catalog/catalog-source";
 import { researchCity } from "./planner/research-agent";
 import { verifySpots } from "./planner/verify-spots";
 import { scoutAgent } from "./scout-agent";
@@ -63,6 +63,7 @@ export function planGenerationDependencies(
       model: createMoonshotChatModelFromEnvironment,
       // Meri's catalog first when CATALOG_ENABLED=true (RAG step 2); off, research only searches.
       catalog: readCityCatalogFromEnvironment,
+      catalogRankings: rankCityPreferencesFromEnvironment,
     }, onProgress),
     // Routing and choosing days reason harder on K3 (2026-11-22); other steps keep LLM_REASONING_EFFORT.
     planModel: { model: createMoonshotChatModelFromEnvironment, decidingModel: createDecidingModelFromEnvironment },

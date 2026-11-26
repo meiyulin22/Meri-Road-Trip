@@ -60,6 +60,8 @@ catalog) ships with the code.
    through an SSH tunnel with the same script: `ssh -N -L 15432:localhost:5432 <server>`, then
    `DATABASE_URL=postgresql://<user>:<password>@localhost:15432/meri node --env-file=.env.local --import tsx
    scripts/import-catalog.ts` (`--dry-run` first; the command-line `DATABASE_URL` wins over `.env.local`).
+   Then, through the same tunnel, `scripts/embed-catalog.ts` fills the vectors (百炼, about ¥0.1 for the whole
+   catalog). The server itself needs `DASHSCOPE_API_KEY` and `EMBEDDING_BASE_URL` for query vectors at run time.
 4. Environment: copy `.env.example` to the server's `.env.local` and fill it. Set on purpose: `HOTEL_PROVIDER`,
    `FLIGHT_PROVIDER`, `RAIL_PROVIDER`, `PLAN_SEARCH_PROVIDER`. Launch limits agreed 2026-11-19:
    `PLAN_RUNS_PER_DAY=15`, `PLAN_RUNS_PER_GUEST_PER_DAY=2`, `PLAN_RUNS_PER_IP_PER_DAY=2`. Set
