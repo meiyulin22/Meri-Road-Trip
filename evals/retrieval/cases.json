@@ -1,0 +1,222 @@
+{
+  "note": "RAG retrieval eval (2026-11-26, agreed with merlin): a city and a traveller's own words, and the catalog spots that should rank near the top. Names must match catalog_entries.name exactly.",
+  "cases": [
+    {
+      "id": "01-lijiang-snow",
+      "province": "云南省",
+      "city": "丽江市",
+      "query": "最想看雪山",
+      "relevant": [
+        "玉龙雪山",
+        "牦牛坪",
+        "云杉坪"
+      ]
+    },
+    {
+      "id": "02-diqing-temple",
+      "province": "云南省",
+      "city": "迪庆藏族自治州",
+      "query": "想看藏传佛教寺庙",
+      "relevant": [
+        "松赞林寺"
+      ]
+    },
+    {
+      "id": "03-diqing-golden-peak",
+      "province": "云南省",
+      "city": "迪庆藏族自治州",
+      "query": "想看日照金山",
+      "relevant": [
+        "梅里雪山",
+        "飞来寺观景区"
+      ]
+    },
+    {
+      "id": "04-dali-lake-ride",
+      "province": "云南省",
+      "city": "大理白族自治州",
+      "query": "想骑车环湖看湖景",
+      "relevant": [
+        "洱海",
+        "双廊镇"
+      ]
+    },
+    {
+      "id": "05-hangzhou-temple",
+      "province": "浙江省",
+      "city": "杭州市",
+      "query": "想去寺庙烧香",
+      "relevant": [
+        "灵隐寺",
+        "飞来峰"
+      ]
+    },
+    {
+      "id": "06-hangzhou-tea",
+      "province": "浙江省",
+      "city": "杭州市",
+      "query": "想看茶园喝龙井",
+      "relevant": [
+        "龙井村",
+        "梅家坞"
+      ]
+    },
+    {
+      "id": "07-beijing-wall",
+      "province": "北京市",
+      "city": "北京市",
+      "query": "想爬长城",
+      "relevant": [
+        "八达岭长城",
+        "慕田峪长城"
+      ]
+    },
+    {
+      "id": "08-beijing-museum",
+      "province": "北京市",
+      "city": "北京市",
+      "query": "带孩子看博物馆",
+      "relevant": [
+        "中国国家博物馆",
+        "故宫博物院"
+      ]
+    },
+    {
+      "id": "09-xian-history",
+      "province": "陕西省",
+      "city": "西安市",
+      "query": "想看兵马俑和历史文物",
+      "relevant": [
+        "秦始皇兵马俑",
+        "陕西历史博物馆"
+      ]
+    },
+    {
+      "id": "10-chengdu-panda",
+      "province": "四川省",
+      "city": "成都市",
+      "query": "想看大熊猫",
+      "relevant": [
+        "成都大熊猫繁育研究基地"
+      ]
+    },
+    {
+      "id": "11-chengdu-taoist",
+      "province": "四川省",
+      "city": "成都市",
+      "query": "想爬山看道观",
+      "relevant": [
+        "青城山",
+        "青城前山",
+        "上清宫",
+        "天师洞"
+      ]
+    },
+    {
+      "id": "12-guilin-raft",
+      "province": "广西壮族自治区",
+      "city": "桂林市",
+      "query": "想坐竹筏看山水",
+      "relevant": [
+        "漓江",
+        "遇龙河"
+      ]
+    },
+    {
+      "id": "13-guilin-terraces",
+      "province": "广西壮族自治区",
+      "city": "桂林市",
+      "query": "想看梯田",
+      "relevant": [
+        "龙脊梯田",
+        "平安梯田",
+        "金坑梯田"
+      ]
+    },
+    {
+      "id": "14-huangshan-villages",
+      "province": "安徽省",
+      "city": "黄山市",
+      "query": "想看徽派古村落",
+      "relevant": [
+        "宏村景区",
+        "西递古村"
+      ]
+    },
+    {
+      "id": "15-xiamen-seaside",
+      "province": "福建省",
+      "city": "厦门市",
+      "query": "喜欢海边散步看海",
+      "relevant": [
+        "厦门环岛路",
+        "曾厝垵",
+        "鼓浪屿"
+      ]
+    },
+    {
+      "id": "16-harbin-ice",
+      "province": "黑龙江省",
+      "city": "哈尔滨市",
+      "query": "想看冰雕",
+      "relevant": [
+        "哈尔滨冰雪大世界",
+        "兆麟公园"
+      ]
+    },
+    {
+      "id": "17-lhasa-lake",
+      "province": "西藏自治区",
+      "city": "拉萨市",
+      "query": "想看圣湖",
+      "relevant": [
+        "纳木错"
+      ]
+    },
+    {
+      "id": "18-zhangjiajie-caves",
+      "province": "湖南省",
+      "city": "张家界市",
+      "query": "想看溶洞",
+      "relevant": [
+        "张家界黄龙洞",
+        "天门洞"
+      ]
+    },
+    {
+      "id": "19-suzhou-gardens",
+      "province": "江苏省",
+      "city": "苏州市",
+      "query": "喜欢古典园林",
+      "relevant": [
+        "拙政园",
+        "留园",
+        "网师园",
+        "狮子林",
+        "沧浪亭"
+      ]
+    },
+    {
+      "id": "20-aba-waterfalls-en",
+      "province": "四川省",
+      "city": "阿坝藏族羌族自治州",
+      "query": "We love waterfalls and colourful lakes",
+      "relevant": [
+        "诺日朗瀑布",
+        "珍珠滩瀑布",
+        "九寨沟五彩池",
+        "五花海"
+      ]
+    },
+    {
+      "id": "21-chongqing-night-en",
+      "province": "重庆市",
+      "city": "重庆市",
+      "query": "Night views of the city skyline",
+      "relevant": [
+        "洪崖洞",
+        "南山一棵树观景台"
+      ]
+    }
+  ]
+}

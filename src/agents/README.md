@@ -168,6 +168,20 @@ turns with popularity: best answer, most-mentioned, next of each. A named county
 | 丽江, taking turns (built) | 玉龙雪山, 拉市海, 牦牛坪, 丽江古城 |
 | 迪庆, taking turns (built) | 松赞林寺, 飞来寺观景区, 梅里雪山, 碧塔海 |
 
+**Retrieval eval (2026-11-26,** [scripts/eval-retrieval.ts](../../scripts/eval-retrieval.ts), 21 cases in 14 cities, 2 in
+English, about ¥0.001 a run):
+
+| Order | hit@4 | recall@4 | recall@12 |
+| --- | --- | --- | --- |
+| Popularity only (step 2) | 0.57 | 0.31 | 0.73 |
+| Vector only | 1.00 | 0.92 | 1.00 |
+| Vector + names, RRF | 1.00 | 0.92 | 1.00 |
+| Taking turns with popularity (built) | 0.95 | 0.79 | 0.97 |
+
+The name list added nothing here, since no case names a spot; it is for travellers who do. Taking turns
+gives the preferences only every other one of the first four places, which costs recall@4; at twelve,
+the number of candidates research hands on, it is nearly even, and famous spots stay in the list.
+
 Popularity as a third RRF list was tried first and dropped: a city has a few dozen spots, so with k = 60 a
 spot in the middle of two lists outscored the top of one. Without preferences, without a key, or when the
 query or the database fails, the order is popularity alone (step 2). The query vector costs about ¥0.00002
