@@ -1,0 +1,144 @@
+{
+  "label": "catalog-on-04-1.2202",
+  "commit": "21d8cb4",
+  "referenceDate": "2026-11-26",
+  "startedAt": "2026-11-26T02:38:42.714Z",
+  "finishedAt": "2026-11-26T02:45:15.599Z",
+  "stopped": null,
+  "cases": [
+    "04-three-cities-preferences"
+  ],
+  "runs": [
+    {
+      "caseId": "04-three-cities-preferences",
+      "attempt": 1,
+      "metrics": {
+        "status": "succeeded",
+        "errorCode": null,
+        "durationMs": 392869,
+        "stageMs": {
+          "scope": 2,
+          "research": 1859,
+          "map": 1,
+          "route": 38284,
+          "transfers": 111766,
+          "days": 46189,
+          "verify": 62535,
+          "drive": 1273,
+          "outfit": 2,
+          "stays": 16623,
+          "food": 114306,
+          "photos": 16,
+          "save": 1
+        },
+        "inputTokens": 37389,
+        "outputTokens": 13786,
+        "searches": {
+          "research": 0,
+          "verify": 14
+        },
+        "mapLookups": 4,
+        "mapStopped": false,
+        "routeAttempts": 1,
+        "dayRetries": 0,
+        "routeSource": "agent",
+        "asked": false,
+        "cities": {
+          "selected": 3,
+          "routed": 3,
+          "omitted": 0
+        },
+        "cards": {
+          "total": 12,
+          "sourced": 12,
+          "catalog": 9
+        },
+        "requested": {
+          "total": 0,
+          "scheduled": 0
+        },
+        "days": {
+          "total": 4,
+          "empty": 0,
+          "stops": 9
+        },
+        "checks": {
+          "open": 4,
+          "partial": 0,
+          "closed": 0,
+          "uncertain": 1,
+          "unchecked": 4
+        },
+        "reservations": 0,
+        "conflicts": {},
+        "unverifiedFields": 45,
+        "repair": {
+          "rounds": 0,
+          "moved": 0
+        }
+      },
+      "expectations": [
+        {
+          "name": "mode",
+          "passed": true,
+          "detail": "full"
+        },
+        {
+          "name": "keeps all cities",
+          "passed": true,
+          "detail": "routed 大理白族自治州、丽江市、迪庆藏族自治州; left out none"
+        },
+        {
+          "name": "asks",
+          "passed": true,
+          "detail": "did not ask"
+        },
+        {
+          "name": "no empty days",
+          "passed": true,
+          "detail": "none empty"
+        }
+      ],
+      "question": null,
+      "days": [
+        {
+          "day": 1,
+          "date": "2026-12-14",
+          "city": "大理白族自治州",
+          "stops": [
+            "苍山 (morning)",
+            "崇圣寺三塔 (afternoon)",
+            "洱海 (afternoon)",
+            "大理古城 (evening)"
+          ]
+        },
+        {
+          "day": 2,
+          "date": "2026-12-15",
+          "city": "丽江市",
+          "stops": [
+            "拉市海 (afternoon)"
+          ]
+        },
+        {
+          "day": 3,
+          "date": "2026-12-16",
+          "city": "迪庆藏族自治州",
+          "stops": [
+            "碧塔海 (afternoon)",
+            "独克宗古城 (evening)"
+          ]
+        },
+        {
+          "day": 4,
+          "date": "2026-12-17",
+          "city": "迪庆藏族自治州",
+          "stops": [
+            "飞来寺观景区 (morning)",
+            "梅里雪山 (morning)"
+          ]
+        }
+      ]
+    }
+  ]
+}
