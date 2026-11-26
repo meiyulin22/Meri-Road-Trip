@@ -168,7 +168,7 @@ test("streams real progress city by city, stops the map at its first failure, an
   assert.ok(events.some(({ event }) => event.type === "stage.activity" && event.stage === "research" && event.activity.kind === "locating"));
 
   const research = events.find(({ event }) => event.type === "stage.finished" && event.stage === "research")?.event;
-  assert.deepEqual(research && research.type === "stage.finished" && research.summary, { cities: 2, cards: 11, sourced: 11, searches: 4 });
+  assert.deepEqual(research && research.type === "stage.finished" && research.summary, { cities: 2, cards: 11, sourced: 11, catalog: 0, searches: 4 });
 
   const finished = events.at(-1)?.event;
   assert.equal(finished?.type === "run.finished" && finished.status, "succeeded");

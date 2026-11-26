@@ -33,7 +33,7 @@ const copy = {
     summary: (stage: PlanStage, s: Readonly<Record<string, number>>): string => {
       switch (stage) {
         case "scope": return `${s.cities} ${s.cities === 1 ? "city" : "cities"}`;
-        case "research": return `${s.cards} cards · ${s.sourced} sourced · ${s.searches} searches`;
+        case "research": return `${s.cards} cards · ${s.sourced} sourced` + (s.catalog ? ` · ${s.catalog} from Meri's notes` : "") + ` · ${s.searches} searches`;
         case "map": return `located ${s.located}/${s.checked} · ${s.lookups} lookups`;
         case "route": return `${s.cities} ${s.cities === 1 ? "city" : "cities"} · ${s.days} ${s.days === 1 ? "day" : "days"}`;
         case "days": return `${s.stops} stops over ${s.days} ${s.days === 1 ? "day" : "days"}` + (s.conflicts ? ` · ${s.conflicts} to resolve` : "");
@@ -70,7 +70,8 @@ const copy = {
       }
     },
     verifyDetail: (rounds: number) => rounds === 0 ? "Nothing closed on its day." : `${rounds} repair ${rounds === 1 ? "round" : "rounds"}.`,
-    city: (city: string, cards: number, sourced: number, searches: number) => `${city} · ${cards} cards, ${sourced} sourced, ${searches} searches`,
+    city: (city: string, cards: number, sourced: number, searches: number, catalog: number) =>
+      `${city} · ${cards} cards, ${sourced} sourced` + (catalog ? `, ${catalog} from Meri's notes` : "") + `, ${searches} searches`,
     cityStatus: { ready: "", partial: " · incomplete", unavailable: " · nothing found", deferred: " · later" },
     mapDetail: (located: number, notLocated: number) => `${located} located, ${notLocated} not found on the map`,
     mapStopped: "A lookup failed, so the check stopped there with no retry.",
@@ -90,7 +91,7 @@ const copy = {
     summary: (stage: PlanStage, s: Readonly<Record<string, number>>): string => {
       switch (stage) {
         case "scope": return `${s.cities} 座城市`;
-        case "research": return `${s.cards} 张卡 · ${s.sourced} 条有出处 · ${s.searches} 次搜索`;
+        case "research": return `${s.cards} 张卡 · ${s.sourced} 条有出处` + (s.catalog ? ` · ${s.catalog} 张来自 Meri 的整理` : "") + ` · ${s.searches} 次搜索`;
         case "map": return `定位 ${s.located}/${s.checked} · ${s.lookups} 次查询`;
         case "route": return `${s.cities} 座城市 · ${s.days} 天`;
         case "days": return `${s.days} 天 · ${s.stops} 个景点` + (s.conflicts ? ` · ${s.conflicts} 项待处理` : "");
@@ -127,7 +128,8 @@ const copy = {
       }
     },
     verifyDetail: (rounds: number) => rounds === 0 ? "所有景点当天都能去。" : `修正了 ${rounds} 轮。`,
-    city: (city: string, cards: number, sourced: number, searches: number) => `${city} · ${cards} 张卡，${sourced} 条有出处，${searches} 次搜索`,
+    city: (city: string, cards: number, sourced: number, searches: number, catalog: number) =>
+      `${city} · ${cards} 张卡，${sourced} 条有出处` + (catalog ? `，${catalog} 张来自 Meri 的整理` : "") + `，${searches} 次搜索`,
     cityStatus: { ready: "", partial: " · 未全部完成", unavailable: " · 没有找到", deferred: " · 稍后" },
     mapDetail: (located: number, notLocated: number) => `已定位 ${located} 个，${notLocated} 个位置未核实`,
     mapStopped: "有一次查询失败，按规则在那里停止，没有重试。",
@@ -262,8 +264,8 @@ function StageRow({ stage, view, text, locale, now, open, onToggle }: {
 /** What a finished stage opens to show, from the events it sent. */
 function stageDetails(stage: PlanStage, view: ProgressView, text: Copy): string[] {
   if (stage === "research") {
-    return view.cities.map(({ city, cards, sourced, searches, status, ms }) =>
-      `${text.city(city, cards, sourced, searches)}${text.cityStatus[status]} · ${formatMs(ms)}`);
+    return view.cities.map(({ city, cards, sourced, searches, status, ms, catalog }) =>
+      `${text.city(city, cards, sourced, searches, catalog ?? 0)}${text.cityStatus[status]} · ${formatMs(ms)}`);
   }
   if (stage === "map" && view.map) {
     return [text.mapDetail(view.map.located, view.map.notLocated), ...(view.map.status === "stopped" ? [text.mapStopped] : [])];

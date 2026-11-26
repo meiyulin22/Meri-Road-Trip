@@ -370,8 +370,9 @@ test("a city with six catalog spots or more takes them from the catalog: no mode
   assert.deepEqual(activities, ["catalog"]);
   assert.equal(city.status, "ready");
   assert.equal(city.searchCalls, 0);
-  // Most guides first, then by name (zh collation: 苍 before 大, 崇 before 大).
-  assert.deepEqual(city.spots.map(({ name }) => name), ["洱海", "苍山", "大理市博物馆", "崇圣寺三塔"]);
+  // All seven (up to twelve, whatever the share of four): most guides first, then by name (zh: 苍 before 大, 崇 before 大).
+  assert.deepEqual(city.spots.map(({ name }) => name).slice(0, 4), ["洱海", "苍山", "大理市博物馆", "崇圣寺三塔"]);
+  assert.equal(city.spots.length, daliCatalog.spots.length);
   const [erhai, cangshan, museum] = city.spots;
   assert.deepEqual(erhai.catalog, { id: "spot_洱海", summary: "洱海的介绍。", highlights: ["洱海一景"] });
   assert.equal(erhai.location, null);
@@ -395,7 +396,7 @@ test("named spots come from the catalog by name or alias; one it lacks is search
   const named = city.spots.filter(({ requested }) => requested);
   assert.deepEqual(named.map(({ name, catalog, location }) => [name, catalog !== undefined, location !== null]),
     [["喜洲镇", true, false], ["未查到的景点", false, true]]);
-  assert.equal(city.spots.filter(({ catalog }) => catalog).length, 1 + daliTask.target);
+  assert.equal(city.spots.filter(({ catalog }) => catalog).length, daliCatalog.spots.length);
   assert.equal(city.status, "ready");
 });
 
@@ -422,7 +423,7 @@ test("with preferences, the catalog's rankings choose first; without them or whe
     },
   });
   assert.deepEqual(asked, ["少走台阶"]);
-  assert.deepEqual(withPreferences.spots.map(({ name }) => name), ["大理市博物馆", "洱海", "蝴蝶泉", "苍山"]);
+  assert.deepEqual(withPreferences.spots.map(({ name }) => name).slice(0, 4), ["大理市博物馆", "洱海", "蝴蝶泉", "苍山"]);
 
   const failing = await researchCity(daliTask, handoff, {
     search: async () => [], model: countingModel([]), catalog: async () => daliCatalog,
@@ -433,6 +434,6 @@ test("with preferences, the catalog's rankings choose first; without them or whe
     catalogRankings: async () => { throw new Error("not called without preferences"); },
   });
   for (const city of [failing, noPreferences]) {
-    assert.deepEqual(city.spots.map(({ name }) => name), ["洱海", "苍山", "大理市博物馆", "崇圣寺三塔"]);
+    assert.deepEqual(city.spots.map(({ name }) => name).slice(0, 4), ["洱海", "苍山", "大理市博物馆", "崇圣寺三塔"]);
   }
 });

@@ -145,11 +145,11 @@ stored but never shown. With `CATALOG_ENABLED=true` ([catalog-pick.ts](../domain
 | Rule | Why |
 | --- | --- |
 | A city (by province and full 州/市 name) with six catalog spots or more takes them from the catalog: no nomination, no discovery search, no extraction call | Search discovery was weak (1.2003) and costs most of research's time and tokens; the catalog is stable knowledge |
-| Ranked: spots in a county the traveller named first, then by how many guides mention them, then confidence, then name; as many as the search path would take (`target`) | Repeatable, and leans to where the traveller wants to be |
+| Ranked: spots in a county the traveller named first, then by how many guides mention them, then confidence, then name; up to twelve whatever the even share (2026-11-26) | Repeatable, and leans to where the traveller wants to be; the route may give a city more days than its share (迪庆 got three days and six candidates, day 3 had one stop) |
 | A named spot that matches a catalog name or alias is that catalog card; one that does not is searched by name, alone | The traveller's choice is never dropped, and only it costs a search |
 | Outdoors from fixed tags: an outdoor tag without 展馆 is outdoor, 展馆 alone indoor, the rest unsure (caves, temples, culture) | Code decides, as agreed; the weather guard then works as before |
 | A catalog card has `catalog` (id, summary, highlights) and no web quote; it is still located on Tianditu, for its point, and the Plan Agent reads its summary as `note` | Map, weather, drive times and distances need the point; without a note the agent sees only a name |
-| The page shows 「Meri 的整理」 with the summary (Chinese plans only: the notes are Chinese), no 「位置未核实」; opening and booking are still checked live | Agreed with merlin; Meri's notes are not presented as sourced evidence |
+| The page shows 「Meri 的整理」 with the summary (Chinese plans only: the notes are Chinese), no 「位置未核实」; 「待核实」 lists only opening and booking, which are still checked live; the research line counts catalog cards apart from sourced ones | Agreed with merlin; Meri's notes are not presented as sourced evidence |
 | What to eat, Chinese plans: three catalog dishes or more replace the dish search (up to five, most-mentioned first, no source); restaurants are still searched and need two witnesses; catalog restaurants are not used | Their addresses and prices are old |
 | Fewer than six spots, no catalog, the switch off, or a failed read: research and food search as before | `CATALOG_ENABLED` is the comparison switch for evals |
 

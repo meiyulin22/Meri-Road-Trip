@@ -117,7 +117,7 @@ export type RunMetrics = {
   readonly routeSource: "agent" | "fallback" | null;
   readonly asked: boolean;
   readonly cities: { readonly selected: number; readonly routed: number; readonly omitted: number };
-  /** sourced counts web-quoted and catalog cards; catalog, the cards from Meri's catalog (RAG step 2). */
+  /** sourced: cards with a web quote; catalog: cards from Meri's catalog (RAG step 2), counted from the saved plan. */
   readonly cards: { readonly total: number; readonly sourced: number; readonly catalog: number };
   readonly requested: { readonly total: number; readonly scheduled: number };
   readonly days: { readonly total: number; readonly empty: number; readonly stops: number };

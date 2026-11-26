@@ -527,7 +527,10 @@ async function researchFromCatalog(
       requestedCards.push(catalogCard(city, spot, true));
     }
   }
-  const others = ranked.filter(({ id }) => !used.has(id)).slice(0, task.target).map((spot) => catalogCard(city, spot, false));
+  // Up to twelve, whatever the even share: catalog cards cost no search, and the route may give this
+  // city more days than its share (2026-11-26: 迪庆 got three days and six candidates, day 3 one stop).
+  const others = ranked.filter(({ id }) => !used.has(id)).slice(0, Math.max(task.target, maxCardsPerCity))
+    .map((spot) => catalogCard(city, spot, false));
   onProgress({ kind: "catalog", city: city.city, spots: requestedCards.length + others.length });
 
   const searched = notInCatalog.length > 0

@@ -101,6 +101,8 @@ export const planProgressEventSchema = z.discriminatedUnion("type", [
   z.strictObject({
     type: z.literal("city.researched"),
     province: name, city: name, status: cityStatus, cards: count, sourced: count, searches: count, ms: count,
+    /** Cards from Meri's catalog (RAG step 2); absent on runs before it. `sourced` counts web quotes only. */
+    catalog: count.optional(),
   }),
   z.strictObject({ type: z.literal("map.checked"), status: z.enum(["complete", "stopped"]), located: count, notLocated: count, lookups: count }),
   z.strictObject({ type: z.literal("route.ready"), route: planRouteSchema }),

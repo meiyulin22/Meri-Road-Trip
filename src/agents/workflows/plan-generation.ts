@@ -196,6 +196,7 @@ export function stageSummary(stepId: string, output: unknown): { stage: PlanStag
       return { stage, summary: {
         cities: cities.length, cards: cards.length,
         sourced: cards.filter(({ location }) => location !== null).length,
+        catalog: cards.filter(({ catalog }) => catalog !== undefined).length,
         searches: cities.reduce((sum, { searchCalls }) => sum + searchCalls, 0),
       } };
     }
@@ -344,7 +345,8 @@ export function createPlanGenerationWorkflow(deps: PlanGenerationDependencies) {
       const city: CityResearch = { ...weathered.city, mapLookups: located.lookups, weatherCalls: weathered.calls };
       emit({
         type: "city.researched", province: city.province, city: city.city, status: city.status,
-        cards: city.spots.length, sourced: city.spots.filter(isGrounded).length,
+        cards: city.spots.length, sourced: city.spots.filter(({ location }) => location !== null).length,
+        catalog: city.spots.filter(({ catalog }) => catalog !== undefined).length,
         searches: city.searchCalls, ms: Math.round(performance.now() - startedAt),
       });
       await flush();

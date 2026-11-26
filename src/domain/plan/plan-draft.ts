@@ -482,8 +482,10 @@ export function finishDraft(
 
   const unverified = cards
     .filter((card) => scheduled.has(card.id))
-    // A catalog card's place comes from Meri's catalog, so its location is not a fact left to check.
-    .map((card) => ({ spotId: card.id, fields: spotFacts.filter((fact) => card[fact] === null && !(fact === "location" && card.catalog)) }))
+    // A catalog card lists only what the second round checks live, opening and booking: its place is
+    // Meri's catalog, outdoors comes from its tags, and walking and time to allow are not searched for it.
+    .map((card) => ({ spotId: card.id, fields: spotFacts.filter((fact) => card[fact] === null
+      && (!card.catalog || fact === "opening" || fact === "reservation")) }))
     .filter(({ fields }) => fields.length > 0);
   return { mode: allocation.mode, totalDays: allocation.totalDays, route: allocation.route, days, conflicts, unverified };
 }

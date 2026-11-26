@@ -26,6 +26,7 @@ const copy = {
     none: "这次没查到当地美食的可靠出处。",
     unavailable: "当地美食暂时查不到。",
     disclaimer: "来自公开网页搜索，Meri 不收商家任何费用，已尽量排除推广内容。口味因人而异，营业时间出发前请再确认。",
+    catalogDisclaimer: "特色菜来自 Meri 的整理，餐厅来自公开网页搜索。Meri 不收商家任何费用，已尽量排除推广内容。口味因人而异，营业时间出发前请再确认。",
   },
   en: {
     title: "What to eat",
@@ -44,6 +45,7 @@ const copy = {
     none: "No reliable sources about local food came up this time.",
     unavailable: "Local food couldn't be looked up just now.",
     disclaimer: "From public web search. Meri takes no payment from any business and filters out promotion as far as it can. Tastes differ; check opening hours before you go.",
+    catalogDisclaimer: "Local dishes from Meri's notes; restaurants from public web search. Meri takes no payment from any business and filters out promotion as far as it can. Tastes differ; check opening hours before you go.",
   },
 } as const;
 
@@ -159,7 +161,7 @@ export function PlanFoodCard({ food, locale, onShowOnMap }: {
           </ul>
         </div>
       ) : null}
-      <p className={styles.footnote}>{text.disclaimer}</p>
+      <p className={styles.footnote}>{food.dishes.some(({ evidence }) => evidence === null) ? text.catalogDisclaimer : text.disclaimer}</p>
     </section>
   );
 }

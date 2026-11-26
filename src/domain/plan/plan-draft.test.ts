@@ -229,14 +229,14 @@ test("a leg's reach: no way, a large area at either end, or a way with stretches
   assert.deepEqual(legReach(base), { kind: "way", startGapMeters: 0, endGapMeters: 0 });
 });
 
-test("a catalog card's place is not left to check; its other facts still are, and it reads back from a saved plan (RAG step 2)", () => {
+test("a catalog card is left to check only for opening and booking, and reads back from a saved plan (RAG step 2)", () => {
   const catalog = { id: "spot_lijiang_town", summary: "丽江的古城。", highlights: ["四方街"] };
   const cards = [card("丽江古城", { location: null, catalog })];
   const day = { day: 1, stops: [{ spotId: "丽江古城", slot: "morning" as const, anchor: null }] };
   const draft = finishDraft({ mode: "full", totalDays: 1, frames: [frame(1)], route: { ...route, cities: [{ ...route.cities[0], days: 1 }] } },
     cards, [{ ...frame(1), ...day }]);
   assert.deepEqual(draft.unverified, [
-    { spotId: "丽江古城", fields: ["opening", "reservation", "setting", "walking", "suggestedDuration"] },
+    { spotId: "丽江古城", fields: ["opening", "reservation"] },
   ]);
   assert.deepEqual(spotCardSchema.parse(cards[0]).catalog, catalog);
   assert.equal(isGrounded(cards[0]), true);
