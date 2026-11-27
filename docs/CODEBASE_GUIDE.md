@@ -383,6 +383,8 @@ Generate plan 背后的计划页先用示例数据做出完整页面（设计决
 | [src/components/trip-plan/plan-food-card.tsx](../src/components/trip-plan/plan-food-card.tsx) | 表现层 | 1.2117 吃什么：每座城最后一天后面、住宿卡下面的「吃什么」卡：特色菜（介绍和出处）、推荐餐厅（招牌、地址、距离、复制店名、在地图上看、出处）、文章里提到的（地址待查、出处）；一行声明 |
 | [src/components/trip-plan/plan-tips-card.tsx](../src/components/trip-plan/plan-tips-card.tsx) | 表现层 | RAG 第 5 步：城市分组头部的「Meri 的提示」卡，先整城提示，再淡一些的「当地节庆」（照原话写时间），卡底说明不是实时信息。 |
 | [src/components/trip-plan/plan-tips-card.module.css](../src/components/trip-plan/plan-tips-card.module.css) | 样式 | 提示卡样式，和吃什么卡同一套外观。 |
+| [src/components/trip-plan/plan-module-chips.tsx](../src/components/trip-plan/plan-module-chips.tsx) | 表现层 | 2026-11-27 布局：一排小块，每块一行摘要，点开在下面显示它的卡，同一时间只开一块；城市的住、吃、提示用它。 |
+| [src/components/trip-plan/plan-module-chips.module.css](../src/components/trip-plan/plan-module-chips.module.css) | 样式 | 小块的样式。 |
 | [src/components/trip-plan/plan-food-card.module.css](../src/components/trip-plan/plan-food-card.module.css) | 表现层样式 | 吃什么卡：特色菜网格、餐厅列表，没核实地址的用虚线框 |
 | [src/components/trip-plan/plan-dates-picker.tsx](../src/components/trip-plan/plan-dates-picker.tsx) | 表现层 | 2026-11-21 计划页「补填出发日期」：已知天数选一天、否则选一段，写明会重新生成并锁定，成功后交回新交接 |
 | [src/components/trip-plan/plan-dates-picker.module.css](../src/components/trip-plan/plan-dates-picker.module.css) | 表现层样式 | 补填日期的按钮、日历（Meri 的绿色）和确认区 |

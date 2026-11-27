@@ -3,7 +3,7 @@
 import { ArrowRight, BedDouble, CalendarCheck, Car, CheckCircle2, ChevronDown, Clock, ExternalLink, Footprints, Info, Lightbulb, LoaderCircle, MapPin, MoonStar, RotateCw, Route, Sparkles, Star, Sun, Sunrise, TriangleAlert, Utensils } from "lucide-react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import Image from "next/image";
-import { type CSSProperties, Fragment, useEffect, useMemo, useReducer, useState } from "react";
+import { type CSSProperties, Fragment, type ReactNode, useEffect, useMemo, useReducer, useState } from "react";
 
 import { useLocale } from "@/components/i18n/locale-context";
 import { creditsHref } from "@/components/trip-workspace/destination-choices-card";
@@ -678,7 +678,6 @@ function DraftDays({ response, text, locale, transport, gettingThere, onAddDates
           const lastOfRun = draft.days[runEnd].day;
           return (
           <Fragment key={day.day}>
-          {transferCard("between", day.day)}
           {startsCity ? (
             <>
               <div className={draftStyles.cityHeading}>
@@ -702,6 +701,7 @@ function DraftDays({ response, text, locale, transport, gettingThere, onAddDates
             checks={new Map((draft.checks ?? []).filter(({ day: number }) => number === day.day).map((check) => [check.spotId, check]))}
             arriving={arrivingLegs(day, draft.legs ?? [])} transport={transport}
             outfit={draft.outfits?.find(({ day: number }) => number === day.day) ?? null}
+            transfer={transferCard("between", day.day)}
             open={openDay === day.day} onOpen={() => setOpenDay(openDay === day.day ? null : day.day)} />
           </Fragment>
           );
@@ -742,7 +742,9 @@ function arrivingLegs(day: PlanDay, legs: readonly DriveLeg[]): ReadonlyMap<stri
   }));
 }
 
-function DraftDay({ day, cards, unverified, checks, arriving, transport = null, text, locale, preview, showTransferTag, open, onOpen, index, photo, outfit = null }: {
+function DraftDay({ day, cards, unverified, checks, arriving, transport = null, text, locale, preview, showTransferTag, open, onOpen, index, photo, outfit = null, transfer = null }: {
+  /** The move from the last city, when this day makes it (2026-11-27 re-layout: it belongs to the day). */
+  readonly transfer?: ReactNode;
   /** The day's outfit (1.2117), shown as one line that jumps to the dressing room. */
   readonly outfit?: DayOutfit | null;
   /** Plans before 1.2106 mark a transfer day with a tag; later ones have a strip between the days. */
@@ -783,8 +785,8 @@ function DraftDay({ day, cards, unverified, checks, arriving, transport = null, 
             {text.dayLabel(day.day)}{day.date ? ` · ${formatDate(day.date, locale)}` : ""} · {day.city}
             {day.focus ? ` · ${day.focus}` : ""}
             {preview ? <span className={draftStyles.previewTag}>{text.preview}</span> : null}
-            {day.arrivingFrom && showTransferTag ? (
-              <span className={draftStyles.transferTag} title={text.transferNote}>
+            {day.arrivingFrom ? (
+              <span className={draftStyles.transferTag} title={showTransferTag ? text.transferNote : undefined}>
                 {text.transfer(day.arrivingFrom, day.city)}
               </span>
             ) : null}
@@ -807,6 +809,7 @@ function DraftDay({ day, cards, unverified, checks, arriving, transport = null, 
           <motion.div key="body" className={styles.dayBody}
             initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }}
             transition={{ duration: reduce ? 0 : 0.32, ease: [0.22, 1, 0.36, 1] }}>
+            {transfer}
             {photo ? <DayPhoto photo={photo} /> : null}
             {/* The day's weather and what to wear for it, together (2026-11-27 re-layout). */}
             <DayWeatherLine view={weather} locale={locale} />
