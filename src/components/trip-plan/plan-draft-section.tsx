@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowRight, CalendarCheck, Car, CheckCircle2, ChevronDown, Clock, ExternalLink, Footprints, Info, Lightbulb, LoaderCircle, MapPin, MoonStar, RotateCw, Route, Shirt, Sparkles, Star, Sun, Sunrise, TriangleAlert } from "lucide-react";
+import { ArrowRight, BedDouble, CalendarCheck, Car, CheckCircle2, ChevronDown, Clock, ExternalLink, Footprints, Info, Lightbulb, LoaderCircle, MapPin, MoonStar, RotateCw, Route, Shirt, Sparkles, Star, Sun, Sunrise, TriangleAlert, Utensils } from "lucide-react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import Image from "next/image";
 import { type CSSProperties, Fragment, useEffect, useMemo, useReducer, useState } from "react";
@@ -48,6 +48,10 @@ import { OutfitRoom, PackingList } from "./plan-outfit";
 import { PlanStayCard, PlanStayHint } from "./plan-stay-card";
 import { PlanFoodCard } from "./plan-food-card";
 import { PlanTipsCard } from "./plan-tips-card";
+import type { CityTip } from "@/domain/catalog/catalog-tips";
+import type { CityFood, Restaurant } from "@/domain/plan/food";
+import type { CityStay } from "@/domain/plan/stays";
+import { type PlanModule, PlanModuleChips } from "./plan-module-chips";
 import type { HotelOption } from "@/domain/plan/stays";
 import { outfitLine } from "./plan-outfit-view";
 import type { DayOutfit } from "@/domain/plan/outfit";
@@ -112,6 +116,14 @@ const copy = {
       address_runs: "You’ve made today’s plans already. Please come back tomorrow.",
     } satisfies Record<PlanDraftFailure, string>,
     cityDays: (from: number, to: number) => from === to ? `Day ${from}` : `Days ${from}–${to}`,
+    cityModules: (city: string) => `${city}: stay, food and tips`,
+    modules: {
+      stay: "Stay", food: "Eat", tips: "Tips",
+      stayFound: (nights: number, near: string) => `${nights} ${nights === 1 ? "night" : "nights"} · near ${near}`,
+      stayNone: "nothing nearby", stayUnavailable: "couldn't look up",
+      foodSummary: (dishes: number, restaurants: number) => `${dishes} dishes · ${restaurants} ${restaurants === 1 ? "restaurant" : "restaurants"}`,
+      tipCount: (count: number) => `${count} ${count === 1 ? "tip" : "tips"}`,
+    },
     pending: {
       mapTitle: "Map", map: "The map appears once the plan is saved.",
       outfitTitle: "What to wear each day", outfit: "Dressing for each day's weather…",
@@ -182,6 +194,14 @@ const copy = {
       address_runs: "你今天的规划次数已经用完了，明天再来吧。",
     } satisfies Record<PlanDraftFailure, string>,
     cityDays: (from: number, to: number) => from === to ? `第 ${from} 天` : `第 ${from}–${to} 天`,
+    cityModules: (city: string) => `${city}的住、吃和提示`,
+    modules: {
+      stay: "住哪里", food: "吃什么", tips: "Meri 的提示",
+      stayFound: (nights: number, near: string) => `${nights} 晚 · ${near}附近`,
+      stayNone: "附近没找到", stayUnavailable: "暂时查不到",
+      foodSummary: (dishes: number, restaurants: number) => `${dishes} 道菜 · ${restaurants} 家餐厅`,
+      tipCount: (count: number) => `${count} 条`,
+    },
     pending: {
       mapTitle: "地图", map: "计划保存后显示地图。",
       outfitTitle: "每天穿什么", outfit: "正在按每天的天气搭配穿衣…",
@@ -668,15 +688,14 @@ function DraftDays({ response, text, locale, transport, gettingThere, onAddDates
                 <h3>{day.city}</h3>
                 <span>{text.cityDays(day.day, lastOfRun)}</span>
               </div>
-              {(draft.stays ?? []).filter(({ city, firstDay }) => city === day.city && firstDay >= day.day && firstDay <= lastOfRun).map((stay) => (
-                <PlanStayCard key={`${stay.city}-${stay.firstDay}`} stay={stay} locale={locale} onShowOnMap={showHotel} />
-              ))}
-              {(draft.food ?? []).filter(({ city, lastDay }) => city === day.city && lastDay >= day.day && lastDay <= lastOfRun).map((food) => (
-                <PlanFoodCard key={`${food.city}-${food.lastDay}`} food={food} locale={locale}
-                  onShowOnMap={(restaurant) => restaurant.place && showPlace({ name: restaurant.name, kind: "food", point: restaurant.place.point })} />
-              ))}
-              <PlanTipsCard city={day.city} locale={locale}
-                tips={response.cities.find(({ province, city }) => province === day.province && city === day.city)?.tips ?? []} />
+              {/* The city's blocks, closed to one row of chips so its days follow at once (2026-11-27 re-layout). */}
+              <PlanModuleChips label={text.cityModules(day.city)} modules={cityModules({
+                stays: (draft.stays ?? []).filter(({ city, firstDay }) => city === day.city && firstDay >= day.day && firstDay <= lastOfRun),
+                food: (draft.food ?? []).filter(({ city, lastDay }) => city === day.city && lastDay >= day.day && lastDay <= lastOfRun),
+                tips: response.cities.find(({ province, city }) => province === day.province && city === day.city)?.tips ?? [],
+                city: day.city, text, locale, onShowHotel: showHotel,
+                onShowRestaurant: (restaurant) => restaurant.place && showPlace({ name: restaurant.name, kind: "food", point: restaurant.place.point }),
+              })} />
             </>
           ) : null}
           <DraftDay day={day} cards={cards} text={text} locale={locale} index={index} photo={photos.get(day.day) ?? null}
@@ -997,4 +1016,46 @@ function RouteStrip({ route, text }: {
       {route.source === "fallback" ? <span className={draftStyles.routeFallback}>{text.routeFallback}</span> : null}
     </div>
   );
+}
+
+/**
+ * A city's blocks for its chip row: where to stay, what to eat and Meri's tips, each with a one-line
+ * summary; a block with nothing to show is left out, as its card would show nothing.
+ */
+function cityModules({ stays, food, tips, city, text, locale, onShowHotel, onShowRestaurant }: {
+  readonly stays: readonly CityStay[];
+  readonly food: readonly CityFood[];
+  readonly tips: readonly CityTip[];
+  readonly city: string;
+  readonly text: Copy;
+  readonly locale: Locale;
+  readonly onShowHotel: (hotel: HotelOption) => void;
+  readonly onShowRestaurant: (restaurant: Restaurant) => void;
+}): PlanModule[] {
+  const modules: PlanModule[] = [];
+  const stay = stays[0];
+  if (stay) {
+    modules.push({
+      key: "stay", icon: <BedDouble size={15} />, label: text.modules.stay,
+      summary: stay.status === "found" ? text.modules.stayFound(stays.reduce((sum, { nights }) => sum + nights, 0), stay.near.name)
+        : stay.status === "none" ? text.modules.stayNone : text.modules.stayUnavailable,
+      content: stays.map((one) => <PlanStayCard key={`${one.city}-${one.firstDay}`} stay={one} locale={locale} onShowOnMap={onShowHotel} />),
+    });
+  }
+  const found = food.filter((one): one is Extract<CityFood, { status: "found" }> => one.status === "found");
+  if (found.length > 0) {
+    modules.push({
+      key: "food", icon: <Utensils size={15} />, label: text.modules.food,
+      summary: text.modules.foodSummary(found.reduce((sum, one) => sum + one.dishes.length, 0),
+        found.reduce((sum, one) => sum + one.restaurants.length + one.mentioned.length, 0)),
+      content: found.map((one) => <PlanFoodCard key={`${one.city}-${one.lastDay}`} food={one} locale={locale} onShowOnMap={onShowRestaurant} />),
+    });
+  }
+  if (tips.length > 0) {
+    modules.push({
+      key: "tips", icon: <Lightbulb size={15} />, label: text.modules.tips, summary: text.modules.tipCount(tips.length),
+      content: <PlanTipsCard city={city} tips={tips} locale={locale} />,
+    });
+  }
+  return modules;
 }

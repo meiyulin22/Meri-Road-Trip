@@ -1,0 +1,18 @@
+/* A city's blocks as chips (2026-11-27 re-layout): small and in one row, so the days come right after. */
+.modules { display: grid; gap: 10px; }
+.chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.chip {
+  display: inline-flex; align-items: center; gap: 6px; min-height: 40px; padding: 6px 12px;
+  border: 1px solid var(--line); border-radius: 12px; background: #fffdf8; color: var(--ink);
+  font-size: 13px; cursor: pointer;
+}
+.chip:hover { border-color: rgba(79, 131, 107, .45); }
+.chip[aria-expanded="true"] { border-color: var(--green); background: #f3f8f4; }
+.chip:focus-visible { outline: 2px solid var(--green); outline-offset: 2px; }
+.icon { display: inline-flex; color: var(--green); }
+.label { font-weight: 650; }
+.summary { color: var(--muted); font-size: 12px; }
+.chevron { color: var(--soft); transition: transform .2s ease; }
+.chip[aria-expanded="true"] .chevron { transform: rotate(180deg); }
+.content { display: grid; gap: 10px; }
+@media (prefers-reduced-motion: reduce) { .chevron { transition: none; } }
