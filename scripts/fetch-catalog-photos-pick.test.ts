@@ -25,7 +25,8 @@ test("spot queries reuse landmark names and aliases with the prefecture and prov
   assert.match(query, /"Example Lake"@en/u);
   assert.match(query, /"大理白族自治州"@zh/u);
   assert.match(query, /"云南省"@zh/u);
-  assert.match(query, /\?item wdt:P131\+ \?region/u);
+  assert.match(query, /hint:Query hint:optimizer "None"/u);
+  assert.match(query, /\?item wdt:P131\+ \?region\.\s+hint:Prior hint:gearing "forward"/u);
   assert.equal(photoWidth("spot"), 320);
 });
 

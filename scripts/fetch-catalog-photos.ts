@@ -1,5 +1,5 @@
 /** Run from the repo root with node --env-file=.env.local --import tsx. */
-import { mkdir, open, readFile, rename, rm, stat, writeFile } from "node:fs/promises";
+import { appendFile, mkdir, open, readFile, rename, rm, stat, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { setTimeout as sleep } from "node:timers/promises";
 import { parseArgs } from "node:util";
@@ -20,10 +20,11 @@ const reviewPath = join(cacheDir, "review.html");
 
 type Manifest = Record<string, ManifestEntry>;
 type RejectedPhoto = Rejection & Pick<CatalogPhotoSubject, "id" | "name">;
+type LookupOperation = "Wikidata query" | "Commons metadata" | "Commons download";
 type Lookup = { photo: ManifestEntry; body: Buffer } | { rejection: Rejection }
-  | { operation: string; unavailable: WikimediaFailure };
+  | { operation: LookupOperation; unavailable: WikimediaFailure };
 
-async function loadSubjects(cities: readonly string[]): Promise<CatalogPhotoSubject[]> {
+async function loadSubjects(cities: readonly string[], kind?: CatalogPhotoSubject["kind"]): Promise<CatalogPhotoSubject[]> {
   const connection = process.env.DATABASE_URL;
   if (!connection || !["localhost", "127.0.0.1", "[::1]"].includes(URL.parse(connection)?.hostname ?? "")) {
     throw new Error("DATABASE_URL must point to local Postgres");
@@ -37,8 +38,9 @@ async function loadSubjects(cities: readonly string[]): Promise<CatalogPhotoSubj
       FROM catalog_entries
       WHERE kind IN ('spot', 'dish')
         AND (cardinality($1::text[]) = 0 OR (province || '/' || prefecture) = ANY($1))
+        AND ($2::text IS NULL OR kind = $2)
       ORDER BY kind DESC, id
-    `, [cities]);
+    `, [cities, kind ?? null]);
     return rows;
   } catch (error) {
     const code = (error as { code?: unknown }).code;
@@ -55,8 +57,11 @@ function pacedClient(): WikimediaClient {
     // The shared client rejects once its 40/minute budget is spent. Pace actual HTTP calls,
     // including redirects and Commons requests, so a normal run never hits that ceiling.
     await sleep(Math.max(0, nextRequest - performance.now()), undefined, { signal: init?.signal ?? undefined });
-    nextRequest = performance.now() + 1600;
+    nextRequest = performance.now() + 2200;
     const response = await fetch(url, init);
+    if (!response.ok && (response.status < 300 || response.status >= 400)) {
+      process.stderr.write(`Wikimedia HTTP ${response.status}\n`);
+    }
     if (response.status === 503 && response.headers.has("retry-after")) {
       await response.body?.cancel().catch(() => undefined);
       return new Response(null, { status: 429, headers: response.headers });
@@ -157,6 +162,7 @@ async function run(subjects: readonly CatalogPhotoSubject[], manifest: Manifest,
   const start = performance.now();
   let stop: { operation: string; reason: WikimediaFailure } | undefined;
   let unavailable = 0;
+  let completed = 0;
   const reviewSubjects = rejectedIds.map((id) => {
     const subject = subjects.find((entry) => entry.id === id);
     if (!subject || !manifest[id]) throw new Error("Review rejection must name a saved photo in the selected cities");
@@ -174,10 +180,11 @@ async function run(subjects: readonly CatalogPhotoSubject[], manifest: Manifest,
       return;
     }
 
-    for (const subject of subjects) {
+    const pending = subjects.filter(({ id }) => !manifest[id] && !rejected.has(id));
+    process.stdout.write(`${JSON.stringify({ total: subjects.length, pending: pending.length })}\n`);
+    for (const subject of pending) {
       const { id, name } = subject;
       const filename = photoFilename(id);
-      if (manifest[id] || rejected.has(id)) continue;
       const result = await lookUp(client, subject);
       if ("unavailable" in result) {
         unavailable += 1;
@@ -186,17 +193,26 @@ async function run(subjects: readonly CatalogPhotoSubject[], manifest: Manifest,
           stop = { operation: result.operation, reason: result.unavailable };
           break;
         }
+        // A timed-out WDQS query can keep running after the client disconnects.
+        if (result.operation === "Wikidata query") await sleep(45_000);
         continue;
       }
+
       if ("rejection" in result) {
-        rejected.set(id, { id, name, ...result.rejection });
-        continue;
+        const row = { id, name, ...result.rejection };
+        await appendFile(rejectedPath, `${JSON.stringify(row)}\n`);
+        rejected.set(id, row);
+      } else {
+        await mkdir(photoDir, { recursive: true });
+        await writeAtomic(join(photoDir, filename), result.body);
+        manifest[id] = result.photo;
+        await writeManifest(manifest);
       }
-      await mkdir(photoDir, { recursive: true });
-      await writeAtomic(join(photoDir, filename), result.body);
-      manifest[id] = result.photo;
-      await writeManifest(manifest);
-      rejected.delete(id);
+
+      completed += 1;
+      if (completed % 25 === 0) {
+        process.stdout.write(`${JSON.stringify({ completed, unavailable, pending: pending.length - completed })}\n`);
+      }
     }
   } finally {
     const counts = { no_wikidata: 0, licence: 0, no_author: 0, too_small: 0, review: 0 };
@@ -224,13 +240,16 @@ async function run(subjects: readonly CatalogPhotoSubject[], manifest: Manifest,
 }
 
 async function main(): Promise<void> {
-  const { values } = parseArgs({ options: { city: { type: "string", multiple: true }, "dry-run": { type: "boolean" },
+  const { values } = parseArgs({ options: { city: { type: "string", multiple: true }, kind: { type: "string" },
+    "dry-run": { type: "boolean" },
     "reject-review": { type: "string", multiple: true } } });
   const cities = values.city ?? [];
   if (cities.some((city) => !/^[^/\s]+\/[^/\s]+$/u.test(city))) throw new Error("Use --city 省/市 or --city 省/州");
   const rejectedIds = [...new Set(values["reject-review"] ?? [])];
   if (values["dry-run"] && rejectedIds.length > 0) throw new Error("Choose --dry-run or --reject-review");
-  const subjects = await loadSubjects(cities);
+  const kind = values.kind;
+  if (kind !== undefined && kind !== "spot" && kind !== "dish") throw new Error("Use --kind spot or --kind dish");
+  const subjects = await loadSubjects(cities, kind);
   const foundCities = new Set(subjects.map(({ province, prefecture }) => `${province}/${prefecture}`));
   if (cities.some((city) => !foundCities.has(city))) throw new Error("A selected city has no spots or dishes in catalog_entries");
   if (values["dry-run"]) {

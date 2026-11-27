@@ -49,7 +49,13 @@ function landmarkSubject(subject: CatalogPhotoSubject) {
 }
 
 export function photoQuery(subject: CatalogPhotoSubject): string | null {
-  if (subject.kind === "spot") return landmarkQuery(landmarkSubject(subject));
+  if (subject.kind === "spot") {
+    // WDQS v1 can start from the prefecture and traverse its entire P131 tree.
+    // Keep the shared identity rules and have Blazegraph walk upwards from exact-name hits.
+    return landmarkQuery(landmarkSubject(subject))
+      ?.replace("WHERE {", 'WHERE {\n  hint:Query hint:optimizer "None".')
+      .replace(/^  \?item wdt:P131\+ \?region\.$/mu, '$&\n  hint:Prior hint:gearing "forward".') ?? null;
+  }
   if (!/\p{Script=Han}/u.test(subject.name) || /[\r\n\t]/u.test(subject.name)) return null;
   const names = chineseLanguageTags.map((tag) => `${literal(subject.name)}@${tag}`).join(" ");
   // Restrict the joins to exact-name hits before following the food class hierarchy.

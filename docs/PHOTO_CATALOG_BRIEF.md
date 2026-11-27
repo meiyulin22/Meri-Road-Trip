@@ -100,3 +100,19 @@ walking the food class hierarchy; the revised query has local test coverage and 
 The offline contact sheet at `.cache/catalog-photos/review.html` contains the nine retained images. To reject
 a saved candidate offline, pass `--reject-review <catalog-id>` with the same city filters. Re-running the collector
 later resumes using the manifest and local rejection log, so only pending entries are queried.
+
+## National spot run — 2026-11-27
+
+The approved nationwide run used `--kind spot`, which selected 1,349 spots and resumed with 1,322 pending.
+The collector checkpoints each completed lookup and reports progress every 25 results. After several temporary
+failures around Baoding, the Wikidata query was kept on the same name and P131 checks and given traversal
+hints for WDQS v1. A previously timed-out lookup returned in 1.56 seconds with those hints.
+
+The two passes took about 15 minutes of collection time. The second stopped immediately when Wikidata
+returned HTTP 429. This run resolved 65 additional spots. Of those, 56 had no matching Wikidata image and
+9 yielded candidates. Visual review kept 6 and rejected 3 (a flower close-up, an isolated gate and a sign).
+
+The manifest now contains 15 reviewed spot photos totaling 148,015 bytes. Across the pilot and national
+run, 72 spots have no matching Wikidata image, 5 are marked for visual rejection, and 1,257 are pending.
+Of the pending spots, two received temporary or rate-limit failures. The saved manifest and local rejection
+log are the checkpoints for a later run. The offline contact sheet contains all 15 retained images.

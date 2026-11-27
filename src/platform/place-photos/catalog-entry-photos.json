@@ -1,4 +1,76 @@
 {
+  "spot_aba_huanglong": {
+    "file": "/photos/catalog/spot_aba_huanglong.avif",
+    "width": 320,
+    "height": 240,
+    "title": "File:Water-of-Five-colored-Pond Huanglong Sichuan China.jpg",
+    "author": "Kounosu",
+    "license": "CC BY-SA 3.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Water-of-Five-colored-Pond_Huanglong_Sichuan_China.jpg",
+    "wikidata": "Q4107",
+    "fetchedAt": "2026-11-27T11:51:45.649Z"
+  },
+  "spot_anshun_huangguoshu": {
+    "file": "/photos/catalog/spot_anshun_huangguoshu.avif",
+    "width": 320,
+    "height": 213,
+    "title": "File:黄果树瀑布 2026-07-31 01.jpg",
+    "author": "Kcx36",
+    "license": "CC BY-SA 4.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:%E9%BB%84%E6%9E%9C%E6%A0%91%E7%80%91%E5%B8%83_2026-07-31_01.jpg",
+    "wikidata": "Q38432",
+    "fetchedAt": "2026-11-27T11:55:45.534Z"
+  },
+  "spot_anshun_main_falls": {
+    "file": "/photos/catalog/spot_anshun_main_falls.avif",
+    "width": 320,
+    "height": 213,
+    "title": "File:黄果树瀑布 2026-07-31 01.jpg",
+    "author": "Kcx36",
+    "license": "CC BY-SA 4.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:%E9%BB%84%E6%9E%9C%E6%A0%91%E7%80%91%E5%B8%83_2026-07-31_01.jpg",
+    "wikidata": "Q38432",
+    "fetchedAt": "2026-11-27T11:56:00.944Z"
+  },
+  "spot_banna_jingzhen": {
+    "file": "/photos/catalog/spot_banna_jingzhen.avif",
+    "width": 320,
+    "height": 213,
+    "title": "File:Jingzhen Octagonal Pavilion2.jpg",
+    "author": "爵士鼓手",
+    "license": "CC BY 3.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by/3.0",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Jingzhen_Octagonal_Pavilion2.jpg",
+    "wikidata": "Q340875",
+    "fetchedAt": "2026-11-27T11:59:02.953Z"
+  },
+  "spot_banna_manting": {
+    "file": "/photos/catalog/spot_banna_manting.avif",
+    "width": 320,
+    "height": 336,
+    "title": "File:Manting Imperial Garden.jpg",
+    "author": "Sandykkzk",
+    "license": "CC BY-SA 4.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Manting_Imperial_Garden.jpg",
+    "wikidata": "Q115261707",
+    "fetchedAt": "2026-11-27T11:59:15.012Z"
+  },
+  "spot_baoding_langya": {
+    "file": "/photos/catalog/spot_baoding_langya.avif",
+    "width": 320,
+    "height": 240,
+    "title": "File:LangYaShan5.jpg",
+    "author": "Taken by Fanghong",
+    "license": "CC BY-SA 3.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0/",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:LangYaShan5.jpg",
+    "wikidata": "Q15900288",
+    "fetchedAt": "2026-11-27T12:07:13.830Z"
+  },
   "spot_dali_cangshan": {
     "file": "/photos/catalog/spot_dali_cangshan.avif",
     "width": 320,
