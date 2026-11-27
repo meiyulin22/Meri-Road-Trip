@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { Geist } from "next/font/google";
+import { GeistSans } from "geist/font/sans";
 import {
   GeistPixelCircle,
   GeistPixelGrid,
@@ -13,10 +13,9 @@ import { LocaleProvider } from "@/components/i18n/locale-context";
 import { htmlLang } from "@/domain/locale/locale";
 import { requestLocale } from "@/platform/locale/request-locale";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
-});
+// Geist from the geist package, not Google Fonts: fonts.googleapis.com cannot be reached from a China
+// server, and every page then fell back to another font (2026-11-27). Same CSS variable as before.
+const geistSans = GeistSans;
 
 const pageText = {
   en: { title: "Meri — Outdoor intelligence for every trip", description: "Your Personal Outdoor Intelligence Companion" },
