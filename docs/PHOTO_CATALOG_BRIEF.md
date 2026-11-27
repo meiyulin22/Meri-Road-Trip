@@ -161,3 +161,12 @@ This pass kept the four-second request interval and stopped immediately on Wikid
 image, one image lacked a required author, and five photos passed visual review. Four temporary
 failures and the rate-limited lookup remain pending. The manifest and contact sheet contain
 87 reviewed photos totaling 835,735 bytes. Of the 1,349 spots, 366 have an outcome and 983 are pending.
+
+### National spot continuation checkpoint 5 — 2026-11-27
+
+This pass kept the four-second request interval and stopped immediately on Wikidata HTTP 429 with
+`Retry-After: 120` after 8 min 46 s. Of 62 additional resolved spots, 37 had no matching Wikidata
+image and one was rejected for licence. Of 24 candidates, 17 passed visual review and seven were
+rejected. One temporary failure and the rate-limited lookup remain pending. The manifest and
+contact sheet now contain 104 reviewed photos totaling 1,006,289 bytes. Of 1,349 spots, 428 have an
+outcome and 921 are pending.
