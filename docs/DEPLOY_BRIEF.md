@@ -46,7 +46,9 @@ catalog) ships with the code.
 
 ## 5. Steps
 
-1. Server: Node 24, git checkout of `main`, `npm ci`, `npm run build`, run with a process manager (systemd or
+1. Server: Node 24, git checkout of `main` (public repo; from China use a GitHub mirror prefix, a shallow clone and
+   skip `assets/`, design files the server never reads: `git clone --depth 1 --filter=blob:none --sparse <url>`, then
+   `git sparse-checkout set --no-cone '/*' '!/assets/'`; check `git rev-parse HEAD` against GitHub), `npm ci`, `npm run build`, run with a process manager (systemd or
    pm2) as a non-root user; reverse proxy (nginx or Caddy) with HTTPS on 443.
 2. Reverse proxy must **overwrite** the client address header: nginx `proxy_set_header X-Real-IP $remote_addr;`
    (Caddy `header_up X-Real-IP {remote_host}`). `src/platform/http/client-address.ts` trusts `x-real-ip`, then
