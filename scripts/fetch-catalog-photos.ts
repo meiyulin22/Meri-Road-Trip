@@ -57,10 +57,13 @@ function pacedClient(): WikimediaClient {
     // The shared client rejects once its 40/minute budget is spent. Pace actual HTTP calls,
     // including redirects and Commons requests, so a normal run never hits that ceiling.
     await sleep(Math.max(0, nextRequest - performance.now()), undefined, { signal: init?.signal ?? undefined });
-    nextRequest = performance.now() + 2200;
+    nextRequest = performance.now() + 3000;
     const response = await fetch(url, init);
     if (!response.ok && (response.status < 300 || response.status >= 400)) {
-      process.stderr.write(`Wikimedia HTTP ${response.status}\n`);
+      const retryAfter = response.headers.get("retry-after");
+      const cooldown = retryAfter && (response.status === 429 || response.status === 503)
+        ? ` (Retry-After: ${retryAfter})` : "";
+      process.stderr.write(`Wikimedia HTTP ${response.status}${cooldown}\n`);
     }
     if (response.status === 503 && response.headers.has("retry-after")) {
       await response.body?.cancel().catch(() => undefined);
@@ -193,8 +196,9 @@ async function run(subjects: readonly CatalogPhotoSubject[], manifest: Manifest,
           stop = { operation: result.operation, reason: result.unavailable };
           break;
         }
-        // A timed-out WDQS query can keep running after the client disconnects.
-        if (result.operation === "Wikidata query") await sleep(45_000);
+        // WDQS can continue processing after the client times out. Let the server's
+        // 60-second query window clear before sending the next subject.
+        if (result.operation === "Wikidata query") await sleep(65_000);
         continue;
       }
 

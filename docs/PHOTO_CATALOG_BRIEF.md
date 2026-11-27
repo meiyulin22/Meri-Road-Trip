@@ -116,3 +116,15 @@ The manifest now contains 15 reviewed spot photos totaling 148,015 bytes. Across
 run, 72 spots have no matching Wikidata image, 5 are marked for visual rejection, and 1,257 are pending.
 Of the pending spots, two received temporary or rate-limit failures. The saved manifest and local rejection
 log are the checkpoints for a later run. The offline contact sheet contains all 15 retained images.
+
+### National spot continuation — 2026-11-27
+
+The resumed collector spaced requests three seconds apart and waited 65 seconds after a transient WDQS
+failure before querying another subject. It recorded the server's `Retry-After` and stopped immediately on
+HTTP 429 after 19 min 56 s. The server sent `Retry-After: 120`.
+
+This run resolved 105 spots. It found 44 candidates and kept 33 after visual review. Eleven candidates
+were rejected during review. Fifty-eight spots had no matching Wikidata image. One spot each was rejected
+for licence, missing author and insufficient width. Eight queries failed transiently, and the rate-limited query was kept
+pending. Across all runs, 197 spots have an outcome and 1,152 are pending. The manifest and contact sheet
+now contain 48 reviewed photos totaling 436,643 bytes.
