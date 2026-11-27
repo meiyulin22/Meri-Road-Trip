@@ -57,7 +57,7 @@ function pacedClient(): WikimediaClient {
     // The shared client rejects once its 40/minute budget is spent. Pace actual HTTP calls,
     // including redirects and Commons requests, so a normal run never hits that ceiling.
     await sleep(Math.max(0, nextRequest - performance.now()), undefined, { signal: init?.signal ?? undefined });
-    nextRequest = performance.now() + 3000;
+    nextRequest = performance.now() + 4000;
     const response = await fetch(url, init);
     if (!response.ok && (response.status < 300 || response.status >= 400)) {
       const retryAfter = response.headers.get("retry-after");

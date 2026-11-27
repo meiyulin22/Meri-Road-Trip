@@ -527,6 +527,18 @@
     "wikidata": "Q123375888",
     "fetchedAt": "2026-11-27T12:47:33.197Z"
   },
+  "spot_chengdu_sichuan_museum": {
+    "file": "/photos/catalog/spot_chengdu_sichuan_museum.avif",
+    "width": 320,
+    "height": 240,
+    "title": "File:四川博物院.JPG",
+    "author": "历史研究",
+    "license": "CC BY-SA 3.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:%E5%9B%9B%E5%B7%9D%E5%8D%9A%E7%89%A9%E9%99%A2.JPG",
+    "wikidata": "Q10924774",
+    "fetchedAt": "2026-11-27T13:09:26.547Z"
+  },
   "spot_chengdu_tianshi": {
     "file": "/photos/catalog/spot_chengdu_tianshi.avif",
     "width": 320,
@@ -838,5 +850,137 @@
     "sourceUrl": "https://commons.wikimedia.org/wiki/File:Yongquan_Temple_in_Gushan_Mountain,_Fuzhou.jpg",
     "wikidata": "Q11151771",
     "fetchedAt": "2026-11-27T12:59:04.728Z"
+  },
+  "spot_gannan_langmusi_town": {
+    "file": "/photos/catalog/spot_gannan_langmusi_town.avif",
+    "width": 320,
+    "height": 240,
+    "title": "File:Langmusi.jpg",
+    "author": "NoGhost",
+    "license": "CC BY-SA 4.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Langmusi.jpg",
+    "wikidata": "Q13990333",
+    "fetchedAt": "2026-11-27T13:09:58.949Z"
+  },
+  "spot_ganzi_litang_monastery": {
+    "file": "/photos/catalog/spot_ganzi_litang_monastery.avif",
+    "width": 320,
+    "height": 240,
+    "title": "File:理塘长青春科尔寺.jpg",
+    "author": "Wang Junbo ( talk · contribs )",
+    "license": "Public domain",
+    "licenseUrl": "https://commons.wikimedia.org/wiki/File:%E7%90%86%E5%A1%98%E9%95%BF%E9%9D%92%E6%98%A5%E7%A7%91%E5%B0%94%E5%AF%BA.jpg",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:%E7%90%86%E5%A1%98%E9%95%BF%E9%9D%92%E6%98%A5%E7%A7%91%E5%B0%94%E5%AF%BA.jpg",
+    "wikidata": "Q1576819",
+    "fetchedAt": "2026-11-27T13:11:42.907Z"
+  },
+  "spot_ganzi_tagong_temple": {
+    "file": "/photos/catalog/spot_ganzi_tagong_temple.avif",
+    "width": 320,
+    "height": 240,
+    "title": "File:Lhagang Gönba.jpg",
+    "author": "Marym1718",
+    "license": "CC BY 4.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by/4.0",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Lhagang_G%C3%B6nba.jpg",
+    "wikidata": "Q21017397",
+    "fetchedAt": "2026-11-27T13:14:57.782Z"
+  },
+  "spot_guangzhou_canton_tower": {
+    "file": "/photos/catalog/spot_guangzhou_canton_tower.avif",
+    "width": 320,
+    "height": 477,
+    "title": "File:广州塔Scenery in Guangzhou, China - panoramio (9).jpg",
+    "author": "jiang-wen-jie",
+    "license": "CC BY-SA 3.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:%E5%B9%BF%E5%B7%9E%E5%A1%94Scenery_in_Guangzhou,_China_-_panoramio_(9).jpg",
+    "wikidata": "Q168400",
+    "fetchedAt": "2026-11-27T13:16:50.017Z"
+  },
+  "spot_guangzhou_chen_clan": {
+    "file": "/photos/catalog/spot_guangzhou_chen_clan.avif",
+    "width": 320,
+    "height": 213,
+    "title": "File:Chen Clan Ancestral Hall 2025.06 03.jpg",
+    "author": "Shujianyang",
+    "license": "CC BY-SA 4.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Chen_Clan_Ancestral_Hall_2025.06_03.jpg",
+    "wikidata": "Q5090739",
+    "fetchedAt": "2026-11-27T13:17:00.880Z"
+  },
+  "spot_guangzhou_chimelong_rides": {
+    "file": "/photos/catalog/spot_guangzhou_chimelong_rides.avif",
+    "width": 320,
+    "height": 427,
+    "title": "File:ChimelongGiantFrisbee.jpg",
+    "author": "JaJaWa",
+    "license": "CC BY-SA 4.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:ChimelongGiantFrisbee.jpg",
+    "wikidata": "Q2963655",
+    "fetchedAt": "2026-11-27T13:17:13.613Z"
+  },
+  "spot_guangzhou_haixinsha": {
+    "file": "/photos/catalog/spot_guangzhou_haixinsha.avif",
+    "width": 320,
+    "height": 240,
+    "title": "File:Haixinsha Guangchang.JPG",
+    "author": "圍棋一級",
+    "license": "CC BY-SA 3.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Haixinsha_Guangchang.JPG",
+    "wikidata": "Q3270848",
+    "fetchedAt": "2026-11-27T13:17:39.689Z"
+  },
+  "spot_guangzhou_sacred_heart": {
+    "file": "/photos/catalog/spot_guangzhou_sacred_heart.avif",
+    "width": 320,
+    "height": 480,
+    "title": "File:Sacred Heart Cathedral of Guangzhou 2025.06 01.jpg",
+    "author": "Shujianyang",
+    "license": "CC BY-SA 4.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Sacred_Heart_Cathedral_of_Guangzhou_2025.06_01.jpg",
+    "wikidata": "Q1195445",
+    "fetchedAt": "2026-11-27T13:18:00.027Z"
+  },
+  "spot_guangzhou_whampoa": {
+    "file": "/photos/catalog/spot_guangzhou_whampoa.avif",
+    "width": 320,
+    "height": 180,
+    "title": "File:Whampoa Military Academy Gate.jpg",
+    "author": "Chintunglee",
+    "license": "CC BY-SA 4.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Whampoa_Military_Academy_Gate.jpg",
+    "wikidata": "Q11177237",
+    "fetchedAt": "2026-11-27T13:19:36.789Z"
+  },
+  "spot_guilin_elephant_hill": {
+    "file": "/photos/catalog/spot_guilin_elephant_hill.avif",
+    "width": 320,
+    "height": 202,
+    "title": "File:Xiangshan Scenic Area 89468-Guilin (31130832628).jpg",
+    "author": "xiquinhosilva",
+    "license": "CC BY 2.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by/2.0",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Xiangshan_Scenic_Area_89468-Guilin_(31130832628).jpg",
+    "wikidata": "Q5359378",
+    "fetchedAt": "2026-11-27T13:20:09.627Z"
+  },
+  "spot_guilin_lingqu": {
+    "file": "/photos/catalog/spot_guilin_lingqu.avif",
+    "width": 320,
+    "height": 213,
+    "title": "File:Lingqu Canal.jpg",
+    "author": "Farm",
+    "license": "CC BY 3.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by/3.0",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Lingqu_Canal.jpg",
+    "wikidata": "Q966140",
+    "fetchedAt": "2026-11-27T13:21:47.251Z"
   }
 }
