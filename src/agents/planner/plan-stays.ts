@@ -4,10 +4,7 @@ import { z } from "zod";
 import type { PlanDay } from "@/domain/plan/plan-draft";
 import type { PlanHandoff } from "@/domain/plan/plan-handoff";
 import type { SpotCard } from "@/domain/plan/spot-card";
-import {
-  type CityStay, type HotelDetail, type HotelOption, lodgingPreferenceKinds, maxStayReasonLength, pickTiers, type StayBlock,
-  stayBlocks,
-} from "@/domain/plan/stays";
+import { type CityStay, type HotelDetail, type HotelOption, type StayAreaPoint, type StayBlock, lodgingPreferenceKinds, maxStayReasonLength, pickTiers, stayBlocks } from "@/domain/plan/stays";
 import { logger } from "@/platform/observability/logger";
 import { serializeError } from "@/platform/observability/serialize-error";
 import type { HotelSearch, HotelSearchAnswer } from "@/platform/hotel/rollinggo";
@@ -108,8 +105,10 @@ export async function planStays(
   onProgress: StayProgress = () => {},
   /** Large-area stops never searched near (1.2117: 洱海). */
   bigAreas: ReadonlySet<string> = new Set(),
+  /** The guides' stay areas by "province|city" (RAG step 5). */
+  stayAreas: ReadonlyMap<string, readonly StayAreaPoint[]> = new Map(),
 ): Promise<{ stays: CityStay[]; usage: PlanUsage; calls: number }> {
-  const blocks = stayBlocks(days, cards, bigAreas);
+  const blocks = stayBlocks(days, cards, bigAreas, stayAreas);
   let calls = 0;
   const found: { block: StayBlock; hotels: readonly HotelOption[] }[] = [];
   const unavailable: StayBlock[] = [];

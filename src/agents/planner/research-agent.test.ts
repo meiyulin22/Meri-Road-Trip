@@ -448,14 +448,22 @@ test("the catalog's tips reach the cards they belong to and the city; English pl
     { id: "way_lake", from: "大理古城", to: "洱海", modes: ["公交", "骑行"], spotIds: ["spot_洱海"] },
     { id: "way_airport", from: "大理机场", to: "下关", modes: ["出租车"], spotIds: [] },
   ];
-  const deps = { search: async () => [], model: countingModel([]), catalog: async () => ({ ...daliCatalog, tips, transport }) };
+  const stayAreas = [
+    { id: "stay_town", name: "大理古城", features: ["民居客栈"], spotIds: ["spot_大理古城"] },
+    { id: "stay_far", name: "巍山", features: [], spotIds: ["spot_不在候选里"] },
+  ];
+  const deps = { search: async () => [], model: countingModel([]), catalog: async () => ({ ...daliCatalog, tips, transport, stayAreas }) };
   const city = await researchCity(daliTask, handoff, deps);
   assert.deepEqual(city.spots.find(({ name }) => name === "洱海")?.catalog?.tips?.map(({ name }) => name), ["环湖骑行"]);
   assert.deepEqual(city.tips?.map(({ name, kind }) => [name, kind]), [["三月街传统节期", "festival"], ["下关防风", "city"]]);
   assert.deepEqual(city.spots.find(({ name }) => name === "洱海")?.catalog?.access, [{ from: "大理古城", to: "洱海", modes: ["公交", "骑行"] }]);
   assert.deepEqual(city.access, [{ from: "大理机场", to: "下关", modes: ["出租车"] }]);
+  // Stay areas are kept by the card they sit by; one whose spot research did not take is dropped.
+  const townCard = city.spots.find(({ name }) => name === "大理古城");
+  assert.deepEqual(city.stayAreas, [{ name: "大理古城", features: ["民居客栈"], cardIds: [townCard?.id] }]);
   const english = await researchCity(daliTask, { ...handoff, locale: "en" }, deps);
   assert.equal(english.tips, undefined);
   assert.equal(english.access, undefined);
+  assert.equal(english.stayAreas?.length, 1);
   assert.ok(english.spots.every(({ catalog }) => catalog?.tips === undefined));
 });

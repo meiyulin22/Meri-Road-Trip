@@ -3,6 +3,10 @@
 .header { display: flex; align-items: center; gap: 10px; min-width: 0; }
 .header h3 { font-size: 14px; font-weight: 650; }
 .header p { color: var(--muted); font-size: 12px; }
+
+/* Where the guides say to stay (RAG step 5): one line why here, one line where else. */
+.areas { display: grid; gap: 2px; color: #4b605b; font-size: 13px; line-height: 1.6; }
+.otherAreas { color: var(--muted); font-size: 12px; }
 .icon { display: inline-grid; flex: none; place-items: center; width: 30px; height: 30px; border-radius: 8px; color: #fff; background: var(--ink); }
 .empty { color: var(--muted); font-size: 13px; }
 

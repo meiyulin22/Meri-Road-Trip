@@ -22,12 +22,18 @@ test("rows become spots with their highlights, dishes with their summary and tip
       related: [{ id: "spot_a", relation: "applies_to" }, { id: "spot_b", relation: "nearby" }] },
     { ...common, id: "way_a", kind: "transport", name: "古城到洱海", summary: "可坐公交。", tags: ["交通"],
       details: { from: "古城", to: "洱海", modes: ["公交", "骑行"] }, related: [{ id: "spot_a", relation: "destination" }] },
+    { ...common, id: "stay_area", kind: "stay", name: "古城住宿区", summary: "适合住。", tags: ["住宿"],
+      details: { stay_type: "area", area: "古城", features: ["院落客栈"], branch: null, address: null }, related: [{ id: "spot_a", relation: "nearby" }] },
+    { ...common, id: "stay_inn", kind: "stay", name: "某客栈", summary: "一家客栈。", tags: ["住宿"],
+      details: { stay_type: "property", area: "古城", features: [], branch: null, address: "某路 1 号" } },
   ]);
   assert.deepEqual(catalog.spots.map(({ name, highlights, tags }) => [name, highlights, tags]), [["洱海", ["湖景"], ["水域"]]]);
   assert.deepEqual(catalog.dishes, [{ id: "dish_a", name: "乳扇", summary: "奶制品。", sourceCount: 2 }]);
   // A tip keeps its advice and the spots it applies to; other relations are not "applies to".
   assert.deepEqual(catalog.tips, [{ id: "tip_a", name: "提示", advice: "带伞", appliesIn: "全年", spotIds: ["spot_a"] }]);
   assert.deepEqual(catalog.transport, [{ id: "way_a", from: "古城", to: "洱海", modes: ["公交", "骑行"], spotIds: ["spot_a"] }]);
+  // A stay area is kept; a single guesthouse is not: hotels come from RollingGo.
+  assert.deepEqual(catalog.stayAreas, [{ id: "stay_area", name: "古城", features: ["院落客栈"], spotIds: ["spot_a"] }]);
 });
 
 test("without CATALOG_ENABLED the preference ranking reads nothing", async () => {

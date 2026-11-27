@@ -97,6 +97,13 @@ function Stay({ stay, locale }: { readonly stay: CityStay; readonly locale: Loca
   return (
     <div className={styles.cityGroup}>
       <p className={styles.muted}>{text.checkIn(stay.checkIn, stay.nights)}</p>
+      {/* Where the guides say to stay (RAG step 5); Chinese notes, so Chinese handbooks only. */}
+      {locale === "zh" && stay.near.area ? (
+        <p className={styles.muted}>Meri 的整理：{stay.near.area.name}一带适合住{stay.near.area.features.length ? `，多是${stay.near.area.features.slice(0, 3).join("、")}` : ""}</p>
+      ) : null}
+      {locale === "zh" && stay.otherAreas?.length ? (
+        <p className={styles.muted}>也可以住：{stay.otherAreas.map(({ name }) => name).join("、")}</p>
+      ) : null}
       {stay.status === "found" ? (
         <ul>
           {stay.recommended ? <Hotel pick={stay.recommended} label={text.pick} stay={stay} locale={locale} reason={stay.recommended.reason} /> : null}

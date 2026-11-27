@@ -548,6 +548,17 @@ export function createPlanGenerationWorkflow(deps: PlanGenerationDependencies) {
   });
 
   /** Every card by ID, with the second round's facts once they are in. */
+  /** Each city's stay areas from the catalog, placed by the located card they sit by (RAG step 5). */
+  const stayAreaPoints = (cities: readonly CityResearch[]) => new Map(cities.map((city) => {
+    const cards = new Map(city.spots.map((card) => [card.id, card]));
+    const points = (city.stayAreas ?? []).flatMap(({ name, features, cardIds }) => {
+      const card = cardIds.map((id) => cards.get(id)).find((one) => one?.mapCheck.status === "located" && one.mapCheck.point);
+      return card?.mapCheck.status === "located" && card.mapCheck.point
+        ? [{ name, features, spotName: card.name, point: card.mapCheck.point }]
+        : [];
+    });
+    return [`${city.province}|${city.city}`, points] as const;
+  }));
   const cardsOf = (cities: readonly CityResearch[]) => new Map(cities.flatMap(({ spots }) => spots).map((card) => [card.id, card]));
   const withFacts = (cities: readonly CityResearch[], facts: VerifyResult["availability"]) => cities.map((city) => ({
     ...city, spots: city.spots.map((card) => facts.has(card.id) ? { ...card, availability: facts.get(card.id) } : card),
@@ -791,7 +802,7 @@ export function createPlanGenerationWorkflow(deps: PlanGenerationDependencies) {
       const { emit, flush } = emitter(writer);
       const result = await planStays(state.handoff, inputData.draft.days, cardsOf(inputData.cities), deps.hotels, deps.planModel, deps.now,
         ({ city, near, done, total }) => emit({ type: "stage.activity", stage: "stays", activity: { kind: "hotels", city, near, done, total } }),
-        bigAreaStops(inputData.draft.legs ?? []));
+        bigAreaStops(inputData.draft.legs ?? []), stayAreaPoints(inputData.cities));
       for (const stay of result.stays) emit({ type: "stay.ready", stay });
       await flush();
       return {

@@ -96,3 +96,15 @@ export function splitTransport(entries: readonly CatalogTransport[], takenSpotId
   }
   return { bySpot, city };
 }
+
+/**
+ * A part of a city the guides recommend staying in (RAG step 5, stay areas, 2026-11-27): its name,
+ * what lodging is there, and the catalog spots it sits by. Never a single hotel: those come from
+ * RollingGo, with photos and prices.
+ */
+export type CatalogStayArea = {
+  readonly id: string;
+  readonly name: string;
+  readonly features: readonly string[];
+  readonly spotIds: readonly string[];
+};

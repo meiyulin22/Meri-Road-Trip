@@ -53,8 +53,24 @@ export type StayBlock = {
   /** The last day of the stay in the city, for the page to place the card after. */
   readonly lastDay: number;
   /** What to search near: the stop in the middle of the stay's located stops, or the city itself. */
-  readonly near: { readonly name: string; readonly kind: "spot" | "city" };
+  readonly near: {
+    readonly name: string;
+    readonly kind: "spot" | "city";
+    /** The guides' stay area searched in instead of the middle stop (RAG step 5), absent when none fit. */
+    readonly area?: StayAreaNote;
+  };
+  /** Other parts of the city the guides recommend staying in, named only (RAG step 5); absent when none. */
+  readonly otherAreas?: readonly StayAreaNote[];
 };
+
+export type StayAreaNote = { readonly name: string; readonly features: readonly string[] };
+
+/** A stay area from the catalog placed on the map by the spot it sits by (RAG step 5). */
+export type StayAreaPoint = StayAreaNote & { readonly spotName: string; readonly point: GeoPoint };
+
+/** A stay area further than this from the middle of the stay's stops is not worth the drive back each night. */
+export const maxStayAreaKm = 15;
+const maxOtherAreas = 2;
 
 export type CityStay = StayBlock & (
   | {
@@ -73,7 +89,13 @@ export type CityStay = StayBlock & (
  * except the last day of the trip, which is spent going home (merlin, 2026-11-20). Days without
  * a date make no stay.
  */
-export function stayBlocks(days: readonly PlanDay[], cards: ReadonlyMap<string, SpotCard>, bigAreas: ReadonlySet<string> = new Set()): StayBlock[] {
+export function stayBlocks(
+  days: readonly PlanDay[],
+  cards: ReadonlyMap<string, SpotCard>,
+  bigAreas: ReadonlySet<string> = new Set(),
+  /** The guides' stay areas by "province|city" (RAG step 5); none, and the middle stop is searched near. */
+  stayAreas: ReadonlyMap<string, readonly StayAreaPoint[]> = new Map(),
+): StayBlock[] {
   const sorted = [...days].sort((left, right) => left.day - right.day);
   const lastDay = sorted.at(-1)?.day ?? 0;
   const blocks: StayBlock[] = [];
@@ -88,10 +110,44 @@ export function stayBlocks(days: readonly PlanDay[], cards: ReadonlyMap<string, 
     if (nights === 0 || first.date === null) continue;
     blocks.push({
       province: first.province, city: first.city, firstDay: first.day, checkIn: first.date, nights,
-      lastDay: run.at(-1)?.day ?? first.day, near: nearOf(run, cards, first.city, bigAreas),
+      lastDay: run.at(-1)?.day ?? first.day,
+      ...stayNear(run, cards, first.city, bigAreas, stayAreas.get(`${first.province}|${first.city}`) ?? []),
     });
   }
   return blocks;
+}
+
+/**
+ * Where to search a stay (RAG step 5): the guides' stay area nearest the middle of the stay's located
+ * stops, within 15 km, else the middle stop as before. The other areas are named on the card. A stop
+ * the plan merely passes, such as a temple in the middle, is a poorer base than an old town nearby.
+ */
+export function stayNear(
+  run: readonly PlanDay[],
+  cards: ReadonlyMap<string, SpotCard>,
+  city: string,
+  bigAreas: ReadonlySet<string>,
+  areas: readonly StayAreaPoint[],
+): Pick<StayBlock, "near" | "otherAreas"> {
+  const fallback = nearOf(run, cards, city, bigAreas);
+  const points = run.flatMap(({ stops }) => stops).flatMap(({ spotId }) => {
+    const card = cards.get(spotId);
+    return card && !bigAreas.has(spotId) && card.mapCheck.status === "located" && card.mapCheck.point ? [card.mapCheck.point] : [];
+  });
+  const middle = points.length > 0
+    ? { longitude: points.reduce((sum, { longitude }) => sum + longitude, 0) / points.length,
+      latitude: points.reduce((sum, { latitude }) => sum + latitude, 0) / points.length }
+    : null;
+  const nearest = middle
+    ? [...areas].sort((left, right) => kmBetween(middle, left.point) - kmBetween(middle, right.point))
+      .find((area) => kmBetween(middle, area.point) <= maxStayAreaKm) ?? null
+    : null;
+  const note = ({ name, features }: StayAreaNote) => ({ name, features: [...features] });
+  const others = areas.filter((area) => area !== nearest).slice(0, maxOtherAreas).map(note);
+  return {
+    near: nearest ? { name: nearest.spotName, kind: "spot", area: note(nearest) } : fallback,
+    ...(others.length ? { otherAreas: others } : {}),
+  };
 }
 
 /** The located stop with the shortest total distance to the others; the city when none is located. */

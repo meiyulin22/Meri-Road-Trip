@@ -582,6 +582,20 @@ function withTips(city: CityResearch, catalog: CityCatalog | null, handoff: Plan
 }
 
 /**
+ * The guides' stay areas whose spots research took, by card id (RAG step 5): any locale, since they
+ * only steer where hotels are searched.
+ */
+function withStayAreas(city: CityResearch, catalog: CityCatalog | null): CityResearch {
+  if (!catalog?.stayAreas?.length) return city;
+  const cardOf = new Map(city.spots.flatMap((card) => (card.catalog ? [[card.catalog.id, card.id] as const] : [])));
+  const stayAreas = catalog.stayAreas.flatMap(({ name, features, spotIds }) => {
+    const cardIds = spotIds.flatMap((id) => cardOf.get(id) ?? []);
+    return cardIds.length ? [{ name, features, cardIds }] : [];
+  });
+  return stayAreas.length ? { ...city, stayAreas } : city;
+}
+
+/**
  * Researches one city: from Meri's catalog when it has at least six spots for the city, else by
  * web search as before the catalog (also whenever CATALOG_ENABLED is off).
  */
@@ -595,7 +609,7 @@ export async function researchCity(
   const city = catalog && catalog.spots.length >= minCatalogSpots
     ? await researchFromCatalog(task, handoff, catalog, deps, onProgress)
     : await researchBySearch(task, handoff, deps, onProgress, true);
-  return withTips(city, catalog, handoff);
+  return withTips(withStayAreas(city, catalog), catalog, handoff);
 }
 
 /**

@@ -102,6 +102,11 @@ export type CityResearch = {
   readonly tips?: readonly CityTip[];
   /** Arrivals in the city (airport or station → town), from the catalog (RAG step 5); absent before it. */
   readonly access?: readonly AccessNote[];
+  /**
+   * Where the guides say to stay, each by the id of a card it sits by (RAG step 5, stay areas). Used to
+   * choose where hotels are searched; not kept in the saved plan.
+   */
+  readonly stayAreas?: readonly { readonly name: string; readonly features: readonly string[]; readonly cardIds: readonly string[] }[];
 };
 
 /** A card has something behind it: a quoted web source for where it is, or Meri's catalog. */

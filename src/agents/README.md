@@ -205,6 +205,13 @@ advice shares eight consecutive characters with the guide pages it cites.
 (three at most), beside Tianditu's drive time; the rest, arrivals such as airport → town, go in a 「到达和市内交通」
 part of the city's tips card. Only the start, the end and the kinds of transport show, never the summary.
 
+**Step 5, stay areas (2026-11-27,** `stayNear` in [stays.ts](../domain/plan/stays.ts)): 58 cities have the guides'
+stay areas, each tied to a spot. Where to stay used to search near the stop closest to the middle of the stay's
+stops, which can be a temple or a village; now it searches near the stay area closest to that middle, within
+15 km (丽江 with 玉龙雪山 in the plan: 束河古镇, not the middle stop), else as before. The card says why
+(「束河古镇一带适合住，多是院落客栈、青年旅舍」) and names up to two other areas. Hotels still come only from
+RollingGo; the catalog's single guesthouses (no photos, no prices, maybe closed) are not used.
+
 Popularity as a third RRF list was tried first and dropped: a city has a few dozen spots, so with k = 60 a
 spot in the middle of two lists outscored the top of one. Without preferences, without a key, or when the
 query or the database fails, the order is popularity alone (step 2). The query vector costs about ¥0.00002

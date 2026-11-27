@@ -17,6 +17,9 @@ const copy = {
     nights: (nights: number) => `${nights} 晚`,
     checkIn: (date: string) => `${Number(date.slice(5, 7))}月${Number(date.slice(8, 10))}日入住`,
     near: (name: string, kind: "spot" | "city") => (kind === "spot" ? `在${name}附近 3 km 内` : `在${name}`),
+    areaNote: (area: string, features: readonly string[]) =>
+      `Meri 的整理：${area}一带适合住${features.length ? `，多是${features.slice(0, 3).join("、")}` : ""}`,
+    otherAreas: (areas: string) => `也可以住：${areas}`,
     tiers: { budget: "经济", comfort: "舒适", luxury: "高档" } satisfies Record<StayTier, string>,
     recommended: "Meri 推荐",
     perNight: (amount: number) => `¥${amount}/晚`,
@@ -41,6 +44,8 @@ const copy = {
     nights: (nights: number) => `${nights} ${nights === 1 ? "night" : "nights"}`,
     checkIn: (date: string) => `check in ${date.slice(5)}`,
     near: (name: string, kind: "spot" | "city") => (kind === "spot" ? `within 3 km of ${name}` : `in ${name}`),
+    areaNote: (area: string) => `Meri's notes: ${area} is a good area to stay`,
+    otherAreas: (areas: string) => `Also good to stay: ${areas}`,
     tiers: { budget: "Budget", comfort: "Comfort", luxury: "Luxury" } satisfies Record<StayTier, string>,
     recommended: "Meri's pick",
     perNight: (amount: number) => `¥${amount}/night`,
@@ -218,6 +223,16 @@ export function PlanStayCard({ stay, locale, onShowOnMap }: {
           <p>{text.nights(stay.nights)} · {text.checkIn(stay.checkIn)} · {text.near(stay.near.name, stay.near.kind)}</p>
         </div>
       </header>
+      {/* Why here, and where else, from Meri's catalog (RAG step 5): Chinese notes, so Chinese plans only. */}
+      {locale === "zh" && (stay.near.area || stay.otherAreas?.length) ? (
+        <div className={styles.areas}>
+          {stay.near.area ? <p>{text.areaNote(stay.near.area.name, stay.near.area.features)}</p> : null}
+          {stay.otherAreas?.length ? (
+            <p className={styles.otherAreas}>{text.otherAreas(stay.otherAreas.map(({ name, features }) =>
+              features.length ? `${name}（${features.slice(0, 2).join("、")}）` : name).join("、"))}</p>
+          ) : null}
+        </div>
+      ) : null}
       {stay.status !== "found" ? <p className={styles.empty}>{stay.status === "none" ? text.none : text.unavailable}</p> : (
         <>
           {stay.recommended ? (

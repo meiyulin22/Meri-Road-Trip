@@ -287,10 +287,12 @@ const hotelDetailSchema = z.strictObject({
   phone: z.string().nullable(), district: z.string().nullable(), checkIn: z.string().nullable(), checkOut: z.string().nullable(),
   facilities: z.array(z.string()), images: z.array(photoUrl),
 });
+const stayAreaNoteSchema = z.strictObject({ name: z.string().min(1), features: z.array(z.string().min(1)) });
 const stayBlockShape = {
   province: z.string().min(1), city: z.string().min(1), firstDay: z.number().int().positive(), checkIn: z.iso.date(),
   nights: z.number().int().positive(), lastDay: z.number().int().positive(),
-  near: z.strictObject({ name: z.string().min(1), kind: z.enum(["spot", "city"]) }),
+  near: z.strictObject({ name: z.string().min(1), kind: z.enum(["spot", "city"]), area: stayAreaNoteSchema.optional() }),
+  otherAreas: z.array(stayAreaNoteSchema).optional(),
 };
 export const cityStaySchema: z.ZodType<CityStay> = z.discriminatedUnion("status", [
   z.strictObject({

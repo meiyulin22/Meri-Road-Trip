@@ -7,7 +7,7 @@ import { card } from "@/agents/planner/plan-test-fixtures";
 import { parseHotelSearch } from "@/platform/hotel/rollinggo";
 
 import type { PlanDay } from "./plan-draft";
-import { bigAreaStops, pickTiers, stayBlocks } from "./stays";
+import { bigAreaStops, pickTiers, stayBlocks, stayNear } from "./stays";
 
 const located = (name: string, longitude: number, latitude: number) =>
   ({ ...card(name), mapCheck: { status: "located" as const, district: "古城区", point: { longitude, latitude } } });
@@ -63,4 +63,24 @@ test("a stop the road never reaches, such as a lake, is not searched near (1.211
   assert.equal(lijiang.near.name, "丽江古城");
   const [only] = stayBlocks([day(3, "丽江市", lake.id), day(4, "丽江市")], cards, areas);
   assert.deepEqual(only.near, { name: "丽江市", kind: "city" });
+});
+
+test("a stay searches near the guides' stay area closest to the middle of its stops, within 15 km (RAG step 5)", () => {
+  const areas = [
+    { name: "束河古镇", features: ["院落客栈", "青年旅舍"], spotName: "束河古镇", point: { longitude: 100.208, latitude: 26.92 } },
+    { name: "大研古城", features: ["纳西院落"], spotName: "丽江古城", point: { longitude: 100.234, latitude: 26.872 } },
+    { name: "大落水村", features: ["木楞房客栈"], spotName: "泸沽湖云南侧", point: { longitude: 100.78, latitude: 27.69 } },
+  ];
+  const run = [day(1, "丽江市", town.id, mufu.id), day(2, "丽江市", mountain.id, lake.id)];
+  const chosen = stayNear(run, cards, "丽江市", new Set(), areas);
+  // 玉龙雪山 pulls the middle north of the old town, so 束河 is the nearer area: searched there, not at 丽江古城.
+  assert.deepEqual(chosen.near, { name: "束河古镇", kind: "spot", area: { name: "束河古镇", features: ["院落客栈", "青年旅舍"] } });
+  assert.deepEqual(chosen.otherAreas?.map(({ name }) => name), ["大研古城", "大落水村"]);
+
+  // Only areas far away (泸沽湖, about 100 km): the middle stop as before, the area still named.
+  const far = stayNear(run, cards, "丽江市", new Set(), [areas[2]]);
+  assert.deepEqual(far.near, { name: "丽江古城", kind: "spot" });
+  assert.deepEqual(far.otherAreas?.map(({ name }) => name), ["大落水村"]);
+  // No areas: exactly the old choice, nothing added.
+  assert.deepEqual(stayNear(run, cards, "丽江市", new Set(), []), { near: { name: "丽江古城", kind: "spot" } });
 });

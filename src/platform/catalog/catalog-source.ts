@@ -79,7 +79,13 @@ export function cityCatalogFromRows(rows: readonly CatalogRow[]): CityCatalog {
     modes: row.details.modes,
     spotIds: row.related.filter(({ relation }) => leadsTo.has(relation)).map(({ id }) => id),
   }] : []);
-  return { spots, dishes, tips, transport };
+  const stayAreas = rows.flatMap((row) => row.kind === "stay" && "stay_type" in row.details && row.details.stay_type === "area" ? [{
+    id: row.id,
+    name: row.details.area,
+    features: row.details.features,
+    spotIds: row.related.map(({ id }) => id),
+  }] : []);
+  return { spots, dishes, tips, transport, stayAreas };
 }
 
 export function createPostgresCatalogSource(database: CatalogDatabase): CatalogSource {
@@ -101,7 +107,7 @@ export function createPostgresCatalogSource(database: CatalogDatabase): CatalogS
         }).from(catalogEntries).where(and(
           eq(catalogEntries.province, province),
           eq(catalogEntries.prefecture, prefecture),
-          inArray(catalogEntries.kind, ["spot", "dish", "tip", "transport"]),
+          inArray(catalogEntries.kind, ["spot", "dish", "tip", "transport", "stay"]),
         ));
         return cityCatalogFromRows(rows);
       } catch (error) {
