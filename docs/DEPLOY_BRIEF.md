@@ -58,12 +58,26 @@ catalog) ships with the code.
    image), data on persistent storage, bound to localhost only. Development runs the same versions from Homebrew
    (see `docs/ARCHITECTURE.md` 8.1). Run migrations with `DATABASE_URL=… npm run db:migrate` as a user that may
    create extensions (migration 0014 creates `pg_trgm` and `vector`).
-   **Catalog:** the catalog data is private and never goes on the server as files. merlin imports it from his Mac
-   through an SSH tunnel with the same script: `ssh -N -L 15432:localhost:5432 <server>`, then
+   **Catalog:** the catalog data is private and never goes on the server as files. Where everything is (checked
+   2026-11-27, private repo `meiyulin22/meri-catalog-cn` at `9a86a70`):
+
+   | What | Where | On a new computer |
+   | --- | --- | --- |
+   | 2284 entries (OCR extraction, the expensive part) | private repo, `data/cities/*.ndjson`, on GitHub | nothing to redo |
+   | 1438 summaries in Meri's voice (B2, 1.2222) | private repo, `data/enrichment/summaries.ndjson`, on GitHub | nothing to redo; the import merges it |
+   | Vectors (embeddings) | only in a database; not in git | `embed-catalog.ts` recomputes them, about ¥0.1 and a few minutes |
+   | Guide PDFs and their OCR (`.work/`) | merlin's Mac only, git-ignored | not needed to import; only for re-extracting or re-checking rewrites |
+
+   Import from any computer, not only merlin's Mac: clone this repo (`npm install`) and the private repo with
+   merlin's GitHub account, and give `.env.local` at least `CATALOG_DIR` (the private repo's root),
+   `DASHSCOPE_API_KEY` and `EMBEDDING_BASE_URL`. `.env.local` is not in git; merlin keeps the keys himself. Then
+   through an SSH tunnel: `ssh -N -L 15432:localhost:5432 <server>`, then
    `DATABASE_URL=postgresql://<user>:<password>@localhost:15432/meri node --env-file=.env.local --import tsx
-   scripts/import-catalog.ts` (`--dry-run` first; the command-line `DATABASE_URL` wins over `.env.local`).
-   Then, through the same tunnel, `scripts/embed-catalog.ts` fills the vectors (百炼, about ¥0.1 for the whole
-   catalog). The server itself needs `DASHSCOPE_API_KEY` and `EMBEDDING_BASE_URL` for query vectors at run time.
+   scripts/import-catalog.ts --dry-run` (the command-line `DATABASE_URL` wins over `.env.local`). It should print
+   `2284 entries … 1438 summaries from the enrichment file`; then run it again without `--dry-run`. Then, through
+   the same tunnel, `scripts/embed-catalog.ts` fills the vectors. Do not rerun OCR, extraction or
+   `scripts/rewrite-catalog-summaries.ts`: their results are already in the private repo. The server itself needs
+   `DASHSCOPE_API_KEY` and `EMBEDDING_BASE_URL` for query vectors at run time.
 4. Environment: copy `.env.example` to the server's `.env.local` and fill it. Set on purpose: `HOTEL_PROVIDER`,
    `FLIGHT_PROVIDER`, `RAIL_PROVIDER`, `PLAN_SEARCH_PROVIDER`. Launch limits agreed 2026-11-19:
    `PLAN_RUNS_PER_DAY=15`, `PLAN_RUNS_PER_GUEST_PER_DAY=2`, `PLAN_RUNS_PER_IP_PER_DAY=2`. Set
