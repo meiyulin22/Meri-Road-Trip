@@ -131,3 +131,61 @@ test("when the model cannot decide, every spot without facts gets the fixed word
   });
   assert.deepEqual(seen, []);
 });
+
+/** A model that answers from what it was given: the source ids are numbered in whatever order the parallel searches finished. */
+function modelFrom(answer: (prompt: { spots?: string[]; sources?: { sourceId: number; spotName?: string }[] }, isExtraction: boolean) => unknown | Response) {
+  return () => createMoonshotChatModel({
+    apiKey: "test", baseUrl: "https://model.test/v1", model: "test",
+    fetch: async (_url, init) => {
+      const request = JSON.parse(String(init?.body)) as { messages: { content: string }[]; response_format?: { json_schema?: { name?: string } } };
+      const content = answer(JSON.parse(request.messages.at(-1)?.content ?? "{}"), request.response_format?.json_schema?.name === "spot_availability");
+      if (content instanceof Response) return content;
+      return Response.json({ id: "t", model: "test", created: 1,
+        choices: [{ index: 0, message: { role: "assistant", content: JSON.stringify(content) }, finish_reason: "stop" }],
+        usage: { prompt_tokens: 50, completion_tokens: 10, total_tokens: 60 } });
+    },
+  });
+}
+const idOf = (prompt: { sources?: { sourceId: number; spotName?: string }[] }, spot: string) =>
+  prompt.sources?.find(({ spotName }) => spotName === spot)?.sourceId ?? 0;
+
+const dragonPool: SpotCard = card("黑龙潭");
+const searchBoth = async (query: string) => query.includes("黑龙潭")
+  ? [{ source: "web", url: "https://example.com/pool", title: "黑龙潭公园", snippet: "黑龙潭公园开放时间7:00-20:00。", publishedAt: "2026-10-20" }]
+  : search(query);
+
+test("a malformed spot in the answer is dropped alone; the city's other spots keep their facts (2026-11-27)", async () => {
+  const result = await verifySpots([yulong, dragonPool], options, {
+    search: searchBoth,
+    model: modelFrom((prompt, isExtraction) => isExtraction ? { spots: [
+      { spot: "玉龙雪山", hours: { open: "7:00", close: "18:00", sourceId: idOf(prompt, "玉龙雪山"), quote: "玉龙雪山开放时间7:00-18:00" } },
+      // A source id as words, not a number: this spot is dropped, the other kept.
+      { spot: "黑龙潭", hours: { open: "7:00", sourceId: "第二条", quote: "黑龙潭公园开放时间7:00-20:00" } },
+    ] } : { searches: [] }),
+  });
+  assert.deepEqual(result.availability.get(yulong.id)?.hours && [result.availability.get(yulong.id)?.hours?.open], ["07:00"]);
+  assert.equal(result.availability.get(dragonPool.id)?.hours, null);
+});
+
+test("a city whose extraction call fails is tried once more with its first three spots", async () => {
+  const names = ["玉龙雪山", "黑龙潭", "丽江古城", "束河古镇"];
+  const cards = names.map((name) => card(name));
+  const asked: string[][] = [];
+  let extractions = 0;
+  const model = modelFrom((prompt, isExtraction) => {
+    if (!isExtraction) return { searches: [] };
+    extractions += 1;
+    asked.push(prompt.spots ?? []);
+    if (extractions === 1) return new Response("upstream timeout", { status: 400 });
+    return { spots: [{ spot: "玉龙雪山", hours: { open: "7:00", close: "18:00", sourceId: idOf(prompt, "玉龙雪山"), quote: "玉龙雪山开放时间7:00-18:00" } }] };
+  });
+  const everywhere = async (query: string) => {
+    const name = names.find((one) => query.includes(one)) ?? "玉龙雪山";
+    return [{ source: "web", url: `https://example.com/${encodeURIComponent(name)}`, title: name,
+      snippet: name === "玉龙雪山" ? "玉龙雪山开放时间7:00-18:00" : `${name}开放时间8:00-18:00`, publishedAt: "2026-10-20" }];
+  };
+  const result = await verifySpots(cards, options, { search: everywhere, model });
+  assert.equal(extractions, 2);
+  assert.deepEqual(asked[1], ["玉龙雪山", "黑龙潭", "丽江古城"]);
+  assert.deepEqual(result.availability.get(cards[0].id)?.hours?.open, "07:00");
+});
