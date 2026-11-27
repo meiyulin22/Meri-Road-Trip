@@ -42,7 +42,7 @@ import { PlanTiandituMap } from "./plan-tianditu-map";
 import { PlanOriginPicker } from "./plan-origin-picker";
 import { PlanLegModeButton } from "./plan-leg-mode-button";
 import { PlanTransferCard } from "./plan-transfer-card";
-import { DayWeatherBadge, DayWeatherLine, StopWeatherLine, WeatherCredit } from "./plan-weather";
+import { DayWeatherBadge, DayWeatherLine, StopWeatherLine, WeatherCredit, WeatherStrip } from "./plan-weather";
 import { dayWeather, forecastProviders, hasForecast, stopWeather } from "./plan-weather-view";
 import { OutfitRoom, PackingList } from "./plan-outfit";
 import { PlanStayCard, PlanStayHint } from "./plan-stay-card";
@@ -615,6 +615,13 @@ function DraftDays({ response, text, locale, transport, gettingThere, onAddDates
       ) : null}
 
       <RouteStrip route={draft.route} text={text} />
+      <WeatherStrip days={draft.days} cards={[...cards.values()]} locale={locale} selectedDay={openDay}
+        onSelectDay={(day) => {
+          setShownPlace(null);
+          setOpenDay(day);
+          // Wait for the card to open, then bring it into view.
+          requestAnimationFrame(() => document.getElementById(`plan-day-${day}`)?.scrollIntoView({ behavior: "smooth", block: "start" }));
+        }} />
       {draft.route.omitted.length > 0 ? (
         <div className={draftStyles.notice} data-tone="warn">
           <TriangleAlert aria-hidden="true" size={18} />
@@ -752,7 +759,7 @@ function DraftDay({ day, cards, unverified, checks, arriving, transport = null, 
   const weather = dayWeather(day, cityCards);
 
   return (
-    <motion.article className={styles.dayCard} data-open={open} aria-labelledby={headingId}
+    <motion.article id={`plan-day-${day.day}`} className={styles.dayCard} data-open={open} aria-labelledby={headingId}
       initial={reduce ? false : { opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.35, delay: reduce ? 0 : index * 0.06, ease: [0.22, 1, 0.36, 1] }}>
       <button type="button" className={styles.dayHeader} aria-expanded={open} onClick={onOpen}>

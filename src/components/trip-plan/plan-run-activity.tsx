@@ -23,6 +23,8 @@ const copy = {
   en: {
     title: "Meri is planning",
     done: "Plan ready",
+    showLog: "How it was made",
+    hideLog: "Hide",
     stopped: "Planning stopped",
     waiting: "Waiting for your answer",
     answered: (question: string, choice: string | null) => `${question} → ${choice ?? "left to Meri"}`,
@@ -81,6 +83,8 @@ const copy = {
   zh: {
     title: "Meri 正在规划",
     done: "计划已生成",
+    showLog: "查看过程",
+    hideLog: "收起",
     stopped: "规划中止",
     waiting: "等你回答",
     answered: (question: string, choice: string | null) => `${question} → ${choice ?? "交给 Meri 决定"}`,
@@ -169,6 +173,9 @@ export function PlanRunActivity({ view }: { readonly view: ProgressView }) {
   const running = view.finished === null && view.question === null;
   const now = useNow(running);
   const [open, setOpen] = useState<PlanStage | null>(null);
+  // A finished plan's log folds into its header line (2026-11-27 re-layout): it is history by then.
+  const [expanded, setExpanded] = useState(false);
+  const folded = view.finished?.status === "succeeded" && !expanded;
   // The clock counts Meri's work only: it stops while the run waits for an answer.
   const elapsed = view.finished ? view.finished.ms : view.startedAt === null
     ? 0
@@ -181,15 +188,20 @@ export function PlanRunActivity({ view }: { readonly view: ProgressView }) {
   return (
     <section className={styles.feed} data-state={view.finished?.status ?? "running"} aria-label={title}>
       <header className={styles.head}>
-        <span className={styles.title}>{title}</span>
+        <span className={styles.title}>{view.finished?.status === "succeeded" ? "✓ " : ""}{title}</span>
         <span className={styles.clock}>{formatMs(elapsed)}</span>
+        {view.finished?.status === "succeeded" ? (
+          <button type="button" className={styles.foldToggle} aria-expanded={expanded} onClick={() => setExpanded(!expanded)}>
+            {expanded ? text.hideLog : text.showLog}
+          </button>
+        ) : null}
       </header>
-      <ol className={styles.stages}>
+      {folded ? null : <ol className={styles.stages}>
         {view.stages.map((stage) => (
           <StageRow key={stage.stage} stage={stage} view={view} text={text} locale={locale} now={now}
             open={open === stage.stage} onToggle={() => setOpen(open === stage.stage ? null : stage.stage)} />
         ))}
-      </ol>
+      </ol>}
       <span className={styles.srOnly} role="status">{lastDone ? text.finishedLine(text.stages[lastDone.stage]) : ""}</span>
     </section>
   );

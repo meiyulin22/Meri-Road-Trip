@@ -547,3 +547,24 @@
 .pendingModule p { color: var(--muted, #6b7280); font-size: 12px; }
 .pendingSpin { flex: none; animation: originSpin 1s linear infinite; }
 @media (prefers-reduced-motion: reduce) { .pendingSpin { animation: none; } }
+
+/* The overview's day-by-day weather strip (2026-11-27 re-layout): one cell a day, scrolls sideways when long. */
+.weatherStrip { display: grid; gap: 8px; padding: 12px 14px; border: 1px solid var(--line); border-radius: 16px; background: #fffdf8; }
+.weatherStrip h3 { color: var(--muted); font-size: 12px; font-weight: 700; letter-spacing: .04em; }
+.weatherStrip ol { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(74px, 1fr); gap: 6px; overflow-x: auto; list-style: none; }
+.weatherStrip button {
+  display: grid; justify-items: center; gap: 4px; width: 100%; padding: 8px 4px;
+  border: 1px solid var(--line); border-radius: 12px; background: #fff; color: var(--ink);
+  font-variant-numeric: tabular-nums; cursor: pointer;
+}
+.weatherStrip button[aria-pressed="true"] { border-color: var(--green); box-shadow: 0 0 0 1px var(--green) inset; }
+.weatherStrip button[data-outdoor="poor"] { background: #fbefe8; }
+.weatherStrip button:focus-visible { outline: 2px solid var(--green); outline-offset: 2px; }
+.weatherStrip button svg { color: #d39b2f; }
+.stripDate { font-size: 12px; font-weight: 650; }
+.stripDate span { color: var(--soft); font-weight: 500; }
+.stripTemps { display: inline-flex; gap: 6px; font-size: 13px; }
+.stripTemps span { color: var(--soft); }
+.stripNone { color: var(--soft); }
+.stripCity { max-width: 100%; overflow: hidden; color: var(--muted); font-size: 11px; white-space: nowrap; text-overflow: ellipsis; }
+.stripNote { color: var(--soft); font-size: 12px; }

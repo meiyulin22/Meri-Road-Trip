@@ -5,7 +5,10 @@ import { Cloud, CloudDrizzle, CloudFog, CloudLightning, CloudRain, CloudSun, Ext
 import type { Locale } from "@/domain/locale/locale";
 import type { WeatherProvider, WeatherSky } from "@/domain/plan/weather";
 
-import type { DayWeatherView, WeatherLine } from "./plan-weather-view";
+import type { PlanDay } from "@/domain/plan/plan-draft";
+import type { SpotCard } from "@/domain/plan/spot-card";
+
+import { dayWeather, type DayWeatherView, type WeatherLine } from "./plan-weather-view";
 import draftStyles from "./plan-draft.module.css";
 import styles from "./trip-plan.module.css";
 
@@ -32,6 +35,9 @@ const copy = {
     poor: (reasons: string) => `Not good for being outdoors: ${reasons}.`,
     disclaimer: "Weather is a forecast; check again before you set off.",
     estimated: "estimated",
+    strip: "Day by day",
+    stripBeyond: "Forecasts start two weeks before the trip; generate the plan again then.",
+    weekdays: ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"],
   },
   zh: {
     sky: { clear: "晴", cloudy: "多云", overcast: "阴", fog: "雾", drizzle: "小雨", rain: "雨", snow: "雪", thunderstorm: "雷阵雨" } satisfies Record<WeatherSky, string>,
@@ -43,6 +49,9 @@ const copy = {
     poor: (reasons: string) => `不宜户外：${reasons}。`,
     disclaimer: "天气为预报，出发前请再查看。",
     estimated: "估算",
+    strip: "每天天气",
+    stripBeyond: "出发前两周内再生成一次计划，就能看到每天的预报。",
+    weekdays: ["周日", "周一", "周二", "周三", "周四", "周五", "周六"],
   },
 } as const;
 
@@ -127,5 +136,59 @@ export function WeatherCredit({ locale, providers = ["open-meteo"] }: {
         </a>
       ))}
     </p>
+  );
+}
+
+/** 丽江市 → 丽江, 迪庆藏族自治州 → 迪庆: a short name for a narrow cell. */
+function shortCity(city: string): string {
+  return city.replace(/(?:[\u4e00-\u9fff]{1,4}族)*自治州$|市$|地区$|盟$/u, "") || city;
+}
+
+/**
+ * The overview's day-by-day weather (2026-11-27 re-layout): a cell a day with its date, sky, high and
+ * low, and city; a poor day for outdoors is marked. A cell opens its day. Nothing without dates.
+ */
+export function WeatherStrip({ days, cards, locale, selectedDay, onSelectDay }: {
+  readonly days: readonly PlanDay[];
+  readonly cards: readonly SpotCard[];
+  readonly locale: Locale;
+  readonly selectedDay: number | null;
+  readonly onSelectDay: (day: number) => void;
+}) {
+  const text = copy[locale];
+  const views = days.map((day) => ({ day, view: dayWeather(day, cards.filter(({ city }) => city === day.city)) }));
+  if (views.every(({ view }) => view === null)) return null;
+  const anyForecast = views.some(({ view }) => view?.kind === "forecast");
+  return (
+    <section className={draftStyles.weatherStrip} aria-label={text.strip}>
+      <h3>{text.strip}</h3>
+      <ol>
+        {views.map(({ day, view }) => {
+          const date = day.date ? new Date(`${day.date}T00:00:00`) : null;
+          const line = view?.kind === "forecast" ? view.line : null;
+          return (
+            <li key={day.day}>
+              <button type="button" aria-pressed={selectedDay === day.day} data-outdoor={line?.outdoor ?? "none"}
+                onClick={() => onSelectDay(day.day)}>
+                <span className={draftStyles.stripDate}>
+                  {date ? `${date.getMonth() + 1}/${date.getDate()}` : `D${day.day}`}
+                  {date ? <span> {text.weekdays[date.getDay()]}</span> : null}
+                </span>
+                {line ? (
+                  <>
+                    <SkyIcon sky={line.sky} size={18} />
+                    <span className={draftStyles.stripTemps}>
+                      <strong>{line.high}°</strong><span>{line.low}°</span>
+                    </span>
+                  </>
+                ) : <span className={draftStyles.stripNone} aria-label={text.beyond}>—</span>}
+                <span className={draftStyles.stripCity}>{shortCity(day.city)}</span>
+              </button>
+            </li>
+          );
+        })}
+      </ol>
+      {anyForecast ? null : <p className={draftStyles.stripNote}>{text.stripBeyond}</p>}
+    </section>
   );
 }
