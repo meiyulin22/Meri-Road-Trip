@@ -855,8 +855,8 @@ export function createPlanGenerationWorkflow(deps: PlanGenerationDependencies) {
         status: "ready",
         draft,
         spots: cities.flatMap(({ spots }) => spots.filter(({ id }) => scheduled.has(id) || conflicted.has(id))),
-        cities: cities.map(({ province, city, status: cityStatus, tips }) => ({
-          province, city, status: cityStatus, ...(tips?.length ? { tips: [...tips] } : {}),
+        cities: cities.map(({ province, city, status: cityStatus, tips, access }) => ({
+          province, city, status: cityStatus, ...(tips?.length ? { tips: [...tips] } : {}), ...(access?.length ? { access: access.map((note) => ({ ...note, modes: [...note.modes] })) } : {}),
         })),
         pendingProvinces: state.pendingProvinces,
         mapCheck: status,

@@ -75,6 +75,7 @@ const spotWeatherSchema: z.ZodType<SpotWeather> = z.discriminatedUnion("status",
 ]);
 
 const tipNoteSchema = z.strictObject({ name: z.string().min(1), advice: z.string().min(1), appliesIn: z.string() });
+const accessNoteSchema = z.strictObject({ from: z.string().min(1), to: z.string().min(1), modes: z.array(z.string().min(1)) });
 
 export const spotCardSchema: z.ZodType<SpotCard> = z.strictObject({
   id: z.string().min(1),
@@ -93,6 +94,7 @@ export const spotCardSchema: z.ZodType<SpotCard> = z.strictObject({
   catalog: z.strictObject({
     id: z.string().min(1), summary: z.string().min(1), highlights: z.array(z.string().min(1)),
     tips: z.array(tipNoteSchema).optional(),
+    access: z.array(accessNoteSchema).optional(),
   }).optional(),
   weather: spotWeatherSchema.optional(),
   availability: spotAvailabilitySchema.optional(),
@@ -374,6 +376,8 @@ export const readyPlanSchema = z.strictObject({
     status: z.enum(["ready", "partial", "unavailable", "deferred"]),
     /** The city's 「Meri 的提示」 from the catalog (RAG step 5); absent before it. */
     tips: z.array(tipNoteSchema.extend({ kind: z.enum(["city", "festival"]) })).optional(),
+    /** Arrivals in the city from the catalog (RAG step 5, transport); absent before it. */
+    access: z.array(accessNoteSchema).optional(),
   })),
   pendingProvinces: z.array(z.string().min(1)),
   /** A photo for each day where the local catalog has one: a stop of the day, or its city. */

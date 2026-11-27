@@ -12,6 +12,14 @@
 .festivals strong { font-weight: 650; }
 .tips span { color: #4b605b; }
 
+/* Arrivals: airport or station to town, what to take. */
+.access { display: grid; gap: 6px; padding-top: 8px; border-top: 1px dashed var(--line); }
+.access h4 { display: inline-flex; align-items: center; gap: 6px; color: var(--muted); font-size: 12px; font-weight: 700; letter-spacing: .04em; }
+.access ul { display: grid; gap: 4px; list-style: none; }
+.access li { display: flex; flex-wrap: wrap; gap: 4px 10px; font-size: 13px; line-height: 1.6; }
+.access strong { font-weight: 650; }
+.access span { color: #4b605b; }
+
 /* Festivals are shown as the catalog words them, without matching the trip's dates: quieter. */
 .festivals { display: grid; gap: 6px; padding-top: 8px; border-top: 1px dashed var(--line); }
 .festivals h4 { display: inline-flex; align-items: center; gap: 6px; color: var(--muted); font-size: 12px; font-weight: 700; letter-spacing: .04em; }

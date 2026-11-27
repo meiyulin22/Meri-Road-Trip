@@ -20,11 +20,14 @@ test("rows become spots with their highlights, dishes with their summary and tip
       details: { ingredients: ["牛奶"], flavor: null, preparations: [] } },
     { ...common, id: "tip_a", kind: "tip", name: "提示", summary: "带伞。", tags: ["旅行提示"], details: { applies_in: "全年", advice: "带伞" },
       related: [{ id: "spot_a", relation: "applies_to" }, { id: "spot_b", relation: "nearby" }] },
+    { ...common, id: "way_a", kind: "transport", name: "古城到洱海", summary: "可坐公交。", tags: ["交通"],
+      details: { from: "古城", to: "洱海", modes: ["公交", "骑行"] }, related: [{ id: "spot_a", relation: "destination" }] },
   ]);
   assert.deepEqual(catalog.spots.map(({ name, highlights, tags }) => [name, highlights, tags]), [["洱海", ["湖景"], ["水域"]]]);
   assert.deepEqual(catalog.dishes, [{ id: "dish_a", name: "乳扇", summary: "奶制品。", sourceCount: 2 }]);
   // A tip keeps its advice and the spots it applies to; other relations are not "applies to".
   assert.deepEqual(catalog.tips, [{ id: "tip_a", name: "提示", advice: "带伞", appliesIn: "全年", spotIds: ["spot_a"] }]);
+  assert.deepEqual(catalog.transport, [{ id: "way_a", from: "古城", to: "洱海", modes: ["公交", "骑行"], spotIds: ["spot_a"] }]);
 });
 
 test("without CATALOG_ENABLED the preference ranking reads nothing", async () => {

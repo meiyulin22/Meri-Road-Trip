@@ -197,7 +197,8 @@ export function PlanHandbook({ version, locale, stale }: { readonly version: Pla
       {draft.days.map((day) => <HandbookDay key={day.day} day={day} plan={plan} cards={cards} locale={locale} transport={transport} />)}
       {draft.route.cities.map((city, index) => (
         <HandbookCity key={`${city.province}-${city.city}-${index}`} city={city} stays={draft.stays ?? []} food={draft.food ?? []}
-          tips={plan.cities.find(({ province, city: name }) => province === city.province && name === city.city)?.tips ?? []} locale={locale} />
+          tips={plan.cities.find(({ province, city: name }) => province === city.province && name === city.city)?.tips ?? []}
+          access={plan.cities.find(({ province, city: name }) => province === city.province && name === city.city)?.access ?? []} locale={locale} />
       ))}
       <section className={styles.page} id="meri-travel">
         <header className={styles.sectionHead}><h2>{text.travel}</h2></header>

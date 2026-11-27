@@ -444,11 +444,18 @@ test("the catalog's tips reach the cards they belong to and the city; English pl
     { id: "tip_wind", name: "下关防风", advice: "带一件防风外层。", appliesIn: "下关户外", spotIds: [] },
     { id: "tip_fair", name: "三月街传统节期", advice: "查当年安排。", appliesIn: "传统时间为农历三月十五至二十", spotIds: [] },
   ];
-  const deps = { search: async () => [], model: countingModel([]), catalog: async () => ({ ...daliCatalog, tips }) };
+  const transport = [
+    { id: "way_lake", from: "大理古城", to: "洱海", modes: ["公交", "骑行"], spotIds: ["spot_洱海"] },
+    { id: "way_airport", from: "大理机场", to: "下关", modes: ["出租车"], spotIds: [] },
+  ];
+  const deps = { search: async () => [], model: countingModel([]), catalog: async () => ({ ...daliCatalog, tips, transport }) };
   const city = await researchCity(daliTask, handoff, deps);
   assert.deepEqual(city.spots.find(({ name }) => name === "洱海")?.catalog?.tips?.map(({ name }) => name), ["环湖骑行"]);
   assert.deepEqual(city.tips?.map(({ name, kind }) => [name, kind]), [["三月街传统节期", "festival"], ["下关防风", "city"]]);
+  assert.deepEqual(city.spots.find(({ name }) => name === "洱海")?.catalog?.access, [{ from: "大理古城", to: "洱海", modes: ["公交", "骑行"] }]);
+  assert.deepEqual(city.access, [{ from: "大理机场", to: "下关", modes: ["出租车"] }]);
   const english = await researchCity(daliTask, { ...handoff, locale: "en" }, deps);
   assert.equal(english.tips, undefined);
+  assert.equal(english.access, undefined);
   assert.ok(english.spots.every(({ catalog }) => catalog?.tips === undefined));
 });

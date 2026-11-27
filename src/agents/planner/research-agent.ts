@@ -13,7 +13,7 @@ import {
   minCatalogSpots,
   rankCatalogSpots,
 } from "@/domain/catalog/catalog-pick";
-import { splitTips } from "@/domain/catalog/catalog-tips";
+import { splitTips, splitTransport } from "@/domain/catalog/catalog-tips";
 import { normalizeRecommendationName } from "@/domain/location/recommendation-identity";
 import type { PlanHandoff } from "@/domain/plan/plan-handoff";
 import type { PlanActivity } from "@/domain/plan/plan-progress";
@@ -554,19 +554,31 @@ async function researchFromCatalog(
 }
 
 /**
- * The catalog's tips on the city's research (RAG step 5): each catalog card gets the tips for its
- * spot, and the city keeps its city-wide tips and festivals, whichever way the spots were found.
- * Chinese plans only: the tips are Chinese, as the summaries are.
+ * The catalog's tips and ways of getting there on the city's research (RAG step 5): each catalog card
+ * gets those for its spot; the city keeps its city-wide tips, festivals and arrivals, whichever way the
+ * spots were found. Chinese plans only: the catalog is Chinese, as the summaries are.
  */
 function withTips(city: CityResearch, catalog: CityCatalog | null, handoff: PlanHandoff): CityResearch {
-  if (!catalog?.tips?.length || handoff.locale !== "zh") return city;
+  if ((!catalog?.tips?.length && !catalog?.transport?.length) || handoff.locale !== "zh") return city;
   const taken = new Set(city.spots.flatMap(({ catalog: note }) => (note ? [note.id] : [])));
-  const { bySpot, city: cityTips } = splitTips(catalog.tips, taken);
+  const tips = splitTips(catalog.tips ?? [], taken);
+  const access = splitTransport(catalog.transport ?? [], taken);
   const spots = city.spots.map((card) => {
-    const tips = card.catalog ? bySpot.get(card.catalog.id) : undefined;
-    return tips && card.catalog ? { ...card, catalog: { ...card.catalog, tips: [...tips] } } : card;
+    if (!card.catalog) return card;
+    const spotTips = tips.bySpot.get(card.catalog.id);
+    const spotAccess = access.bySpot.get(card.catalog.id);
+    if (!spotTips && !spotAccess) return card;
+    return { ...card, catalog: {
+      ...card.catalog,
+      ...(spotTips ? { tips: [...spotTips] } : {}),
+      ...(spotAccess ? { access: [...spotAccess] } : {}),
+    } };
   });
-  return { ...city, spots, ...(cityTips.length ? { tips: [...cityTips] } : {}) };
+  return {
+    ...city, spots,
+    ...(tips.city.length ? { tips: [...tips.city] } : {}),
+    ...(access.city.length ? { access: [...access.city] } : {}),
+  };
 }
 
 /**

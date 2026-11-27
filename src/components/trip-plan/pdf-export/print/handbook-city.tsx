@@ -1,4 +1,4 @@
-import type { CityTip } from "@/domain/catalog/catalog-tips";
+import type { AccessNote, CityTip } from "@/domain/catalog/catalog-tips";
 import type { Locale } from "@/domain/locale/locale";
 import type { CityFood, FoodEvidence, Restaurant } from "@/domain/plan/food";
 import type { RouteCity } from "@/domain/plan/plan-draft";
@@ -33,6 +33,7 @@ const copy = {
     catalogNote: "Meri 的整理",
     tips: "Meri 的提示",
     festivals: "当地节庆（日期每年不同，出发前查当年安排）",
+    access: "到达和市内交通",
   },
   en: {
     city: "City guide",
@@ -59,6 +60,7 @@ const copy = {
     catalogNote: "Meri's notes",
     tips: "Meri's tips",
     festivals: "Local festivals (dates change each year; check before you go)",
+    access: "Getting in and around",
   },
 } as const;
 
@@ -155,12 +157,14 @@ function Food({ food, locale }: { readonly food: CityFood; readonly locale: Loca
   );
 }
 
-export function HandbookCity({ city, stays, food, tips = [], locale }: {
+export function HandbookCity({ city, stays, food, tips = [], access = [], locale }: {
   readonly city: RouteCity;
   readonly stays: readonly CityStay[];
   readonly food: readonly CityFood[];
   /** The city's 「Meri 的提示」 (RAG step 5); empty when the plan has none. */
   readonly tips?: readonly CityTip[];
+  /** Arrivals in the city (RAG step 5, transport). */
+  readonly access?: readonly AccessNote[];
   readonly locale: Locale;
 }) {
   const text = copy[locale];
@@ -180,6 +184,14 @@ export function HandbookCity({ city, stays, food, tips = [], locale }: {
         <h3>{text.food}</h3>
         {foodHere.length ? foodHere.map((result) => <Food key={result.lastDay} food={result} locale={locale} />) : <p>{text.noFood}</p>}
       </section>
+      {access.length ? (
+        <section className={styles.citySection}>
+          <h3>{text.access}</h3>
+          <ul>{access.map((note) => (
+            <li key={`${note.from}-${note.to}`} className={styles.cityEntry}><p><strong>{note.from} → {note.to}</strong> · {note.modes.join("、")}</p></li>
+          ))}</ul>
+        </section>
+      ) : null}
       {tips.length ? (
         <section className={styles.citySection}>
           <h3>{text.tips}</h3>

@@ -1,7 +1,7 @@
 import { normalizeRecommendationName } from "@/domain/location/recommendation-identity";
 
 import type { CatalogEntry } from "./catalog-entry";
-import type { CatalogTip } from "./catalog-tips";
+import type { CatalogTip, CatalogTransport } from "./catalog-tips";
 import type { CatalogTag } from "./catalog-tags";
 
 /**
@@ -39,6 +39,8 @@ export type CityCatalog = {
   readonly dishes: readonly CatalogDish[];
   /** Travel tips (RAG step 5); absent from catalogs read before it. */
   readonly tips?: readonly CatalogTip[];
+  /** How to get to places (RAG step 5, transport); absent from catalogs read before it. */
+  readonly transport?: readonly CatalogTransport[];
 };
 
 const outdoorTags: ReadonlySet<CatalogTag> = new Set<CatalogTag>([

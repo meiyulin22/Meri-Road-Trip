@@ -1,4 +1,4 @@
-import type { CityTip, TipNote } from "@/domain/catalog/catalog-tips";
+import type { AccessNote, CityTip, TipNote } from "@/domain/catalog/catalog-tips";
 import type { SpotWeather } from "./weather";
 
 export type SpotEvidence = {
@@ -35,6 +35,8 @@ export type SpotCatalogNote = {
   readonly highlights: readonly string[];
   /** Meri's tips for this spot (RAG step 5), shown under the stop; absent before it. */
   readonly tips?: readonly TipNote[];
+  /** How to get there, from the catalog (RAG step 5, transport): start and kinds of transport; absent before it. */
+  readonly access?: readonly AccessNote[];
 };
 
 export type SpotCard = {
@@ -98,6 +100,8 @@ export type CityResearch = {
   readonly weatherCalls?: number;
   /** The city's 「Meri 的提示」: city-wide tips and festivals from the catalog (RAG step 5); absent before it. */
   readonly tips?: readonly CityTip[];
+  /** Arrivals in the city (airport or station → town), from the catalog (RAG step 5); absent before it. */
+  readonly access?: readonly AccessNote[];
 };
 
 /** A card has something behind it: a quoted web source for where it is, or Meri's catalog. */

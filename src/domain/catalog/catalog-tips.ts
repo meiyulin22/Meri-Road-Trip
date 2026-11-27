@@ -54,3 +54,45 @@ export function splitTips(tips: readonly CatalogTip[], takenSpotIds: ReadonlySet
   }
   return { bySpot, city: [...festivals, ...cityWide] };
 }
+
+/**
+ * How to get somewhere, from the catalog (RAG step 5, transport, 2026-11-27): only the start, the end
+ * and the kinds of transport, never the catalog's summary, so nothing of a guide's wording shows.
+ */
+export type CatalogTransport = {
+  readonly id: string;
+  readonly from: string;
+  readonly to: string;
+  readonly modes: readonly string[];
+  /** The catalog spots it leads to (destination, related_to); empty for arrivals such as airport → town. */
+  readonly spotIds: readonly string[];
+};
+
+export type AccessNote = { readonly from: string; readonly to: string; readonly modes: readonly string[] };
+
+/** Ways to reach one spot shown under it, at most. */
+const maxAccessPerSpot = 3;
+
+/**
+ * Access by catalog spot id for the spots research took (at most three each), and the city's arrivals:
+ * entries tied to no spot. One tied to spots that were not taken is left out.
+ */
+export function splitTransport(entries: readonly CatalogTransport[], takenSpotIds: ReadonlySet<string>): {
+  readonly bySpot: ReadonlyMap<string, readonly AccessNote[]>;
+  readonly city: readonly AccessNote[];
+} {
+  const bySpot = new Map<string, AccessNote[]>();
+  const city: AccessNote[] = [];
+  for (const { from, to, modes, spotIds } of entries) {
+    const note = { from, to, modes };
+    if (spotIds.length === 0) {
+      city.push(note);
+      continue;
+    }
+    for (const spotId of spotIds.filter((id) => takenSpotIds.has(id))) {
+      const notes = bySpot.get(spotId) ?? [];
+      if (notes.length < maxAccessPerSpot) bySpot.set(spotId, [...notes, note]);
+    }
+  }
+  return { bySpot, city };
+}

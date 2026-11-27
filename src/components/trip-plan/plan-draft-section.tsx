@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowRight, BedDouble, CalendarCheck, Car, CheckCircle2, ChevronDown, Clock, ExternalLink, Footprints, Info, Lightbulb, LoaderCircle, MapPin, MoonStar, RotateCw, Route, Sparkles, Star, Sun, Sunrise, TriangleAlert, Utensils } from "lucide-react";
+import { ArrowRight, BedDouble, Bus, CalendarCheck, Car, CheckCircle2, ChevronDown, Clock, ExternalLink, Footprints, Info, Lightbulb, LoaderCircle, MapPin, MoonStar, RotateCw, Route, Sparkles, Star, Sun, Sunrise, TriangleAlert, Utensils } from "lucide-react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import Image from "next/image";
 import { type CSSProperties, Fragment, type ReactNode, useEffect, useMemo, useReducer, useState } from "react";
@@ -48,7 +48,7 @@ import { DayOutfitPanel, OutfitRoom, PackingList } from "./plan-outfit";
 import { PlanStayCard, PlanStayHint } from "./plan-stay-card";
 import { PlanFoodCard } from "./plan-food-card";
 import { PlanTipsCard } from "./plan-tips-card";
-import type { CityTip } from "@/domain/catalog/catalog-tips";
+import type { AccessNote, CityTip } from "@/domain/catalog/catalog-tips";
 import type { CityFood, Restaurant } from "@/domain/plan/food";
 import type { CityStay } from "@/domain/plan/stays";
 import { type PlanModule, PlanModuleChips } from "./plan-module-chips";
@@ -74,6 +74,7 @@ const copy = {
     checked: (date: string) => `checked ${date}`,
     summary: { days: "days", stops: "stops", sourced: "with sources", catalog: "Meri's notes", located: "on the map", conflicts: "to resolve" },
     catalogNote: "Meri's notes",
+    access: (from: string) => `From ${from}:`,
     located: (district: string | null) => district ? `On the map · ${district}` : "On the map",
     notLocated: "Not found on the map",
     check: {
@@ -121,6 +122,7 @@ const copy = {
       stayNone: "nothing nearby", stayUnavailable: "couldn't look up",
       foodSummary: (dishes: number, restaurants: number) => `${dishes} dishes · ${restaurants} ${restaurants === 1 ? "restaurant" : "restaurants"}`,
       tipCount: (count: number) => `${count} ${count === 1 ? "tip" : "tips"}`,
+      accessCount: (count: number) => `${count} ${count === 1 ? "way in" : "ways in"}`,
     },
     pending: {
       mapTitle: "Map", map: "The map appears once the plan is saved.",
@@ -151,6 +153,7 @@ const copy = {
     checked: (date: string) => `${date} 查询`,
     summary: { days: "天", stops: "个景点", sourced: "有出处", catalog: "Meri 的整理", located: "已定位", conflicts: "待处理" },
     catalogNote: "Meri 的整理",
+    access: (from: string) => `怎么去 · 从${from}：`,
     located: (district: string | null) => district ? `已定位 · ${district}` : "已定位",
     notLocated: "位置未核实",
     check: {
@@ -198,6 +201,7 @@ const copy = {
       stayNone: "附近没找到", stayUnavailable: "暂时查不到",
       foodSummary: (dishes: number, restaurants: number) => `${dishes} 道菜 · ${restaurants} 家餐厅`,
       tipCount: (count: number) => `${count} 条`,
+      accessCount: (count: number) => `${count} 条交通`,
     },
     pending: {
       mapTitle: "地图", map: "计划保存后显示地图。",
@@ -690,6 +694,7 @@ function DraftDays({ response, text, locale, transport, gettingThere, onAddDates
                 stays: (draft.stays ?? []).filter(({ city, firstDay }) => city === day.city && firstDay >= day.day && firstDay <= lastOfRun),
                 food: (draft.food ?? []).filter(({ city, lastDay }) => city === day.city && lastDay >= day.day && lastDay <= lastOfRun),
                 tips: response.cities.find(({ province, city }) => province === day.province && city === day.city)?.tips ?? [],
+                access: response.cities.find(({ province, city }) => province === day.province && city === day.city)?.access ?? [],
                 city: day.city, text, locale, onShowHotel: showHotel,
                 onShowRestaurant: (restaurant) => restaurant.place && showPlace({ name: restaurant.name, kind: "food", point: restaurant.place.point }),
               })} />
@@ -935,6 +940,17 @@ function StopFacts({ card, missing, text, locale }: {
           ))}
         </ul>
       ) : null}
+      {/* How to get there, from the catalog (RAG step 5): what to take, beside the drive time Tianditu gives. */}
+      {card.catalog?.access?.length && locale === "zh" ? (
+        <ul className={draftStyles.stopTips}>
+          {card.catalog.access.map((access) => (
+            <li key={`${access.from}-${access.to}`}>
+              <Bus aria-hidden="true" size={12} />
+              <span><strong>{text.access(access.from)}</strong>{access.modes.join("、")}</span>
+            </li>
+          ))}
+        </ul>
+      ) : null}
       {facts.length > 0 || opening.length > 0 ? (
         <dl className={draftStyles.facts}>
           {facts.map(({ fact, evidence }) => (
@@ -1012,10 +1028,11 @@ function RouteStrip({ route, text }: {
  * A city's blocks for its chip row: where to stay, what to eat and Meri's tips, each with a one-line
  * summary; a block with nothing to show is left out, as its card would show nothing.
  */
-function cityModules({ stays, food, tips, city, text, locale, onShowHotel, onShowRestaurant }: {
+function cityModules({ stays, food, tips, access, city, text, locale, onShowHotel, onShowRestaurant }: {
   readonly stays: readonly CityStay[];
   readonly food: readonly CityFood[];
   readonly tips: readonly CityTip[];
+  readonly access: readonly AccessNote[];
   readonly city: string;
   readonly text: Copy;
   readonly locale: Locale;
@@ -1041,10 +1058,12 @@ function cityModules({ stays, food, tips, city, text, locale, onShowHotel, onSho
       content: found.map((one) => <PlanFoodCard key={`${one.city}-${one.lastDay}`} food={one} locale={locale} onShowOnMap={onShowRestaurant} />),
     });
   }
-  if (tips.length > 0) {
+  if (tips.length > 0 || access.length > 0) {
     modules.push({
-      key: "tips", icon: <Lightbulb size={15} />, label: text.modules.tips, summary: text.modules.tipCount(tips.length),
-      content: <PlanTipsCard city={city} tips={tips} locale={locale} />,
+      key: "tips", icon: <Lightbulb size={15} />, label: text.modules.tips,
+      summary: [tips.length ? text.modules.tipCount(tips.length) : null, access.length ? text.modules.accessCount(access.length) : null]
+        .filter(Boolean).join(" · "),
+      content: <PlanTipsCard city={city} tips={tips} access={access} locale={locale} />,
     });
   }
   return modules;

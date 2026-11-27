@@ -156,6 +156,9 @@ function DailyStop({ stop, day, draft, cards, cityCards, locale, transport }: {
             <p className={styles.muted}>{copy[locale].catalogNote}{locale === "zh" ? ` · ${card.catalog.summary}` : ""}</p>
           ) : card.mapCheck.status !== "located" ? <p className={styles.muted}>{copy[locale].unlocated}</p> : null}
           {locale === "zh" ? card.catalog?.tips?.map((tip) => <p key={tip.name} className={styles.muted}>{tip.name} · {tip.advice}</p>) : null}
+          {locale === "zh" ? card.catalog?.access?.map((access) => (
+            <p key={`${access.from}-${access.to}`} className={styles.muted}>怎么去 · 从{access.from}：{access.modes.join("、")}</p>
+          )) : null}
           <StopOpening card={card} draft={draft} locale={locale} />
         </>
       ) : null}

@@ -200,6 +200,11 @@ and shows under the stop when it is scheduled; a city-wide tip and every festiva
 and no date matching (merlin chose to show them as written). Chinese plans only. Checked first: no tip's
 advice shares eight consecutive characters with the guide pages it cites.
 
+**Step 5, transport (2026-11-27):** the same way for the catalog's 118 transport entries: one that leads to a spot
+(`destination` or `related_to`, 75) rides on that catalog card and shows under the stop as 「怎么去 · 从X：modes」
+(three at most), beside Tianditu's drive time; the rest, arrivals such as airport → town, go in a 「到达和市内交通」
+part of the city's tips card. Only the start, the end and the kinds of transport show, never the summary.
+
 Popularity as a third RRF list was tried first and dropped: a city has a few dozen spots, so with k = 60 a
 spot in the middle of two lists outscored the top of one. Without preferences, without a key, or when the
 query or the database fails, the order is popularity alone (step 2). The query vector costs about ¥0.00002
