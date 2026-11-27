@@ -319,8 +319,10 @@ test("a scenic area that shares its city's name stays a distinct choice under it
 test("placeNameStem is the shortest stem before the administrative suffix, for matching text", () => {
   assert.equal(placeNameStem("迪庆藏族自治州"), "迪庆");
   assert.equal(placeNameStem("大理白族自治州"), "大理");
-  // Cut short (版纳傣族 reads as an ethnic group), but every text naming 西双版纳 still contains it.
-  assert.equal(placeNameStem("西双版纳傣族自治州"), "西双");
+  // Only real peoples count before 族: 版纳傣族 is not one, so the stem is the whole 西双版纳 (2026-11-27).
+  assert.equal(placeNameStem("西双版纳傣族自治州"), "西双版纳");
+  assert.equal(placeNameStem("阿坝藏族羌族自治州"), "阿坝");
+  assert.equal(placeNameStem("湘西土家族苗族自治州"), "湘西");
   assert.equal(placeNameStem("丽江市"), "丽江");
   assert.equal(placeNameStem("北京市"), "北京");
   assert.equal(placeNameStem("香格里拉"), "香格里拉");

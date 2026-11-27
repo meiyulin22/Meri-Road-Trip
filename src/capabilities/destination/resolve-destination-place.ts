@@ -162,7 +162,12 @@ function distinctPicks(picks: readonly (IdentifiedPick | null)[]): readonly Iden
   });
 }
 
-const administrativeSuffix = /^(?:[\p{Script=Han}]{1,3}?族)*(?:特别行政区|自治区|自治州|自治县|地区|省|市|县|区|盟)$/u;
+/**
+ * The peoples an autonomous area can be named for, as a fact list, not a place table: any one to three
+ * characters before 族 read 版纳傣族 as a people and cut 西双版纳傣族自治州 to 西双 (2026-11-27).
+ */
+const peoples = "蒙古|回|藏|维吾尔|苗|彝|壮|布依|朝鲜|满|侗|瑶|白|土家|哈尼|哈萨克|傣|黎|傈僳|佤|畲|高山|拉祜|水|东乡|纳西|景颇|柯尔克孜|土|达斡尔|仫佬|羌|布朗|撒拉|毛南|仡佬|锡伯|阿昌|普米|塔吉克|怒|乌孜别克|俄罗斯|鄂温克|德昂|保安|裕固|京|塔塔尔|独龙|鄂伦春|赫哲|门巴|珞巴|基诺|各";
+const administrativeSuffix = new RegExp(`^(?:(?:${peoples})族)*(?:特别行政区|自治区|自治州|自治县|地区|省|市|县|区|盟)$`, "u");
 const scenicSuffix = /^(?:风景名胜区|风景区|景区|旅游区|国家公园|国家级自然保护区|自然保护区)$/u;
 
 /**

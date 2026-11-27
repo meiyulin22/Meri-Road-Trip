@@ -73,7 +73,12 @@ export function PlanTiandituMap({ plan, locale, selectedDay, onSelectDay, hotel 
       map.attributionControl.setPrefix(false);
       let loaded = false;
       const base = L.tileLayer(tileUrl("vec"), { minZoom: 3, maxZoom: 18, attribution });
-      base.on("tileload", () => { loaded = true; });
+      // Tiles load side by side, so one may fail before any arrives: the note goes again once one loads
+      // (2026-11-27: the map showed while it said it had not loaded).
+      base.on("tileload", () => {
+        if (!loaded) setFailed(false);
+        loaded = true;
+      });
       base.on("tileerror", () => { if (!loaded) setFailed(true); });
       base.addTo(map);
       L.tileLayer(tileUrl(labelLayer()), { minZoom: 3, maxZoom: 18 }).addTo(map);
