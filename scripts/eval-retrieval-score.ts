@@ -15,7 +15,7 @@ export type RetrievalCase = z.infer<typeof retrievalCaseSchema>;
 export const retrievalCasesSchema = z.strictObject({ note: z.string(), cases: z.array(retrievalCaseSchema).min(1) });
 
 /** The orders compared: popularity (step 2), vector alone, the preference order, and what research uses. */
-export const rankers = ["popularity", "vector", "preference", "interleave"] as const;
+export const rankers = ["popularity", "keyword", "vector", "preference", "interleave"] as const;
 export type Ranker = (typeof rankers)[number];
 
 /** Ids best first; spots a list leaves out follow in popularity order, as research would take them. */
@@ -29,6 +29,7 @@ export function rankBy(ranker: Ranker, spots: readonly CatalogSpot[], rankings: 
   };
   switch (ranker) {
     case "popularity": return popularity;
+    case "keyword": return withRest(rankings.keyword);
     case "vector": return withRest(rankings.vector);
     case "preference":
       return withRest([...fuseRankings([rankings.vector, rankings.keyword])].sort((left, right) => right[1] - left[1]).map(([id]) => id));

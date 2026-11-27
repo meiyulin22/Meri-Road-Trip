@@ -253,7 +253,7 @@ RAG 第 2 步（2026-11-25）起景点卡可带 `catalog`（`{ id, summary, high
 | `catalog_version` | text | 非空 | 导入时私有仓库的 git 提交号，`data/` 有未提交改动时加 `-dirty` |
 | `imported_at` | timestamptz | 非空 | 本次导入时间 |
 
-导入（[scripts/import-catalog.ts](../scripts/import-catalog.ts)）先校验全部行：zod 严格 schema、文件名的省市与记录一致、标签都在归并表里、id 不重复，有一处问题就一行不写；然后在一个事务里按 id `INSERT … ON CONFLICT DO UPDATE`，再删除目录里已经没有的 id，所以可以重复执行。不读 `identity_check` 和 `schema_version`（后者校验时固定为 1）。填向量（[scripts/embed-catalog.ts](../scripts/embed-catalog.ts)）：只给 `embedding` 为空的行算，每次请求 20 条，写回时再核对 `search_text` 没变；可重复执行，`--dry-run` 只报行数、字数和请求数。2026-11-26 首次填满 2284 条（115 次请求，58 秒）。调研排候选时（`CATALOG_ENABLED=true`、有偏好）同时查两路：同城景点按余弦距离取前 50，名字或别名用 `word_similarity(name, 偏好原话) ≥ 0.5` 取前 20。
+导入（[scripts/import-catalog.ts](../scripts/import-catalog.ts)）先校验全部行：zod 严格 schema、文件名的省市与记录一致、标签都在归并表里、id 不重复，有一处问题就一行不写；然后在一个事务里按 id `INSERT … ON CONFLICT DO UPDATE`，再删除目录里已经没有的 id，所以可以重复执行。不读 `identity_check` 和 `schema_version`（后者校验时固定为 1）。填向量（[scripts/embed-catalog.ts](../scripts/embed-catalog.ts)）：只给 `embedding` 为空的行算，每次请求 20 条，写回时再核对 `search_text` 没变；可重复执行，`--dry-run` 只报行数、字数和请求数。2026-11-26 首次填满 2284 条（115 次请求，58 秒）。调研排候选时（`CATALOG_ENABLED=true`、有偏好）同时查两路：同城景点按余弦距离取前 50，名字或别名用 `word_similarity(name, 偏好原话) ≥ 0.5`，或名字、别名原样出现在原话里（两个字的别名如「双廊」三元组分数太低），取前 20。
 
 2026-11-25 首次导入：提交 4ac288c，2284 条（spot 1349、dish 316、restaurant 157、stay 254、transport 118、tip 90），127 个州/市。
 

@@ -24,7 +24,7 @@ async function main(): Promise<void> {
   // The eval reads the catalog whatever the app's switch says.
   process.env.CATALOG_ENABLED = "true";
   const { cases } = retrievalCasesSchema.parse(JSON.parse(await readFile("evals/retrieval/cases.json", "utf8")));
-  const scores: Record<Ranker, CaseScore[]> = { popularity: [], vector: [], preference: [], interleave: [] };
+  const scores: Record<Ranker, CaseScore[]> = { popularity: [], keyword: [], vector: [], preference: [], interleave: [] };
   const perCase: Record<string, Record<Ranker, CaseScore>> = {};
 
   for (const evalCase of cases) {

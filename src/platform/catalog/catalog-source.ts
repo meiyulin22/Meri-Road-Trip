@@ -145,7 +145,12 @@ export function createPostgresCatalogSource(database: CatalogDatabase): CatalogS
         eq(catalogEntries.prefecture, prefecture),
         eq(catalogEntries.kind, "spot"),
       );
-      const nameMatch = sql<number>`greatest(word_similarity(${catalogEntries.name}, ${query}), word_similarity(${catalogEntries.aliasesText}, ${query}))`;
+      // A name or alias written out in the query counts in full: trigram similarity is too low for two-character
+      // names such as 双廊 or 周城 (retrieval eval, 2026-11-27), which the query holds word for word.
+      const writtenOut = sql<boolean>`(strpos(${query}, ${catalogEntries.name}) > 0
+        or exists (select 1 from unnest(${catalogEntries.aliases}) as alias where length(alias) >= 2 and strpos(${query}, alias) > 0))`;
+      const nameMatch = sql<number>`greatest(case when ${writtenOut} then 1 else 0 end,
+        word_similarity(${catalogEntries.name}, ${query}), word_similarity(${catalogEntries.aliasesText}, ${query}))`;
       try {
         const [vector, keyword] = await Promise.all([
           queryVector

@@ -1,5 +1,5 @@
 {
-  "note": "RAG retrieval eval (2026-11-26, agreed with merlin): a city and a traveller's own words, and the catalog spots that should rank near the top. Names must match catalog_entries.name exactly.",
+  "note": "RAG retrieval eval (2026-11-26, agreed with merlin): a city and a traveller's own words, and the catalog spots that should rank near the top. Names must match catalog_entries.name exactly. Cases 22–27 (2026-11-27) name a spot, by its name, an alias or a slip, for the keyword list.",
   "cases": [
     {
       "id": "01-lijiang-snow",
@@ -216,6 +216,61 @@
       "relevant": [
         "洪崖洞",
         "南山一棵树观景台"
+      ]
+    },
+    {
+      "id": "22-named-yulong",
+      "province": "云南省",
+      "city": "丽江市",
+      "query": "这次一定要去玉龙雪山",
+      "relevant": [
+        "玉龙雪山"
+      ]
+    },
+    {
+      "id": "23-named-alias-songzanlin",
+      "province": "云南省",
+      "city": "迪庆藏族自治州",
+      "query": "想去小布达拉宫看看",
+      "relevant": [
+        "松赞林寺"
+      ]
+    },
+    {
+      "id": "24-named-alias-forbidden",
+      "province": "北京市",
+      "city": "北京市",
+      "query": "第一次去北京，紫禁城必须去",
+      "relevant": [
+        "故宫博物院"
+      ]
+    },
+    {
+      "id": "25-named-short-shuanglang",
+      "province": "云南省",
+      "city": "大理白族自治州",
+      "query": "想住双廊看洱海日出",
+      "relevant": [
+        "双廊镇"
+      ]
+    },
+    {
+      "id": "26-named-typo-namtso",
+      "province": "西藏自治区",
+      "city": "拉萨市",
+      "query": "纳木措一定要去",
+      "relevant": [
+        "纳木错"
+      ]
+    },
+    {
+      "id": "27-named-two",
+      "province": "云南省",
+      "city": "大理白族自治州",
+      "query": "喜洲和周城都想逛逛",
+      "relevant": [
+        "喜洲镇",
+        "周城村"
       ]
     }
   ]

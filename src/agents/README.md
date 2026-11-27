@@ -179,7 +179,10 @@ English, about ¥0.001 a run):
 | Taking turns with popularity, one to one | 0.95 | 0.79 | 0.97 |
 | Taking turns, two preference to one popular (built, 1.2206) | 1.00 | 0.89 | 0.99 |
 
-The name list added nothing here, since no case names a spot; it is for travellers who do. One to one
+The name list added nothing there, since no case named a spot. Cases 22–27 (2026-11-27) do, by name, alias
+(小布达拉宫 for 松赞林寺, 紫禁城 for 故宫博物院) or a slip (纳木措): the name list alone then finds each one first,
+once a name or alias written out in the query counts in full; trigram similarity alone missed two-character
+aliases (双廊, 周城). All 27 cases: keyword alone 0.70 / 0.48 / 0.79, the built order 1.00 / 0.92 / 0.99. One to one
 gave the preferences only every other one of the first four places, which cost recall@4; merlin chose two
 to one. Famous spots still come every third place, so a traveller whose preferences say little still
 gets them.

@@ -925,11 +925,11 @@ Generate plan 背后的计划页先用示例数据做出完整页面（设计决
 | [scripts/embed-catalog-batches.test.ts](../scripts/embed-catalog-batches.test.ts) | 测试 | 分批的顺序、最后一批、空、非法批大小。 |
 | [scripts/import-catalog-read.ts](../scripts/import-catalog-read.ts) | 维护工具 | 导入的纯逻辑：逐行 JSON + zod + 文件名与省市一致 + 标签归并 + id 不重复（都是问题），related 指向不存在的条目（警告）；计算增改删数。 |
 | [scripts/import-catalog-read.test.ts](../scripts/import-catalog-read.test.ts) | 测试 | 坏 JSON、字段错、城市不符、重复 id、未知标签、缺失的 related、文件名不对、增改删计数。 |
-| [scripts/eval-retrieval.ts](../scripts/eval-retrieval.ts) | 评测工具 | RAG 检索评测：读 `evals/retrieval/cases.json`，每组算一次查询向量，四种排法（热门度、只用向量、向量+关键词 RRF、和热门度轮流取）各排一遍，打印并保存 hit@4、recall@4、recall@12。约 ¥0.001 一次。 |
+| [scripts/eval-retrieval.ts](../scripts/eval-retrieval.ts) | 评测工具 | RAG 检索评测：读 `evals/retrieval/cases.json`，每组算一次查询向量，五种排法（热门度、只用关键词、只用向量、向量+关键词 RRF、和热门度轮流取）各排一遍，打印并保存 hit@4、recall@4、recall@12。约 ¥0.001 一次。 |
 | [scripts/eval-retrieval-score.ts](../scripts/eval-retrieval-score.ts) | 评测工具 | 用例格式、四种排法、打分和平均。 |
 | [scripts/eval-retrieval-score.test.ts](../scripts/eval-retrieval-score.test.ts) | 测试 | 四种排法的顺序、指标计算、用例文件合法。 |
 | [evals/retrieval/city-cases.json](../evals/retrieval/city-cases.json) | 评测用例 | RAG 第 4 步城市推荐 11 组：一句话和应排进前 4 的城市；空列表表示目录应该不给城市（极光、量子物理），退回网页搜索。 |
-| [evals/retrieval/cases.json](../evals/retrieval/cases.json) | 评测用例 | 21 组（14 座城，2 组英文）：城市、旅行者原话、应该排在前面的目录景点（2026-11-26 merlin 同意）。 |
+| [evals/retrieval/cases.json](../evals/retrieval/cases.json) | 评测用例 | 27 组（第 22–27 组直接点名景点：名字、别名或错字）；原 21 组（14 座城，2 组英文）：城市、旅行者原话、应该排在前面的目录景点（2026-11-26 merlin 同意）。 |
 | [evals/retrieval/results/](../evals/retrieval/results/) | 评测结果 | 每次检索评测一个 JSON：提交、日期、向量模型、四种排法的总分和每组前 4 名。 |
 | [evals/plan/cases/](../evals/plan/cases/) | 评测用例 | 11 个典型旅程：单城、两城、三城天数不够、三城有偏好、点名区县、北京周一故宫、无天数预览、哈尔滨冬季、英文界面、跨省加步行上限、三城刚够但想慢玩（1.2016）；每个写明覆盖什么和断言。 |
 | [evals/plan/results/](../evals/plan/results/) | 评测结果 | 每次批量运行一个 JSON：提交、日期、每次运行的指标、断言、提问和每天的景点，用来做版本之间的对比。 |
