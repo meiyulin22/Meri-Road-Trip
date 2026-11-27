@@ -1,6 +1,6 @@
 "use client";
 
-import { Backpack, RotateCw, Shirt, Sparkles } from "lucide-react";
+import { Backpack, ChevronDown, RotateCw, Shirt, Sparkles } from "lucide-react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { type CSSProperties, useEffect, useMemo, useState, useSyncExternalStore } from "react";
 
@@ -11,7 +11,7 @@ import type { PlanDay } from "@/domain/plan/plan-draft";
 import {
   artBase, bagSwatch, basePixels, extraSwatch, gridHeight, gridWidth, itemPixels, loadOutfitManifest, type OutfitManifest, type Pixels,
 } from "./outfit-art";
-import { itemName, outfitNotes, type SlotEntry, slotEntries, slotLabel, thermometerAt } from "./plan-outfit-view";
+import { itemName, outfitLine, outfitNotes, type SlotEntry, slotEntries, slotLabel, thermometerAt } from "./plan-outfit-view";
 import { SkyIcon } from "./plan-weather";
 import type { DayWeatherView } from "./plan-weather-view";
 import { AddDatesButton } from "./plan-dates-picker";
@@ -20,6 +20,7 @@ import styles from "./plan-outfit.module.css";
 const copy = {
   zh: {
     title: "每天穿什么",
+    today: "今天穿",
     subtitle: "按每天的天气给小熊猫换装",
     day: (day: number) => `第 ${day} 天`,
     pick: "点一件装备，看为什么要带它。",
@@ -43,6 +44,7 @@ const copy = {
   },
   en: {
     title: "What to wear each day",
+    today: "Wear today",
     subtitle: "The red panda dresses for each day's weather",
     day: (day: number) => `Day ${day}`,
     pick: "Tap a piece of kit to see why it's there.",
@@ -316,16 +318,30 @@ function DayOutfitBody({ outfit, day, art, locale }: {
 }
 
 /** A day's outfit inside its card, loading the art once per page like the room. */
+/**
+ * A day's outfit inside its card: one line of what to wear, closed at first so the day's stops stay
+ * near the top (2026-11-27: the open room took half a screen); it opens to the red panda and the slots.
+ */
 export function DayOutfitPanel({ outfit, locale }: { readonly outfit: DayOutfit; readonly locale: Locale }) {
+  const text = copy[locale];
+  const [open, setOpen] = useState(false);
   const [art, setArt] = useState<OutfitManifest | null>(null);
   useEffect(() => {
+    if (!open) return;
     let live = true;
     void loadOutfitManifest().then((loaded) => { if (live) setArt(loaded); });
     return () => { live = false; };
-  }, []);
+  }, [open]);
+  const line = outfitLine(outfit, locale);
   return (
-    <section className={styles.dayPanel} aria-label={copy[locale].title}>
-      <DayOutfitBody outfit={outfit} day={outfit.day} art={art} locale={locale} />
+    <section className={styles.dayPanel} data-open={open} aria-label={text.title}>
+      <button type="button" className={styles.dayPanelToggle} aria-expanded={open} onClick={() => setOpen(!open)}>
+        <Shirt aria-hidden="true" size={14} />
+        <span className={styles.dayPanelLabel}>{text.today}</span>
+        <span className={styles.dayPanelLine}>{line || `${outfit.coldest.temp}°–${outfit.warmest.temp}°`}</span>
+        <ChevronDown aria-hidden="true" size={14} className={styles.dayPanelChevron} />
+      </button>
+      {open ? <DayOutfitBody outfit={outfit} day={outfit.day} art={art} locale={locale} /> : null}
     </section>
   );
 }
