@@ -31,6 +31,7 @@ const copy = {
     mentioned: "文章里提到的 · 未核实",
     unverified: "地址待核实",
     catalogNote: "Meri 的整理",
+    fromGuide: "攻略推荐过",
     tips: "Meri 的提示",
     festivals: "当地节庆（日期每年不同，出发前查当年安排）",
     access: "到达和市内交通",
@@ -58,6 +59,7 @@ const copy = {
     mentioned: "Mentioned in articles · Unverified",
     unverified: "Address to check",
     catalogNote: "Meri's notes",
+    fromGuide: "in a guide",
     tips: "Meri's tips",
     festivals: "Local festivals (dates change each year; check before you go)",
     access: "Getting in and around",
@@ -130,12 +132,12 @@ function RestaurantList({ restaurants, heading, locale }: {
   return (
     <div className={styles.cityGroup}>
       <h4>{heading}</h4>
-      <ul>{restaurants.map(({ name, dish, place, evidence }) => (
+      <ul>{restaurants.map(({ name, dish, place, evidence, fromCatalog }) => (
         <li key={name} className={styles.cityEntry}>
-          <p><strong>{name}</strong>{dish ? ` · ${dish}` : ""}</p>
+          <p><strong>{name}</strong>{dish ? ` · ${dish}` : ""}{fromCatalog ? ` · ${text.fromGuide}` : ""}</p>
           {place ? <p>{place.address ? `${place.address} · ` : ""}{text.distance(distanceLabel(place.distanceM), place.near)}</p>
             : <p className={styles.muted}>{text.unverified}</p>}
-          <FoodSources sources={evidence} />
+          {evidence.length ? <FoodSources sources={evidence} /> : null}
         </li>
       ))}</ul>
     </div>

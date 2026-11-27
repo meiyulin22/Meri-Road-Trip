@@ -43,6 +43,8 @@ export type CityCatalog = {
   readonly transport?: readonly CatalogTransport[];
   /** Where the guides say to stay (RAG step 5, stay areas); absent from catalogs read before it. */
   readonly stayAreas?: readonly CatalogStayArea[];
+  /** Restaurants the guides recommended (RAG step 5): candidates needing the map or the web as witness. */
+  readonly restaurants?: readonly { readonly name: string; readonly dishes: readonly string[] }[];
 };
 
 const outdoorTags: ReadonlySet<CatalogTag> = new Set<CatalogTag>([

@@ -23,6 +23,7 @@ const copy = {
     map: "在地图上看",
     sources: (count: number) => `${count} 个出处`,
     catalogNote: "Meri 的整理",
+    fromGuide: "攻略推荐过",
     none: "这次没查到当地美食的可靠出处。",
     unavailable: "当地美食暂时查不到。",
     disclaimer: "来自公开网页搜索，Meri 不收商家任何费用，已尽量排除推广内容。口味因人而异，营业时间出发前请再确认。",
@@ -42,6 +43,7 @@ const copy = {
     map: "Show on map",
     sources: (count: number) => `${count} ${count === 1 ? "source" : "sources"}`,
     catalogNote: "Meri's notes",
+    fromGuide: "In a guide",
     none: "No reliable sources about local food came up this time.",
     unavailable: "Local food couldn't be looked up just now.",
     disclaimer: "From public web search. Meri takes no payment from any business and filters out promotion as far as it can. Tastes differ; check opening hours before you go.",
@@ -103,6 +105,7 @@ function RestaurantItem({ restaurant, text, onShowOnMap }: {
       <div className={styles.restaurantHead}>
         <span className={styles.restaurantName}>{restaurant.name}</span>
         {restaurant.dish ? <span className={styles.order}>{text.order(restaurant.dish)}</span> : null}
+        {restaurant.fromCatalog ? <span className={styles.guideTag}>{text.fromGuide}</span> : null}
       </div>
       {place ? (
         <p className={styles.line}><MapPin aria-hidden="true" size={12} />{place.address ?? ""}{place.address ? " · " : ""}{text.distance(place.distanceM, place.near)}</p>
@@ -114,7 +117,7 @@ function RestaurantItem({ restaurant, text, onShowOnMap }: {
         {place ? (
           <button type="button" className={styles.action} onClick={() => onShowOnMap(restaurant)}><MapPin aria-hidden="true" size={12} />{text.map}</button>
         ) : null}
-        <Sources evidence={restaurant.evidence} text={text} />
+        {restaurant.evidence.length > 0 ? <Sources evidence={restaurant.evidence} text={text} /> : null}
       </div>
     </li>
   );

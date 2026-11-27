@@ -212,6 +212,13 @@ stops, which can be a temple or a village; now it searches near the stay area cl
 (「束河古镇一带适合住，多是院落客栈、青年旅舍」) and names up to two other areas. Hotels still come only from
 RollingGo; the catalog's single guesthouses (no photos, no prices, maybe closed) are not used.
 
+**Step 5, restaurants (2026-11-27):** the catalog's 157 restaurants (81 cities; name and what to order only, never
+the old address or price) are a third kind of witness for What to eat, needing one more, **the map or the web**
+(merlin: Tianditu is thin on restaurants). Code finds their names in the search results itself, a quote a site;
+when the results name none of them, one search by their names (at most one a city). Found by Tianditu within
+1.5 km of a stop (four extra lookups a city at most): shown with its address; named on the web only: among those
+from articles; neither: left out, it may have closed. Marked 「攻略推荐过」.
+
 Popularity as a third RRF list was tried first and dropped: a city has a few dozen spots, so with k = 60 a
 spot in the middle of two lists outscored the top of one. Without preferences, without a key, or when the
 query or the database fails, the order is popularity alone (step 2). The query vector costs about ¥0.00002

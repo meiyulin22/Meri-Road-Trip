@@ -310,9 +310,10 @@ const foodEvidenceSchema = z.strictObject({ url: z.string().min(1), title: z.str
 const restaurantSchema = z.strictObject({
   name: z.string().min(1),
   dish: z.string().min(1).nullable(),
-  evidence: z.array(foodEvidenceSchema).min(1),
+  evidence: z.array(foodEvidenceSchema),
   place: z.strictObject({ address: z.string().nullable(), point: geoSchema, distanceM: z.number().int().nonnegative(), near: z.string().min(1) }).nullable(),
-});
+  fromCatalog: z.literal(true).optional(),
+}).refine((restaurant) => restaurant.evidence.length > 0 || restaurant.fromCatalog === true, "A restaurant needs a source unless a guide recommended it");
 const cityFoodBase = { province: z.string().min(1), city: z.string().min(1), lastDay: z.number().int().nonnegative() };
 export const cityFoodSchema: z.ZodType<CityFood> = z.discriminatedUnion("status", [
   z.strictObject({

@@ -37,6 +37,8 @@ export type Restaurant = {
   readonly evidence: readonly FoodEvidence[];
   /** Where Tianditu puts it, near the city's stops; null when it could not be found there. */
   readonly place: { readonly address: string | null; readonly point: GeoPoint; readonly distanceM: number; readonly near: string } | null;
+  /** A guide in Meri's catalog recommended it (RAG step 5); its evidence may then be empty, with the map as witness. */
+  readonly fromCatalog?: true;
 };
 
 export type CityFood = {
@@ -213,4 +215,43 @@ export function cityRuns(days: readonly PlanDay[], cards: ReadonlyMap<string, Sp
     }
   }
   return runs;
+}
+
+/** A restaurant a guide in Meri's catalog recommended (RAG step 5): its name and what to order. */
+export type CatalogRestaurantCandidate = { readonly name: string; readonly dishes: readonly string[] };
+
+/** Map lookups a city may spend on the catalog's restaurants, beyond those for the web's. */
+export const catalogRestaurantLookups = 4;
+const mentionQuoteChars = 80;
+
+/**
+ * Where the search results name a catalog restaurant, found by code, not by the model: one quote a
+ * site, a stretch of the title or snippet around the name (RAG step 5).
+ */
+export function webMentions(name: string, sources: readonly FoodSource[]): FoodEvidence[] {
+  const wanted = name.normalize("NFKC");
+  const bySite = new Map<string, FoodEvidence>();
+  for (const source of sources) {
+    if (bySite.has(source.site)) continue;
+    for (const field of [source.title, source.snippet]) {
+      const textValue = field.normalize("NFKC");
+      const at = textValue.indexOf(wanted);
+      if (at < 0) continue;
+      const start = Math.max(0, at - Math.floor((mentionQuoteChars - wanted.length) / 2));
+      const quote = textValue.slice(start, start + Math.max(mentionQuoteChars, wanted.length)).trim();
+      bySite.set(source.site, { url: source.url, title: source.title, site: source.site, quote });
+      break;
+    }
+  }
+  return [...bySite.values()];
+}
+
+/**
+ * A catalog restaurant needs one more witness, either will do (merlin, 2026-11-27: Tianditu is thin on
+ * restaurants): on the map near the stops, shown with its address; or named on the web, shown among
+ * those from articles. With neither it may have closed, and it is not shown.
+ */
+export function catalogWitness(onMap: boolean, webSites: number): "shown" | "mentioned" | "dropped" {
+  if (onMap) return "shown";
+  return webSites > 0 ? "mentioned" : "dropped";
 }

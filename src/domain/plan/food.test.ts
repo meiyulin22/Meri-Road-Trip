@@ -5,7 +5,7 @@ import test from "node:test";
 
 import type { LocationSearchResult } from "@/platform/location-provider/location-provider";
 
-import { checkedFood, type FoodSource, isPromotional, placeRestaurant, restaurantKey, restaurantWitnesses, siteOf } from "./food";
+import { catalogWitness, checkedFood, type FoodSource, isPromotional, placeRestaurant, restaurantKey, restaurantWitnesses, siteOf, webMentions } from "./food";
 
 // Recorded 2026-11-21: two Kimi searches for 丽江 food, and Tianditu's answer for 渣渣米线.
 const fixtures = join(import.meta.dirname, "../../agents/planner/fixtures");
@@ -76,4 +76,20 @@ test("two independent witnesses: two sites, or one site and the map", () => {
   assert.equal(restaurantWitnesses(2, true), "shown");
   assert.equal(restaurantWitnesses(2, false), "mentioned");
   assert.equal(restaurantWitnesses(1, false), "dropped");
+});
+
+test("a guide's restaurant is found in the results by its name, one quote a site, and needs the map or the web (RAG step 5)", () => {
+  const source = (id: number, url: string, snippet: string) => ({ id, url, title: "丽江美食", site: siteOf(url), snippet, checkedAt: "2026-11-27T00:00:00Z" });
+  const sources = [
+    source(1, "https://a.example.com/1", "推荐阿妈意纳西美食，马帮烤鱼很地道"),
+    source(2, "https://a.example.com/2", "阿妈意纳西美食又去了一次"),
+    source(3, "https://b.example.org/x", "古城里没什么好吃的"),
+  ];
+  const mentions = webMentions("阿妈意纳西美食", sources);
+  assert.deepEqual(mentions.map(({ site }) => site), ["example.com"]);
+  assert.ok(mentions[0].quote.includes("阿妈意纳西美食"));
+  assert.deepEqual(webMentions("88号小吃", sources), []);
+  assert.equal(catalogWitness(true, 0), "shown");
+  assert.equal(catalogWitness(false, 1), "mentioned");
+  assert.equal(catalogWitness(false, 0), "dropped");
 });

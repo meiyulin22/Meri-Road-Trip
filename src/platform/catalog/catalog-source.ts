@@ -85,7 +85,11 @@ export function cityCatalogFromRows(rows: readonly CatalogRow[]): CityCatalog {
     features: row.details.features,
     spotIds: row.related.map(({ id }) => id),
   }] : []);
-  return { spots, dishes, tips, transport, stayAreas };
+  // Old addresses and prices stay in the table: only the name and what to order are read.
+  const restaurants = rows.flatMap((row) => row.kind === "restaurant" && "signature_dishes" in row.details
+    ? [{ name: row.name, dishes: row.details.signature_dishes }]
+    : []);
+  return { spots, dishes, tips, transport, stayAreas, restaurants };
 }
 
 export function createPostgresCatalogSource(database: CatalogDatabase): CatalogSource {
@@ -107,7 +111,7 @@ export function createPostgresCatalogSource(database: CatalogDatabase): CatalogS
         }).from(catalogEntries).where(and(
           eq(catalogEntries.province, province),
           eq(catalogEntries.prefecture, prefecture),
-          inArray(catalogEntries.kind, ["spot", "dish", "tip", "transport", "stay"]),
+          inArray(catalogEntries.kind, ["spot", "dish", "tip", "transport", "stay", "restaurant"]),
         ));
         return cityCatalogFromRows(rows);
       } catch (error) {

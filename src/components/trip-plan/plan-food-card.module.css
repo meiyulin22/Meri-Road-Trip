@@ -20,6 +20,8 @@
 .restaurantHead { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px; }
 .restaurantName { font-size: 14px; font-weight: 650; }
 .order { color: var(--accent); font-size: 12px; }
+/* A restaurant a guide in Meri's catalog recommended (RAG step 5), still confirmed by the map or the web. */
+.guideTag { padding: 1px 6px; border-radius: 6px; color: var(--green); background: var(--paper-deep); font-size: 11px; }
 .line { display: flex; align-items: center; gap: 5px; color: var(--muted); font-size: 12px; }
 .line[data-unknown="true"] { color: var(--soft); }
 .line svg { flex: none; }

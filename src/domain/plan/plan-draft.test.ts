@@ -15,7 +15,7 @@ import {
   type DayFrame,
   type RouteCityInput,
 } from "./plan-draft";
-import { spotCardSchema } from "./plan-draft-response";
+import { cityFoodSchema, spotCardSchema } from "./plan-draft-response";
 import { isGrounded, type SpotCard, type SpotEvidence } from "./spot-card";
 
 function tripState(places: readonly string[], duration: TripState["duration"], startDate: TripState["startDate"] = { state: "missing" }): TripState {
@@ -243,4 +243,13 @@ test("a catalog card is left to check only for opening and booking, and reads ba
   assert.deepEqual(spotCardSchema.parse({ ...cards[0], catalog: withTips }).catalog, withTips);
   assert.equal(isGrounded(cards[0]), true);
   assert.equal(isGrounded(card("没有依据", { location: null })), false);
+});
+
+test("a saved restaurant may lack a web source only when a guide recommended it (RAG step 5)", () => {
+  const place = { address: "五一街 1 号", point: { longitude: 100.2, latitude: 26.8 }, distanceM: 300, near: "丽江古城" };
+  const food = (restaurant: Record<string, unknown>) => cityFoodSchema.safeParse({
+    province: "云南省", city: "丽江市", lastDay: 2, status: "found", dishes: [], restaurants: [restaurant], mentioned: [],
+  }).success;
+  assert.equal(food({ name: "老店", dish: null, evidence: [], place, fromCatalog: true }), true);
+  assert.equal(food({ name: "老店", dish: null, evidence: [], place }), false);
 });

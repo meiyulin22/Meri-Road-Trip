@@ -171,3 +171,43 @@ test("an English plan, or fewer than three catalog dishes, keeps the dish search
     assert.equal(queries.length, 3);
   }
 });
+
+test("the guides' restaurants: on the map they are shown, named on the web they are mentioned, else left out (RAG step 5)", async () => {
+  const queries: string[] = [];
+  const guides = [
+    { name: "阿妈意纳西餐厅", dishes: ["纳西烤鱼"] },
+    { name: "地图上的老店", dishes: ["鸡豆凉粉", "丽江粑粑", "米灌肠"] },
+    { name: "只在攻略里", dishes: [] },
+  ];
+  const result = await planFood(handoff(["丽江市"], fiveDays), days, cards, {
+    search: async (query) => {
+      queries.push(query);
+      return results[Object.keys(results).find((key) => query.includes(key)) as keyof typeof results] ?? [];
+    },
+    map: async (name) => ({ status: "success", candidates: name === "地图上的老店" ? [{
+      providerId: "2", name: "地图上的老店", province: "云南省", city: "丽江市", district: "古城区", region: "云南省丽江市古城区",
+      address: "五一街 1 号", longitude: 100.235, latitude: 26.873, coordinateSystem: "CGCS2000", kind: "other",
+    }] : [] }),
+    catalog: async () => ({ spots: [], dishes: [], restaurants: guides }),
+  }, { model: answering({ dishes: answer.dishes, restaurants: [] }) }, { stopped: false });
+
+  // 阿妈意 is named in the results, so no extra search by the guides' names was needed.
+  assert.equal(queries.length, 3);
+  const [city] = result.food;
+  assert.equal(city.status, "found");
+  if (city.status !== "found") return;
+  assert.deepEqual(city.restaurants.map(({ name, dish, fromCatalog, place }) => [name, dish, fromCatalog, place?.address]),
+    [["地图上的老店", "鸡豆凉粉、丽江粑粑", true, "五一街 1 号"]]);
+  assert.deepEqual(city.mentioned.map(({ name, evidence, place }) => [name, evidence.length, place]), [["阿妈意纳西餐厅", 2, null]]);
+});
+
+test("when the results name none of the guides' restaurants, one more search by their names is made", async () => {
+  const queries: string[] = [];
+  await planFood(handoff(["丽江市"], fiveDays), days, cards, {
+    search: async (query) => { queries.push(query); return []; },
+    map: async () => ({ status: "success", candidates: [] }),
+    catalog: async () => ({ spots: [], dishes: [], restaurants: [{ name: "无人提到的店", dishes: [] }, { name: "另一家", dishes: [] }] }),
+  }, { model: answering(answer) }, { stopped: false });
+  assert.equal(queries.length, 4);
+  assert.equal(queries[3], "云南省 丽江市 无人提到的店 另一家");
+});
