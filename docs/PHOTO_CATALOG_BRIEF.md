@@ -136,3 +136,11 @@ Wikidata returned HTTP 429 with `Retry-After: 120`. The collector stopped immedi
 spots had an outcome. Three had no matching Wikidata image, and the Hunan Museum exterior passed
 visual review. The manifest and contact sheet now contain 49 reviewed photos totaling 444,208 bytes.
 Of the 1,349 spots, 201 have an outcome and 1,148 are pending.
+
+### National spot continuation checkpoint 2 — 2026-11-27
+
+This pass ran for 12 min 36 s and stopped immediately on Wikidata HTTP 429 with `Retry-After: 120`.
+It resolved 70 additional spots. Forty-three had no matching Wikidata image and one was rejected
+for licence. Of 26 candidates, 21 passed visual review and five were rejected. Five temporary
+failures and the rate-limited lookup remain pending. The manifest and contact sheet now contain
+70 reviewed photos totaling 667,110 bytes. Of the 1,349 spots, 271 have an outcome and 1,078 are pending.

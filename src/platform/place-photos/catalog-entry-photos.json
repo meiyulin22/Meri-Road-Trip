@@ -371,6 +371,18 @@
     "wikidata": "Q5942029",
     "fetchedAt": "2026-11-27T12:43:10.174Z"
   },
+  "spot_changsha_pozi": {
+    "file": "/photos/catalog/spot_changsha_pozi.avif",
+    "width": 320,
+    "height": 240,
+    "title": "File:长沙坡子街.jpg",
+    "author": "EditQ",
+    "license": "CC BY-SA 4.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:%E9%95%BF%E6%B2%99%E5%9D%A1%E5%AD%90%E8%A1%97.jpg",
+    "wikidata": "Q135012251",
+    "fetchedAt": "2026-11-27T12:46:50.839Z"
+  },
   "spot_changzhou_dinosaur": {
     "file": "/photos/catalog/spot_changzhou_dinosaur.avif",
     "width": 320,
@@ -443,6 +455,18 @@
     "wikidata": "Q824157",
     "fetchedAt": "2026-11-27T12:28:26.628Z"
   },
+  "spot_chengdu_erwang": {
+    "file": "/photos/catalog/spot_chengdu_erwang.avif",
+    "width": 320,
+    "height": 427,
+    "title": "File:Erwang Temple - 2024.jpg",
+    "author": "纳瓦拉的亨利",
+    "license": "CC BY-SA 4.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Erwang_Temple_-_2024.jpg",
+    "wikidata": "Q10880280",
+    "fetchedAt": "2026-11-27T12:47:00.196Z"
+  },
   "spot_chengdu_jinli": {
     "file": "/photos/catalog/spot_chengdu_jinli.avif",
     "width": 320,
@@ -478,6 +502,126 @@
     "sourceUrl": "https://commons.wikimedia.org/wiki/File:%E9%9D%92%E5%9F%8E%E5%B1%B1_Mount_Qingcheng_2017.jpg",
     "wikidata": "Q905536",
     "fetchedAt": "2026-11-27T12:31:52.068Z"
+  },
+  "spot_chengdu_qingyang": {
+    "file": "/photos/catalog/spot_chengdu_qingyang.avif",
+    "width": 320,
+    "height": 240,
+    "title": "File:Qingyang Palace.jpg",
+    "author": "No machine-readable author provided. Dice~commonswiki assumed (based on copyright claims).",
+    "license": "CC BY-SA 3.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0/",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Qingyang_Palace.jpg",
+    "wikidata": "Q2121639",
+    "fetchedAt": "2026-11-27T12:47:17.899Z"
+  },
+  "spot_chengdu_shangqing": {
+    "file": "/photos/catalog/spot_chengdu_shangqing.avif",
+    "width": 320,
+    "height": 240,
+    "title": "File:青城山上清宫-山门 02.jpg",
+    "author": "Kcx36",
+    "license": "CC BY-SA 4.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:%E9%9D%92%E5%9F%8E%E5%B1%B1%E4%B8%8A%E6%B8%85%E5%AE%AB-%E5%B1%B1%E9%97%A8_02.jpg",
+    "wikidata": "Q123375888",
+    "fetchedAt": "2026-11-27T12:47:33.197Z"
+  },
+  "spot_chengdu_tianshi": {
+    "file": "/photos/catalog/spot_chengdu_tianshi.avif",
+    "width": 320,
+    "height": 240,
+    "title": "File:青城山天师洞-三清殿.jpg",
+    "author": "Kcx36",
+    "license": "CC BY-SA 4.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:%E9%9D%92%E5%9F%8E%E5%B1%B1%E5%A4%A9%E5%B8%88%E6%B4%9E-%E4%B8%89%E6%B8%85%E6%AE%BF.jpg",
+    "wikidata": "Q21017439",
+    "fetchedAt": "2026-11-27T12:49:02.098Z"
+  },
+  "spot_chengdu_wenshu": {
+    "file": "/photos/catalog/spot_chengdu_wenshu.avif",
+    "width": 320,
+    "height": 240,
+    "title": "File:文殊院大雄宝殿.jpg",
+    "author": "Kcx36",
+    "license": "CC BY-SA 4.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:%E6%96%87%E6%AE%8A%E9%99%A2%E5%A4%A7%E9%9B%84%E5%AE%9D%E6%AE%BF.jpg",
+    "wikidata": "Q11080015",
+    "fetchedAt": "2026-11-27T12:50:25.230Z"
+  },
+  "spot_chengdu_wuhou": {
+    "file": "/photos/catalog/spot_chengdu_wuhou.avif",
+    "width": 320,
+    "height": 240,
+    "title": "File:成都的武侯祠.jpg",
+    "author": "螺钉",
+    "license": "CC BY-SA 4.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:%E6%88%90%E9%83%BD%E7%9A%84%E6%AD%A6%E4%BE%AF%E7%A5%A0.jpg",
+    "wikidata": "Q1069942",
+    "fetchedAt": "2026-11-27T12:50:34.217Z"
+  },
+  "spot_chongqing_chaotianmen": {
+    "file": "/photos/catalog/spot_chongqing_chaotianmen.avif",
+    "width": 320,
+    "height": 240,
+    "title": "File:朝天门.jpg",
+    "author": "重庆轨交18",
+    "license": "CC BY-SA 3.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:%E6%9C%9D%E5%A4%A9%E9%97%A8.jpg",
+    "wikidata": "Q11092528",
+    "fetchedAt": "2026-11-27T12:51:14.156Z"
+  },
+  "spot_chongqing_geles": {
+    "file": "/photos/catalog/spot_chongqing_geles.avif",
+    "width": 320,
+    "height": 213,
+    "title": "File:歌乐山陵园 5107.jpg",
+    "author": "Anheizhe",
+    "license": "CC BY-SA 4.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:%E6%AD%8C%E4%B9%90%E5%B1%B1%E9%99%B5%E5%9B%AD_5107.jpg",
+    "wikidata": "Q11122944",
+    "fetchedAt": "2026-11-27T12:52:51.303Z"
+  },
+  "spot_chongqing_hongyadong": {
+    "file": "/photos/catalog/spot_chongqing_hongyadong.avif",
+    "width": 320,
+    "height": 213,
+    "title": "File:Hongya Cave 20180520.jpg",
+    "author": "xiquinhosilva",
+    "license": "CC BY 2.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by/2.0",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Hongya_Cave_20180520.jpg",
+    "wikidata": "Q32171478",
+    "fetchedAt": "2026-11-27T12:53:01.375Z"
+  },
+  "spot_chongqing_karst_bridges": {
+    "file": "/photos/catalog/spot_chongqing_karst_bridges.avif",
+    "width": 320,
+    "height": 212,
+    "title": "File:Wulongtianshengsanqiao.JPG",
+    "author": "Brookqi",
+    "license": "Public domain",
+    "licenseUrl": "https://commons.wikimedia.org/wiki/File:Wulongtianshengsanqiao.JPG",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Wulongtianshengsanqiao.JPG",
+    "wikidata": "Q7797661",
+    "fetchedAt": "2026-11-27T12:53:16.444Z"
+  },
+  "spot_chongqing_three_gorges_museum": {
+    "file": "/photos/catalog/spot_chongqing_three_gorges_museum.avif",
+    "width": 320,
+    "height": 213,
+    "title": "File:Chongqing Zhongguo Sanxia Bowuguan 2014.04.21 11-11-06.jpg",
+    "author": "Zhangzhugang",
+    "license": "CC BY-SA 4.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Chongqing_Zhongguo_Sanxia_Bowuguan_2014.04.21_11-11-06.jpg",
+    "wikidata": "Q10872783",
+    "fetchedAt": "2026-11-27T12:54:42.186Z"
   },
   "spot_dali_cangshan": {
     "file": "/photos/catalog/spot_dali_cangshan.avif",
@@ -563,6 +707,90 @@
     "wikidata": "Q10923614",
     "fetchedAt": "2026-11-27T07:33:56.364Z"
   },
+  "spot_dalian_discovery": {
+    "file": "/photos/catalog/spot_dalian_discovery.avif",
+    "width": 320,
+    "height": 180,
+    "title": "File:疯狂眼镜蛇过山车.JPG",
+    "author": "Techyan",
+    "license": "CC BY-SA 3.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:%E7%96%AF%E7%8B%82%E7%9C%BC%E9%95%9C%E8%9B%87%E8%BF%87%E5%B1%B1%E8%BD%A6.JPG",
+    "wikidata": "Q5210918",
+    "fetchedAt": "2026-11-27T12:56:40.624Z"
+  },
+  "spot_dalian_jinshi": {
+    "file": "/photos/catalog/spot_dalian_jinshi.avif",
+    "width": 320,
+    "height": 180,
+    "title": "File:金石滩2.jpg",
+    "author": "红烧腰果",
+    "license": "CC BY 4.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by/4.0",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:%E9%87%91%E7%9F%B3%E6%BB%A92.jpg",
+    "wikidata": "Q51606427",
+    "fetchedAt": "2026-11-27T12:56:52.409Z"
+  },
+  "spot_dalian_xinghai_square": {
+    "file": "/photos/catalog/spot_dalian_xinghai_square.avif",
+    "width": 320,
+    "height": 209,
+    "title": "File:Xinghai Square .jpg",
+    "author": "HSJ233",
+    "license": "CC BY-SA 4.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Xinghai_Square_.jpg",
+    "wikidata": "Q6136716",
+    "fetchedAt": "2026-11-27T12:57:22.655Z"
+  },
+  "spot_datong_hanging_temple": {
+    "file": "/photos/catalog/spot_datong_hanging_temple.avif",
+    "width": 320,
+    "height": 213,
+    "title": "File:Xuankongsi.jpg",
+    "author": "BRUNNER Emmanuel ( Manu25 )",
+    "license": "Public domain",
+    "licenseUrl": "https://commons.wikimedia.org/wiki/File:Xuankongsi.jpg",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Xuankongsi.jpg",
+    "wikidata": "Q1276887",
+    "fetchedAt": "2026-11-27T12:57:34.734Z"
+  },
+  "spot_datong_huayan": {
+    "file": "/photos/catalog/spot_datong_huayan.avif",
+    "width": 320,
+    "height": 213,
+    "title": "File:Datong Huayan Si 2013.08.29 08-24-19.jpg",
+    "author": "Zhangzhugang",
+    "license": "CC BY-SA 3.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Datong_Huayan_Si_2013.08.29_08-24-19.jpg",
+    "wikidata": "Q15932853",
+    "fetchedAt": "2026-11-27T12:57:46.209Z"
+  },
+  "spot_datong_shanhua": {
+    "file": "/photos/catalog/spot_datong_shanhua.avif",
+    "width": 320,
+    "height": 240,
+    "title": "File:Shanhua Temple 1.jpg",
+    "author": "Zeus1234",
+    "license": "CC BY-SA 3.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Shanhua_Temple_1.jpg",
+    "wikidata": "Q548433",
+    "fetchedAt": "2026-11-27T12:58:04.923Z"
+  },
+  "spot_datong_yungang": {
+    "file": "/photos/catalog/spot_datong_yungang.avif",
+    "width": 320,
+    "height": 223,
+    "title": "File:Yungang11 2010.JPG",
+    "author": "Marcin Białek",
+    "license": "CC BY-SA 4.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Yungang11_2010.JPG",
+    "wikidata": "Q308805",
+    "fetchedAt": "2026-11-27T12:58:16.697Z"
+  },
   "spot_diqing_napahai": {
     "file": "/photos/catalog/spot_diqing_napahai.avif",
     "width": 320,
@@ -586,5 +814,29 @@
     "sourceUrl": "https://commons.wikimedia.org/wiki/File:%E6%9D%BE%E8%B5%9E%E6%9E%97%E5%AF%BA_-_%E5%85%A8%E6%99%AF_-_2025-05-07_08_(cropped).jpg",
     "wikidata": "Q1493369",
     "fetchedAt": "2026-11-27T07:34:36.196Z"
+  },
+  "spot_fuzhou_luoxing": {
+    "file": "/photos/catalog/spot_fuzhou_luoxing.avif",
+    "width": 320,
+    "height": 480,
+    "title": "File:Fuzhou Mawei Luoxing Pagoda 2007-05-05.jpg",
+    "author": "Swing",
+    "license": "CC BY-SA 3.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0/",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Fuzhou_Mawei_Luoxing_Pagoda_2007-05-05.jpg",
+    "wikidata": "Q14528000",
+    "fetchedAt": "2026-11-27T12:58:41.170Z"
+  },
+  "spot_fuzhou_yongquan": {
+    "file": "/photos/catalog/spot_fuzhou_yongquan.avif",
+    "width": 320,
+    "height": 117,
+    "title": "File:Yongquan Temple in Gushan Mountain, Fuzhou.jpg",
+    "author": "Jack Parkinson",
+    "license": "CC BY 2.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by/2.0",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Yongquan_Temple_in_Gushan_Mountain,_Fuzhou.jpg",
+    "wikidata": "Q11151771",
+    "fetchedAt": "2026-11-27T12:59:04.728Z"
   }
 }
