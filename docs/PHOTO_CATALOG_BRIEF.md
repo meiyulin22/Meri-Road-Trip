@@ -76,3 +76,27 @@ Look at every saved photo. If you cannot view images, say so in your report and 
   requests. One failure that says the client is refused (403) or rate limited: stop and report, do not retry in a loop.
 - Before each commit: `npm run lint`, `npm run typecheck`, `npm test`. Report what you ran.
 - The repo is public: never commit `.env.local`, catalog data files or anything from `meri-catalog-cn`.
+
+## Pilot result — 2026-11-27
+
+The Dali and Diqing run read 27 spots and 17 dishes from local Postgres. It downloaded 11 spot candidates in
+4 min 16 s. Visual review retained 9 (7 in Dali and 2 in Diqing), totaling 72,184 bytes. The Erhai satellite
+image and the street scene attributed to Dukezong went to `review`: the first is not a visitor's view, and the
+second could not be placed in the old town with confidence. No candidate was confirmed to show the wrong subject.
+
+| Outcome | Count |
+| --- | ---: |
+| `no_wikidata` (no matching item with a P18 image) | 16 |
+| `licence` | 0 |
+| `no_author` | 0 |
+| `too_small` | 0 |
+| `review` | 2 |
+| Dishes pending after the limit signal | 17 |
+
+Fourteen dish queries failed transiently, one hit a Wikidata rate limit, and two remained unattempted. The run
+stopped at the limit signal without retrying. The dish query was tightened to filter exact-name hits before
+walking the food class hierarchy; the revised query has local test coverage and has yet to be run live.
+
+The offline contact sheet at `.cache/catalog-photos/review.html` contains the nine retained images. To reject
+a saved candidate offline, pass `--reject-review <catalog-id>` with the same city filters. Re-running the collector
+later resumes using the manifest and local rejection log, so only pending entries are queried.

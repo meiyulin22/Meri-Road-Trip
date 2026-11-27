@@ -1,0 +1,110 @@
+{
+  "spot_dali_cangshan": {
+    "file": "/photos/catalog/spot_dali_cangshan.avif",
+    "width": 320,
+    "height": 213,
+    "title": "File:大理苍山 04.jpg",
+    "author": "Martin Moscosa",
+    "license": "CC BY 2.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by/2.0",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:%E5%A4%A7%E7%90%86%E8%8B%8D%E5%B1%B1_04.jpg",
+    "wikidata": "Q844493",
+    "fetchedAt": "2026-11-27T07:32:53.412Z"
+  },
+  "spot_dali_jizushan": {
+    "file": "/photos/catalog/spot_dali_jizushan.avif",
+    "width": 320,
+    "height": 288,
+    "title": "File:JizuShan.jpg",
+    "author": "NoGhost",
+    "license": "CC BY-SA 4.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:JizuShan.jpg",
+    "wikidata": "Q1574635",
+    "fetchedAt": "2026-11-27T07:33:10.606Z"
+  },
+  "spot_dali_nanzhao_island": {
+    "file": "/photos/catalog/spot_dali_nanzhao_island.avif",
+    "width": 320,
+    "height": 240,
+    "title": "File:南诏岛.jpg",
+    "author": "虹色分子",
+    "license": "CC BY-SA 4.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:%E5%8D%97%E8%AF%8F%E5%B2%9B.jpg",
+    "wikidata": "Q3593513",
+    "fetchedAt": "2026-11-27T07:33:15.038Z"
+  },
+  "spot_dali_santa": {
+    "file": "/photos/catalog/spot_dali_santa.avif",
+    "width": 320,
+    "height": 239,
+    "title": "File:Three Pagodas from bottom view.JPG",
+    "author": "Tdxiang at English Wikipedia",
+    "license": "CC BY-SA 3.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0/",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Three_Pagodas_from_bottom_view.JPG",
+    "wikidata": "Q1257126",
+    "fetchedAt": "2026-11-27T07:33:25.375Z"
+  },
+  "spot_dali_shuanglang": {
+    "file": "/photos/catalog/spot_dali_shuanglang.avif",
+    "width": 320,
+    "height": 212,
+    "title": "File:大理双廊-2489796.jpg",
+    "author": "Zhouqiyang",
+    "license": "CC0",
+    "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/deed.en",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:%E5%A4%A7%E7%90%86%E5%8F%8C%E5%BB%8A-2489796.jpg",
+    "wikidata": "Q10912007",
+    "fetchedAt": "2026-11-27T07:33:35.288Z"
+  },
+  "spot_dali_tianlong_studio": {
+    "file": "/photos/catalog/spot_dali_tianlong_studio.avif",
+    "width": 320,
+    "height": 240,
+    "title": "File:Tianlong Babu Yingshicheng.jpg",
+    "author": "Yumeto",
+    "license": "CC BY-SA 4.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Tianlong_Babu_Yingshicheng.jpg",
+    "wikidata": "Q5255319",
+    "fetchedAt": "2026-11-27T07:33:43.529Z"
+  },
+  "spot_dali_xizhou": {
+    "file": "/photos/catalog/spot_dali_xizhou.avif",
+    "width": 320,
+    "height": 180,
+    "title": "File:Xizhou 03.JPG",
+    "author": "Brücke-Osteuropa",
+    "license": "Public domain",
+    "licenseUrl": "https://commons.wikimedia.org/wiki/File:Xizhou_03.JPG",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Xizhou_03.JPG",
+    "wikidata": "Q10923614",
+    "fetchedAt": "2026-11-27T07:33:56.364Z"
+  },
+  "spot_diqing_napahai": {
+    "file": "/photos/catalog/spot_diqing_napahai.avif",
+    "width": 320,
+    "height": 240,
+    "title": "File:纳帕海 - 2025-05-07 03.jpg",
+    "author": "瑞丽江的河水",
+    "license": "CC BY-SA 4.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:%E7%BA%B3%E5%B8%95%E6%B5%B7_-_2025-05-07_03.jpg",
+    "wikidata": "Q16935582",
+    "fetchedAt": "2026-11-27T07:34:21.168Z"
+  },
+  "spot_diqing_songzanlin": {
+    "file": "/photos/catalog/spot_diqing_songzanlin.avif",
+    "width": 320,
+    "height": 86,
+    "title": "File:松赞林寺 - 全景 - 2025-05-07 08 (cropped).jpg",
+    "author": "瑞丽江的河水",
+    "license": "CC BY-SA 4.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:%E6%9D%BE%E8%B5%9E%E6%9E%97%E5%AF%BA_-_%E5%85%A8%E6%99%AF_-_2025-05-07_08_(cropped).jpg",
+    "wikidata": "Q1493369",
+    "fetchedAt": "2026-11-27T07:34:36.196Z"
+  }
+}
