@@ -1,6 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
+import { summaryFingerprint } from "@/domain/catalog/catalog-enrichment";
+
 import { countChanges, readCatalog } from "./import-catalog-read";
 
 const line = (id: string, overrides: Record<string, unknown> = {}) => JSON.stringify({
@@ -68,4 +70,40 @@ test("a link to a missing entry is a warning only; no files at all is a problem"
 test("changes are counted against the ids already in the table", () => {
   const { rows } = readCatalog([file(`${line("tip_a")}\n${line("tip_b")}`)]);
   assert.deepEqual(countChanges(new Set(["tip_a", "tip_old"]), rows), { added: 1, updated: 1, removed: 1 });
+});
+
+const enrichmentFile = (lines: readonly Record<string, unknown>[]) => ({
+  path: "/x/data/enrichment/summaries.ndjson",
+  text: lines.map((value) => JSON.stringify(value)).join("\n"),
+});
+const enrichment = (id: string, basedOn: string, value = "Meri 的说法。") => ({
+  id, field: "summary", value, based_on: summaryFingerprint(basedOn), source: "test", date: "2026-11-27",
+});
+
+test("an enriched summary replaces the catalog's own when it was written for it", () => {
+  const read = readCatalog([file(`${line("tip_a")}\n${line("tip_b")}`)], enrichmentFile([enrichment("tip_a", "提示。")]));
+  assert.deepEqual(read.problems, []);
+  assert.deepEqual(read.warnings, []);
+  assert.equal(read.enriched, 1);
+  assert.equal(read.rows[0].summary, "Meri 的说法。");
+  assert.match(read.rows[0].searchText, /Meri 的说法。/);
+  assert.equal(read.rows[1].summary, "提示。");
+});
+
+test("a stale or orphan enrichment is a warning; the catalog's summary stays", () => {
+  const read = readCatalog([file(line("tip_a"))], enrichmentFile([enrichment("tip_a", "旧的提示。"), enrichment("tip_gone", "提示。")]));
+  assert.deepEqual(read.problems, []);
+  assert.equal(read.rows[0].summary, "提示。");
+  assert.equal(read.enriched, 0);
+  assert.deepEqual(read.warnings, [
+    "tip_a: the enriched summary was written for an older summary; the catalog's own is kept",
+    "tip_gone is enriched but not in the catalog",
+  ]);
+});
+
+test("a malformed or repeated enrichment line stops the import", () => {
+  const bad = readCatalog([file(line("tip_a"))], enrichmentFile([{ ...enrichment("tip_a", "提示。"), value: "" }]));
+  assert.match(bad.problems[0], /summaries\.ndjson:1: value/);
+  const twice = readCatalog([file(line("tip_a"))], enrichmentFile([enrichment("tip_a", "提示。"), enrichment("tip_a", "提示。")]));
+  assert.deepEqual(twice.problems, ["summaries.ndjson:2: tip_a is enriched more than once"]);
 });

@@ -7,6 +7,10 @@
  * reached through an SSH tunnel. Every line is validated first and any problem stops the
  * run before a row is written. Then, in one transaction, rows are upserted by id and rows
  * the catalog no longer has are deleted, so running it again is safe.
+ *
+ * data/enrichment/summaries.ndjson, when present, holds summaries rewritten in Meri's voice (B2); each
+ * replaces the catalog's own summary if it was written for it. A changed summary changes search_text,
+ * which clears that row's vector: run scripts/embed-catalog.ts afterwards.
  */
 import { execFileSync } from "node:child_process";
 import { readdir, readFile } from "node:fs/promises";
@@ -20,7 +24,7 @@ import { Pool } from "pg";
 import type { CatalogRow } from "@/domain/catalog/catalog-row";
 import { catalogEntries } from "@/platform/persistence/database/schema/catalog-entries";
 
-import { type CatalogFile, countChanges, readCatalog } from "./import-catalog-read";
+import { type CatalogFile, countChanges, type EnrichmentFile, readCatalog } from "./import-catalog-read";
 
 const insertBatchSize = 200;
 
@@ -46,6 +50,16 @@ async function readCityFiles(catalogDir: string): Promise<CatalogFile[]> {
     const path = join(citiesDir, name);
     return { path, text: await readFile(path, "utf8") };
   }));
+}
+
+async function readEnrichmentFile(catalogDir: string): Promise<EnrichmentFile | null> {
+  const path = join(catalogDir, "data", "enrichment", "summaries.ndjson");
+  try {
+    return { path, text: await readFile(path, "utf8") };
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === "ENOENT") return null;
+    throw error;
+  }
 }
 
 function toInsert(row: CatalogRow, version: string, importedAt: string): typeof catalogEntries.$inferInsert {
@@ -74,7 +88,7 @@ async function main(): Promise<void> {
   const databaseUrl = requireEnv("DATABASE_URL");
 
   const version = catalogVersion(catalogDir);
-  const read = readCatalog(await readCityFiles(catalogDir));
+  const read = readCatalog(await readCityFiles(catalogDir), await readEnrichmentFile(catalogDir));
   for (const warning of read.warnings) {
     process.stdout.write(`warning: ${warning}\n`);
   }
@@ -82,7 +96,7 @@ async function main(): Promise<void> {
     process.stderr.write(`${read.problems.map((problem) => `problem: ${problem}`).join("\n")}\n`);
     throw new Error(`Catalog import stopped: ${read.problems.length} problems in ${catalogDir}; nothing was written.`);
   }
-  process.stdout.write(`catalog ${version}: ${read.rows.length} entries (${kindCounts(read.rows)})\n`);
+  process.stdout.write(`catalog ${version}: ${read.rows.length} entries (${kindCounts(read.rows)}), ${read.enriched} summaries from the enrichment file\n`);
 
   const pool = new Pool({ connectionString: databaseUrl, connectionTimeoutMillis: 5_000 });
   const db = drizzle(pool);

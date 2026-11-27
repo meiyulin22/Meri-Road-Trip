@@ -494,6 +494,9 @@ Generate plan 背后的计划页先用示例数据做出完整页面（设计决
 | [src/platform/embedding/bailian-embedding.ts](../src/platform/embedding/bailian-embedding.ts) | 基础设施适配器 | 百炼 /embeddings：一次最多 20 条、按输入顺序返回、维度不对或缺一条就报 invalid_response；不重试；`PAID_CALLS_ENABLED=false` 不发，`EMBEDDING_MAX_CALLS_PER_DAY`（默认 500，计数在 `.cache/embedding-calls.json`）；没有 DASHSCOPE_API_KEY 或 EMBEDDING_BASE_URL 时不建客户端。 |
 | [src/platform/embedding/bailian-embedding.test.ts](../src/platform/embedding/bailian-embedding.test.ts) | 测试（适配器） | 请求格式和顺序、HTTP 失败不重试、维度不对或缺向量、总开关、每日上限、超过 20 条、缺配置。 |
 | [src/platform/catalog/catalog-source.test.ts](../src/platform/catalog/catalog-source.test.ts) | 测试（适配器） | 开关只认 true；行转成景点（带亮点）和菜，其他种类不要。 |
+| [src/domain/catalog/summary-voice.ts](../src/domain/catalog/summary-voice.ts) | 领域层 | B2 改写摘要的检查（merlin 定的规则）：不含「攻略」「书中」、不超过 100 字、无联系方式、和所引页 OCR 没有连续 8 个汉字相同、数字不变（「两份攻略」这类出处的数不算）、目录地名表（条目名、别名、省州县及简称）里的地名不多不少；不合格返回原因。 |
+| [src/domain/catalog/summary-voice.test.ts](../src/domain/catalog/summary-voice.test.ts) | 测试（领域规则） | 每条规则合格和不合格的例子、行政区简称、地名表。 |
+| [src/domain/catalog/catalog-enrichment.ts](../src/domain/catalog/catalog-enrichment.ts) | 领域层 | 补充文件一行的 zod schema（id、field、value、based_on、source、date）和原摘要指纹（SHA-256 前 16 位）。 |
 | [src/domain/catalog/catalog-row.test.ts](../src/domain/catalog/catalog-row.test.ts) | 测试（领域规则） | 标签归并的顺序与去重、未知标签、其他种类、search_text 拼法、schema 拒绝多字段和错 details。 |
 | [src/domain/plan/plan-draft.ts](../src/domain/plan/plan-draft.ts) | 领域层 | 计划草稿与路线类型；规划范围（示范日或全部城市与日期）；校验 Plan Agent 的路线（覆盖、放弃条件、天数、区县）并生成每天的城市、转场、重点区县和主题；按添加顺序兜底分天；校验选点提案（候选、所在城市、跨天重复、每天上限与转场日少 1、有原文支持的时间锚点、点名景点），整理冲突和待核实字段；识别用户点名的区域（以市、县、旗结尾的区县名）；用户选择放弃的城市才允许在天数够时放弃；`legReach` 判断一段路的时间能不能用：没路、一头离路超过 1 公里是一大片区域（1.2105）、或可用但头尾有一截超过 300 米没路。；1.2117 加 `reorderRoute`：绕路兜底时按最短顺序重排城市，每城天数、理由和每天的重点区与主题跟着城市走 |
 | [src/domain/plan/availability.ts](../src/domain/plan/availability.ts) | 领域层 | 第二轮精查的判断规则（1.2013）：值必须出现在原文里（周几、时刻、月日、天数）、日期算星期几和跨年范围、通知是否过期（一年）；按每站的日期和时段得出 开放 / 部分关闭 / 关闭 / 待确认 / 未核实。 |
@@ -920,12 +923,15 @@ Generate plan 背后的计划页先用示例数据做出完整页面（设计决
 | [scripts/eval-plan.ts](../scripts/eval-plan.ts) | 评测工具 | 1.2014：读 `evals/plan/cases/` 的用例（可按 ID 前缀筛选，`--repeat N` 覆盖次数，`--label` 命名结果文件），按计划页的方式逐个跑真实 plan-generation 工作流（内存仓库和快照），提问按用例指定的选项回答；每次运行记下指标和断言结果，写入 `evals/plan/results/<日期>-<label>.json`。某次运行天地图定位停下（`map.checked` 为 stopped）或 Kimi 不可达就终止整批，不重试。 |
 | [scripts/eval-plan-score.ts](../scripts/eval-plan-score.ts) | 评测工具 | 用例格式（`evalCaseSchema`）、从用例生成 PlanHandoff、从事件和计划算指标（时长、各阶段耗时、token、调研/验证搜索、天地图查询、重试、覆盖、检查结果、预约、冲突、修复轮数），以及代码判定的断言；纯函数，无 IO。 |
 | [scripts/eval-plan-score.test.ts](../scripts/eval-plan-score.test.ts) | 测试 | 生成 handoff 的日期推算、指标来自事件和计划、周一闭馆/缺预约/空天各自判不通过、没有计划时给出原因。 |
-| [scripts/import-catalog.ts](../scripts/import-catalog.ts) | 维护工具 | 把 `CATALOG_DIR`（私有仓库根目录）的 `data/cities/*.ndjson` 导入 catalog_entries：先全部校验，有问题一行不写；一个事务里按 id 写入、删掉目录里已没有的条目，可重复执行；`catalog_version` 记私有仓库提交号（有未提交改动加 -dirty）；`--dry-run` 只报增改删数。连任何 Postgres（VPS 经 SSH 隧道）。 |
+| [scripts/import-catalog.ts](../scripts/import-catalog.ts) | 维护工具 | 把 `CATALOG_DIR`（私有仓库根目录）的 `data/cities/*.ndjson` 导入 catalog_entries：先全部校验，有问题一行不写；一个事务里按 id 写入、删掉目录里已没有的条目，可重复执行；`catalog_version` 记私有仓库提交号（有未提交改动加 -dirty）；`--dry-run` 只报增改删数。连任何 Postgres（VPS 经 SSH 隧道）。有 `data/enrichment/summaries.ndjson` 时按 id 换上 Meri 口吻的摘要（1.2222），摘要变了向量会清空，之后跑 embed-catalog。 |
 | [scripts/embed-catalog.ts](../scripts/embed-catalog.ts) | 维护工具 | 给 catalog_entries 里没有向量的行算向量（百炼，每次 20 条），写回时核对 search_text 没变；可重复执行，`--dry-run` 只报数。 |
 | [scripts/embed-catalog-batches.ts](../scripts/embed-catalog-batches.ts) | 维护工具 | 按每次请求的条数分批。 |
 | [scripts/embed-catalog-batches.test.ts](../scripts/embed-catalog-batches.test.ts) | 测试 | 分批的顺序、最后一批、空、非法批大小。 |
-| [scripts/import-catalog-read.ts](../scripts/import-catalog-read.ts) | 维护工具 | 导入的纯逻辑：逐行 JSON + zod + 文件名与省市一致 + 标签归并 + id 不重复（都是问题），related 指向不存在的条目（警告）；计算增改删数。 |
-| [scripts/import-catalog-read.test.ts](../scripts/import-catalog-read.test.ts) | 测试 | 坏 JSON、字段错、城市不符、重复 id、未知标签、缺失的 related、文件名不对、增改删计数。 |
+| [scripts/import-catalog-read.ts](../scripts/import-catalog-read.ts) | 维护工具 | 导入的纯逻辑：逐行 JSON + zod + 文件名与省市一致 + 标签归并 + id 不重复（都是问题），related 指向不存在的条目（警告）；补充文件逐行校验，同一 id 两次是问题，`based_on` 对不上原摘要或 id 不在目录里是警告（保留原摘要）；计算增改删数。 |
+| [scripts/import-catalog-read.test.ts](../scripts/import-catalog-read.test.ts) | 测试 | 坏 JSON、字段错、城市不符、重复 id、未知标签、缺失的 related、文件名不对、增改删计数；补充摘要换上、过期或孤立的补充只警告、坏行和重复行停下。 |
+| [scripts/rewrite-catalog-summaries.ts](../scripts/rewrite-catalog-summaries.ts) | 维护工具 | B2（1.2222）：把带「攻略」的目录摘要改成 Meri 的口吻。`--export` 导出待改的摘要，`--check` 只跑检查不写，`--apply --source` 检查后写进私有仓库 `data/enrichment/summaries.ndjson`（不合格的进 `summaries-rejected.ndjson`，保留原摘要）；不带这些参数时用 Kimi 每次 30 条改写，按实际用量计费、到 `--max-yuan` 前停。读本机 OCR 只为检查，不外发；已有结果的 id 跳过。2026-11-27 merlin 选了由 Claude 在会话里改写（Kimi 试点 1 次 ¥0.29，全量约 ¥14）。 |
+| [scripts/rewrite-catalog-summaries-batch.ts](../scripts/rewrite-catalog-summaries-batch.ts) | 维护工具 | 改写的纯逻辑：哪些摘要要改、Kimi 的提示词和 JSON schema、每行带编号的输入、按编号取回答（重复或多余的丢掉）、分批。 |
+| [scripts/rewrite-catalog-summaries-batch.test.ts](../scripts/rewrite-catalog-summaries-batch.test.ts) | 测试 | 选摘要、分批编号、输入格式、回答解析。 |
 | [scripts/eval-retrieval.ts](../scripts/eval-retrieval.ts) | 评测工具 | RAG 检索评测：读 `evals/retrieval/cases.json`，每组算一次查询向量，五种排法（热门度、只用关键词、只用向量、向量+关键词 RRF、和热门度轮流取）各排一遍，打印并保存 hit@4、recall@4、recall@12。约 ¥0.001 一次。 |
 | [scripts/eval-retrieval-score.ts](../scripts/eval-retrieval-score.ts) | 评测工具 | 用例格式、四种排法、打分和平均。 |
 | [scripts/eval-retrieval-score.test.ts](../scripts/eval-retrieval-score.test.ts) | 测试 | 四种排法的顺序、指标计算、用例文件合法。 |

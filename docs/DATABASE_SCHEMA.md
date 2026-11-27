@@ -239,7 +239,7 @@ RAG 第 2 步（2026-11-25）起景点卡可带 `catalog`（`{ id, summary, high
 | `aliases_text` | text | 非空，pg_trgm GIN 索引 | 别名用空格连起来（代码拼）；pg_trgm 不能给数组建索引 |
 | `province` / `prefecture` | text | 非空；(prefecture, kind) 索引 | 省、州/市（全称，如「大理白族自治州」） |
 | `county` | text | 可空 | 区县 |
-| `summary` | text | 非空 | Meri 自己写的一两句介绍 |
+| `summary` | text | 非空 | Meri 自己写的一两句介绍；私有仓库补充文件里有 Meri 口吻的改写时，导入用改写（1.2222） |
 | `tags` | text[] | 非空 | 固定标签（[归并表](../src/domain/catalog/catalog-tags.ts)：景点 23 个；其他种类就是种类本身） |
 | `tags_raw` | text[] | 非空 | 目录原来的自由标签，改归并表时可以重算 |
 | `details` | jsonb | 非空 | 按种类：景点 highlights/suggested_hours/best_season/visit_note/walking；菜 ingredients/flavor/preparations；餐馆 cuisine/signature_dishes/branch/address；住宿 stay_type/area/features/branch/address；交通 from/to/modes；提示 applies_in/advice |
