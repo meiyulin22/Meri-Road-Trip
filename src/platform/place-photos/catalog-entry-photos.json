@@ -982,5 +982,65 @@
     "sourceUrl": "https://commons.wikimedia.org/wiki/File:Lingqu_Canal.jpg",
     "wikidata": "Q966140",
     "fetchedAt": "2026-11-27T13:21:47.251Z"
+  },
+  "spot_guilin_west_street": {
+    "file": "/photos/catalog/spot_guilin_west_street.avif",
+    "width": 320,
+    "height": 241,
+    "title": "File:West Street Yangshuo.jpg",
+    "author": "Imcall",
+    "license": "CC BY-SA 3.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:West_Street_Yangshuo.jpg",
+    "wikidata": "Q15955812",
+    "fetchedAt": "2026-11-27T13:28:11.253Z"
+  },
+  "spot_guiyang_jiaxiu": {
+    "file": "/photos/catalog/spot_guiyang_jiaxiu.avif",
+    "width": 320,
+    "height": 427,
+    "title": "File:Jiaxiulou 005.jpg",
+    "author": "(WT-en) Guiyang laoshi at English Wikivoyage",
+    "license": "Public domain",
+    "licenseUrl": "https://commons.wikimedia.org/wiki/File:Jiaxiulou_005.jpg",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Jiaxiulou_005.jpg",
+    "wikidata": "Q15934153",
+    "fetchedAt": "2026-11-27T13:29:57.618Z"
+  },
+  "spot_guiyang_qianling": {
+    "file": "/photos/catalog/spot_guiyang_qianling.avif",
+    "width": 320,
+    "height": 136,
+    "title": "File:黔灵山.jpg",
+    "author": "維基小霸王",
+    "license": "CC BY-SA 4.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:%E9%BB%94%E7%81%B5%E5%B1%B1.jpg",
+    "wikidata": "Q7267643",
+    "fetchedAt": "2026-11-27T13:30:13.241Z"
+  },
+  "spot_haikou_hainan_museum": {
+    "file": "/photos/catalog/spot_haikou_hainan_museum.avif",
+    "width": 320,
+    "height": 194,
+    "title": "File:Hainan Museum 01.jpg",
+    "author": "Anna Frodesiak",
+    "license": "CC0",
+    "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/deed.en",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Hainan_Museum_01.jpg",
+    "wikidata": "Q11150077",
+    "fetchedAt": "2026-11-27T13:33:25.667Z"
+  },
+  "spot_haikou_hairui": {
+    "file": "/photos/catalog/spot_haikou_hairui.avif",
+    "width": 320,
+    "height": 246,
+    "title": "File:Hai Rui tomb - 05a.jpg",
+    "author": "Anna Frodesiak",
+    "license": "CC0",
+    "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/deed.en",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Hai_Rui_tomb_-_05a.jpg",
+    "wikidata": "Q11151152",
+    "fetchedAt": "2026-11-27T13:33:38.110Z"
   }
 }
