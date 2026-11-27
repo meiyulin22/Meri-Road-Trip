@@ -155,6 +155,7 @@ function DailyStop({ stop, day, draft, cards, cityCards, locale, transport }: {
           {card.catalog ? (
             <p className={styles.muted}>{copy[locale].catalogNote}{locale === "zh" ? ` · ${card.catalog.summary}` : ""}</p>
           ) : card.mapCheck.status !== "located" ? <p className={styles.muted}>{copy[locale].unlocated}</p> : null}
+          {locale === "zh" ? card.catalog?.tips?.map((tip) => <p key={tip.name} className={styles.muted}>{tip.name} · {tip.advice}</p>) : null}
           <StopOpening card={card} draft={draft} locale={locale} />
         </>
       ) : null}

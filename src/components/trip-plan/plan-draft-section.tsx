@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowRight, CalendarCheck, Car, CheckCircle2, LoaderCircle, ChevronDown, Footprints, Clock, ExternalLink, Info, MapPin, MoonStar, RotateCw, Route, Shirt, Sparkles, Star, Sun, Sunrise, TriangleAlert } from "lucide-react";
+import { ArrowRight, CalendarCheck, Car, CheckCircle2, ChevronDown, Clock, ExternalLink, Footprints, Info, Lightbulb, LoaderCircle, MapPin, MoonStar, RotateCw, Route, Shirt, Sparkles, Star, Sun, Sunrise, TriangleAlert } from "lucide-react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import Image from "next/image";
 import { type CSSProperties, Fragment, useEffect, useMemo, useReducer, useState } from "react";
@@ -47,6 +47,7 @@ import { dayWeather, forecastProviders, hasForecast, stopWeather } from "./plan-
 import { OutfitRoom, PackingList } from "./plan-outfit";
 import { PlanStayCard, PlanStayHint } from "./plan-stay-card";
 import { PlanFoodCard } from "./plan-food-card";
+import { PlanTipsCard } from "./plan-tips-card";
 import type { HotelOption } from "@/domain/plan/stays";
 import { outfitLine } from "./plan-outfit-view";
 import type { DayOutfit } from "@/domain/plan/outfit";
@@ -667,6 +668,8 @@ function DraftDays({ response, text, locale, transport, gettingThere, onAddDates
                 <PlanFoodCard key={`${food.city}-${food.lastDay}`} food={food} locale={locale}
                   onShowOnMap={(restaurant) => restaurant.place && showPlace({ name: restaurant.name, kind: "food", point: restaurant.place.point })} />
               ))}
+              <PlanTipsCard city={day.city} locale={locale}
+                tips={response.cities.find(({ province, city }) => province === day.province && city === day.city)?.tips ?? []} />
             </>
           ) : null}
           <DraftDay day={day} cards={cards} text={text} locale={locale} index={index} photo={photos.get(day.day) ?? null}
@@ -908,6 +911,14 @@ function StopFacts({ card, missing, text, locale }: {
     <>
       {/* The catalog's notes are Chinese only, so an English plan shows the label without them. */}
       {card.catalog && locale === "zh" ? <p className={draftStyles.catalogSummary}>{card.catalog.summary}</p> : null}
+      {/* Meri's tips for this spot (RAG step 5), such as altitude on a snow mountain. */}
+      {card.catalog?.tips?.length && locale === "zh" ? (
+        <ul className={draftStyles.stopTips}>
+          {card.catalog.tips.map((tip) => (
+            <li key={tip.name}><Lightbulb aria-hidden="true" size={12} /><span><strong>{tip.name}</strong>{tip.advice}</span></li>
+          ))}
+        </ul>
+      ) : null}
       {facts.length > 0 || opening.length > 0 ? (
         <dl className={draftStyles.facts}>
           {facts.map(({ fact, evidence }) => (

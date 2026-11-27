@@ -13,6 +13,7 @@ import {
   minCatalogSpots,
   rankCatalogSpots,
 } from "@/domain/catalog/catalog-pick";
+import { splitTips } from "@/domain/catalog/catalog-tips";
 import { normalizeRecommendationName } from "@/domain/location/recommendation-identity";
 import type { PlanHandoff } from "@/domain/plan/plan-handoff";
 import type { PlanActivity } from "@/domain/plan/plan-progress";
@@ -553,6 +554,22 @@ async function researchFromCatalog(
 }
 
 /**
+ * The catalog's tips on the city's research (RAG step 5): each catalog card gets the tips for its
+ * spot, and the city keeps its city-wide tips and festivals, whichever way the spots were found.
+ * Chinese plans only: the tips are Chinese, as the summaries are.
+ */
+function withTips(city: CityResearch, catalog: CityCatalog | null, handoff: PlanHandoff): CityResearch {
+  if (!catalog?.tips?.length || handoff.locale !== "zh") return city;
+  const taken = new Set(city.spots.flatMap(({ catalog: note }) => (note ? [note.id] : [])));
+  const { bySpot, city: cityTips } = splitTips(catalog.tips, taken);
+  const spots = city.spots.map((card) => {
+    const tips = card.catalog ? bySpot.get(card.catalog.id) : undefined;
+    return tips && card.catalog ? { ...card, catalog: { ...card.catalog, tips: [...tips] } } : card;
+  });
+  return { ...city, spots, ...(cityTips.length ? { tips: [...cityTips] } : {}) };
+}
+
+/**
  * Researches one city: from Meri's catalog when it has at least six spots for the city, else by
  * web search as before the catalog (also whenever CATALOG_ENABLED is off).
  */
@@ -563,10 +580,10 @@ export async function researchCity(
   onProgress: ResearchProgress = () => {},
 ): Promise<CityResearch> {
   const catalog = await readCatalog(task, deps);
-  if (catalog && catalog.spots.length >= minCatalogSpots) {
-    return researchFromCatalog(task, handoff, catalog, deps, onProgress);
-  }
-  return researchBySearch(task, handoff, deps, onProgress, true);
+  const city = catalog && catalog.spots.length >= minCatalogSpots
+    ? await researchFromCatalog(task, handoff, catalog, deps, onProgress)
+    : await researchBySearch(task, handoff, deps, onProgress, true);
+  return withTips(city, catalog, handoff);
 }
 
 /**

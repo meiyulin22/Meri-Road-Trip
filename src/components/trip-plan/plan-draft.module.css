@@ -306,6 +306,12 @@
 
 /* Meri's own catalog note on a stop (RAG step 2): an editorial line, not a quoted source. */
 .catalogSummary { margin-top: 6px; color: #4b605b; font-size: 13px; line-height: 1.6; }
+/* A spot's tips from Meri's catalog (RAG step 5): small, with a bulb. */
+.stopTips { display: grid; gap: 4px; margin-top: 6px; list-style: none; }
+.stopTips li { display: flex; gap: 6px; align-items: baseline; color: #4b605b; font-size: 12px; line-height: 1.6; }
+.stopTips svg { flex: none; color: var(--green); transform: translateY(1px); }
+.stopTips strong { margin-right: 6px; font-weight: 650; }
+
 .catalogNote {
   padding: 2px 8px;
   border-radius: 6px;

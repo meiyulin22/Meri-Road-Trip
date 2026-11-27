@@ -1,0 +1,21 @@
+/* A city's 「Meri 的提示」 (RAG step 5), beside its stay and food cards. */
+.card { display: grid; gap: 10px; padding: 14px; border: 1px solid var(--line); border-radius: 18px; background: #fffdf8; }
+.header { display: flex; align-items: center; gap: 10px; }
+.header h3 { font-size: 14px; font-weight: 650; }
+.icon { display: inline-grid; flex: none; place-items: center; width: 30px; height: 30px; border-radius: 8px; color: #fff; background: var(--green); }
+
+.tips,
+.festivals ul { display: grid; gap: 6px; list-style: none; }
+.tips li,
+.festivals li { display: grid; gap: 2px; font-size: 13px; line-height: 1.6; }
+.tips strong,
+.festivals strong { font-weight: 650; }
+.tips span { color: #4b605b; }
+
+/* Festivals are shown as the catalog words them, without matching the trip's dates: quieter. */
+.festivals { display: grid; gap: 6px; padding-top: 8px; border-top: 1px dashed var(--line); }
+.festivals h4 { display: inline-flex; align-items: center; gap: 6px; color: var(--muted); font-size: 12px; font-weight: 700; letter-spacing: .04em; }
+.festivals li { color: var(--muted); font-size: 12px; }
+.when { color: var(--soft); }
+
+.footnote { color: var(--soft); font-size: 12px; }

@@ -9,7 +9,7 @@ import { catalogEmbeddingDimensions, catalogEntries } from "@/platform/persisten
 
 type CatalogDatabase = typeof import("@/platform/persistence/database/db").db;
 type CatalogRow = Pick<typeof catalogEntries.$inferSelect,
-  "id" | "kind" | "name" | "aliases" | "county" | "summary" | "tags" | "details" | "sourceCount" | "confidence">;
+  "id" | "kind" | "name" | "aliases" | "county" | "summary" | "tags" | "details" | "sourceCount" | "confidence" | "related">;
 
 /** Reads one 州/市 of Meri's catalog, the spots and dishes research and What to eat use. */
 export type CatalogSource = {
@@ -64,7 +64,14 @@ export function cityCatalogFromRows(rows: readonly CatalogRow[]): CityCatalog {
   const dishes = rows.flatMap((row) => row.kind === "dish"
     ? [{ id: row.id, name: row.name, summary: row.summary, sourceCount: row.sourceCount }]
     : []);
-  return { spots, dishes };
+  const tips = rows.flatMap((row) => row.kind === "tip" && "advice" in row.details ? [{
+    id: row.id,
+    name: row.name,
+    advice: row.details.advice,
+    appliesIn: row.details.applies_in,
+    spotIds: row.related.filter(({ relation }) => relation === "applies_to").map(({ id }) => id),
+  }] : []);
+  return { spots, dishes, tips };
 }
 
 export function createPostgresCatalogSource(database: CatalogDatabase): CatalogSource {
@@ -82,10 +89,11 @@ export function createPostgresCatalogSource(database: CatalogDatabase): CatalogS
           details: catalogEntries.details,
           sourceCount: catalogEntries.sourceCount,
           confidence: catalogEntries.confidence,
+          related: catalogEntries.related,
         }).from(catalogEntries).where(and(
           eq(catalogEntries.province, province),
           eq(catalogEntries.prefecture, prefecture),
-          inArray(catalogEntries.kind, ["spot", "dish"]),
+          inArray(catalogEntries.kind, ["spot", "dish", "tip"]),
         ));
         return cityCatalogFromRows(rows);
       } catch (error) {

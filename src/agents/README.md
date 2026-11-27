@@ -193,6 +193,13 @@ cosine similarity means the catalog has nothing on it (极光 0.43, 量子物理
 before. The weighting came from 想看大熊猫: a plain sum put 阿坝 (熊猫海 is a lake) ahead of 成都. City eval
 ([city-cases.json](../../evals/retrieval/city-cases.json)): 11 of 11, including the two that must stay silent.
 
+**Step 5, tips (2026-11-27,** [catalog-tips.ts](../domain/catalog/catalog-tips.ts)): research reads the city's 90-tip
+share of the catalog with its spots. A tip tied to a spot (`applies_to`, 75 of 90) rides on that catalog card
+and shows under the stop when it is scheduled; a city-wide tip and every festival go on the city's
+「Meri 的提示」 card beside its stay and food, festivals with the catalog's own words for when (often lunar)
+and no date matching (merlin chose to show them as written). Chinese plans only. Checked first: no tip's
+advice shares eight consecutive characters with the guide pages it cites.
+
 Popularity as a third RRF list was tried first and dropped: a city has a few dozen spots, so with k = 60 a
 spot in the middle of two lists outscored the top of one. Without preferences, without a key, or when the
 query or the database fails, the order is popularity alone (step 2). The query vector costs about ¥0.00002

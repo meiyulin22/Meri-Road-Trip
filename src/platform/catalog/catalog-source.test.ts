@@ -9,8 +9,8 @@ test("only CATALOG_ENABLED=true turns the catalog on", () => {
   for (const value of [undefined, "", "false", "1", "yes"]) assert.equal(catalogEnabled(value), false);
 });
 
-test("rows become spots with their highlights and dishes with their summary; other kinds are left out", () => {
-  const common = { aliases: [], county: null, sourceCount: 2, confidence: "high" as const };
+test("rows become spots with their highlights, dishes with their summary and tips with the spots they apply to", () => {
+  const common = { aliases: [], county: null, sourceCount: 2, confidence: "high" as const, related: [] };
   const catalog = cityCatalogFromRows([
     { ...common, id: "spot_a", kind: "spot", name: "洱海", summary: "湖。", tags: ["水域"], details: {
       highlights: ["湖景"], suggested_hours: null, best_season: null, visit_note: null,
@@ -18,10 +18,13 @@ test("rows become spots with their highlights and dishes with their summary; oth
     } },
     { ...common, id: "dish_a", kind: "dish", name: "乳扇", summary: "奶制品。", tags: ["美食"],
       details: { ingredients: ["牛奶"], flavor: null, preparations: [] } },
-    { ...common, id: "tip_a", kind: "tip", name: "提示", summary: "带伞。", tags: ["旅行提示"], details: { applies_in: "全年", advice: "带伞" } },
+    { ...common, id: "tip_a", kind: "tip", name: "提示", summary: "带伞。", tags: ["旅行提示"], details: { applies_in: "全年", advice: "带伞" },
+      related: [{ id: "spot_a", relation: "applies_to" }, { id: "spot_b", relation: "nearby" }] },
   ]);
   assert.deepEqual(catalog.spots.map(({ name, highlights, tags }) => [name, highlights, tags]), [["洱海", ["湖景"], ["水域"]]]);
   assert.deepEqual(catalog.dishes, [{ id: "dish_a", name: "乳扇", summary: "奶制品。", sourceCount: 2 }]);
+  // A tip keeps its advice and the spots it applies to; other relations are not "applies to".
+  assert.deepEqual(catalog.tips, [{ id: "tip_a", name: "提示", advice: "带伞", appliesIn: "全年", spotIds: ["spot_a"] }]);
 });
 
 test("without CATALOG_ENABLED the preference ranking reads nothing", async () => {

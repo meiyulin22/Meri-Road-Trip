@@ -1,6 +1,7 @@
 import { normalizeRecommendationName } from "@/domain/location/recommendation-identity";
 
 import type { CatalogEntry } from "./catalog-entry";
+import type { CatalogTip } from "./catalog-tips";
 import type { CatalogTag } from "./catalog-tags";
 
 /**
@@ -33,7 +34,12 @@ export type CatalogDish = {
   readonly sourceCount: number;
 };
 
-export type CityCatalog = { readonly spots: readonly CatalogSpot[]; readonly dishes: readonly CatalogDish[] };
+export type CityCatalog = {
+  readonly spots: readonly CatalogSpot[];
+  readonly dishes: readonly CatalogDish[];
+  /** Travel tips (RAG step 5); absent from catalogs read before it. */
+  readonly tips?: readonly CatalogTip[];
+};
 
 const outdoorTags: ReadonlySet<CatalogTag> = new Set<CatalogTag>([
   "山地", "水域", "海滨", "地貌", "森林草原", "自然", "乡村", "徒步", "水上活动", "冰雪", "观景",

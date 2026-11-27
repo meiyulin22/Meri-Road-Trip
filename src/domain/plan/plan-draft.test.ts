@@ -239,6 +239,8 @@ test("a catalog card is left to check only for opening and booking, and reads ba
     { spotId: "丽江古城", fields: ["opening", "reservation"] },
   ]);
   assert.deepEqual(spotCardSchema.parse(cards[0]).catalog, catalog);
+  const withTips = { ...catalog, tips: [{ name: "古城石板街", advice: "提前问住处能否接行李。", appliesIn: "步行携带行李" }] };
+  assert.deepEqual(spotCardSchema.parse({ ...cards[0], catalog: withTips }).catalog, withTips);
   assert.equal(isGrounded(cards[0]), true);
   assert.equal(isGrounded(card("没有依据", { location: null })), false);
 });

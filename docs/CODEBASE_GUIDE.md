@@ -381,6 +381,8 @@ Generate plan 背后的计划页先用示例数据做出完整页面（设计决
 | [src/components/trip-plan/plan-stay-card.tsx](../src/components/trip-plan/plan-stay-card.tsx) | 表现层 | 1.2117 住宿：每座城最后一天后面的「住哪里」卡：Meri 推荐（有偏好时）和三档酒店，每家最多 5 张可左右滑动的照片、星级、每晚和整段参考价、距离、地址、复制酒店名、在地图上看、在 RollingGo 查看（不带推广参数的第三方页面）、详情（电话、入住退房、设施）；一行声明：个人作品、不收费不卖广告、第三方链接、不收佣金不代订、参考价、信息和图片来自 RollingGo |
 | [src/components/trip-plan/plan-stay-card.module.css](../src/components/trip-plan/plan-stay-card.module.css) | 表现层样式 | 住宿卡：三列酒店，窄屏改单列横排 |
 | [src/components/trip-plan/plan-food-card.tsx](../src/components/trip-plan/plan-food-card.tsx) | 表现层 | 1.2117 吃什么：每座城最后一天后面、住宿卡下面的「吃什么」卡：特色菜（介绍和出处）、推荐餐厅（招牌、地址、距离、复制店名、在地图上看、出处）、文章里提到的（地址待查、出处）；一行声明 |
+| [src/components/trip-plan/plan-tips-card.tsx](../src/components/trip-plan/plan-tips-card.tsx) | 表现层 | RAG 第 5 步：城市分组头部的「Meri 的提示」卡，先整城提示，再淡一些的「当地节庆」（照原话写时间），卡底说明不是实时信息。 |
+| [src/components/trip-plan/plan-tips-card.module.css](../src/components/trip-plan/plan-tips-card.module.css) | 样式 | 提示卡样式，和吃什么卡同一套外观。 |
 | [src/components/trip-plan/plan-food-card.module.css](../src/components/trip-plan/plan-food-card.module.css) | 表现层样式 | 吃什么卡：特色菜网格、餐厅列表，没核实地址的用虚线框 |
 | [src/components/trip-plan/plan-dates-picker.tsx](../src/components/trip-plan/plan-dates-picker.tsx) | 表现层 | 2026-11-21 计划页「补填出发日期」：已知天数选一天、否则选一段，写明会重新生成并锁定，成功后交回新交接 |
 | [src/components/trip-plan/plan-dates-picker.module.css](../src/components/trip-plan/plan-dates-picker.module.css) | 表现层样式 | 补填日期的按钮、日历（Meri 的绿色）和确认区 |
@@ -480,6 +482,8 @@ Generate plan 背后的计划页先用示例数据做出完整页面（设计决
 | [src/domain/catalog/catalog-tags.ts](../src/domain/catalog/catalog-tags.ts) | 领域层 | 标签归并表：景点的 162 种自由标签归成 23 个固定标签（2026-11-25 merlin 定），其他种类的固定标签就是种类；表里没有的标签返回出来，导入停下。 |
 | [src/domain/catalog/catalog-row.ts](../src/domain/catalog/catalog-row.ts) | 领域层 | 一条目录记录变成 catalog_entries 的一行：固定标签、source_count、别名拼成的 aliases_text、search_text（名称、别名、种类、固定标签、摘要、景点亮点）。 |
 | [src/domain/catalog/catalog-pick.ts](../src/domain/catalog/catalog-pick.ts) | 领域层 | 调研怎么用目录（RAG 第 2 步）：≥ 6 个景点才用目录、≥ 3 道菜才用目录菜；按固定标签判断户外/室内；景点排序（点名的区县 → 有偏好时向量和名字两路 RRF（k=60）合成偏好排名，和热门度排名按 2:1 轮流取，第 3 步 → 否则攻略数 → 把握 → 名字）；按名字或别名找用户点名的景点。 |
+| [src/domain/catalog/catalog-tips.ts](../src/domain/catalog/catalog-tips.ts) | 领域层 | RAG 第 5 步：目录提示分三类——关联景点的挂到被选中的目录卡上，节庆（按名字和农历、节期等字样识别）和整城提示放城市卡；节庆在前。 |
+| [src/domain/catalog/catalog-tips.test.ts](../src/domain/catalog/catalog-tips.test.ts) | 测试（领域规则） | 节庆识别、景点提示只给被选中的景点、节庆即使关联景点也进城市卡。 |
 | [src/domain/catalog/city-scores.ts](../src/domain/catalog/city-scores.ts) | 领域层 | RAG 第 4 步：全库匹配按州/市汇总，最像的一条满分、第二条一半、第三条四分之一，取前 6 座城、每城 3 条；最像的低于 0.5 就不给城市。 |
 | [src/domain/catalog/city-scores.test.ts](../src/domain/catalog/city-scores.test.ts) | 测试（领域规则） | 加权让一条精确匹配胜过三条松散匹配（大熊猫：成都胜阿坝）、每城 3 条和 6 座城上限、门槛。 |
 | [src/domain/catalog/catalog-pick.test.ts](../src/domain/catalog/catalog-pick.test.ts) | 测试（领域规则） | 户外判断、排序、按名字和别名查找。 |

@@ -1,3 +1,4 @@
+import type { CityTip, TipNote } from "@/domain/catalog/catalog-tips";
 import type { SpotWeather } from "./weather";
 
 export type SpotEvidence = {
@@ -32,6 +33,8 @@ export type SpotCatalogNote = {
   readonly id: string;
   readonly summary: string;
   readonly highlights: readonly string[];
+  /** Meri's tips for this spot (RAG step 5), shown under the stop; absent before it. */
+  readonly tips?: readonly TipNote[];
 };
 
 export type SpotCard = {
@@ -93,6 +96,8 @@ export type CityResearch = {
   readonly mapLookups?: number;
   /** Open-Meteo calls the city's weather counted (1.2117); absent before weather was added. */
   readonly weatherCalls?: number;
+  /** The city's 「Meri 的提示」: city-wide tips and festivals from the catalog (RAG step 5); absent before it. */
+  readonly tips?: readonly CityTip[];
 };
 
 /** A card has something behind it: a quoted web source for where it is, or Meri's catalog. */
