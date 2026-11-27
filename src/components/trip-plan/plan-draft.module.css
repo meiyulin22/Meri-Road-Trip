@@ -497,27 +497,6 @@
 .weatherCredit { display: flex; flex-wrap: wrap; gap: 4px 10px; }
 .weatherCredit a { display: inline-flex; align-items: center; gap: 3px; color: inherit; text-decoration: underline; text-underline-offset: 2px; }
 
-/* The day's outfit in one line, jumping to the dressing room (1.2117 outfit). */
-.dressLine {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  margin: 8px 18px 0;
-  padding: 5px 10px;
-  border: 1.5px solid rgba(33, 62, 64, .2);
-  border-radius: 6px;
-  color: var(--ink);
-  background: var(--paper);
-  font: inherit;
-  font-size: 12px;
-  cursor: pointer;
-  max-width: calc(100% - 36px);
-}
-.dressLine:hover { border-color: var(--ink); }
-.dressLine:focus-visible { outline: 2px solid var(--green); outline-offset: 1px; }
-.dressLine > span:first-of-type { flex: none; font-weight: 650; white-space: nowrap; }
-.dressLine > svg { flex: none; }
-.dressItems { overflow: hidden; color: var(--muted); text-overflow: ellipsis; white-space: nowrap; }
 
 /* A city's group of days (2026-11-22): its name and days, then its stay and food, then the days. */
 .cityHeading {

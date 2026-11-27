@@ -230,3 +230,6 @@
 .refresh:hover:not(:disabled) { filter: brightness(1.08); }
 .refresh:focus-visible { outline: 2px solid var(--green); outline-offset: 2px; }
 .refresh:disabled { opacity: .7; cursor: progress; }
+
+/* A day's outfit inside its day card (2026-11-27 re-layout), without the room's frame and tabs. */
+.dayPanel { display: grid; gap: 12px; padding: 12px; border: 1px solid var(--line); border-radius: 14px; background: #fffdf8; }

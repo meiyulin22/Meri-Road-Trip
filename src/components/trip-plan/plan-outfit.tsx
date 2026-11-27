@@ -170,9 +170,7 @@ export function OutfitRoom({ days, outfits, weatherOf, selectedDay, onSelectDay,
 }) {
   const text = copy[locale];
   const [refresh, setRefresh] = useState<"idle" | "working" | "failed">("idle");
-  const reduce = useReducedMotion() ?? false;
   const [art, setArt] = useState<OutfitManifest | null>(null);
-  const [picked, setPicked] = useState<{ day: number; key: string } | null>(null);
   useEffect(() => {
     let live = true;
     void loadOutfitManifest().then((loaded) => { if (live) setArt(loaded); });
@@ -211,8 +209,6 @@ export function OutfitRoom({ days, outfits, weatherOf, selectedDay, onSelectDay,
   }
   const current = (selectedDay !== null ? days.find(({ day }) => day === selectedDay) : undefined) ?? days.find(({ day }) => byDay.has(day)) ?? days[0];
   const outfit = byDay.get(current.day) ?? null;
-  const slots = outfit ? slotEntries(outfit, locale) : [];
-  const chosen = picked && picked.day === current.day ? slots.flatMap(({ entries }) => entries).find(({ key }) => key === picked.key) ?? null : null;
   const view = weatherOf(current);
 
   return (
@@ -242,11 +238,34 @@ export function OutfitRoom({ days, outfits, weatherOf, selectedDay, onSelectDay,
         })}
       </div>
 
-      {outfit ? (
-        <div className={styles.roomBody} role="tabpanel" aria-label={text.day(current.day)}>
+      {outfit ? <DayOutfitBody outfit={outfit} day={current.day} art={art} locale={locale} /> : (
+        <p className={styles.noOutfit} role="tabpanel">{view?.kind === "beyond" ? text.beyond : text.noForecast}</p>
+      )}
+    </section>
+  );
+}
+
+/**
+ * One day's outfit (2026-11-27 re-layout: it sits in the day's card, by its weather): the red panda
+ * dressed for the day, the thermometer, the slots, and the day's notes. A chosen item says why.
+ */
+function DayOutfitBody({ outfit, day, art, locale }: {
+  readonly outfit: DayOutfit;
+  readonly day: number;
+  readonly art: OutfitManifest | null;
+  readonly locale: Locale;
+}) {
+  const text = copy[locale];
+  const reduce = useReducedMotion() ?? false;
+  const [pickedKey, setPickedKey] = useState<string | null>(null);
+  const slots = slotEntries(outfit, locale);
+  const chosen = pickedKey ? slots.flatMap(({ entries }) => entries).find(({ key }) => key === pickedKey) ?? null : null;
+  return (
+    <>
+        <div className={styles.roomBody} aria-label={text.day(day)}>
           <div className={styles.stage} data-weather={stageWeather(outfit) ?? "plain"}>
             <StageWeather weather={stageWeather(outfit)} reduce={reduce} />
-            <motion.div className={styles.dollWrap} key={current.day}
+            <motion.div className={styles.dollWrap} key={day}
               animate={reduce ? undefined : { y: [0, -2, 0] }} transition={{ duration: 2.4, repeat: Infinity, ease: "easeInOut" }}>
               <Doll outfit={outfit} art={art} selected={chosen?.kind === "item" ? chosen.id : null} reduce={reduce} />
             </motion.div>
@@ -264,7 +283,7 @@ export function OutfitRoom({ days, outfits, weatherOf, selectedDay, onSelectDay,
                       {entries.map((entry) => (
                         <button key={entry.key} type="button" className={styles.item} data-kind={entry.kind}
                           aria-pressed={chosen?.key === entry.key}
-                          onClick={() => setPicked(chosen?.key === entry.key ? null : { day: current.day, key: entry.key })}>
+                          onClick={() => setPickedKey(chosen?.key === entry.key ? null : entry.key)}>
                           {entry.kind === "extra"
                             ? <Sparkles aria-hidden="true" size={11} className={styles.extraMark} />
                             : <span className={styles.swatch} style={{ background: swatchOf(entry) }} aria-hidden="true" />}
@@ -289,15 +308,24 @@ export function OutfitRoom({ days, outfits, weatherOf, selectedDay, onSelectDay,
             </div>
           </div>
         </div>
-      ) : (
-        <p className={styles.noOutfit} role="tabpanel">{view?.kind === "beyond" ? text.beyond : text.noForecast}</p>
-      )}
-
-      {outfit ? (
         <div className={styles.notes}>
           {outfitNotes(outfit, locale).map((note) => <p key={note}>{note}</p>)}
         </div>
-      ) : null}
+    </>
+  );
+}
+
+/** A day's outfit inside its card, loading the art once per page like the room. */
+export function DayOutfitPanel({ outfit, locale }: { readonly outfit: DayOutfit; readonly locale: Locale }) {
+  const [art, setArt] = useState<OutfitManifest | null>(null);
+  useEffect(() => {
+    let live = true;
+    void loadOutfitManifest().then((loaded) => { if (live) setArt(loaded); });
+    return () => { live = false; };
+  }, []);
+  return (
+    <section className={styles.dayPanel} aria-label={copy[locale].title}>
+      <DayOutfitBody outfit={outfit} day={outfit.day} art={art} locale={locale} />
     </section>
   );
 }
