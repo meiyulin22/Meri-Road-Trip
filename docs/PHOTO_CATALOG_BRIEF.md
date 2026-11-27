@@ -170,3 +170,11 @@ image and one was rejected for licence. Of 24 candidates, 17 passed visual revie
 rejected. One temporary failure and the rate-limited lookup remain pending. The manifest and
 contact sheet now contain 104 reviewed photos totaling 1,006,289 bytes. Of 1,349 spots, 428 have an
 outcome and 921 are pending.
+
+### National spot continuation checkpoint 6 — 2026-11-27
+
+This pass kept the four-second request interval and stopped immediately on Wikidata HTTP 429
+with `Retry-After: 120` after 33 seconds. Of five additional resolved spots, three had no matching
+image and one was rejected for licence. Hangzhou's Liuhe Pagoda photo passed visual review.
+The manifest and contact sheet contain 105 reviewed photos totaling 1,025,509 bytes. Of the 1,349
+spots, 433 have an outcome and 916 are pending.
