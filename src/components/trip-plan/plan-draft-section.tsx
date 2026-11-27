@@ -116,9 +116,11 @@ const copy = {
     } satisfies Record<PlanDraftFailure, string>,
     cityDays: (from: number, to: number) => from === to ? `Day ${from}` : `Days ${from}–${to}`,
     cityModules: (city: string) => `${city}: stay, food and tips`,
+    tonight: (place: string) => `Tonight: near ${place}`,
     modules: {
       stay: "Stay", food: "Eat", tips: "Tips",
       stayFound: (nights: number, near: string) => `${nights} ${nights === 1 ? "night" : "nights"} · near ${near}`,
+      staySegments: (count: number, nears: string) => `${count} stays · ${nears}`,
       stayNone: "nothing nearby", stayUnavailable: "couldn't look up",
       foodSummary: (dishes: number, restaurants: number) => `${dishes} dishes · ${restaurants} ${restaurants === 1 ? "restaurant" : "restaurants"}`,
       tipCount: (count: number) => `${count} ${count === 1 ? "tip" : "tips"}`,
@@ -195,9 +197,11 @@ const copy = {
     } satisfies Record<PlanDraftFailure, string>,
     cityDays: (from: number, to: number) => from === to ? `第 ${from} 天` : `第 ${from}–${to} 天`,
     cityModules: (city: string) => `${city}的住、吃和提示`,
+    tonight: (place: string) => `今晚住：${place}附近`,
     modules: {
       stay: "住哪里", food: "吃什么", tips: "Meri 的提示",
       stayFound: (nights: number, near: string) => `${nights} 晚 · ${near}附近`,
+      staySegments: (count: number, nears: string) => `${count} 段 · ${nears}`,
       stayNone: "附近没找到", stayUnavailable: "暂时查不到",
       foodSummary: (dishes: number, restaurants: number) => `${dishes} 道菜 · ${restaurants} 家餐厅`,
       tipCount: (count: number) => `${count} 条`,
@@ -559,6 +563,8 @@ function DraftDays({ response, text, locale, transport, gettingThere, onAddDates
   const cards = useMemo(() => new Map(response.spots.map((card) => [card.id, card])), [response.spots]);
   const photos = useMemo(() => new Map(response.dayPhotos.map(({ day, image }) => [day, image])), [response.dayPhotos]);
   const [openDay, setOpenDay] = useState<number | null>(draft.days[0]?.day ?? null);
+  // Which city block is open, so a day's 「今晚住」 can open its city's stays (2026-11-27).
+  const [cityBlock, setCityBlock] = useState<{ city: string; key: string } | null>(null);
   // A hotel the reader asked to see on the map (1.2117 stays).
   // A hotel or restaurant the reader asked to see on the map (1.2117 stays and food).
   const [shownPlace, setShownPlace] = useState<{ name: string; kind: "hotel" | "food"; point: { longitude: number; latitude: number } } | null>(null);
@@ -690,7 +696,10 @@ function DraftDays({ response, text, locale, transport, gettingThere, onAddDates
                 <span>{text.cityDays(day.day, lastOfRun)}</span>
               </div>
               {/* The city's blocks, closed to one row of chips so its days follow at once (2026-11-27 re-layout). */}
-              <PlanModuleChips label={text.cityModules(day.city)} modules={cityModules({
+              <PlanModuleChips label={text.cityModules(day.city)} id={`plan-city-${day.day}`}
+                openKey={cityBlock?.city === `${day.province}|${day.city}|${day.day}` ? cityBlock.key : null}
+                onOpenKeyChange={(key) => setCityBlock(key ? { city: `${day.province}|${day.city}|${day.day}`, key } : null)}
+                modules={cityModules({
                 stays: (draft.stays ?? []).filter(({ city, firstDay }) => city === day.city && firstDay >= day.day && firstDay <= lastOfRun),
                 food: (draft.food ?? []).filter(({ city, lastDay }) => city === day.city && lastDay >= day.day && lastDay <= lastOfRun),
                 tips: response.cities.find(({ province, city }) => province === day.province && city === day.city)?.tips ?? [],
@@ -707,6 +716,11 @@ function DraftDays({ response, text, locale, transport, gettingThere, onAddDates
             arriving={arrivingLegs(day, draft.legs ?? [])} transport={transport}
             outfit={draft.outfits?.find(({ day: number }) => number === day.day) ?? null}
             transfer={transferCard("between", day.day)}
+            tonight={tonightOf(day, draft.stays ?? [], cityStartOf(draft.days, index))}
+            onTonight={(cityStart) => {
+              setCityBlock({ city: `${day.province}|${day.city}|${cityStart}`, key: "stay" });
+              window.setTimeout(() => document.getElementById(`plan-city-${cityStart}`)?.scrollIntoView({ behavior: "smooth", block: "start" }), 60);
+            }}
             open={openDay === day.day} onOpen={() => setOpenDay(openDay === day.day ? null : day.day)} />
           </Fragment>
           );
@@ -747,7 +761,10 @@ function arrivingLegs(day: PlanDay, legs: readonly DriveLeg[]): ReadonlyMap<stri
   }));
 }
 
-function DraftDay({ day, cards, unverified, checks, arriving, transport = null, text, locale, preview, showTransferTag, open, onOpen, index, photo, outfit = null, transfer = null }: {
+function DraftDay({ day, cards, unverified, checks, arriving, transport = null, text, locale, preview, showTransferTag, open, onOpen, index, photo, outfit = null, transfer = null, tonight = null, onTonight }: {
+  /** Where this day's night is spent, opening the city's stays when pressed (2026-11-27). */
+  readonly tonight?: { readonly place: string; readonly cityStart: number } | null;
+  readonly onTonight?: (cityStart: number) => void;
   /** The move from the last city, when this day makes it (2026-11-27 re-layout: it belongs to the day). */
   readonly transfer?: ReactNode;
   /** The day's outfit (1.2117), shown as one line that jumps to the dressing room. */
@@ -819,6 +836,11 @@ function DraftDay({ day, cards, unverified, checks, arriving, transport = null, 
             {/* The day's weather and what to wear for it, together (2026-11-27 re-layout). */}
             <DayWeatherLine view={weather} locale={locale} />
             {outfit ? <DayOutfitPanel outfit={outfit} locale={locale} /> : null}
+            {tonight && onTonight ? (
+              <button type="button" className={draftStyles.tonight} onClick={() => onTonight(tonight.cityStart)}>
+                <BedDouble aria-hidden="true" size={14} /><span>{text.tonight(tonight.place)}</span><ArrowRight aria-hidden="true" size={13} />
+              </button>
+            ) : null}
             <div className={draftStyles.slots}>
               {stopsBySlot(day).map(({ slot, stops }) => {
                 const SlotIcon = slotIcon[slot];
@@ -1044,8 +1066,10 @@ function cityModules({ stays, food, tips, access, city, text, locale, onShowHote
   if (stay) {
     modules.push({
       key: "stay", icon: <BedDouble size={15} />, label: text.modules.stay,
-      summary: stay.status === "found" ? text.modules.stayFound(stays.reduce((sum, { nights }) => sum + nights, 0), stay.near.name)
-        : stay.status === "none" ? text.modules.stayNone : text.modules.stayUnavailable,
+      // A city split where the days move on (迪庆: 香格里拉, then 德钦) has a stay for each part.
+      summary: stays.length > 1 ? text.modules.staySegments(stays.length, stays.map((one) => stayPlace(one)).join(locale === "zh" ? "、" : ", "))
+        : stay.status === "found" ? text.modules.stayFound(stays.reduce((sum, { nights }) => sum + nights, 0), stayPlace(stay))
+          : stay.status === "none" ? text.modules.stayNone : text.modules.stayUnavailable,
       content: stays.map((one) => <PlanStayCard key={`${one.city}-${one.firstDay}`} stay={one} locale={locale} onShowOnMap={onShowHotel} />),
     });
   }
@@ -1067,4 +1091,23 @@ function cityModules({ stays, food, tips, access, city, text, locale, onShowHote
     });
   }
   return modules;
+}
+
+/** Where a stay is, in a word: the guides' area when it was searched there, else the stop or city. */
+function stayPlace(stay: CityStay): string {
+  return stay.near.area?.name ?? stay.near.name;
+}
+
+/** The day the city run containing this day begins, where its chip row sits. */
+function cityStartOf(days: readonly PlanDay[], index: number): number {
+  let start = index;
+  while (start > 0 && days[start - 1].city === days[index].city && days[start - 1].province === days[index].province) start -= 1;
+  return days[start].day;
+}
+
+/** Tonight's stay for a day: the stay whose nights include it, by place, with the day its city's chips sit on. */
+function tonightOf(day: PlanDay, stays: readonly CityStay[], cityStart: number): { place: string; cityStart: number } | null {
+  const stay = stays.find((one) => one.province === day.province && one.city === day.city
+    && day.day >= one.firstDay && day.day < one.firstDay + one.nights);
+  return stay ? { place: stayPlace(stay), cityStart } : null;
 }

@@ -15,6 +15,7 @@ const copy = {
   zh: {
     title: "住哪里",
     nights: (nights: number) => `${nights} 晚`,
+    fromDay: (day: number) => `第 ${day} 天起`,
     checkIn: (date: string) => `${Number(date.slice(5, 7))}月${Number(date.slice(8, 10))}日入住`,
     near: (name: string, kind: "spot" | "city") => (kind === "spot" ? `在${name}附近 3 km 内` : `在${name}`),
     areaNote: (area: string, features: readonly string[]) =>
@@ -42,6 +43,7 @@ const copy = {
   en: {
     title: "Where to stay",
     nights: (nights: number) => `${nights} ${nights === 1 ? "night" : "nights"}`,
+    fromDay: (day: number) => `from day ${day}`,
     checkIn: (date: string) => `check in ${date.slice(5)}`,
     near: (name: string, kind: "spot" | "city") => (kind === "spot" ? `within 3 km of ${name}` : `in ${name}`),
     areaNote: (area: string) => `Meri's notes: ${area} is a good area to stay`,
@@ -220,7 +222,7 @@ export function PlanStayCard({ stay, locale, onShowOnMap }: {
         <span className={styles.icon}><BedDouble aria-hidden="true" size={16} /></span>
         <div>
           <h3>{text.title} · {stay.city}</h3>
-          <p>{text.nights(stay.nights)} · {text.checkIn(stay.checkIn)} · {text.near(stay.near.name, stay.near.kind)}</p>
+          <p>{text.fromDay(stay.firstDay)} · {text.nights(stay.nights)} · {text.checkIn(stay.checkIn)} · {text.near(stay.near.name, stay.near.kind)}</p>
         </div>
       </header>
       {/* Why here, and where else, from Meri's catalog (RAG step 5): Chinese notes, so Chinese plans only. */}

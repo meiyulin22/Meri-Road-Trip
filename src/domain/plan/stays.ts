@@ -68,8 +68,12 @@ export type StayAreaNote = { readonly name: string; readonly features: readonly 
 /** A stay area from the catalog placed on the map by the spot it sits by (RAG step 5). */
 export type StayAreaPoint = StayAreaNote & { readonly spotName: string; readonly point: GeoPoint };
 
-/** A stay area further than this from the middle of the stay's stops is not worth the drive back each night. */
-export const maxStayAreaKm = 15;
+/**
+ * A stay area further than this from the middle of the stay's stops is not worth the drive back each night.
+ * 15 km at first; 50 km since 2026-11-27, once stays split where the days move on: 迪庆's middle fell on the
+ * mountain village 雨崩村, which found no hotel, while 独克宗古城 was 20-odd km away.
+ */
+export const maxStayAreaKm = 50;
 const maxOtherAreas = 2;
 
 export type CityStay = StayBlock & (
@@ -106,21 +110,66 @@ export function stayBlocks(
     while (end + 1 < sorted.length && sorted[end + 1].city === first.city && sorted[end + 1].province === first.province) end += 1;
     const run = sorted.slice(index, end + 1);
     index = end + 1;
-    const nights = run.filter(({ day }) => day !== lastDay).length;
-    if (nights === 0 || first.date === null) continue;
-    blocks.push({
-      province: first.province, city: first.city, firstDay: first.day, checkIn: first.date, nights,
-      lastDay: run.at(-1)?.day ?? first.day,
-      ...stayNear(run, cards, first.city, bigAreas, stayAreas.get(`${first.province}|${first.city}`) ?? []),
-    });
+    // A city as large as 迪庆 splits where the days move on (2026-11-27): a night is spent near that day's stops.
+    for (const segment of staySegments(run, cards, bigAreas)) {
+      const start = segment[0];
+      const nights = segment.filter(({ day }) => day !== lastDay).length;
+      if (nights === 0 || start.date === null) continue;
+      blocks.push({
+        province: start.province, city: start.city, firstDay: start.day, checkIn: start.date, nights,
+        lastDay: segment.at(-1)?.day ?? start.day,
+        ...stayNear(segment, cards, start.city, bigAreas, stayAreas.get(`${start.province}|${start.city}`) ?? []),
+      });
+    }
   }
   return blocks;
 }
 
+/** A day that moves this far from where its stay began starts a new stay (迪庆: 香格里拉 to 德钦, about 180 km). */
+export const staySplitKm = 50;
+
+/** The middle of a day's located stops, large areas left out; null when none is located. */
+function dayCentre(day: PlanDay, cards: ReadonlyMap<string, SpotCard>, bigAreas: ReadonlySet<string>): GeoPoint | null {
+  const points = day.stops.flatMap(({ spotId }) => {
+    const card = cards.get(spotId);
+    return card && !bigAreas.has(spotId) && card.mapCheck.status === "located" && card.mapCheck.point ? [card.mapCheck.point] : [];
+  });
+  return centreOf(points);
+}
+
+function centreOf(points: readonly GeoPoint[]): GeoPoint | null {
+  if (points.length === 0) return null;
+  return {
+    longitude: points.reduce((sum, { longitude }) => sum + longitude, 0) / points.length,
+    latitude: points.reduce((sum, { latitude }) => sum + latitude, 0) / points.length,
+  };
+}
+
+/**
+ * A city's consecutive days in stays: a new stay begins on a day whose stops lie more than 50 km from
+ * the first located day of the current one. A day with nothing located stays with the one before.
+ */
+export function staySegments(run: readonly PlanDay[], cards: ReadonlyMap<string, SpotCard>, bigAreas: ReadonlySet<string> = new Set()): PlanDay[][] {
+  const segments: PlanDay[][] = [];
+  let anchor: GeoPoint | null = null;
+  for (const day of run) {
+    const centre = dayCentre(day, cards, bigAreas);
+    const current = segments.at(-1);
+    if (!current || (anchor && centre && kmBetween(anchor, centre) > staySplitKm)) {
+      segments.push([day]);
+      anchor = centre;
+      continue;
+    }
+    current.push(day);
+    anchor ??= centre;
+  }
+  return segments;
+}
+
 /**
  * Where to search a stay (RAG step 5): the guides' stay area nearest the middle of the stay's located
- * stops, within 15 km, else the middle stop as before. The other areas are named on the card. A stop
- * the plan merely passes, such as a temple in the middle, is a poorer base than an old town nearby.
+ * stops, within 50 km; else the middle stop as before. The other areas are named on the card. A temple
+ * or a mountain village in the middle is a poorer base than an old town.
  */
 export function stayNear(
   run: readonly PlanDay[],
@@ -134,20 +183,32 @@ export function stayNear(
     const card = cards.get(spotId);
     return card && !bigAreas.has(spotId) && card.mapCheck.status === "located" && card.mapCheck.point ? [card.mapCheck.point] : [];
   });
-  const middle = points.length > 0
-    ? { longitude: points.reduce((sum, { longitude }) => sum + longitude, 0) / points.length,
-      latitude: points.reduce((sum, { latitude }) => sum + latitude, 0) / points.length }
-    : null;
-  const nearest = middle
-    ? [...areas].sort((left, right) => kmBetween(middle, left.point) - kmBetween(middle, right.point))
-      .find((area) => kmBetween(middle, area.point) <= maxStayAreaKm) ?? null
-    : null;
+  const middle = centreOf(points);
+  const closest = middle ? [...areas].sort((left, right) => kmBetween(middle, left.point) - kmBetween(middle, right.point))[0] : undefined;
+  const nearest = middle && closest && kmBetween(middle, closest.point) <= maxStayAreaKm ? closest : null;
   const note = ({ name, features }: StayAreaNote) => ({ name, features: [...features] });
   const others = areas.filter((area) => area !== nearest).slice(0, maxOtherAreas).map(note);
   return {
     near: nearest ? { name: nearest.spotName, kind: "spot", area: note(nearest) } : fallback,
     ...(others.length ? { otherAreas: others } : {}),
   };
+}
+
+/**
+ * The stay's located stops, the most central first, for searching again near the next one when the
+ * middle stop has no hotel around it (德钦's middle stop was the mountain village 雨崩村, 2026-11-27).
+ */
+export function centralStops(
+  run: readonly PlanDay[],
+  cards: ReadonlyMap<string, SpotCard>,
+  bigAreas: ReadonlySet<string> = new Set(),
+): string[] {
+  const located = run.flatMap(({ stops }) => stops).flatMap(({ spotId }) => {
+    const card = cards.get(spotId);
+    return card && !bigAreas.has(spotId) && card.mapCheck.status === "located" && card.mapCheck.point ? [{ name: card.name, point: card.mapCheck.point }] : [];
+  });
+  const total = (point: GeoPoint) => located.reduce((sum, other) => sum + kmBetween(point, other.point), 0);
+  return [...new Set([...located].sort((left, right) => total(left.point) - total(right.point)).map(({ name }) => name))];
 }
 
 /** The located stop with the shortest total distance to the others; the city when none is located. */

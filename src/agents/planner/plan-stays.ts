@@ -4,7 +4,7 @@ import { z } from "zod";
 import type { PlanDay } from "@/domain/plan/plan-draft";
 import type { PlanHandoff } from "@/domain/plan/plan-handoff";
 import type { SpotCard } from "@/domain/plan/spot-card";
-import { type CityStay, type HotelDetail, type HotelOption, type StayAreaPoint, type StayBlock, lodgingPreferenceKinds, maxStayReasonLength, pickTiers, stayBlocks } from "@/domain/plan/stays";
+import { centralStops, type CityStay, type HotelDetail, type HotelOption, type StayAreaPoint, type StayBlock, lodgingPreferenceKinds, maxStayReasonLength, pickTiers, stayBlocks } from "@/domain/plan/stays";
 import { logger } from "@/platform/observability/logger";
 import { serializeError } from "@/platform/observability/serialize-error";
 import type { HotelSearch, HotelSearchAnswer } from "@/platform/hotel/rollinggo";
@@ -109,12 +109,32 @@ export async function planStays(
   stayAreas: ReadonlyMap<string, readonly StayAreaPoint[]> = new Map(),
 ): Promise<{ stays: CityStay[]; usage: PlanUsage; calls: number }> {
   const blocks = stayBlocks(days, cards, bigAreas, stayAreas);
+  const maxStayRetries = 2;
   let calls = 0;
   const found: { block: StayBlock; hotels: readonly HotelOption[] }[] = [];
   const unavailable: StayBlock[] = [];
-  for (const [index, block] of blocks.entries()) {
+  for (const [index, first] of blocks.entries()) {
+    let block = first;
     onProgress({ city: block.city, near: block.near.name, done: index + 1, total: blocks.length });
-    const answer = await deps.search(searchOf(block, handoff.locale));
+    let answer = await deps.search(searchOf(block, handoff.locale));
+    // Nothing around the middle stop (a mountain village): the next most central stops, two more searches
+    // at most, RollingGo being free (2026-11-27). A guides' stay area or the whole city is not moved.
+    if (answer.status === "found" && answer.hotels.length === 0 && block.near.kind === "spot" && !block.near.area) {
+      const segment = days.filter((day) => day.city === block.city && day.province === block.province
+        && day.day >= block.firstDay && day.day <= block.lastDay);
+      for (const name of centralStops(segment, cards, bigAreas).filter((stop) => stop !== block.near.name).slice(0, maxStayRetries)) {
+        calls += 1;
+        const nextBlock: StayBlock = { ...block, near: { name, kind: "spot" } };
+        const next = await deps.search(searchOf(nextBlock, handoff.locale));
+        if (next.status !== "found") break;
+        if (next.hotels.length > 0) {
+          block = nextBlock;
+          answer = next;
+          break;
+        }
+      }
+      blocks[index] = block;
+    }
     if (answer.status === "unavailable") {
       if (answer.reason !== "disabled" && answer.reason !== "daily_limit" && answer.reason !== "paused") calls += 1;
       unavailable.push(block);

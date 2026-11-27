@@ -208,7 +208,10 @@ part of the city's tips card. Only the start, the end and the kinds of transport
 **Step 5, stay areas (2026-11-27,** `stayNear` in [stays.ts](../domain/plan/stays.ts)): 58 cities have the guides'
 stay areas, each tied to a spot. Where to stay used to search near the stop closest to the middle of the stay's
 stops, which can be a temple or a village; now it searches near the stay area closest to that middle, within
-15 km (丽江 with 玉龙雪山 in the plan: 束河古镇, not the middle stop), else as before. The card says why
+50 km (丽江 with 玉龙雪山 in the plan: 束河古镇, not the middle stop), else as before, trying the next most central
+stops (two more searches at most) when the middle one has no hotel around it. A city whose days move more than
+50 km (迪庆: 香格里拉, then 德钦) is split into stays of its own (`staySegments`), each searched apart; the first live
+plan had found no hotel for 迪庆, searched near the mountain village 雨崩村 between the two. The card says why
 (「束河古镇一带适合住，多是院落客栈、青年旅舍」) and names up to two other areas. Hotels still come only from
 RollingGo; the catalog's single guesthouses (no photos, no prices, maybe closed) are not used.
 

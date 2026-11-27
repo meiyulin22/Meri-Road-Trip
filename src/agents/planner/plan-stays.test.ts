@@ -80,3 +80,27 @@ test("a search that fails leaves the stay unavailable; the plan goes on", async 
   }, { model: () => { throw new Error("no model"); } }, now);
   assert.deepEqual(result.stays.map(({ status, city }) => [status, city]), [["unavailable", "丽江市"]]);
 });
+
+test("no hotel around the middle stop: the next most central stops are searched, two at most (2026-11-27)", async () => {
+  const at = (name: string, longitude: number, latitude: number) =>
+    ({ ...card(name), mapCheck: { status: "located" as const, district: "德钦县", point: { longitude, latitude } } });
+  const village = at("雨崩村", 98.77, 28.40);
+  const view = at("飞来寺观景区", 98.88, 28.47);
+  const peak = at("梅里雪山", 98.66, 28.43);
+  const remote = new Map([village, view, peak].map((one) => [one.id, one]));
+  const plan: PlanDay[] = [1, 2].map((number) => ({
+    ...day(number), stops: [village, view, peak].map(({ id }) => ({ spotId: id, slot: "morning" as const, anchor: null })),
+  }));
+  const searched: string[] = [];
+  const result = await planStays({ ...handoff(["丽江市"], fiveDays), preferences: [] }, plan, remote, {
+    search: async (search) => {
+      searched.push(search.place);
+      return { status: "found", hotels: search.place === "飞来寺观景区" ? hotels : [] };
+    },
+    detail: async () => detail,
+  }, { model: answering({}) }, now);
+  // 雨崩村 is the middle; then 梅里雪山 (nearer the others than 飞来寺), then 飞来寺, which has hotels.
+  assert.deepEqual(searched, ["雨崩村", "梅里雪山", "飞来寺观景区"]);
+  assert.equal(result.stays[0].status, "found");
+  assert.equal(result.stays[0].near.name, "飞来寺观景区");
+});

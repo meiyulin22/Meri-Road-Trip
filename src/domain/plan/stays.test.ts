@@ -7,7 +7,7 @@ import { card } from "@/agents/planner/plan-test-fixtures";
 import { parseHotelSearch } from "@/platform/hotel/rollinggo";
 
 import type { PlanDay } from "./plan-draft";
-import { bigAreaStops, pickTiers, stayBlocks, stayNear } from "./stays";
+import { bigAreaStops, pickTiers, stayBlocks, stayNear, staySegments } from "./stays";
 
 const located = (name: string, longitude: number, latitude: number) =>
   ({ ...card(name), mapCheck: { status: "located" as const, district: "古城区", point: { longitude, latitude } } });
@@ -65,7 +65,7 @@ test("a stop the road never reaches, such as a lake, is not searched near (1.211
   assert.deepEqual(only.near, { name: "丽江市", kind: "city" });
 });
 
-test("a stay searches near the guides' stay area closest to the middle of its stops, within 15 km (RAG step 5)", () => {
+test("a stay searches near the guides' stay area closest to the middle of its stops, within 50 km (RAG step 5)", () => {
   const areas = [
     { name: "束河古镇", features: ["院落客栈", "青年旅舍"], spotName: "束河古镇", point: { longitude: 100.208, latitude: 26.92 } },
     { name: "大研古城", features: ["纳西院落"], spotName: "丽江古城", point: { longitude: 100.234, latitude: 26.872 } },
@@ -83,4 +83,22 @@ test("a stay searches near the guides' stay area closest to the middle of its st
   assert.deepEqual(far.otherAreas?.map(({ name }) => name), ["大落水村"]);
   // No areas: exactly the old choice, nothing added.
   assert.deepEqual(stayNear(run, cards, "丽江市", new Set(), []), { near: { name: "丽江古城", kind: "spot" } });
+});
+
+test("a city splits its stays where the days move more than 50 km on (迪庆: 香格里拉, then 德钦)", () => {
+  const temple = { ...located("松赞林寺", 99.70, 27.88), city: "迪庆藏族自治州", id: "temple" };
+  const oldTown = { ...located("独克宗古城", 99.71, 27.82), city: "迪庆藏族自治州", id: "oldtown" };
+  const view = { ...located("飞来寺观景区", 98.88, 28.47), city: "迪庆藏族自治州", id: "view" };
+  const peak = { ...located("梅里雪山", 98.66, 28.43), city: "迪庆藏族自治州", id: "peak" };
+  const diqing = new Map([temple, oldTown, view, peak].map((card) => [card.id, card]));
+  const days = [day(1, "迪庆藏族自治州", temple.id, oldTown.id), day(2, "迪庆藏族自治州", view.id), day(3, "迪庆藏族自治州", peak.id)];
+  assert.deepEqual(staySegments(days, diqing).map((segment) => segment.map(({ day: number }) => number)), [[1], [2, 3]]);
+
+  const areas = new Map([["云南省|迪庆藏族自治州", [
+    { name: "独克宗古城", features: ["古城客栈"], spotName: "独克宗古城", point: { longitude: 99.71, latitude: 27.82 } },
+  ]]]);
+  const blocks = stayBlocks(days, diqing, new Set(), areas);
+  // Night 1 near 独克宗古城 (the guides' area); night 2 in 德钦, 180 km away, near its own middle stop. Day 3 goes home.
+  assert.deepEqual(blocks.map(({ firstDay, nights, near }) => [firstDay, nights, near.area?.name ?? null, near.name]),
+    [[1, 1, "独克宗古城", "独克宗古城"], [2, 1, null, "飞来寺观景区"]]);
 });
