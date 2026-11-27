@@ -619,8 +619,8 @@ function DraftDays({ response, text, locale, transport, gettingThere, onAddDates
         onSelectDay={(day) => {
           setShownPlace(null);
           setOpenDay(day);
-          // Wait for the card to open, then bring it into view.
-          requestAnimationFrame(() => document.getElementById(`plan-day-${day}`)?.scrollIntoView({ behavior: "smooth", block: "start" }));
+          // After the card's open animation (0.32 s): scrolling during it is cut short as the page grows.
+          window.setTimeout(() => document.getElementById(`plan-day-${day}`)?.scrollIntoView({ behavior: "smooth", block: "start" }), 360);
         }} />
       {draft.route.omitted.length > 0 ? (
         <div className={draftStyles.notice} data-tone="warn">

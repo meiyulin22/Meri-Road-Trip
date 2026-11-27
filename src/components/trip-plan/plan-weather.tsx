@@ -2,6 +2,7 @@
 
 import { Cloud, CloudDrizzle, CloudFog, CloudLightning, CloudRain, CloudSun, ExternalLink, Snowflake, Sun, TriangleAlert } from "lucide-react";
 
+import { placeNameStem } from "@/capabilities/destination/resolve-destination-place";
 import type { Locale } from "@/domain/locale/locale";
 import type { WeatherProvider, WeatherSky } from "@/domain/plan/weather";
 
@@ -139,11 +140,6 @@ export function WeatherCredit({ locale, providers = ["open-meteo"] }: {
   );
 }
 
-/** 丽江市 → 丽江, 迪庆藏族自治州 → 迪庆: a short name for a narrow cell. */
-function shortCity(city: string): string {
-  return city.replace(/(?:[\u4e00-\u9fff]{1,4}族)*自治州$|市$|地区$|盟$/u, "") || city;
-}
-
 /**
  * The overview's day-by-day weather (2026-11-27 re-layout): a cell a day with its date, sky, high and
  * low, and city; a poor day for outdoors is marked. A cell opens its day. Nothing without dates.
@@ -182,7 +178,7 @@ export function WeatherStrip({ days, cards, locale, selectedDay, onSelectDay }: 
                     </span>
                   </>
                 ) : <span className={draftStyles.stripNone} aria-label={text.beyond}>—</span>}
-                <span className={draftStyles.stripCity}>{shortCity(day.city)}</span>
+                <span className={draftStyles.stripCity} title={day.city}>{placeNameStem(day.city)}</span>
               </button>
             </li>
           );
