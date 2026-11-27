@@ -128,3 +128,11 @@ were rejected during review. Fifty-eight spots had no matching Wikidata image. O
 for licence, missing author and insufficient width. Eight queries failed transiently, and the rate-limited query was kept
 pending. Across all runs, 197 spots have an outcome and 1,152 are pending. The manifest and contact sheet
 now contain 48 reviewed photos totaling 436,643 bytes.
+
+### National spot continuation checkpoint — 2026-11-27
+
+The next authorized run resumed after the previous `Retry-After` had elapsed. After 19.6 seconds,
+Wikidata returned HTTP 429 with `Retry-After: 120`. The collector stopped immediately. Four more
+spots had an outcome. Three had no matching Wikidata image, and the Hunan Museum exterior passed
+visual review. The manifest and contact sheet now contain 49 reviewed photos totaling 444,208 bytes.
+Of the 1,349 spots, 201 have an outcome and 1,148 are pending.
