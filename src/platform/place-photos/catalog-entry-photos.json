@@ -2075,6 +2075,18 @@
     "wikidata": "Q17003951",
     "fetchedAt": "2026-11-28T04:41:52.929Z"
   },
+  "spot_luoyang_longmen": {
+    "file": "/photos/catalog/spot_luoyang_longmen.avif",
+    "width": 320,
+    "height": 240,
+    "title": "File:Longmen Grottoes 3.jpg",
+    "author": "Rialfver Original uploader was Rialfver at nl.wikipedia",
+    "license": "CC BY-SA 3.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0/",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Longmen_Grottoes_3.jpg",
+    "wikidata": "Q273834",
+    "fetchedAt": "2026-11-28T04:56:21.941Z"
+  },
   "spot_luoyang_luoyang_museum": {
     "file": "/photos/catalog/spot_luoyang_luoyang_museum.avif",
     "width": 320,
@@ -2266,5 +2278,149 @@
     "sourceUrl": "https://commons.wikimedia.org/wiki/File:Kailash-Barkha.jpg",
     "wikidata": "Q229107",
     "fetchedAt": "2026-11-28T04:51:42.553Z"
+  },
+  "spot_ngari_rakshas": {
+    "file": "/photos/catalog/spot_ngari_rakshas.avif",
+    "width": 320,
+    "height": 240,
+    "title": "File:Rakshas Tal 06.jpg",
+    "author": "Axel Ebert https://photos.axelebert.net/kailash.html",
+    "license": "CC BY-SA 3.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Rakshas_Tal_06.jpg",
+    "wikidata": "Q628327",
+    "fetchedAt": "2026-11-28T04:56:53.512Z"
+  },
+  "spot_ningbo_ayuwang": {
+    "file": "/photos/catalog/spot_ningbo_ayuwang.avif",
+    "width": 320,
+    "height": 213,
+    "title": "File:Ningbo Ayuwang Si 2013.07.28 13-58-52.jpg",
+    "author": "Zhangzhugang",
+    "license": "CC BY-SA 3.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Ningbo_Ayuwang_Si_2013.07.28_13-58-52.jpg",
+    "wikidata": "Q726233",
+    "fetchedAt": "2026-11-28T04:57:05.320Z"
+  },
+  "spot_ningbo_baoguo": {
+    "file": "/photos/catalog/spot_ningbo_baoguo.avif",
+    "width": 320,
+    "height": 213,
+    "title": "File:Ningbo Baoguo Si 2013.07.27 10-24-13.jpg",
+    "author": "Zhangzhugang",
+    "license": "CC BY-SA 3.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Ningbo_Baoguo_Si_2013.07.27_10-24-13.jpg",
+    "wikidata": "Q252819",
+    "fetchedAt": "2026-11-28T04:57:17.518Z"
+  },
+  "spot_ningbo_drum_tower": {
+    "file": "/photos/catalog/spot_ningbo_drum_tower.avif",
+    "width": 320,
+    "height": 213,
+    "title": "File:Ningbo Drum Tower, 2017-01-30 01.jpg",
+    "author": "Siyuwj",
+    "license": "CC BY-SA 4.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Ningbo_Drum_Tower,_2017-01-30_01.jpg",
+    "wikidata": "Q10946037",
+    "fetchedAt": "2026-11-28T04:57:41.501Z"
+  },
+  "spot_ningbo_museum": {
+    "file": "/photos/catalog/spot_ningbo_museum.avif",
+    "width": 320,
+    "height": 213,
+    "title": "File:South Gate of Ningbo Museum.jpg",
+    "author": "Siyuwj",
+    "license": "CC BY-SA 3.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:South_Gate_of_Ningbo_Museum.jpg",
+    "wikidata": "Q1070226",
+    "fetchedAt": "2026-11-28T04:57:57.212Z"
+  },
+  "spot_ningbo_old_bund": {
+    "file": "/photos/catalog/spot_ningbo_old_bund.avif",
+    "width": 320,
+    "height": 240,
+    "title": "File:宁波老外滩20211030.jpg",
+    "author": "西安兵马俑",
+    "license": "CC BY-SA 4.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:%E5%AE%81%E6%B3%A2%E8%80%81%E5%A4%96%E6%BB%A920211030.jpg",
+    "wikidata": "Q11133702",
+    "fetchedAt": "2026-11-28T04:58:09.684Z"
+  },
+  "spot_ningbo_tiantong": {
+    "file": "/photos/catalog/spot_ningbo_tiantong.avif",
+    "width": 320,
+    "height": 213,
+    "title": "File:Ningbo Tiantong Si 2013.07.28 16-01-08.jpg",
+    "author": "Zhangzhugang",
+    "license": "CC BY-SA 3.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Ningbo_Tiantong_Si_2013.07.28_16-01-08.jpg",
+    "wikidata": "Q10940602",
+    "fetchedAt": "2026-11-28T04:58:34.263Z"
+  },
+  "spot_ningbo_tianyige": {
+    "file": "/photos/catalog/spot_ningbo_tianyige.avif",
+    "width": 320,
+    "height": 213,
+    "title": "File:Ningbo Tianyige 2013.07.28 09-23-22.jpg",
+    "author": "Zhangzhugang",
+    "license": "CC BY-SA 3.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Ningbo_Tianyige_2013.07.28_09-23-22.jpg",
+    "wikidata": "Q2066117",
+    "fetchedAt": "2026-11-28T04:58:45.658Z"
+  },
+  "spot_nyingchi_basum": {
+    "file": "/photos/catalog/spot_nyingchi_basum.avif",
+    "width": 320,
+    "height": 227,
+    "title": "File:Basum Lake 01.jpg",
+    "author": "Gao from Beijing, China",
+    "license": "CC BY 2.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by/2.0",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Basum_Lake_01.jpg",
+    "wikidata": "Q2011572",
+    "fetchedAt": "2026-11-28T04:59:09.629Z"
+  },
+  "spot_pingtung_kenting": {
+    "file": "/photos/catalog/spot_pingtung_kenting.avif",
+    "width": 320,
+    "height": 217,
+    "title": "File:Maobitou Cape 01.jpg",
+    "author": "Bernard Gagnon",
+    "license": "CC BY-SA 3.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Maobitou_Cape_01.jpg",
+    "wikidata": "Q707982",
+    "fetchedAt": "2026-11-28T05:00:13.279Z"
+  },
+  "spot_qiandongnan_qinglong": {
+    "file": "/photos/catalog/spot_qiandongnan_qinglong.avif",
+    "width": 320,
+    "height": 213,
+    "title": "File:Zhenyuan Qinglongdong 2014.04.29 14-30-55.jpg",
+    "author": "Zhangzhugang",
+    "license": "CC BY-SA 3.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Zhenyuan_Qinglongdong_2014.04.29_14-30-55.jpg",
+    "wikidata": "Q17166449",
+    "fetchedAt": "2026-11-28T05:02:01.274Z"
+  },
+  "spot_qiandongnan_zhusheng": {
+    "file": "/photos/catalog/spot_qiandongnan_zhusheng.avif",
+    "width": 320,
+    "height": 240,
+    "title": "File:Zhenyuan, Guizhou, China.JPG",
+    "author": "Azylber",
+    "license": "CC BY-SA 3.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Zhenyuan,_Guizhou,_China.JPG",
+    "wikidata": "Q97768694",
+    "fetchedAt": "2026-11-28T05:02:52.794Z"
   }
 }
