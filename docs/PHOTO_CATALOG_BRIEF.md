@@ -178,3 +178,11 @@ with `Retry-After: 120` after 33 seconds. Of five additional resolved spots, thr
 image and one was rejected for licence. Hangzhou's Liuhe Pagoda photo passed visual review.
 The manifest and contact sheet contain 105 reviewed photos totaling 1,025,509 bytes. Of the 1,349
 spots, 433 have an outcome and 916 are pending.
+
+### National spot continuation checkpoint 7 — 2026-11-28
+
+The four-second request interval was retained. After 5 min 15 s, Wikidata returned HTTP 429 with
+`Retry-After: 120` and the collector stopped immediately. All 24 newly resolved spots had no
+matching Wikidata image. Three transient failures and the rate-limited lookup remain pending.
+Of the 1,349 spots, 457 have an outcome and 892 are pending. The manifest and contact sheet
+still contain 105 reviewed photos totaling 1,025,509 bytes.
