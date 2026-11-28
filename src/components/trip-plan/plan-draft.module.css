@@ -215,8 +215,11 @@
 .stops { display: grid; gap: 12px; list-style: none; }
 .stop {
   position: relative;
+  display: flow-root;
   padding-left: 18px;
 }
+/* A catalog spot's photo (B1) floats beside the stop's text. */
+.stopPhoto { float: right; margin: 2px 0 6px 12px; }
 .stop::before {
   content: "";
   position: absolute;

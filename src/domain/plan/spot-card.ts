@@ -1,3 +1,4 @@
+import type { CatalogPhoto } from "@/domain/catalog/catalog-photo";
 import type { AccessNote, CityTip, TipNote } from "@/domain/catalog/catalog-tips";
 import type { SpotWeather } from "./weather";
 
@@ -37,6 +38,8 @@ export type SpotCatalogNote = {
   readonly tips?: readonly TipNote[];
   /** How to get there, from the catalog (RAG step 5, transport): start and kinds of transport; absent before it. */
   readonly access?: readonly AccessNote[];
+  /** A small Wikimedia photo of the spot with its credit (B1, 1.2223); absent for most spots and before it. */
+  readonly photo?: CatalogPhoto;
 };
 
 export type SpotCard = {

@@ -36,6 +36,24 @@ test("rows become spots with their highlights, dishes with their summary and tip
   assert.deepEqual(catalog.stayAreas, [{ id: "stay_area", name: "古城", features: ["院落客栈"], spotIds: ["spot_a"] }]);
 });
 
+test("a spot or dish with a saved photo carries it; one without has no photo field", () => {
+  const common = { aliases: [], county: null, sourceCount: 2, confidence: "high" as const, related: [], summary: "介绍。" };
+  const spot = (id: string) => ({ ...common, id, kind: "spot" as const, name: id, tags: ["山地"], details: {
+    highlights: [], suggested_hours: null, best_season: null, visit_note: null,
+    walking: { distance_m: null, terrain: null, stairs: null },
+  } });
+  const catalog = cityCatalogFromRows([
+    spot("spot_dali_cangshan"),
+    spot("spot_without_photo"),
+    { ...common, id: "dish_beijing_roast_duck", kind: "dish", name: "北京烤鸭", tags: ["美食"],
+      details: { ingredients: [], flavor: null, preparations: [] } },
+  ]);
+  assert.equal(catalog.spots[0].photo?.url, "/photos/catalog/spot_dali_cangshan.avif");
+  assert.ok(catalog.spots[0].photo?.author);
+  assert.equal("photo" in catalog.spots[1], false);
+  assert.equal(catalog.dishes[0].photo?.url, "/photos/catalog/dish_beijing_roast_duck.avif");
+});
+
 test("without CATALOG_ENABLED the preference ranking reads nothing", async () => {
   const saved = process.env.CATALOG_ENABLED;
   delete process.env.CATALOG_ENABLED;

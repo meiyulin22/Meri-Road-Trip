@@ -1,3 +1,4 @@
+import type { CatalogPhoto } from "@/domain/catalog/catalog-photo";
 import type { LocationCandidate } from "@/domain/location/location";
 
 import type { PlanDay } from "./plan-draft";
@@ -26,8 +27,13 @@ export type FoodSource = {
 
 export type FoodEvidence = { readonly url: string; readonly title: string; readonly site: string; readonly quote: string };
 
-/** A local dish; evidence is null for one from Meri's catalog (RAG step 2), shown as 「Meri 的整理」. */
-export type Dish = { readonly name: string; readonly note: string; readonly evidence: FoodEvidence | null };
+/**
+ * A local dish: with the quote it rests on, or from Meri's catalog (RAG step 2, evidence null), shown
+ * as 「Meri 的整理」. A catalog dish may carry its small Wikimedia photo (B1, 1.2223).
+ */
+export type Dish =
+  | { readonly name: string; readonly note: string; readonly evidence: FoodEvidence }
+  | { readonly name: string; readonly note: string; readonly evidence: null; readonly photo?: CatalogPhoto };
 
 export type Restaurant = {
   readonly name: string;

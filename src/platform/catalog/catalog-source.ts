@@ -1,10 +1,12 @@
 import { and, cosineDistance, desc, eq, inArray, isNotNull, notInArray, sql } from "drizzle-orm";
 
 import type { CityCatalog, PreferenceRankings } from "@/domain/catalog/catalog-pick";
+import type { CatalogPhoto } from "@/domain/catalog/catalog-photo";
 import { type CatalogCity, type CatalogMatch, scoreCatalogCities } from "@/domain/catalog/city-scores";
 import type { CatalogTag } from "@/domain/catalog/catalog-tags";
 import { createEmbeddingFromEnvironment, type EmbeddingClient } from "@/platform/embedding/bailian-embedding";
 import { logger } from "@/platform/observability/logger";
+import { catalogEntryPhoto } from "@/platform/place-photos/catalog-entry-photos";
 import { catalogEmbeddingDimensions, catalogEntries } from "@/platform/persistence/database/schema/catalog-entries";
 
 type CatalogDatabase = typeof import("@/platform/persistence/database/db").db;
@@ -48,7 +50,12 @@ export class CatalogReadError extends Error {
   }
 }
 
-/** Rows to the domain shape; tags and details were validated by the import. */
+function photoOf(id: string): { photo?: CatalogPhoto } {
+  const photo = catalogEntryPhoto(id);
+  return photo ? { photo } : {};
+}
+
+/** Rows to the domain shape; tags and details were validated by the import. Photos come from the local manifest (B1). */
 export function cityCatalogFromRows(rows: readonly CatalogRow[]): CityCatalog {
   const spots = rows.flatMap((row) => row.kind === "spot" && "highlights" in row.details ? [{
     id: row.id,
@@ -60,9 +67,10 @@ export function cityCatalogFromRows(rows: readonly CatalogRow[]): CityCatalog {
     tags: row.tags as CatalogTag[],
     sourceCount: row.sourceCount,
     confidence: row.confidence,
+    ...photoOf(row.id),
   }] : []);
   const dishes = rows.flatMap((row) => row.kind === "dish"
-    ? [{ id: row.id, name: row.name, summary: row.summary, sourceCount: row.sourceCount }]
+    ? [{ id: row.id, name: row.name, summary: row.summary, sourceCount: row.sourceCount, ...photoOf(row.id) }]
     : []);
   const tips = rows.flatMap((row) => row.kind === "tip" && "advice" in row.details ? [{
     id: row.id,

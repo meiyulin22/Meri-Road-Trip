@@ -469,7 +469,7 @@ function catalogCard(city: City, spot: CatalogSpot, requested: boolean): SpotCar
   return {
     ...spotCard(city, spot.name, requested),
     outdoor: catalogOutdoor(spot.tags),
-    catalog: { id: spot.id, summary: spot.summary, highlights: spot.highlights },
+    catalog: { id: spot.id, summary: spot.summary, highlights: spot.highlights, ...(spot.photo ? { photo: spot.photo } : {}) },
   };
 }
 

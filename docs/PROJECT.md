@@ -134,7 +134,9 @@ The active recommendation workflow does not run access checks or ranking. Cards,
 the photo ring around the Journey globe and the title thumbnail use representative photos.
 Photos come from a bundled local catalog, then from photos fetched at run time for recommendation cards. Catalog lookups
 require an explicit region and a matching place name or registered alias; administrative
-representatives are configured separately. Missing coverage produces no photo. Photos
+representatives are configured separately. Missing coverage produces no photo. On the plan
+page, a catalog spot or dish may show a small Wikimedia photo with its author and licence
+(322 of 1349 spots and 9 of 316 dishes, saved in the repo); the rest show none. Photos
 decorate a place and are not evidence about its identity or current conditions.
 Generate plan uses forecasts from Open-Meteo for the trip's dates (1.2117), and MET Norway when Open-Meteo cannot be reached; a near-departure
 weather refresh and route research remain planned. The Scout trial exercises tool calls through Mastra. The first-round

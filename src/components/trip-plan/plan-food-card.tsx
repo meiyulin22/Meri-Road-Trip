@@ -6,6 +6,7 @@ import { useState } from "react";
 import type { Locale } from "@/domain/locale/locale";
 import type { CityFood, Dish, FoodEvidence, Restaurant } from "@/domain/plan/food";
 
+import { CatalogPhotoFigure } from "./catalog-photo-figure";
 import styles from "./plan-food-card.module.css";
 
 const copy = {
@@ -76,10 +77,14 @@ function Sources({ evidence, text }: { readonly evidence: readonly FoodEvidence[
 
 function DishItem({ dish, text }: { readonly dish: Dish; readonly text: Copy }) {
   return (
-    <li className={styles.dish}>
-      <span className={styles.dishName}>{dish.name}</span>
-      <span className={styles.dishNote}>{dish.note}</span>
-      {dish.evidence ? <Sources evidence={[dish.evidence]} text={text} /> : <span className={styles.catalogNote}>{text.catalogNote}</span>}
+    <li className={styles.dish} data-photo={dish.evidence === null && dish.photo ? "true" : undefined}>
+      <div className={styles.dishText}>
+        <span className={styles.dishName}>{dish.name}</span>
+        <span className={styles.dishNote}>{dish.note}</span>
+        {dish.evidence ? <Sources evidence={[dish.evidence]} text={text} /> : <span className={styles.catalogNote}>{text.catalogNote}</span>}
+      </div>
+      {/* A catalog dish's small photo (B1); only a few famous dishes have one. */}
+      {dish.evidence === null && dish.photo ? <CatalogPhotoFigure photo={dish.photo} name={dish.name} size="dish" /> : null}
     </li>
   );
 }

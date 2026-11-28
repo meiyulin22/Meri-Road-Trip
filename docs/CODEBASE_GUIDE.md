@@ -192,7 +192,7 @@ LLM 解释自然语言并提出受限 JSON；应用校验、决定是否执行�
 | --- | --- | --- |
 | [docs/ARCHITECTURE.md](../docs/ARCHITECTURE.md) | 文档/开发约定 | 当前模型权威、模块分工、目的地选择和并发边界；区分已实现与未来研究。 |
 | [docs/DEPLOY_BRIEF.md](../docs/DEPLOY_BRIEF.md) | 文档/部署交接 | 2026-11-21：给负责部署 VPS 的 agent 的交接说明：先定国内还是港日服务器、天地图和密钥的硬规定、部署步骤、上线前仍需的代码改动。 |
-| [docs/PHOTO_CATALOG_BRIEF.md](PHOTO_CATALOG_BRIEF.md) | 交接文档 | B1：给另一个 agent（`codex` 分支）的目录景点和菜小照片任务：复用 Wikimedia 客户端和许可证规则，景点 320px、菜 200px AVIF，清单带作者和许可证，先做大理、迪庆试点再停。 |
+| [docs/PHOTO_CATALOG_BRIEF.md](PHOTO_CATALOG_BRIEF.md) | 交接文档 | B1：给另一个 agent（`codex` 分支）的目录景点和菜小照片任务和最终结果：复用 Wikimedia 客户端和许可证规则，景点 320px、菜 200px AVIF，清单带作者和许可证；2026-11-28 跑完，景点 322/1349、菜 9/316，3.23 MB，1.2223 合进 main。 |
 | [docs/PDF_EXPORT_BRIEF.md](../docs/PDF_EXPORT_BRIEF.md) | 文档/开发交接 | 2026-11-22：给另一个 agent 的 PDF 导出交接说明：只做 PDF、不用 LLM、现场生成不存储、Playwright 打印专用页面、版式、图片规则、进度条、在 `pdf-export` 分支上做、不合并 main。 |
 | [docs/CODEBASE_GUIDE.md](../docs/CODEBASE_GUIDE.md) | 文档/开发约定 | 本文件：目录/分层解释、实际调用链、阅读路径及完整逐文件索引。 |
 | [docs/CODING_PRINCIPLES.md](../docs/CODING_PRINCIPLES.md) | 文档/开发约定 | 代码命名、扁平流程、外部适配、校验、日志和交付检查约定。 |
@@ -387,6 +387,8 @@ Generate plan 背后的计划页先用示例数据做出完整页面（设计决
 | [src/components/trip-plan/plan-module-chips.tsx](../src/components/trip-plan/plan-module-chips.tsx) | 表现层 | 2026-11-27 布局：一排小块，每块一行摘要，点开在下面显示它的卡，同一时间只开一块；城市的住、吃、提示用它。 |
 | [src/components/trip-plan/plan-module-chips.module.css](../src/components/trip-plan/plan-module-chips.module.css) | 样式 | 小块的样式。 |
 | [src/components/trip-plan/plan-food-card.module.css](../src/components/trip-plan/plan-food-card.module.css) | 表现层样式 | 吃什么卡：特色菜网格、餐厅列表，没核实地址的用虚线框 |
+| [src/components/trip-plan/catalog-photo-figure.tsx](../src/components/trip-plan/catalog-photo-figure.tsx) | 表现层 | 目录景点卡和菜卡上的小图（B1，1.2223）和署名：「作者 · 许可证」，作者链到 Commons 文件页，许可证链到许可证。 |
+| [src/components/trip-plan/catalog-photo-figure.module.css](../src/components/trip-plan/catalog-photo-figure.module.css) | 表现层样式 | 小图宽度（景点 112px、菜 80px，窄屏更小）、4:3 裁切、圆角和署名字号。 |
 | [src/components/trip-plan/plan-dates-picker.tsx](../src/components/trip-plan/plan-dates-picker.tsx) | 表现层 | 2026-11-21 计划页「补填出发日期」：已知天数选一天、否则选一段，写明会重新生成并锁定，成功后交回新交接 |
 | [src/components/trip-plan/plan-dates-picker.module.css](../src/components/trip-plan/plan-dates-picker.module.css) | 表现层样式 | 补填日期的按钮、日历（Meri 的绿色）和确认区 |
 | [src/components/trip-plan/plan-draft.module.css](../src/components/trip-plan/plan-draft.module.css) | 样式 | 行程草稿的统计胶囊、时段时间轴、锚点、出处展开、提示卡和骨架加载。 |
@@ -493,10 +495,11 @@ Generate plan 背后的计划页先用示例数据做出完整页面（设计决
 | [src/platform/catalog/catalog-source.ts](../src/platform/catalog/catalog-source.ts) | 基础设施适配器 | 按（省，州/市）读 catalog_entries 的 spot 和 dish 转成领域类型；按偏好原话同时查向量（余弦前 50，查询向量由百炼算，失败时这一路为空）和名字（word_similarity 前 20），RAG 第 3 步；`CATALOG_ENABLED=true` 才读，数据库客户端第一次用到时才加载；读失败抛 CatalogReadError，调研和吃什么接住后改走搜索。 |
 | [src/platform/embedding/bailian-embedding.ts](../src/platform/embedding/bailian-embedding.ts) | 基础设施适配器 | 百炼 /embeddings：一次最多 20 条、按输入顺序返回、维度不对或缺一条就报 invalid_response；不重试；`PAID_CALLS_ENABLED=false` 不发，`EMBEDDING_MAX_CALLS_PER_DAY`（默认 500，计数在 `.cache/embedding-calls.json`）；没有 DASHSCOPE_API_KEY 或 EMBEDDING_BASE_URL 时不建客户端。 |
 | [src/platform/embedding/bailian-embedding.test.ts](../src/platform/embedding/bailian-embedding.test.ts) | 测试（适配器） | 请求格式和顺序、HTTP 失败不重试、维度不对或缺向量、总开关、每日上限、超过 20 条、缺配置。 |
-| [src/platform/catalog/catalog-source.test.ts](../src/platform/catalog/catalog-source.test.ts) | 测试（适配器） | 开关只认 true；行转成景点（带亮点）和菜，其他种类不要。 |
+| [src/platform/catalog/catalog-source.test.ts](../src/platform/catalog/catalog-source.test.ts) | 测试（适配器） | 开关只认 true；行转成景点（带亮点）和菜，其他种类不要；清单里有照片的景点和菜带上照片，没有的不带。 |
 | [src/domain/catalog/summary-voice.ts](../src/domain/catalog/summary-voice.ts) | 领域层 | B2 改写摘要的检查（merlin 定的规则）：不含「攻略」「书中」、不超过 100 字、无联系方式、和所引页 OCR 没有连续 8 个汉字相同、数字不变（「两份攻略」这类出处的数不算）、目录地名表（条目名、别名、省州县及简称）里的地名不多不少；不合格返回原因。 |
 | [src/domain/catalog/summary-voice.test.ts](../src/domain/catalog/summary-voice.test.ts) | 测试（领域规则） | 每条规则合格和不合格的例子、行政区简称、地名表。 |
 | [src/domain/catalog/catalog-enrichment.ts](../src/domain/catalog/catalog-enrichment.ts) | 领域层 | 补充文件一行的 zod schema（id、field、value、based_on、source、date）和原摘要指纹（SHA-256 前 16 位）。 |
+| [src/domain/catalog/catalog-photo.ts](../src/domain/catalog/catalog-photo.ts) | 领域层 | 目录景点或菜的小照片（B1，1.2223）：本站路径、尺寸、作者、许可证和链接、Commons 文件页；schema 要求 `/photos/catalog/<id>.avif` 和 https 链接。 |
 | [src/domain/catalog/catalog-row.test.ts](../src/domain/catalog/catalog-row.test.ts) | 测试（领域规则） | 标签归并的顺序与去重、未知标签、其他种类、search_text 拼法、schema 拒绝多字段和错 details。 |
 | [src/domain/plan/plan-draft.ts](../src/domain/plan/plan-draft.ts) | 领域层 | 计划草稿与路线类型；规划范围（示范日或全部城市与日期）；校验 Plan Agent 的路线（覆盖、放弃条件、天数、区县）并生成每天的城市、转场、重点区县和主题；按添加顺序兜底分天；校验选点提案（候选、所在城市、跨天重复、每天上限与转场日少 1、有原文支持的时间锚点、点名景点），整理冲突和待核实字段；识别用户点名的区域（以市、县、旗结尾的区县名）；用户选择放弃的城市才允许在天数够时放弃；`legReach` 判断一段路的时间能不能用：没路、一头离路超过 1 公里是一大片区域（1.2105）、或可用但头尾有一截超过 300 米没路。；1.2117 加 `reorderRoute`：绕路兜底时按最短顺序重排城市，每城天数、理由和每天的重点区与主题跟着城市走 |
 | [src/domain/plan/availability.ts](../src/domain/plan/availability.ts) | 领域层 | 第二轮精查的判断规则（1.2013）：值必须出现在原文里（周几、时刻、月日、天数）、日期算星期几和跨年范围、通知是否过期（一年）；按每站的日期和时段得出 开放 / 部分关闭 / 关闭 / 待确认 / 未核实。 |
@@ -746,6 +749,13 @@ Generate plan 背后的计划页先用示例数据做出完整页面（设计决
 | [src/platform/place-photos/place-photo-provider.ts](../src/platform/place-photos/place-photo-provider.ts) | 基础设施/端口 | 照片查询（按名称或按区域国家级景点）接口与允许的照片主机列表。 |
 | [src/platform/place-photos/photo-catalog.ts](../src/platform/place-photos/photo-catalog.ts) | 基础设施/索引 | 本地图集校验和匹配（条目可来自 Pixabay 或 Wikimedia Commons；Commons 条目必须有许可证、许可证链接和 Commons 文件页，署名带许可证名称，`catalogCredit` 控制在 120 字内）：明确地区与完整名称／显式别名同时命中；保留括号地区，不猜子串或后缀；`scenicFor` 单独登记行政区代表图且必须属于允许地区；未命中、配置不合法或歧义返回 null；返回同域路径、真实主题和作者署名。 |
 | [src/platform/place-photos/catalog-photo-provider.ts](../src/platform/place-photos/catalog-photo-provider.ts) | 基础设施/适配器 | 天地图模式的照片适配器：读取并缓存本地索引，未命中时再读运行时已下载的照片（MediaPhotoStore：景点按地区 + 地标，市按同市已下载照片）；保留查询类型和地区；不请求外部 API；文件缺失或损坏按空目录处理。服务端渲染、封面、地点候选卡和已选地点照片都用它；`loadPhotoCatalog` 供署名页列出全部条目。 |
+| [src/platform/place-photos/catalog-entry-photos.ts](../src/platform/place-photos/catalog-entry-photos.ts) | 基础设施/索引 | 读目录照片清单（B1，1.2223）：逐条校验，文件名必须是这条的 id，缺作者、许可证或不是 Commons 页面就报错；按目录 id 取照片，没有返回 null。目录读取（catalog-source）用它给景点和菜带上照片。 |
+| [src/platform/place-photos/catalog-entry-photos.test.ts](../src/platform/place-photos/catalog-entry-photos.test.ts) | 测试（对应模块边界） | 清单条目转照片、缺署名或指错文件被拒、保存的清单全部通过且图片文件都在 `public/`。 |
+| [src/platform/place-photos/catalog-entry-photos.json](../src/platform/place-photos/catalog-entry-photos.json) | 数据/照片清单 | `scripts/fetch-catalog-photos.ts` 写的清单，按目录 id：文件、尺寸、Commons 标题、作者、许可证和链接、来源页、Wikidata 条目、抓取时间；331 条（景点 322、菜 9）。 |
+| [public/photos/catalog/](../public/photos/catalog) | 静态资源 | 目录景点（320px）和菜（200px）的 AVIF 小图，331 个，文件名是目录 id；每张的作者和许可证在上面的清单里，这里不逐个列出。 |
+| [scripts/fetch-catalog-photos.ts](../scripts/fetch-catalog-photos.ts) | 维护工具 | B1 抓图（codex 写）：读本机 catalog_entries 的景点和菜，Wikidata 找对应条目的 P18 图（景点按 P131 落在对的州/市，菜要中文名完全相同且是食物、不是别国的），过许可证和作者规则，sharp 转 AVIF，写清单、拒绝记录（`.cache/`）和看图审核页；节流、可续跑，`--reject-review` 剔除看图不合格的。 |
+| [scripts/fetch-catalog-photos-pick.ts](../scripts/fetch-catalog-photos-pick.ts) | 维护工具 | 抓图的纯逻辑：SPARQL 查询、候选排序、按许可证/作者/尺寸挑一张、清单条目和安全文件名。 |
+| [scripts/fetch-catalog-photos-pick.test.ts](../scripts/fetch-catalog-photos-pick.test.ts) | 测试 | 景点和菜的查询、候选过滤、按顺序跳过不合格的、署名和 id 校验。 |
 | [src/platform/place-photos/image-file.ts](../src/platform/place-photos/image-file.ts) | 基础设施/工具 | 从文件字节读出真实格式（JPEG／PNG／WebP）和宽高，不信 Content-Type；不合法返回 null。 |
 | [src/platform/place-photos/image-file.test.ts](../src/platform/place-photos/image-file.test.ts) | 测试（对应模块边界） | 验证三种格式的尺寸读取，HTML、空文件、截断文件头和零宽度被拒。 |
 | [src/platform/place-photos/photo-regions.ts](../src/platform/place-photos/photo-regions.ts) | 基础设施/数据 | 全部省级行政区和常见地级市的英文写法（含知名县名、景点名），常被混淆的国外地名（中英文，含与国内地名同字的釜山广安里、岘港），以及地区中文简称（大理白族自治州 → 大理）；用于从 tags 排除地点不符的照片和给搜索加地区。 |

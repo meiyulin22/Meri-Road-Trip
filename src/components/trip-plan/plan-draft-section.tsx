@@ -46,6 +46,7 @@ import { DayWeatherBadge, DayWeatherLine, StopWeatherLine, WeatherCredit, Weathe
 import { dayWeather, forecastProviders, hasForecast, stopWeather } from "./plan-weather-view";
 import { DayOutfitPanel, OutfitRoom, PackingList } from "./plan-outfit";
 import { PlanStayCard, PlanStayHint } from "./plan-stay-card";
+import { CatalogPhotoFigure } from "./catalog-photo-figure";
 import { PlanFoodCard } from "./plan-food-card";
 import { PlanTipsCard } from "./plan-tips-card";
 import type { AccessNote, CityTip } from "@/domain/catalog/catalog-tips";
@@ -854,6 +855,12 @@ function DraftDay({ day, cards, unverified, checks, arriving, transport = null, 
                         const leg = arriving.get(stop.spotId);
                         return (
                           <li key={stop.spotId} className={draftStyles.stop}>
+                            {/* A small photo of a catalog spot (B1), beside the stop's text; most stops have none. */}
+                            {card?.catalog?.photo ? (
+                              <div className={draftStyles.stopPhoto}>
+                                <CatalogPhotoFigure photo={card.catalog.photo} name={card.name} size="spot" />
+                              </div>
+                            ) : null}
                             {leg ? (
                               <p className={draftStyles.driveLine}>
                                 <LegIcon leg={leg} />

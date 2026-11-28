@@ -44,7 +44,7 @@ function catalogDishes(catalog: CityCatalog | null): Dish[] {
   return [...catalog.dishes]
     .sort((left, right) => right.sourceCount - left.sourceCount || left.name.localeCompare(right.name, "zh"))
     .slice(0, foodLimits.dishes)
-    .map(({ name, summary }) => ({ name, note: summary, evidence: null }));
+    .map(({ name, summary, photo }) => ({ name, note: summary, evidence: null, ...(photo ? { photo } : {}) }));
 }
 
 /** Hears each city as its food is looked for, for the plan page's live line. */

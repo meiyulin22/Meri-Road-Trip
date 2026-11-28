@@ -1,6 +1,7 @@
 import { normalizeRecommendationName } from "@/domain/location/recommendation-identity";
 
 import type { CatalogEntry } from "./catalog-entry";
+import type { CatalogPhoto } from "./catalog-photo";
 import type { CatalogStayArea, CatalogTip, CatalogTransport } from "./catalog-tips";
 import type { CatalogTag } from "./catalog-tags";
 
@@ -24,6 +25,8 @@ export type CatalogSpot = {
   readonly tags: readonly CatalogTag[];
   readonly sourceCount: number;
   readonly confidence: CatalogEntry["confidence"];
+  /** A small Wikimedia photo (B1); absent for most spots. */
+  readonly photo?: CatalogPhoto;
 };
 
 /** One catalog dish as What to eat reads it. */
@@ -32,6 +35,8 @@ export type CatalogDish = {
   readonly name: string;
   readonly summary: string;
   readonly sourceCount: number;
+  /** A small Wikimedia photo (B1); absent for most dishes. */
+  readonly photo?: CatalogPhoto;
 };
 
 export type CityCatalog = {

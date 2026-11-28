@@ -1,0 +1,27 @@
+/* A small thumbnail beside the card's text, with the photo's credit under it (B1). */
+.figure { display: grid; gap: 3px; width: 112px; }
+.figure[data-size="dish"] { width: 80px; }
+
+.image {
+  display: block;
+  width: 100%;
+  height: auto;
+  aspect-ratio: 4 / 3;
+  object-fit: cover;
+  border-radius: 8px;
+  background: var(--paper, #f4f1ea);
+}
+
+.credit {
+  color: var(--muted);
+  font-size: 10px;
+  line-height: 1.3;
+  overflow-wrap: anywhere;
+}
+.credit a { color: inherit; text-decoration: underline; text-decoration-color: rgba(0, 0, 0, .2); text-underline-offset: 2px; }
+.credit a:hover { color: var(--ink, inherit); }
+
+@media (max-width: 520px) {
+  .figure { width: 88px; }
+  .figure[data-size="dish"] { width: 68px; }
+}

@@ -1,5 +1,6 @@
 import { z } from "zod";
 
+import { catalogPhotoSchema } from "@/domain/catalog/catalog-photo";
 import { parsePlaceImage, type PlaceImage } from "@/domain/location/place-image";
 
 import { daySlots, spotFacts, type PlanDay, type PlanDraft, type PlanRoute } from "./plan-draft";
@@ -95,6 +96,7 @@ export const spotCardSchema: z.ZodType<SpotCard> = z.strictObject({
     id: z.string().min(1), summary: z.string().min(1), highlights: z.array(z.string().min(1)),
     tips: z.array(tipNoteSchema).optional(),
     access: z.array(accessNoteSchema).optional(),
+    photo: catalogPhotoSchema.optional(),
   }).optional(),
   weather: spotWeatherSchema.optional(),
   availability: spotAvailabilitySchema.optional(),
@@ -319,7 +321,10 @@ export const cityFoodSchema: z.ZodType<CityFood> = z.discriminatedUnion("status"
   z.strictObject({
     ...cityFoodBase,
     status: z.literal("found"),
-    dishes: z.array(z.strictObject({ name: z.string().min(1), note: z.string().min(1), evidence: foodEvidenceSchema.nullable() })),
+    dishes: z.array(z.union([
+      z.strictObject({ name: z.string().min(1), note: z.string().min(1), evidence: foodEvidenceSchema }),
+      z.strictObject({ name: z.string().min(1), note: z.string().min(1), evidence: z.null(), photo: catalogPhotoSchema.optional() }),
+    ])),
     restaurants: z.array(restaurantSchema),
     mentioned: z.array(restaurantSchema),
   }),
