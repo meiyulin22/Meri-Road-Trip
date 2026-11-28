@@ -1451,6 +1451,18 @@
     "wikidata": "Q7273001",
     "fetchedAt": "2026-11-28T03:50:44.932Z"
   },
+  "spot_jinhua_hengdian": {
+    "file": "/photos/catalog/spot_jinhua_hengdian.avif",
+    "width": 320,
+    "height": 212,
+    "title": "File:Hengdian World Studios 011.jpg",
+    "author": "kanegen from Tokyo, Japan",
+    "license": "CC BY 2.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by/2.0",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Hengdian_World_Studios_011.jpg",
+    "wikidata": "Q740442",
+    "fetchedAt": "2026-11-28T04:03:47.548Z"
+  },
   "spot_jinhua_zhuge": {
     "file": "/photos/catalog/spot_jinhua_zhuge.avif",
     "width": 320,
@@ -1642,5 +1654,77 @@
     "sourceUrl": "https://commons.wikimedia.org/wiki/File:Lingshi_Jingsheng_Wangjia_Dayuan_2013.08.24_14-12-19.jpg",
     "wikidata": "Q11573026",
     "fetchedAt": "2026-11-28T03:58:16.639Z"
+  },
+  "spot_jinzhong_zhenguo": {
+    "file": "/photos/catalog/spot_jinzhong_zhenguo.avif",
+    "width": 320,
+    "height": 213,
+    "title": "File:Pingyao Zhenguo Si 2013.08.26 15-26-20.jpg",
+    "author": "Zhangzhugang",
+    "license": "CC BY-SA 3.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Pingyao_Zhenguo_Si_2013.08.26_15-26-20.jpg",
+    "wikidata": "Q839048",
+    "fetchedAt": "2026-11-28T04:04:12.424Z"
+  },
+  "spot_jiujiang_meeting": {
+    "file": "/photos/catalog/spot_jiujiang_meeting.avif",
+    "width": 320,
+    "height": 240,
+    "title": "File:庐山会议旧址.JPG",
+    "author": "Gisling",
+    "license": "CC BY-SA 3.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:%E5%BA%90%E5%B1%B1%E4%BC%9A%E8%AE%AE%E6%97%A7%E5%9D%80.JPG",
+    "wikidata": "Q11062785",
+    "fetchedAt": "2026-11-28T04:05:02.495Z"
+  },
+  "spot_jiuquan_crescent_lake": {
+    "file": "/photos/catalog/spot_jiuquan_crescent_lake.avif",
+    "width": 320,
+    "height": 213,
+    "title": "File:Crescent Lake from the Singing Sand Dunes (20230918101214).jpg",
+    "author": "N509FZ",
+    "license": "CC BY-SA 4.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Crescent_Lake_from_the_Singing_Sand_Dunes_(20230918101214).jpg",
+    "wikidata": "Q1428520",
+    "fetchedAt": "2026-11-28T04:05:37.816Z"
+  },
+  "spot_jiuquan_mogao": {
+    "file": "/photos/catalog/spot_jiuquan_mogao.avif",
+    "width": 320,
+    "height": 213,
+    "title": "File:Dunhuang Mogao Ku 2013.12.31 12-30-18.jpg",
+    "author": "Zhangzhugang",
+    "license": "CC BY-SA 4.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Dunhuang_Mogao_Ku_2013.12.31_12-30-18.jpg",
+    "wikidata": "Q43286",
+    "fetchedAt": "2026-11-28T04:07:06.529Z"
+  },
+  "spot_jiuquan_yangguan": {
+    "file": "/photos/catalog/spot_jiuquan_yangguan.avif",
+    "width": 320,
+    "height": 212,
+    "title": "File:Yangguan.jpg",
+    "author": "张骐",
+    "license": "CC BY-SA 3.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Yangguan.jpg",
+    "wikidata": "Q909541",
+    "fetchedAt": "2026-11-28T04:07:43.053Z"
+  },
+  "spot_jiuquan_yumenguan": {
+    "file": "/photos/catalog/spot_jiuquan_yumenguan.avif",
+    "width": 320,
+    "height": 212,
+    "title": "File:Yumenguan.jpg",
+    "author": "张骐",
+    "license": "CC BY-SA 3.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Yumenguan.jpg",
+    "wikidata": "Q1324562",
+    "fetchedAt": "2026-11-28T04:07:54.215Z"
   }
 }
