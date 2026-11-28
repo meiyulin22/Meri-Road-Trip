@@ -314,23 +314,35 @@ lookup. Across both national dish passes the only visual rejection was a bowl of
 by skewers. The dish could not be identified confidently. The offline contact sheet contains
 330 photos totaling 3,224,050 bytes.
 
-| Outcome | National spots, final | National dishes, partial |
-| --- | ---: | ---: |
-| Catalog entries | 1,349 | 316 |
-| Completed | 1,349 | 220 |
-| Wikidata image matches | 442 | 9 |
-| Candidates reviewed visually | 417 | 9 |
-| Photos retained | 322 | 8 |
-| `no_wikidata` | 907 | 211 |
-| `licence` | 19 | 0 |
-| `no_author` | 5 | 0 |
-| `too_small` | 1 | 0 |
-| `review` | 95 | 1 |
-| Pending | 0 | 96 |
-| Retained image bytes | 3,189,164 | 34,886 |
-| Collector time | Approximately 3 h 45 min | Approximately 52 min |
+### Final nationwide results — 2026-11-28
 
-Spot timing sums the national passes and includes an estimate for one interrupted pass.
-It excludes the first mixed spot/dish pilot (4 min 16 s). Dish timing includes the initial
-interrupted dish pilot. Both figures include pacing and pauses within each pass and exclude
-time between passes and visual review.
+The final dish pass started with 96 pending. It resolved 93 in 10 min 8 s, and a follow-up pass
+resolved all three temporary failures in 9 s. Neither pass received HTTP 403 or 429. Of the two
+new candidates, the Xi’an lamb paomo photo clearly showed the meat and pieces of bread. The Yangzhou
+dazhu gansi photo showed a labeled display, and visual review could not establish that it showed
+the prepared dish. Across all 11 dish candidates, two images were too uncertain to keep and none
+was confirmed to show a different dish. The spot review records do not distinguish confirmed
+wrong locations from other visual rejections across the full run.
+
+| Outcome | Spots | Dishes | Total |
+| --- | ---: | ---: | ---: |
+| Catalog entries checked | 1,349 | 316 | 1,665 |
+| Wikidata image matches | 442 | 11 | 453 |
+| Candidates reviewed visually | 417 | 11 | 428 |
+| Photos retained | 322 | 9 | 331 |
+| `no_wikidata` | 907 | 305 | 1,212 |
+| `licence` | 19 | 0 | 19 |
+| `no_author` | 5 | 0 | 5 |
+| `too_small` | 1 | 0 | 1 |
+| `review` | 95 | 2 | 97 |
+| Pending | 0 | 0 | 0 |
+| Retained image bytes | 3,189,164 | 39,035 | 3,228,199 |
+| Collector time (approx.) | 3 h 45 min | 1 h 2 min | 4 h 52 min including mixed pilot |
+
+The total time includes the first mixed pilot (4 min 16 s) once. The separate spot and dish times
+each include an estimate for one interrupted pass. All timings include request pacing and cooldowns
+within a pass and exclude time between passes and visual review.
+
+Each catalog ID from local Postgres has exactly one outcome in the manifest or rejection log.
+The offline contact sheet at `.cache/catalog-photos/review.html` embeds all 331 retained AVIFs,
+320 px wide for spots and 200 px wide for dishes.
