@@ -266,3 +266,25 @@ Wikidata image and one was rejected for licence. Of 16 candidates, 14 passed vis
 and two were rejected. One temporary failure and the rate-limited lookup remain pending. The
 manifest and contact sheet contain 250 reviewed photos totaling 2,461,048 bytes. Of the 1,349
 spots, 1,046 have an outcome and 303 are pending.
+
+### National spot search complete — 2026-11-28
+
+The final pass kept the four-second interval and searched the remaining 303 spots. It resolved
+292 in 46 min 13 s. An additional pass resolved all 11 temporary failures in 49 seconds.
+Neither pass received a refusal or rate limit. Of the 97 new candidates, 72 passed visual
+review and 25 were rejected. Another 201 spots had no matching Wikidata image, four were
+rejected for licence, and one lacked a required author.
+
+All 1,349 spot IDs were checked against local Postgres. Each has exactly one outcome across
+the manifest and the local rejection log. The offline contact sheet contains all 322 reviewed
+spot photos, totaling 3,189,164 bytes. The national search was scoped to spots.
+
+| Outcome | Count |
+| --- | ---: |
+| Reviewed photo | 322 |
+| `no_wikidata` | 907 |
+| `licence` | 19 |
+| `no_author` | 5 |
+| `too_small` | 1 |
+| `review` | 95 |
+| Pending | 0 |
