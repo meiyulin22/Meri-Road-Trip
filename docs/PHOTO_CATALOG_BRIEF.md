@@ -76,3 +76,273 @@ Look at every saved photo. If you cannot view images, say so in your report and 
   requests. One failure that says the client is refused (403) or rate limited: stop and report, do not retry in a loop.
 - Before each commit: `npm run lint`, `npm run typecheck`, `npm test`. Report what you ran.
 - The repo is public: never commit `.env.local`, catalog data files or anything from `meri-catalog-cn`.
+
+## Pilot result — 2026-11-27
+
+The Dali and Diqing run read 27 spots and 17 dishes from local Postgres. It downloaded 11 spot candidates in
+4 min 16 s. Visual review retained 9 (7 in Dali and 2 in Diqing), totaling 72,184 bytes. The Erhai satellite
+image and the street scene attributed to Dukezong went to `review`: the first is not a visitor's view, and the
+second could not be placed in the old town with confidence. No candidate was confirmed to show the wrong subject.
+
+| Outcome | Count |
+| --- | ---: |
+| `no_wikidata` (no matching item with a P18 image) | 16 |
+| `licence` | 0 |
+| `no_author` | 0 |
+| `too_small` | 0 |
+| `review` | 2 |
+| Dishes pending after the limit signal | 17 |
+
+Fourteen dish queries failed transiently, one hit a Wikidata rate limit, and two remained unattempted. The run
+stopped at the limit signal without retrying. The dish query was tightened to filter exact-name hits before
+walking the food class hierarchy; the revised query has local test coverage and has yet to be run live.
+
+The offline contact sheet at `.cache/catalog-photos/review.html` contains the nine retained images. To reject
+a saved candidate offline, pass `--reject-review <catalog-id>` with the same city filters. Re-running the collector
+later resumes using the manifest and local rejection log, so only pending entries are queried.
+
+## National spot run — 2026-11-27
+
+The approved nationwide run used `--kind spot`, which selected 1,349 spots and resumed with 1,322 pending.
+The collector checkpoints each completed lookup and reports progress every 25 results. After several temporary
+failures around Baoding, the Wikidata query was kept on the same name and P131 checks and given traversal
+hints for WDQS v1. A previously timed-out lookup returned in 1.56 seconds with those hints.
+
+The two passes took about 15 minutes of collection time. The second stopped immediately when Wikidata
+returned HTTP 429. This run resolved 65 additional spots. Of those, 56 had no matching Wikidata image and
+9 yielded candidates. Visual review kept 6 and rejected 3 (a flower close-up, an isolated gate and a sign).
+
+The manifest now contains 15 reviewed spot photos totaling 148,015 bytes. Across the pilot and national
+run, 72 spots have no matching Wikidata image, 5 are marked for visual rejection, and 1,257 are pending.
+Of the pending spots, two received temporary or rate-limit failures. The saved manifest and local rejection
+log are the checkpoints for a later run. The offline contact sheet contains all 15 retained images.
+
+### National spot continuation — 2026-11-27
+
+The resumed collector spaced requests three seconds apart and waited 65 seconds after a transient WDQS
+failure before querying another subject. It recorded the server's `Retry-After` and stopped immediately on
+HTTP 429 after 19 min 56 s. The server sent `Retry-After: 120`.
+
+This run resolved 105 spots. It found 44 candidates and kept 33 after visual review. Eleven candidates
+were rejected during review. Fifty-eight spots had no matching Wikidata image. One spot each was rejected
+for licence, missing author and insufficient width. Eight queries failed transiently, and the rate-limited query was kept
+pending. Across all runs, 197 spots have an outcome and 1,152 are pending. The manifest and contact sheet
+now contain 48 reviewed photos totaling 436,643 bytes.
+
+### National spot continuation checkpoint — 2026-11-27
+
+The next authorized run resumed after the previous `Retry-After` had elapsed. After 19.6 seconds,
+Wikidata returned HTTP 429 with `Retry-After: 120`. The collector stopped immediately. Four more
+spots had an outcome. Three had no matching Wikidata image, and the Hunan Museum exterior passed
+visual review. The manifest and contact sheet now contain 49 reviewed photos totaling 444,208 bytes.
+Of the 1,349 spots, 201 have an outcome and 1,148 are pending.
+
+### National spot continuation checkpoint 2 — 2026-11-27
+
+This pass ran for 12 min 36 s and stopped immediately on Wikidata HTTP 429 with `Retry-After: 120`.
+It resolved 70 additional spots. Forty-three had no matching Wikidata image and one was rejected
+for licence. Of 26 candidates, 21 passed visual review and five were rejected. Five temporary
+failures and the rate-limited lookup remain pending. The manifest and contact sheet now contain
+70 reviewed photos totaling 667,110 bytes. Of the 1,349 spots, 271 have an outcome and 1,078 are pending.
+
+### National spot continuation checkpoint 3 — 2026-11-27
+
+This pass spaced requests four seconds apart. It ran for 13 min 6 s and stopped immediately on
+Wikidata HTTP 429 with `Retry-After: 120`. It resolved 69 more spots. Fifty had no matching
+Wikidata image. Of 19 candidates, 12 passed visual review and seven were rejected. Five
+temporary failures and the rate-limited lookup remain pending. The manifest and contact sheet
+now contain 82 reviewed photos totaling 793,340 bytes. Of the 1,349 spots, 340 have an outcome
+and 1,009 are pending.
+
+### National spot continuation checkpoint 4 — 2026-11-27
+
+This pass kept the four-second request interval and stopped immediately on Wikidata HTTP 429 with
+`Retry-After: 120` after 7 min 20 s. Of 26 additional resolved spots, 20 had no matching Wikidata
+image, one image lacked a required author, and five photos passed visual review. Four temporary
+failures and the rate-limited lookup remain pending. The manifest and contact sheet contain
+87 reviewed photos totaling 835,735 bytes. Of the 1,349 spots, 366 have an outcome and 983 are pending.
+
+### National spot continuation checkpoint 5 — 2026-11-27
+
+This pass kept the four-second request interval and stopped immediately on Wikidata HTTP 429 with
+`Retry-After: 120` after 8 min 46 s. Of 62 additional resolved spots, 37 had no matching Wikidata
+image and one was rejected for licence. Of 24 candidates, 17 passed visual review and seven were
+rejected. One temporary failure and the rate-limited lookup remain pending. The manifest and
+contact sheet now contain 104 reviewed photos totaling 1,006,289 bytes. Of 1,349 spots, 428 have an
+outcome and 921 are pending.
+
+### National spot continuation checkpoint 6 — 2026-11-27
+
+This pass kept the four-second request interval and stopped immediately on Wikidata HTTP 429
+with `Retry-After: 120` after 33 seconds. Of five additional resolved spots, three had no matching
+image and one was rejected for licence. Hangzhou's Liuhe Pagoda photo passed visual review.
+The manifest and contact sheet contain 105 reviewed photos totaling 1,025,509 bytes. Of the 1,349
+spots, 433 have an outcome and 916 are pending.
+
+### National spot continuation checkpoint 7 — 2026-11-28
+
+The four-second request interval was retained. After 5 min 15 s, Wikidata returned HTTP 429 with
+`Retry-After: 120` and the collector stopped immediately. All 24 newly resolved spots had no
+matching Wikidata image. Three transient failures and the rate-limited lookup remain pending.
+Of the 1,349 spots, 457 have an outcome and 892 are pending. The manifest and contact sheet
+still contain 105 reviewed photos totaling 1,025,509 bytes.
+
+### National spot continuation checkpoint 8 — 2026-11-28
+
+This pass kept the four-second request interval and stopped immediately on Wikidata HTTP 429
+with `Retry-After: 120` after 3 min 56 s. It resolved 40 more spots. Thirty had no matching
+Wikidata image, and one was rejected for licence. Of nine candidates, seven passed visual review
+and two were rejected. The manifest and contact sheet contain 112 reviewed photos totaling
+1,122,975 bytes. Of the 1,349 spots, 497 have an outcome and 852 are pending.
+
+### National spot continuation checkpoint 9 — 2026-11-28
+
+This pass kept the four-second request interval and stopped immediately on Wikidata HTTP 429
+with `Retry-After: 120` after 21 min 18 s. It resolved 77 more spots. Forty-eight had no matching
+Wikidata image, and one was rejected for licence. Of 28 candidates, 25 passed visual review and
+three were rejected. Ten temporary failures and the rate-limited lookup remain pending. The
+manifest and contact sheet contain 137 reviewed photos totaling 1,386,405 bytes. Of the 1,349
+spots, 574 have an outcome and 775 are pending.
+
+### National spot continuation checkpoint 10 — 2026-11-28
+
+This pass kept the four-second request interval and stopped immediately on Wikidata HTTP 429
+with `Retry-After: 120` after 8 min 12 s. It resolved 48 more spots. Thirty-eight had no matching
+Wikidata image, and one image lacked a required author. Of nine candidates, seven passed visual
+review and two were rejected. Three temporary failures and the rate-limited lookup remain pending.
+The manifest and contact sheet contain 144 reviewed photos totaling 1,438,396 bytes. Of the 1,349
+spots, 622 have an outcome and 727 are pending.
+
+### National spot continuation checkpoint 11 — 2026-11-28
+
+This pass kept the four-second request interval and stopped immediately on Wikidata HTTP 429
+with `Retry-After: 120` after 4 min 40 s. It resolved 31 more spots. Twenty-one had no matching
+Wikidata image and one was rejected for licence. Of nine candidates, eight passed visual review
+and one was rejected. One temporary failure and the rate-limited lookup remain pending. The
+manifest and contact sheet contain 152 reviewed photos totaling 1,507,647 bytes. Of the 1,349
+spots, 653 have an outcome and 696 are pending.
+
+### National spot continuation checkpoint 12 — 2026-11-28
+
+This pass kept the four-second request interval and stopped immediately on Wikidata HTTP 429
+with `Retry-After: 120` after 14 min 13 s. It resolved 74 more spots. Forty-nine had no matching
+Wikidata image, one was rejected for licence, and one lacked a required author. Of 23 candidates,
+18 passed visual review and five were rejected. Five temporary failures and the rate-limited
+lookup remain pending. The manifest and contact sheet contain 170 reviewed photos totaling
+1,693,675 bytes. Of the 1,349 spots, 727 have an outcome and 622 are pending.
+
+### National spot continuation checkpoint 13 — 2026-11-28
+
+This pass kept the four-second request interval and stopped immediately on Wikidata HTTP 429
+with `Retry-After: 120` after 10 min 40 s. It resolved 87 more spots. Sixty had no matching Wikidata
+image and two were rejected for licence. Of 25 candidates, 19 passed visual review and six
+were rejected. One temporary failure and the rate-limited lookup remain pending. The manifest
+and contact sheet contain 189 reviewed photos totaling 1,895,307 bytes. Of the 1,349 spots,
+814 have an outcome and 535 are pending.
+
+### National spot continuation checkpoint 14 — 2026-11-28
+
+This pass kept the four-second request interval and stopped immediately on Wikidata HTTP 429
+with `Retry-After: 120` after 7 min 16 s. It resolved 62 more spots. Forty-seven had no matching
+Wikidata image and one was rejected for licence. Of 14 candidates, 13 passed visual review and
+one was rejected. One temporary failure and the rate-limited lookup remain pending. The manifest
+and contact sheet contain 202 reviewed photos totaling 2,015,066 bytes. Of the 1,349 spots, 876
+have an outcome and 473 are pending.
+
+### National spot continuation checkpoint 15 — 2026-11-28
+
+This pass kept the four-second request interval and stopped immediately on Wikidata HTTP 429
+with `Retry-After: 120` after 19 min 3 s. It resolved 135 more spots. Eighty-five had no matching
+Wikidata image and three were rejected for licence. Of 47 candidates, 34 passed visual review
+and 13 were rejected. Three temporary failures and the rate-limited lookup remain pending. The
+manifest and contact sheet contain 236 reviewed photos totaling 2,315,227 bytes. Of the 1,349
+spots, 1,011 have an outcome and 338 are pending.
+
+### National spot continuation checkpoint 16 — 2026-11-28
+
+This pass kept the four-second request interval and stopped immediately on Wikidata HTTP 429
+with `Retry-After: 120` after 5 min 53 s. It resolved 35 more spots. Eighteen had no matching
+Wikidata image and one was rejected for licence. Of 16 candidates, 14 passed visual review
+and two were rejected. One temporary failure and the rate-limited lookup remain pending. The
+manifest and contact sheet contain 250 reviewed photos totaling 2,461,048 bytes. Of the 1,349
+spots, 1,046 have an outcome and 303 are pending.
+
+### National spot search complete — 2026-11-28
+
+The final pass kept the four-second interval and searched the remaining 303 spots. It resolved
+292 in 46 min 13 s. An additional pass resolved all 11 temporary failures in 49 seconds.
+Neither pass received a refusal or rate limit. Of the 97 new candidates, 72 passed visual
+review and 25 were rejected. Another 201 spots had no matching Wikidata image, four were
+rejected for licence, and one lacked a required author.
+
+All 1,349 spot IDs were checked against local Postgres. Each has exactly one outcome across
+the manifest and the local rejection log. The offline contact sheet contains all 322 reviewed
+spot photos, totaling 3,189,164 bytes. The national search was scoped to spots.
+
+| Outcome | Count |
+| --- | ---: |
+| Reviewed photo | 322 |
+| `no_wikidata` | 907 |
+| `licence` | 19 |
+| `no_author` | 5 |
+| `too_small` | 1 |
+| `review` | 95 |
+| Pending | 0 |
+
+### Dish pilot and national search checkpoint — 2026-11-28
+
+Local Postgres returned 316 rows of kind `dish`, including 17 in Dali and Diqing. The previously
+untested dish query returned five consecutive transient failures, and the pilot was paused after
+about 5 min 30 s. The query now follows P31 and P279 from exact Chinese label or alias matches
+towards the food and dish classes. The country and origin filter still excludes entries tied
+to another country. The 17 pilot dishes finished in 2 min 14 s after the change, including one
+retry of a transient failure. None had a matching Wikidata image. A separate positive control
+using 北京烤鸭 returned two distinct Commons candidates.
+
+The national dish pass resumed with 299 pending and ran for 20 min 12 s. It stopped immediately
+on Wikidata HTTP 429 with `Retry-After: 120`. Ten transient failures and the rate-limited lookup
+remain pending, along with dishes the pass had yet to reach. Six files reached visual review
+and five passed. The offline contact sheet contains all 327 retained spot and dish photos.
+
+### National dish continuation — 2026-11-28
+
+The next pass resolved 97 of the 193 remaining dishes in 24 min 13 s. Of these, 94 had no matching
+image. Visual review kept all three new candidates (济南把子肉, 昆明汽锅鸡 and 南宁老友粉).
+Wikidata returned HTTP 429 with `Retry-After: 120` during the Sanya coconut rice lookup. The
+collector stopped immediately. The remaining 96 include 14 temporary failures and the rate-limited
+lookup. Across both national dish passes the only visual rejection was a bowl of 钵钵鸡 obscured
+by skewers. The dish could not be identified confidently. The offline contact sheet contains
+330 photos totaling 3,224,050 bytes.
+
+### Final nationwide results — 2026-11-28
+
+The final dish pass started with 96 pending. It resolved 93 in 10 min 8 s, and a follow-up pass
+resolved all three temporary failures in 9 s. Neither pass received HTTP 403 or 429. Of the two
+new candidates, the Xi’an lamb paomo photo clearly showed the meat and pieces of bread. The Yangzhou
+dazhu gansi photo showed a labeled display, and visual review could not establish that it showed
+the prepared dish. Across all 11 dish candidates, two images were too uncertain to keep and none
+was confirmed to show a different dish. The spot review records do not distinguish confirmed
+wrong locations from other visual rejections across the full run.
+
+| Outcome | Spots | Dishes | Total |
+| --- | ---: | ---: | ---: |
+| Catalog entries checked | 1,349 | 316 | 1,665 |
+| Wikidata image matches | 442 | 11 | 453 |
+| Candidates reviewed visually | 417 | 11 | 428 |
+| Photos retained | 322 | 9 | 331 |
+| `no_wikidata` | 907 | 305 | 1,212 |
+| `licence` | 19 | 0 | 19 |
+| `no_author` | 5 | 0 | 5 |
+| `too_small` | 1 | 0 | 1 |
+| `review` | 95 | 2 | 97 |
+| Pending | 0 | 0 | 0 |
+| Retained image bytes | 3,189,164 | 39,035 | 3,228,199 |
+| Collector time (approx.) | 3 h 45 min | 1 h 2 min | 4 h 52 min including mixed pilot |
+
+The total time includes the first mixed pilot (4 min 16 s) once. The separate spot and dish times
+each include an estimate for one interrupted pass. All timings include request pacing and cooldowns
+within a pass and exclude time between passes and visual review.
+
+Each catalog ID from local Postgres has exactly one outcome in the manifest or rejection log.
+The offline contact sheet at `.cache/catalog-photos/review.html` embeds all 331 retained AVIFs,
+320 px wide for spots and 200 px wide for dishes.
