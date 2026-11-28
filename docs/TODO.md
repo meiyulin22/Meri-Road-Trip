@@ -8,13 +8,12 @@
 
 | # | 事项 | 为什么 | 成本 | 状态 |
 | --- | --- | --- | --- | --- |
-| B1 | 目录景点和菜的小照片 | 景点卡、菜卡没有图；Wikimedia 在国内服务器上不通，所以在 Mac 上预先抓好、压成小尺寸（景点 320px、菜 200px，AVIF）放进 `public/`，带作者和许可证；后台 AI 逐张核对是否认错、是否符合[照片标准](../src/platform/place-photos/) | 免费；全量约 8–17 MB | 先做大理、迪庆试点 |
 | B3 | 私有仓库补坐标等字段 | 住宿区和景点有坐标后可少查天地图 | — | 以后 |
 | C1 | 首页 3 个示范行程 | 展示用 | merlin 写内容 | 待做 |
 | D | 国内 VPS | 天地图工单问一句公网部署是否需企业开发者（原 T7，5 分钟，不阻塞）、ICP 备案、验证码（ALTCHA）、国内 Postgres + `db.ts` host 检查 + 4 处事务、天地图白名单、nginx X-Real-IP、服务器上测天气、密钥（含 `DASHSCOPE_API_KEY`）、SSH 隧道导入目录并填向量；clone 用镜像加速 + `--depth 1` + 稀疏检出跳过 `assets/`，见 [DEPLOY_BRIEF.md](DEPLOY_BRIEF.md) | — | 暂缓 |
 | E | 最后 | 统一评测一次（目录开/关、路线和选点的思考强度 low/high、Kimi 与 Jev、单 Agent 与多 Agent）；项目总结 | 先报价 | 最后 |
 
-最近做完（细节见 [agents README](../src/agents/README.md) 和 [USER_FLOW_CURRENT.md](USER_FLOW_CURRENT.md)）：RAG 1–5 步（目录入库、调研先查目录、向量与关键词混合检索、Workspace 推荐城市、提示 / 怎么去 / 住宿区 / 攻略餐馆）；计划页模块化布局；住宿按地方分段；穿搭收成一行；Geist 本地字体；地图提示；西双版纳简称；核实逐个景点校验；点名景点的检索评测；目录 1438 条摘要改成 Meri 的口吻（B2，私有仓库补充文件，导入时合并）。
+最近做完（细节见 [agents README](../src/agents/README.md) 和 [USER_FLOW_CURRENT.md](USER_FLOW_CURRENT.md)）：RAG 1–5 步（目录入库、调研先查目录、向量与关键词混合检索、Workspace 推荐城市、提示 / 怎么去 / 住宿区 / 攻略餐馆）；计划页模块化布局；住宿按地方分段；穿搭收成一行；Geist 本地字体；地图提示；西双版纳简称；核实逐个景点校验；点名景点的检索评测；目录 1438 条摘要改成 Meri 的口吻（B2，私有仓库补充文件，导入时合并）；目录景点和菜的 Wikimedia 小照片（B1，景点 322、菜 9）显示在计划页景点卡和菜卡上。
 
 ## 天地图的已知事实（2026-10-23 实测，不要重复调研）
 
