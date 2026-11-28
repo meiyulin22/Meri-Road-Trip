@@ -257,3 +257,12 @@ Wikidata image and three were rejected for licence. Of 47 candidates, 34 passed 
 and 13 were rejected. Three temporary failures and the rate-limited lookup remain pending. The
 manifest and contact sheet contain 236 reviewed photos totaling 2,315,227 bytes. Of the 1,349
 spots, 1,011 have an outcome and 338 are pending.
+
+### National spot continuation checkpoint 16 — 2026-11-28
+
+This pass kept the four-second request interval and stopped immediately on Wikidata HTTP 429
+with `Retry-After: 120` after 5 min 53 s. It resolved 35 more spots. Eighteen had no matching
+Wikidata image and one was rejected for licence. Of 16 candidates, 14 passed visual review
+and two were rejected. One temporary failure and the rate-limited lookup remain pending. The
+manifest and contact sheet contain 250 reviewed photos totaling 2,461,048 bytes. Of the 1,349
+spots, 1,046 have an outcome and 303 are pending.
