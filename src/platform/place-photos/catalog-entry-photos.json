@@ -1258,5 +1258,89 @@
     "sourceUrl": "https://commons.wikimedia.org/wiki/File:Nanyue_zhonglieci.JPG",
     "wikidata": "Q10907647",
     "fetchedAt": "2026-11-27T13:52:28.999Z"
+  },
+  "spot_hualien_qixingtan": {
+    "file": "/photos/catalog/spot_hualien_qixingtan.avif",
+    "width": 320,
+    "height": 213,
+    "title": "File:2004.02.01.七星潭 - panoramio.jpg",
+    "author": "MickeyDisney",
+    "license": "CC BY-SA 3.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:2004.02.01.%E4%B8%83%E6%98%9F%E6%BD%AD_-_panoramio.jpg",
+    "wikidata": "Q16890300",
+    "fetchedAt": "2026-11-28T03:30:04.883Z"
+  },
+  "spot_hualien_taroko": {
+    "file": "/photos/catalog/spot_hualien_taroko.avif",
+    "width": 320,
+    "height": 427,
+    "title": "File:Eternal Spring Shrine in Taroko.JPG",
+    "author": "Tommy.In",
+    "license": "CC BY-SA 3.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Eternal_Spring_Shrine_in_Taroko.JPG",
+    "wikidata": "Q707427",
+    "fetchedAt": "2026-11-28T03:30:17.734Z"
+  },
+  "spot_huangnan_kanbula": {
+    "file": "/photos/catalog/spot_huangnan_kanbula.avif",
+    "width": 320,
+    "height": 241,
+    "title": "File:Kanbula Geopark.png",
+    "author": "Mutikonka",
+    "license": "CC BY-SA 4.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Kanbula_Geopark.png",
+    "wikidata": "Q10928561",
+    "fetchedAt": "2026-11-28T03:30:30.045Z"
+  },
+  "spot_huangnan_longwu": {
+    "file": "/photos/catalog/spot_huangnan_longwu.avif",
+    "width": 320,
+    "height": 240,
+    "title": "File:Rebkong monastery.JPG",
+    "author": "Andelicek.andy",
+    "license": "CC BY-SA 3.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Rebkong_monastery.JPG",
+    "wikidata": "Q196175",
+    "fetchedAt": "2026-11-28T03:30:41.137Z"
+  },
+  "spot_huangshan_hongcun": {
+    "file": "/photos/catalog/spot_huangshan_hongcun.avif",
+    "width": 320,
+    "height": 200,
+    "title": "File:South Lake of Hongcun 20141110.JPG",
+    "author": "颐园新居",
+    "license": "CC BY-SA 4.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:South_Lake_of_Hongcun_20141110.JPG",
+    "wikidata": "Q4008",
+    "fetchedAt": "2026-11-28T03:31:16.966Z"
+  },
+  "spot_huangshan_welcome_pine": {
+    "file": "/photos/catalog/spot_huangshan_welcome_pine.avif",
+    "width": 320,
+    "height": 325,
+    "title": "File:Huangshan pic 2.jpg",
+    "author": "andreaqi / Andrew Ciceri",
+    "license": "CC BY-SA 2.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/2.0",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Huangshan_pic_2.jpg",
+    "wikidata": "Q116196013",
+    "fetchedAt": "2026-11-28T03:32:33.310Z"
+  },
+  "spot_huangshan_xidi": {
+    "file": "/photos/catalog/spot_huangshan_xidi.avif",
+    "width": 320,
+    "height": 425,
+    "title": "File:Xidi1024x1360.jpg",
+    "author": "RolfMueller",
+    "license": "CC BY-SA 3.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0/",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Xidi1024x1360.jpg",
+    "wikidata": "Q4010",
+    "fetchedAt": "2026-11-28T03:32:45.409Z"
   }
 }
