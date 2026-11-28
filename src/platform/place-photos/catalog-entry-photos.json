@@ -59,6 +59,42 @@
     "wikidata": "Q713892",
     "fetchedAt": "2026-11-28T13:36:39.663Z"
   },
+  "dish_jinan_bazirou": {
+    "file": "/photos/catalog/dish_jinan_bazirou.avif",
+    "width": 200,
+    "height": 133,
+    "title": "File:Bazirou above rice at Chao Yi Xing, Caoqiao, Beijing (20231209134804).jpg",
+    "author": "N509FZ",
+    "license": "CC BY-SA 4.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Bazirou_above_rice_at_Chao_Yi_Xing,_Caoqiao,_Beijing_(20231209134804).jpg",
+    "wikidata": "Q124053312",
+    "fetchedAt": "2026-11-28T14:07:50.183Z"
+  },
+  "dish_kunming_steam_chicken": {
+    "file": "/photos/catalog/dish_kunming_steam_chicken.avif",
+    "width": 200,
+    "height": 176,
+    "title": "File:Qi Guoji.jpg",
+    "author": "Shizhao",
+    "license": "CC BY-SA 3.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Qi_Guoji.jpg",
+    "wikidata": "Q11137498",
+    "fetchedAt": "2026-11-28T14:15:10.178Z"
+  },
+  "dish_nanning_laoyou": {
+    "file": "/photos/catalog/dish_nanning_laoyou.avif",
+    "width": 200,
+    "height": 133,
+    "title": "File:Laoyoufen with beef at Wanguo Restaurant, Nanning (20240216205412).jpg",
+    "author": "N509FZ",
+    "license": "CC BY-SA 4.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Laoyoufen_with_beef_at_Wanguo_Restaurant,_Nanning_(20240216205412).jpg",
+    "wikidata": "Q55285600",
+    "fetchedAt": "2026-11-28T14:21:45.599Z"
+  },
   "spot_aba_huanglong": {
     "file": "/photos/catalog/spot_aba_huanglong.avif",
     "width": 320,

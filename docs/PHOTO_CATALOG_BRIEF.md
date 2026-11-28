@@ -304,21 +304,31 @@ on Wikidata HTTP 429 with `Retry-After: 120`. Ten transient failures and the rat
 remain pending, along with dishes the pass had yet to reach. Six files reached visual review
 and five passed. The offline contact sheet contains all 327 retained spot and dish photos.
 
+### National dish continuation — 2026-11-28
+
+The next pass resolved 97 of the 193 remaining dishes in 24 min 13 s. Of these, 94 had no matching
+image. Visual review kept all three new candidates (济南把子肉, 昆明汽锅鸡 and 南宁老友粉).
+Wikidata returned HTTP 429 with `Retry-After: 120` during the Sanya coconut rice lookup. The
+collector stopped immediately. The remaining 96 include 14 temporary failures and the rate-limited
+lookup. Across both national dish passes the only visual rejection was a bowl of 钵钵鸡 obscured
+by skewers. The dish could not be identified confidently. The offline contact sheet contains
+330 photos totaling 3,224,050 bytes.
+
 | Outcome | National spots, final | National dishes, partial |
 | --- | ---: | ---: |
 | Catalog entries | 1,349 | 316 |
-| Completed | 1,349 | 123 |
-| Wikidata image matches | 442 | 6 |
-| Candidates reviewed visually | 417 | 6 |
-| Photos retained | 322 | 5 |
-| `no_wikidata` | 907 | 117 |
+| Completed | 1,349 | 220 |
+| Wikidata image matches | 442 | 9 |
+| Candidates reviewed visually | 417 | 9 |
+| Photos retained | 322 | 8 |
+| `no_wikidata` | 907 | 211 |
 | `licence` | 19 | 0 |
 | `no_author` | 5 | 0 |
 | `too_small` | 1 | 0 |
 | `review` | 95 | 1 |
-| Pending | 0 | 193 |
-| Retained image bytes | 3,189,164 | 23,138 |
-| Collector time | Approximately 3 h 45 min | Approximately 28 min |
+| Pending | 0 | 96 |
+| Retained image bytes | 3,189,164 | 34,886 |
+| Collector time | Approximately 3 h 45 min | Approximately 52 min |
 
 Spot timing sums the national passes and includes an estimate for one interrupted pass.
 It excludes the first mixed spot/dish pilot (4 min 16 s). Dish timing includes the initial
