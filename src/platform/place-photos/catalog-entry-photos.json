@@ -1,4 +1,64 @@
 {
+  "dish_beijing_roast_duck": {
+    "file": "/photos/catalog/dish_beijing_roast_duck.avif",
+    "width": 200,
+    "height": 150,
+    "title": "File:Peking duck by Mr Wabu in Beijing.jpg",
+    "author": "Mr Wabu",
+    "license": "CC BY-SA 2.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/2.0",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Peking_duck_by_Mr_Wabu_in_Beijing.jpg",
+    "wikidata": "Q404973",
+    "fetchedAt": "2026-11-28T13:20:55.064Z"
+  },
+  "dish_chengdu_sandapao": {
+    "file": "/photos/catalog/dish_chengdu_sandapao.avif",
+    "width": 200,
+    "height": 133,
+    "title": "File:Chengdu travel 037 (36057415511).jpg",
+    "author": "JianEn Yu",
+    "license": "CC BY 2.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by/2.0",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Chengdu_travel_037_(36057415511).jpg",
+    "wikidata": "Q10865714",
+    "fetchedAt": "2026-11-28T13:24:27.911Z"
+  },
+  "dish_chongqing_maoxuewang": {
+    "file": "/photos/catalog/dish_chongqing_maoxuewang.avif",
+    "width": 200,
+    "height": 150,
+    "title": "File:Mao Xuewang 1.jpg",
+    "author": "Alpha",
+    "license": "CC BY-SA 2.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/2.0",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Mao_Xuewang_1.jpg",
+    "wikidata": "Q11128412",
+    "fetchedAt": "2026-11-28T13:25:08.058Z"
+  },
+  "dish_datong_knife_noodle": {
+    "file": "/photos/catalog/dish_datong_knife_noodle.avif",
+    "width": 200,
+    "height": 267,
+    "title": "File:Datong Fideos.jpg",
+    "author": "Seba Della y Sole Bossio from Cordoba, Argentina",
+    "license": "CC BY 2.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by/2.0",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Datong_Fideos.jpg",
+    "wikidata": "Q10934152",
+    "fetchedAt": "2026-11-28T13:26:52.136Z"
+  },
+  "dish_huizhou_stuffed_tofu": {
+    "file": "/photos/catalog/dish_huizhou_stuffed_tofu.avif",
+    "width": 200,
+    "height": 150,
+    "title": "File:酿豆腐 2.jpg",
+    "author": "Mx. Granger",
+    "license": "CC0",
+    "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/deed.en",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:%E9%85%BF%E8%B1%86%E8%85%90_2.jpg",
+    "wikidata": "Q713892",
+    "fetchedAt": "2026-11-28T13:36:39.663Z"
+  },
   "spot_aba_huanglong": {
     "file": "/photos/catalog/spot_aba_huanglong.avif",
     "width": 320,

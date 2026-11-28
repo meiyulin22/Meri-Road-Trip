@@ -58,8 +58,9 @@ export function photoQuery(subject: CatalogPhotoSubject): string | null {
   }
   if (!/\p{Script=Han}/u.test(subject.name) || /[\r\n\t]/u.test(subject.name)) return null;
   const names = chineseLanguageTags.map((tag) => `${literal(subject.name)}@${tag}`).join(" ");
-  // Restrict the joins to exact-name hits before following the food class hierarchy.
+  // WDQS v1 otherwise walks backwards from the broad food classes before using exact-name hits.
   return `SELECT DISTINCT ?item ?image ?name ?rank WHERE {
+  hint:Query hint:optimizer "None".
   {
     SELECT DISTINCT ?item ?image ?name ?rank WHERE {
       VALUES ?name { ${names} }
@@ -67,10 +68,10 @@ export function photoQuery(subject: CatalogPhotoSubject): string | null {
       ?item wdt:P18 ?image.
     } LIMIT 40
   }
-  FILTER EXISTS {
-    VALUES ?foodClass { wd:Q2095 wd:Q746549 }
-    ?item wdt:P31/wdt:P279* ?foodClass.
-  }
+  ?item wdt:P31 ?dishClass.
+  VALUES ?foodClass { wd:Q2095 wd:Q746549 }
+  ?dishClass wdt:P279* ?foodClass.
+  hint:Prior hint:gearing "forward".
   FILTER NOT EXISTS {
     ?item (wdt:P17|wdt:P495) ?country.
     FILTER (?country != wd:Q148)

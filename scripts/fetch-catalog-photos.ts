@@ -235,7 +235,7 @@ async function run(subjects: readonly CatalogPhotoSubject[], manifest: Manifest,
     }
     const lines = [...rejected.values()].map((row) => `${JSON.stringify(row)}\n`).join("");
     await writeAtomic(rejectedPath, lines);
-    await writeReview(subjects, manifest);
+    await writeReview(await loadSubjects([]), manifest);
     process.stdout.write(`${JSON.stringify({ total: subjects.length, saved, bytes, skipped: counts, visualRejected, unavailable,
       pending: subjects.length - saved - Object.values(counts).reduce((sum, count) => sum + count, 0),
       seconds: Number(((performance.now() - start) / 1000).toFixed(3)), stop })}\n`);

@@ -288,3 +288,39 @@ spot photos, totaling 3,189,164 bytes. The national search was scoped to spots.
 | `too_small` | 1 |
 | `review` | 95 |
 | Pending | 0 |
+
+### Dish pilot and national search checkpoint — 2026-11-28
+
+Local Postgres returned 316 rows of kind `dish`, including 17 in Dali and Diqing. The previously
+untested dish query returned five consecutive transient failures, and the pilot was paused after
+about 5 min 30 s. The query now follows P31 and P279 from exact Chinese label or alias matches
+towards the food and dish classes. The country and origin filter still excludes entries tied
+to another country. The 17 pilot dishes finished in 2 min 14 s after the change, including one
+retry of a transient failure. None had a matching Wikidata image. A separate positive control
+using 北京烤鸭 returned two distinct Commons candidates.
+
+The national dish pass resumed with 299 pending and ran for 20 min 12 s. It stopped immediately
+on Wikidata HTTP 429 with `Retry-After: 120`. Ten transient failures and the rate-limited lookup
+remain pending, along with dishes the pass had yet to reach. Six files reached visual review
+and five passed. The offline contact sheet contains all 327 retained spot and dish photos.
+
+| Outcome | National spots, final | National dishes, partial |
+| --- | ---: | ---: |
+| Catalog entries | 1,349 | 316 |
+| Completed | 1,349 | 123 |
+| Wikidata image matches | 442 | 6 |
+| Candidates reviewed visually | 417 | 6 |
+| Photos retained | 322 | 5 |
+| `no_wikidata` | 907 | 117 |
+| `licence` | 19 | 0 |
+| `no_author` | 5 | 0 |
+| `too_small` | 1 | 0 |
+| `review` | 95 | 1 |
+| Pending | 0 | 193 |
+| Retained image bytes | 3,189,164 | 23,138 |
+| Collector time | Approximately 3 h 45 min | Approximately 28 min |
+
+Spot timing sums the national passes and includes an estimate for one interrupted pass.
+It excludes the first mixed spot/dish pilot (4 min 16 s). Dish timing includes the initial
+interrupted dish pilot. Both figures include pacing and pauses within each pass and exclude
+time between passes and visual review.

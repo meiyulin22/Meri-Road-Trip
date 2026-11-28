@@ -37,7 +37,9 @@ test("dish queries match the exact Chinese name as a label or alias and exclude 
   assert.doesNotMatch(query, /另一道菜/u);
   assert.match(query, /skos:altLabel \?name/u);
   assert.match(query, /wd:Q2095 wd:Q746549/u);
-  assert.match(query, /wdt:P31\/wdt:P279\*/u);
+  assert.match(query, /hint:Query hint:optimizer "None"/u);
+  assert.match(query, /\?item wdt:P31 \?dishClass/u);
+  assert.match(query, /\?dishClass wdt:P279\* \?foodClass\.\s+hint:Prior hint:gearing "forward"/u);
   assert.match(query, /FILTER NOT EXISTS \{\s+\?item \(wdt:P17\|wdt:P495\) \?country\.\s+FILTER \(\?country != wd:Q148\)/u);
   assert.equal(photoWidth("dish"), 200);
 });
